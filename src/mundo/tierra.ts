@@ -174,12 +174,12 @@ export function tierra(): Tierra {
         void main() {
           #include <logdepthbuf_fragment>
           float mu = max(dot(vN, vV), 0.0);
-          float rim = pow(1.0 - mu, 4.0);
+          float rim = pow(max(1.0 - mu, 0.0), 4.0);
           float d = dot(vN, uSun);
           float day = smoothstep(-0.3, 0.35, d);
           vec3 c = vec3(0.3, 0.55, 1.0) * rim * day * 1.6;
           c += vec3(1.0, 0.55, 0.25) * rim * exp(-(d / 0.12) * (d / 0.12)) * 0.9;
-          c += vec3(0.35, 1.0, 0.55) * pow(1.0 - mu, 9.0) * (1.0 - day) * 0.22;
+          c += vec3(0.35, 1.0, 0.55) * pow(max(1.0 - mu, 0.0), 9.0) * (1.0 - day) * 0.22;
           gl_FragColor = vec4(c, 1.0);
         }`,
       transparent: true,
@@ -266,7 +266,7 @@ export function tierra(): Tierra {
           c += (1.0 - m.a) * vec3(1.0, 0.9, 0.75) * pow(max(dot(n, h), 0.0), 120.0) * 2.2 * step(0.0, d);
           // Haze towards the limb on the day side.
           float mu = max(dot(n, vV), 0.0);
-          c = mix(c, vec3(0.25, 0.45, 0.9) * smoothstep(-0.1, 0.4, d) * 0.5, pow(1.0 - mu, 3.0) * 0.6);
+          c = mix(c, vec3(0.25, 0.45, 0.9) * smoothstep(-0.1, 0.4, d) * 0.5, pow(max(1.0 - mu, 0.0), 3.0) * 0.6);
           gl_FragColor = vec4(c, 1.0);
         }`,
     });
@@ -339,7 +339,7 @@ export function tierra(): Tierra {
         float on = smoothstep(aOrder, aOrder + 0.04, uLights);
         // The lights added after today can keep their light below a pixel, so a filling land reads from afar.
         if (aOrder > 0.4) fuente = uNuevas;
-        em *= on * smoothstep(0.12, -0.1, d);
+        em *= on * (1.0 - smoothstep(-0.1, 0.12, d));
         // Seen through more air near the limb, the lights fade.
         em *= smoothstep(0.0, 0.3, dot(normalize(p), normalize(uCamL - p)));
         ${HORIZONTE}`,

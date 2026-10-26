@@ -79,7 +79,7 @@ export function sol() {
           float r = length(vUv) * 40.0;
           if (r < 1.0) discard;
           float a = 0.9 / (r * r) + 0.06 * exp(-r * 0.12);
-          a *= smoothstep(40.0, 30.0, r);
+          a *= 1.0 - smoothstep(30.0, 40.0, r);
           vec3 g = vec3(1.0, 0.8, 0.55) * a * 6.0 * (1.0 - 0.8 * uDim);
           if (uIR > 0.5 && gl_FragCoord.x > uWipePx) g *= vec3(0.25, 0.08, 0.03);
           gl_FragColor = vec4(g, 1.0);
@@ -355,7 +355,7 @@ export function mercurio() {
           vec3 nn = normalize(n - ((hx - h0) * t1 + (hy - h0) * t2) / e0 * 0.012);
           // How long ago the machines were here, and the terraces they leave.
           float e = (1.0 - dot(n, uMina)) * 0.5 + 0.006 * sin(dot(n, uTA) * 40.0) * cos(dot(n, uTB) * 33.0);
-          float mined = smoothstep(uEat + 0.0015, uEat - 0.0015, e);
+          float mined = 1.0 - smoothstep(uEat - 0.0015, uEat + 0.0015, e);
           float terr = fract(e * 160.0);
           vec3 nm = normalize(n + (uMina - n * dot(n, uMina)) * (smoothstep(0.0, 0.15, terr) - 0.5) * 0.6);
           vec3 N = normalize(mix(nn, nm, mined));
@@ -409,7 +409,7 @@ export function mercurio() {
         float s = fract(aS + uTime * 0.12);
         s = s * s;
         p = rot(uMina, uAxis, (s - 0.5) * uSpan) * 0.95;
-        em *= smoothstep(1.0, 0.97, s);
+        em *= 1.0 - smoothstep(0.97, 1.0, s);
       }
       ${HORIZONTE}`,
     uniforms: { ...uni, uMina: { value: MINA }, uAxis: { value: new THREE.Vector3() }, uSpan: { value: 0 } },
@@ -580,7 +580,7 @@ export function ruta(count: number, speed: number, color: THREE.Color, size: num
       float t = fract(seed + uTime * uSpeed);
       t = pow(t, uAccel);
       p = bez(t);
-      em *= smoothstep(0.0, 0.03, t) * smoothstep(1.0, 0.95, t);
+      em *= smoothstep(0.0, 0.03, t) * (1.0 - smoothstep(0.95, 1.0, t));
       fuente = 1.0;`,
     uniforms: u,
   });

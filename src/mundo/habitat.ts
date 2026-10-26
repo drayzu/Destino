@@ -72,7 +72,7 @@ export function cilindro() {
             float river = abs(s - 0.5 - 0.17 * sin(y * 0.33) - 0.05 * sin(y * 1.27 + 1.0));
             col = mix(col, vec3(0.08, 0.2, 0.32), 1.0 - smoothstep(0.012, 0.028, river));
             // Towards the windows the valley rises in terraces.
-            float rise = smoothstep(0.0, 0.14, s) * smoothstep(1.0, 0.86, s);
+            float rise = smoothstep(0.0, 0.14, s) * (1.0 - smoothstep(0.86, 1.0, s));
             col *= 0.6 + 0.4 * rise;
             col *= uDay * 1.25;
             // Towns: lights where the houses are (warm and teal).
