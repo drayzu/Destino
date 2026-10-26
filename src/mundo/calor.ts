@@ -100,7 +100,7 @@ export function infrarrojo() {
           float own = 0.16 + 0.1 * (1.0 - n.y * n.y);
           float h = texture2D(uHeat, vUv).r;
           float t = own + uGlobal + uLocal * h;
-          vec3 col = ramp(t) * (0.45 + 0.55 * sqrt(mu)) * 0.85;
+          vec3 col = ramp(t) * (0.45 + 0.55 * sqrt(max(mu, 0.0))) * 0.85;
           gl_FragColor = vec4(col, 1.0);
         }`,
     }),

@@ -69,9 +69,12 @@ export interface Estado {
    * which keep their own horizon. When it looks bigger than the Earth, it takes the Earth's place.
    */
   oclusor: { c: THREE.Vector3; r: number; propias: Nube[] } | null;
+  /** The observer's speed (fraction of c) and direction (world): the sky and every point aberrate. */
+  beta: number;
+  vel: THREE.Vector3;
 }
 
-const DEFECTO: Estado = { luces: 0.36, nuevas: 0, giro: 0, cercanias: 0, luna: 1, galaxia: 1, cielo: 0.8, solDim: 0.55, oclusor: null };
+const DEFECTO: Estado = { luces: 0.36, nuevas: 0, giro: 0, cercanias: 0, luna: 1, galaxia: 1, cielo: 0.8, solDim: 0.55, oclusor: null, beta: 0, vel: new THREE.Vector3(0, 0, -1) };
 
 export type Mundo = ReturnType<typeof crearMundo>;
 
@@ -216,6 +219,9 @@ export function crearMundo(scene: THREE.Scene) {
       G.nube.u.uNear.value = 600;
       G.nube.u.uFloor.value = 0.05;
       sky.u.uBrillo.value = estado.cielo * inDisk;
+      sky.u.uBeta.value = estado.beta;
+      sky.u.uVelW.value.copy(estado.vel).normalize();
+      const velV = estado.vel.clone().normalize().transformDirection(camera.matrixWorldInverse);
 
       // The Sun.
       sun.update(camera, time, estado.solDim);
@@ -255,6 +261,8 @@ export function crearMundo(scene: THREE.Scene) {
         if (own.has(n)) n.u.uOcc.value.set(0, 0, 0, 0);
         else n.u.uOcc.value.set(ec.x, ec.y, ec.z, er);
         enfocar(n, focal, dpr, time);
+        n.u.uBeta.value = estado.beta;
+        n.u.uVelV.value.copy(velV);
         n.u.uSizeUnit.value = n.points.getWorldScale(tmp).x;
         n.u.uMinPx.value = 1.3 * dpr;
       }

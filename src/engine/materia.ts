@@ -13,6 +13,9 @@ import { rng } from './math';
  * - `uFog`: the distance light travels (scene units). Farther points dissolve into the background;
  *   0 turns it off.
  * - Scenes add their own motion and light with GLSL (`move`, run on `p`, `em`, `occ`, `sz`).
+ * - `uBeta`, `uVelV`: the observer's speed (in c) and direction (view space). Every point is seen
+ *   where aberration puts it (bunched towards where we go) and with its light Doppler-shifted
+ *   (bluer and brighter ahead, redder and dimmer behind).
  */
 
 const VERT = (pre: string, move: string, post = '') => /* glsl */ `
@@ -21,6 +24,8 @@ const VERT = (pre: string, move: string, post = '') => /* glsl */ `
   attribute float size, seed, aDelay, aKind, aInk;
   uniform float uTime, uFocal, uMinPx, uMaxPx, uSizeUnit, uGain, uInk, uK, uSpread, uFog, uFogNear, uFuente;
   uniform vec4 uOcc;
+  uniform float uBeta;
+  uniform vec3 uVelV;
   varying vec3 vEm;
   varying float vOcc;
   ${pre}
@@ -34,6 +39,18 @@ const VERT = (pre: string, move: string, post = '') => /* glsl */ `
     float fuente = uFuente;
     ${move}
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
+    if (uBeta > 0.0) {
+      // Aberration: cos θ' = (cos θ + β) / (1 + β cos θ); Doppler D = 1 / (γ (1 − β cos θ')).
+      float r = length(mv.xyz);
+      vec3 n = mv.xyz / max(r, 1e-30);
+      float c = dot(n, uVelV);
+      float c2 = (c + uBeta) / (1.0 + uBeta * c);
+      vec3 perp = n - uVelV * c;
+      float pl = length(perp);
+      if (pl > 1e-6) mv.xyz = (uVelV * c2 + perp / pl * sqrt(max(1.0 - c2 * c2, 0.0))) * r;
+      float D = sqrt(1.0 - uBeta * uBeta) / (1.0 - uBeta * c2);
+      em *= D * D * D * vec3(pow(D, -2.0), pow(D, 0.5), pow(D, 2.5));
+    }
     gl_Position = projectionMatrix * mv;
     // A planet hides what is behind it (uOcc: its centre in view space and its radius; w = 0: none).
     if (uOcc.w > 0.0) {
@@ -110,6 +127,8 @@ export function materia(data: MateriaData, o: MateriaOpts = {}) {
     uFogNear: { value: 0 },
     uFuente: { value: 0 },
     uOcc: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uBeta: { value: 0 },
+    uVelV: { value: new THREE.Vector3(0, 0, -1) },
   };
   const mat = new THREE.ShaderMaterial({
     vertexShader: VERT(o.pre ?? '', o.move ?? '', o.post ?? ''),

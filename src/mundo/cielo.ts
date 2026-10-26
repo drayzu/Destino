@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { pantalla } from '../engine/pantalla';
 
 /**
@@ -8,7 +9,8 @@ import { pantalla } from '../engine/pantalla';
 export function cielo(brillo = 1) {
   return pantalla(
     /* glsl */ `
-    uniform float uTanHalf, uBrillo, uIR, uWipePx, uBanda;
+    uniform float uTanHalf, uBrillo, uIR, uWipePx, uBanda, uBeta;
+    uniform vec3 uVelW;
     float h13(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
     float n3(vec3 p) {
       vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -32,6 +34,17 @@ export function cielo(brillo = 1) {
     }
     void main() {
       vec3 d = normalize(vDir);
+      // Moving fast, this pixel shows a star from further back (inverse aberration), Doppler-shifted.
+      vec3 tint = vec3(1.0);
+      if (uBeta > 0.0) {
+        float c2 = dot(d, uVelW);
+        float c = (c2 - uBeta) / (1.0 - uBeta * c2);
+        vec3 perp = d - uVelW * c2;
+        float pl = length(perp);
+        if (pl > 1e-6) d = uVelW * c + perp / pl * sqrt(max(1.0 - c * c, 0.0));
+        float D = sqrt(1.0 - uBeta * uBeta) / (1.0 - uBeta * c2);
+        tint = D * D * D * vec3(pow(D, -2.0), pow(D, 0.5), pow(D, 2.5));
+      }
       float pxRad = uRes.y * 0.5 / uTanHalf;
       // The galactic plane, tilted against the ecliptic as it is (≈ 60°).
       vec3 G = normalize(vec3(0.0, 0.5, 0.866));
@@ -45,9 +58,9 @@ export function cielo(brillo = 1) {
       float dust = smoothstep(0.45, 0.75, fbm(d * 11.0 + 3.0)) * exp(-(lat / 0.05) * (lat / 0.05));
       col += mix(vec3(0.55, 0.6, 0.75), vec3(1.0, 0.85, 0.62), toward) * glow * 0.055 * (1.0 - 0.8 * dust) * uBanda;
       if (uIR > 0.5 && gl_FragCoord.x > uWipePx) col = vec3(dot(col, vec3(0.3, 0.5, 0.2))) * vec3(0.5, 0.22, 0.12);
-      gl_FragColor = vec4(col * uBrillo, 1.0);
+      gl_FragColor = vec4(col * tint * uBrillo, 1.0);
     }
   `,
-    { uBrillo: { value: brillo }, uIR: { value: 0 }, uWipePx: { value: 1e9 }, uBanda: { value: 1 } },
+    { uBrillo: { value: brillo }, uIR: { value: 0 }, uWipePx: { value: 1e9 }, uBanda: { value: 1 }, uBeta: { value: 0 }, uVelW: { value: new THREE.Vector3(0, 0, -1) } },
   );
 }
