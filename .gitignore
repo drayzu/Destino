@@ -3,3 +3,7 @@ dist
 
 # capture frames for the README and studies (heavy)
 tools/src/
+
+# the brief and local tooling stay out of the repository
+BRIEF.md
+.claude/
