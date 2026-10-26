@@ -5,7 +5,7 @@ import { TEAL, cifra, ink, nota, type Muro } from '../engine/placa';
 import { flecha, linea, texto } from '../engine/lamina';
 import { mezcla, type Vista } from '../engine/vista';
 import { calentamiento, grados, industria, infrarrojo } from '../mundo/calor';
-import { E, SOL_DESDE_E, deriva, noche, type Mundo } from '../mundo/mundo';
+import { E, deriva, noche, type Mundo } from '../mundo/mundo';
 import { GEO, R_E } from '../mundo/obras';
 import type { Acto, Cuadro } from './tipos';
 
@@ -103,21 +103,7 @@ export function hoy(): Acto {
       m = mundo;
       m.body.add(ir.mesh, ind.points);
       m.nubes.push(ind);
-      // The turn that puts the elevator just past dusk, on the side we come from.
-      const up0 = m.ascensor;
-      let best = 0;
-      let bestErr = 9;
-      for (let k = 0; k < 1440; k++) {
-        const phi = (k / 1440) * Math.PI * 2;
-        const u = up0.clone().applyQuaternion(m.giroQ(phi));
-        const side = u.clone().cross(SOL_DESDE_E).y;
-        const err = Math.abs(u.dot(SOL_DESDE_E) + 0.18) + (side > 0 ? 0 : 1);
-        if (err < bestErr) {
-          bestErr = err;
-          best = phi;
-        }
-      }
-      giroAsc = best;
+      giroAsc = m.giroAscensor;
       giroDelta = ((((giroAsc - m.giroNoche) % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
     },
     vista(p) {
@@ -143,7 +129,8 @@ export function hoy(): Acto {
     },
     update(f) {
       const { p, time, W } = f;
-      const on = p > P('a2') - 1 && p < P('a2.fin') + 2;
+      // (the band in orbit stays while the next act leaves the Earth behind)
+      const on = p > P('a2') - 1 && p < P('a2.fin') + 6;
       ind.points.visible = on;
       // The industry rising.
       ind.u.uK.value = clamp(tl.get('a2.sube', p), 0, 1);

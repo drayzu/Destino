@@ -31,6 +31,9 @@ export const SOL_DESDE_E = E.clone().negate().normalize();
  * From the Earth towards a camera that sees its night side with the Sun just behind the right limb
  * (a thin crescent of day at the edge): the view of «Hoy».
  */
+/** Where the Moon is, seen from the Earth (world), and the Moon itself (AU). */
+export const LUNA_DIR = SOL_DESDE_E.clone().applyAxisAngle(V(0, 1, 0), 2.2).add(V(0, 0.08, 0)).normalize();
+export const LUNA = E.clone().addScaledVector(LUNA_DIR, MOON_D * R_E);
 export const NOCHE = SOL_DESDE_E.clone().multiplyScalar(-0.77).addScaledVector(SOL_DESDE_E.clone().cross(V(0, 1, 0)).normalize(), 0.64).normalize();
 
 /**
@@ -108,8 +111,7 @@ export function crearMundo(scene: THREE.Scene) {
   const giroQ = (phi: number, out = new THREE.Quaternion()) => out.copy(tilt).multiply(new THREE.Quaternion().setFromAxisAngle(V(0, 1, 0), phi));
 
   const moon = luna();
-  const moonDir = SOL_DESDE_E.clone().applyAxisAngle(V(0, 1, 0), 2.2).add(V(0, 0.08, 0)).normalize();
-  moon.group.position.copy(moonDir).multiplyScalar(MOON_D);
+  moon.group.position.copy(LUNA_DIR).multiplyScalar(MOON_D);
   earthSys.add(moon.group);
   nubes.push(...moon.nubes);
 
@@ -143,6 +145,24 @@ export function crearMundo(scene: THREE.Scene) {
 
   /** The turn that shows the night over Europe, Africa and Asia from NOCHE (the default). */
   const giroNoche = giroPara(24, 38, NOCHE);
+  /** The turn that puts the space elevator just past dusk, on the side the camera comes from. */
+  const giroAscensor = (() => {
+    const up0 = ascensorDir();
+    let best = 0;
+    let bestErr = 9;
+    const qq = new THREE.Quaternion();
+    for (let k = 0; k < 1440; k++) {
+      const phi = (k / 1440) * Math.PI * 2;
+      const u = up0.clone().applyQuaternion(giroQ(phi, qq));
+      const side = u.clone().cross(SOL_DESDE_E).y;
+      const err = Math.abs(u.dot(SOL_DESDE_E) + 0.18) + (side > 0 ? 0 : 1);
+      if (err < bestErr) {
+        bestErr = err;
+        best = phi;
+      }
+    }
+    return best;
+  })();
   const defecto: Estado = { ...DEFECTO, giro: giroNoche };
   const estado: Estado = { ...defecto };
   const tmp = V();
@@ -163,6 +183,7 @@ export function crearMundo(scene: THREE.Scene) {
     moon,
     giroPara,
     giroNoche,
+    giroAscensor,
     /** The Earth body's orientation for a turn `phi`. */
     giroQ,
     /** Back to the defaults (before the acts set this frame's state). */

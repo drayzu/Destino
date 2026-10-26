@@ -236,6 +236,8 @@ export function placas() {
     uTime: { value: 0 },
     uHero: { value: 100 },
     uFocus: { value: 0 },
+    /** The camera in world units (AU): the plates live in AU, the scene is the pivot's. */
+    uCam: { value: new THREE.Vector3() },
   };
   const mat = new THREE.ShaderMaterial({
     uniforms: u,
@@ -259,16 +261,16 @@ export function placas() {
         vUv = uv; vW = w; vOpen = open; vSd = aSd;
         float dh = abs(mod(a - uHero + 3.14159265, 6.2831853) - 3.14159265);
         vHero = step(dh, 0.0003) * step(abs(aRow), 0.1);
-        gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(w, 1.0);
         #include <logdepthbuf_vertex>
       }`,
     fragmentShader: /* glsl */ `${LOG_F}
-      uniform float uWave, uTime, uFocus;
+      uniform float uWave, uTime, uFocus; uniform vec3 uCam;
       varying vec2 vUv; varying vec3 vW; varying vec3 vNrm; varying float vOpen, vSd, vHero;
       void main() {
         #include <logdepthbuf_fragment>
         vec3 L = normalize(-vW);
-        vec3 V = normalize(cameraPosition - vW);
+        vec3 V = normalize(uCam - vW);
         vec3 nn = vNrm * (dot(vNrm, L) < 0.0 ? -1.0 : 1.0);
         bool lit = dot(nn, V) > 0.0;
         vec2 e = min(vUv, 1.0 - vUv);
