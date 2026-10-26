@@ -146,8 +146,9 @@ export const apertura: Escena = {
       const d0 = lerp(420, 300, ease(P('voz'), P('lejos'), p));
       const k = ease(P('lejos'), P('planetas') - 0.2, p);
       const d = Math.exp(lerp(Math.log(d0), Math.log(155000), k));
-      const target = V(0, 0, 0).lerp(CENTRO.clone().multiplyScalar(0.62), ease(0.35, 1, k));
-      return { pos: sph(target, d, lerp(0.18, 1.0, ease(0.0, 0.8, k)), az), target, up: UP.clone(), fov: 46 };
+      // Pull straight back from the Sun first; only near the end turn to frame the whole galaxy.
+      const target = V(0, 0, 0).lerp(CENTRO.clone().multiplyScalar(0.62), ease(0.55, 1, k));
+      return { pos: sph(target, d, lerp(0.18, 1.0, ease(0.0, 0.6, k)), az), target, up: UP.clone(), fov: 46 };
     };
     // The dive: wherever we are, to the Sun, then to the Earth, which hides it.
     const approach = E.clone().normalize();
