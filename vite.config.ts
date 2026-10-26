@@ -42,6 +42,7 @@ export default defineConfig({
       input: {
         laboratorio: 'prototypes/index.html',
         sistema: 'prototypes/sistema.html',
+        estudios: 'prototypes/estudios.html',
       },
     },
   },

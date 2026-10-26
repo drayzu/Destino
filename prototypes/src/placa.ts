@@ -259,11 +259,19 @@ const PELDANOS: Peldano[] = [
 const LP0 = 0;
 const LP1 = 40;
 const TODAY = 13.3;
+
+export interface Muro {
+  lp: number;
+  label: string;
+  a: number;
+  choque?: number;
+  fuera?: number;
+}
 const II = 26;
 const III = 36;
 
 /** The power ladder at the right edge: fills with the civilization's colour up to where it is. */
-export function escalera(g: CanvasRenderingContext2D, u: number, W: number, H: number, lp: number) {
+export function escalera(g: CanvasRenderingContext2D, u: number, W: number, H: number, lp: number, muro: Muro | null = null) {
   const x = W - 64 * u;
   const y0 = H - 70 * u;
   const y1 = 86 * u;
@@ -314,6 +322,45 @@ export function escalera(g: CanvasRenderingContext2D, u: number, W: number, H: n
     g.fillText(r.label.toUpperCase(), x - 14 * u, yy);
     g.fillRect(x - (r.major ? 10 : 6) * u, yy - 0.5 * u, (r.major ? 10 : 6) * u, Math.max(1, u));
   }
+  // A wall: a line across the ladder where the climb meets a physical limit (it glows when the
+  // fill presses on it); beyond it, the climb goes on outside, as an arc around the rail.
+  if (muro && muro.a > 0.01) {
+    const yw = yOf(muro.lp);
+    const hit = muro.choque ?? 0;
+    g.save();
+    g.globalAlpha = muro.a;
+    g.strokeStyle = `rgba(255,106,74,${0.55 + 0.45 * hit})`;
+    g.lineWidth = Math.max(1, (1.4 + 1.6 * hit) * u);
+    g.shadowColor = '#ff5b4a';
+    g.shadowBlur = 12 * hit * u;
+    g.beginPath();
+    g.moveTo(x - 40 * u, yw);
+    g.lineTo(x + 14 * u, yw);
+    g.stroke();
+    g.shadowBlur = 0;
+    g.font = FONT.mono(9 * u);
+    g.letterSpacing = `${1 * u}px`;
+    g.textAlign = 'right';
+    g.fillStyle = `rgba(255,140,110,${0.8 + 0.2 * hit})`;
+    g.fillText(muro.label.toUpperCase(), x - 46 * u, yw);
+    const out = muro.fuera ?? 0;
+    if (out > 0.01 && lp > muro.lp) {
+      const y2 = yp;
+      g.globalAlpha = muro.a * out;
+      g.strokeStyle = TEAL;
+      g.lineWidth = Math.max(1, 1.6 * u);
+      g.setLineDash([3 * u, 3 * u]);
+      g.beginPath();
+      g.moveTo(x, yw + 10 * u);
+      g.bezierCurveTo(x + 26 * u, yw + 4 * u, x + 26 * u, Math.min(yw - 6 * u, y2 + 10 * u), x, y2);
+      g.stroke();
+      g.setLineDash([]);
+      g.textAlign = 'left';
+      g.fillStyle = TEAL;
+      g.fillText('FUERA DEL PLANETA', x + 22 * u, (yw + y2) / 2);
+    }
+    g.restore();
+  }
   // You are here.
   g.fillStyle = TEAL;
   g.shadowColor = TEAL;
@@ -337,13 +384,48 @@ export function marca(g: CanvasRenderingContext2D, u: number, concepto: string, 
   g.shadowBlur = 10 * u;
   g.font = FONT.serif(27 * u);
   g.fillStyle = ink();
-  g.fillText('Civilización', 40 * u, 54 * u);
-  const w = g.measureText('Civilización').width;
+  g.fillText('Despertar', 40 * u, 54 * u);
+  const w = g.measureText('Despertar').width;
   g.font = FONT.mono(10.5 * u);
   g.letterSpacing = `${1.4 * u}px`;
   g.fillStyle = TEAL;
   g.fillText(concepto.toUpperCase(), 40 * u + w + 16 * u, 52 * u);
   g.fillStyle = ink(0.5);
   g.fillText(sub.toUpperCase(), 40 * u, 76 * u);
+  g.restore();
+}
+
+/**
+ * A clock without power (before there is a civilization to measure): a big figure in Instrument
+ * Serif with its unit, a mono line below, and the moment's name and sentence above, where the
+ * power clock would put them.
+ */
+export function reloj(g: CanvasRenderingContext2D, u: number, H: number, cifra: string, unidad: string, linea: string, cap: Rotulo | null, capAlpha = 1, alpha = 1) {
+  const x = 44 * u;
+  g.save();
+  g.textBaseline = 'alphabetic';
+  g.shadowColor = 'rgba(0,0,0,0.85)';
+  g.shadowBlur = 12 * u;
+  if (cap && capAlpha > 0.01) {
+    g.globalAlpha = capAlpha;
+    g.font = FONT.italic(31 * u);
+    g.fillStyle = ink();
+    g.fillText(cap.name, x, H - 236 * u);
+    g.font = FONT.sans(14 * u);
+    g.fillStyle = ink(0.62);
+    wrap(g, cap.fact, 470 * u).forEach((line, i) => g.fillText(line, x, H - 208 * u + i * 20 * u));
+  }
+  g.globalAlpha = alpha;
+  g.font = FONT.serif(66 * u);
+  g.fillStyle = ink();
+  g.fillText(cifra, x, H - 86 * u);
+  const w = g.measureText(cifra).width;
+  g.font = FONT.serif(26 * u);
+  g.fillStyle = ink(0.6);
+  g.fillText(unidad, x + w + 14 * u, H - 88 * u);
+  g.font = FONT.mono(11 * u);
+  g.letterSpacing = `${0.9 * u}px`;
+  g.fillStyle = ink(0.78);
+  g.fillText(linea.toUpperCase(), x, H - 52 * u);
   g.restore();
 }

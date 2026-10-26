@@ -14,7 +14,7 @@ import { clamp, gauss, smoothstep } from './math';
 const D2R = Math.PI / 180;
 
 /** Big metropolitan areas (lat, lon, millions of people, approximate). */
-const CIUDADES: [number, number, number][] = [
+export const CIUDADES: [number, number, number][] = [
   [35.7, 139.7, 37], [28.6, 77.2, 32], [31.2, 121.5, 28], [23.8, 90.4, 22], [-23.5, -46.6, 22], [19.4, -99.1, 22],
   [30.0, 31.2, 21], [39.9, 116.4, 21], [19.1, 72.9, 21], [34.7, 135.5, 19], [29.6, 106.5, 17], [24.9, 67.0, 17],
   [-4.3, 15.3, 16], [6.5, 3.4, 15], [41.0, 29.0, 15], [-34.6, -58.4, 15], [22.6, 88.4, 15], [14.6, 121.0, 14],
@@ -114,6 +114,8 @@ export const HORIZONTE = /* glsl */ `if (dot(normalize(p), uCamL - p) < 0.0) { e
 export interface Tierra {
   group: THREE.Group;
   nubes: Nube[];
+  /** Resolves once the land, its map and the lights are built. */
+  listo: Promise<void>;
   /** Per frame: the Sun's direction and the camera, both in the Earth's local frame; how lit the planet is (0..1). */
   update(sunL: THREE.Vector3, camL: THREE.Vector3, lights: number): void;
 }
@@ -121,7 +123,7 @@ export interface Tierra {
 export function tierra(): Tierra {
   const group = new THREE.Group();
   const nubes: Nube[] = [];
-  const uni = { uSun: { value: new THREE.Vector3(1, 0, 0) }, uCamL: { value: new THREE.Vector3(0, 0, 5) }, uLights: { value: 1 } };
+  const uni = { uSun: { value: new THREE.Vector3(1, 0, 0) }, uCamL: { value: new THREE.Vector3(0, 0, 5) }, uLights: { value: 1 }, uNuevas: { value: 0 } };
 
   // A black core: hides the sky (and anything) behind the planet.
   const core = new THREE.Mesh<THREE.BufferGeometry, THREE.Material>(new THREE.SphereGeometry(0.992, 64, 48), new THREE.MeshBasicMaterial({ color: 0x000000 }));
@@ -166,7 +168,7 @@ export function tierra(): Tierra {
   atmo.renderOrder = 2;
   group.add(atmo);
 
-  void (async () => {
+  const listo = (async () => {
     const isLand = await mascaraTierra();
     // The surface: an equirectangular map painted from the land mask (forests, deserts, ice, sea),
     // lit by the Sun, with the Sun's glint on the oceans. Up close, a smooth surface reads better
@@ -309,11 +311,15 @@ export function tierra(): Tierra {
       }
     }
     const lights = materia(lb.data(), {
-      pre: `${SPHERE_PRE}\nuniform float uLights;\nattribute float aOrder;`,
+      pre: `${SPHERE_PRE}\nuniform float uLights, uNuevas;\nattribute float aOrder;`,
       move: /* glsl */ `
         float d = dot(normalize(p), uSun);
         float on = smoothstep(aOrder, aOrder + 0.04, uLights);
+        // The lights added after today can keep their light below a pixel, so a filling land reads from afar.
+        if (aOrder > 0.4) fuente = uNuevas;
         em *= on * smoothstep(0.12, -0.1, d);
+        // Seen through more air near the limb, the lights fade.
+        em *= smoothstep(0.0, 0.3, dot(normalize(p), normalize(uCamL - p)));
         ${HORIZONTE}`,
       uniforms: uni,
       extra: { aOrder: [new Float32Array(ord), 1] },
@@ -325,6 +331,7 @@ export function tierra(): Tierra {
   return {
     group,
     nubes,
+    listo,
     update(sunL, camL, lit) {
       uni.uSun.value.copy(sunL);
       uni.uCamL.value.copy(camL);
