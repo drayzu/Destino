@@ -1,7 +1,7 @@
 # Destino · estado
 
 ## Dónde estamos
-**Fase 4 · El viaje completo, del acto 0 al VIII.** El sitio real corre (`index.html` + `src/`): un solo mundo compartido, la cámara con pivote, el reloj de potencia con su escalera y sus muros, la lámina (I), las teclas A/S/I/L, sonido básico y hojas de contactos. El viaje va de la portada al relevo a Infinito: ~245 beats, unos 7 minutos y medio con autoplay. Capturas: `docs/fase1/` a `docs/fase4/` (`docs/fase4/viaje.jpg` es el viaje entero). Nada publicado: el repo es solo local.
+**Fase 4 · El viaje completo, del acto 0 al VIII.** El sitio real corre (`index.html` + `src/`): un solo mundo compartido, la cámara con pivote, el reloj de potencia con su escalera y sus muros, la lámina (I), las teclas A/S/I/L, sonido básico y hojas de contactos. El viaje va de la portada al relevo a Infinito: ~245 beats, unos 7 minutos y medio con autoplay. Capturas: `docs/fase1/` a `docs/fase4/` (`docs/fase4/viaje.jpg` es el viaje entero). El código está en github.com/drayzu/Destino; el sitio todavía no se publica (Pages apagado).
 
 ## Decisiones
 - **26 de octubre de 2026 · plan nuevo.** Despertar pasa a llamarse **Destino** y se rehace con el formato de Espacio y Tiempo: un solo viaje con scroll de ~10–12 minutos, teclas A/S/I/L, lámina opcional; sin modo explorar y sin estaciones. Se mantienen el muro → la obra y la galaxia de las posibilidades. La simulación, lo computable y los multiversos pasan a Infinito. Termina creando un universo y pasándole el relevo a Infinito. Detalle en `BRIEF.md` § 2.
@@ -31,7 +31,7 @@
   - Acto VI: el estudio elegido («la mezcla», manera 4) llevado al motor alrededor del Sol, que pasa de enjambre a cerebro Matrioshka; radios comprimidos y así rotulados.
   - Acto VII: una red cósmica propia (nudos y filamentos difusos), las sondas a todas las galaxias alcanzables, el horizonte que enrojece lo que se lleva la energía oscura, y otras burbujas expansivas de colores que tocan la nuestra; distancias comprimidas y así rotuladas.
   - Acto VIII: el agujero negro trazado con rayos de Tiempo (con disco dorado y la materia de Penrose), el contador de pensamientos que se detiene (ilustrativo, así rotulado) y el muro de la muerte térmica, la burbuja de falso vacío que se infla y, adentro, un universo que empieza: «continúa en Infinito · pronto». El outro de la página dice lo mismo.
-- Pendiente: confirmar repo y URL (`drayzu/Destino` → drayzu.github.io/Destino) antes de crear el remoto.
+- **26 de octubre · el repo:** Diego creó `drayzu/Destino` (público) y pidió subir el código sin publicar el sitio todavía: GitHub Pages sigue apagado. BRIEF.md y `.claude/` se sacaron de todo el historial antes del primer push y quedan en `.gitignore`. La URL del sitio será drayzu.github.io/Destino cuando Diego diga que se publique.
 
 ## Cómo está hecho
 `npm run dev` (puerto 5197) → `http://localhost:5197/`. `?p=beat` arranca ahí, `?ver=beat` congela, `?lamina` abre con la lámina, `?lang=es|en`. Con `?debug`, `destino` en la consola: `destino.hoja('docs/…/x.jpg', [beats], columnas, ancho)`, `destino.foto(ruta, beat)`, `destino.at('a2.muro')`, `destino.seek(b)`. **Sin ventana:** `node tools/hoja.mjs "await destino.hoja(…)"` abre Chrome sin ventana (con la GPU, 1600 × 900) contra el servidor de desarrollo; así las hojas no dependen del tamaño del panel del navegador.
