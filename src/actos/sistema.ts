@@ -2,11 +2,12 @@ import * as THREE from 'three';
 import type { Timeline } from '../engine/timeline';
 import { clamp, lerp, smoothstep } from '../engine/math';
 import { TEAL, cifra, ink, nota, sup, type Muro } from '../engine/placa';
-import { linea, texto } from '../engine/lamina';
+import { flecha, linea, texto } from '../engine/lamina';
 import { espectro } from '../engine/espectro';
 import { mezcla, type Vista } from '../engine/vista';
-import { E, LUNA, type Mundo } from '../mundo/mundo';
-import { R_E, R_MER, RING_A, cinturon, enjambre, faros, mercurio, orbitas, placas, ringABasis, ringAPoint, ruta } from '../mundo/obras';
+import { E, LUNA, LUNA_DIR, type Mundo } from '../mundo/mundo';
+import { cilindro, OMEGA } from '../mundo/habitat';
+import { MOON_D, R_E, R_MER, RING_A, cinturon, enjambre, faros, mercurio, orbitas, placas, ringABasis, ringAPoint, ruta } from '../mundo/obras';
 import type { Acto, Cuadro } from './tipos';
 
 /**
@@ -20,8 +21,11 @@ import type { Acto, Cuadro } from './tipos';
  * Hephaistos 2024, seven candidates, several of them background galaxies); and Type II, all the
  * Sun's light, 3.8 × 10²⁶ W, where the light of one star runs out.
  *
- * Still to come in this act (phase 2): an O'Neill cylinder from the inside, star lifting, the
- * stellar engines (Shkadov, Caplan), and the habitats, Mars and Venus working at the same time.
+ * Before the Sun, a world from the inside: an O'Neill cylinder at the Earth–Moon L5 point (Island
+ * Three, 8 km × 32 km; its turn, once every ~2 minutes, is its gravity).
+ *
+ * Still to come in this act (phase 2): star lifting, the stellar engines (Shkadov, Caplan), and the
+ * habitats, Mars and Venus working at the same time.
  *
  * World units: AU. The prototype's layout is turned with the Earth's place in its orbit.
  */
@@ -40,6 +44,12 @@ const CAMP = polar(2.6, TH_E + 0.4);
 /** Turns a vector from the prototype's frame into this one. */
 const qL = new THREE.Quaternion().setFromAxisAngle(UP, -DELTA);
 const SLOT = 0.78e-4;
+/** A kilometre in AU. */
+const KM = 1 / 1.495978707e8;
+/** The O'Neill cylinder: at the Earth–Moon L5 point, its axis towards the Sun. */
+const CIL = E.clone().addScaledVector(LUNA_DIR.clone().applyAxisAngle(UP, -Math.PI / 3), MOON_D * R_E);
+const R_CIL = 4;
+const qC = new THREE.Quaternion().setFromUnitVectors(UP, CIL.clone().negate().normalize());
 
 export function sistema(): Acto {
   let tl: Timeline;
@@ -53,6 +63,12 @@ export function sistema(): Acto {
   const tanA = (a: number) => e1.clone().multiplyScalar(-Math.sin(a)).addScaledVector(e2, Math.cos(a));
   const radA = (a: number) => e1.clone().multiplyScalar(Math.cos(a)).addScaledVector(e2, Math.sin(a));
 
+  const cil = cilindro();
+  cil.group.position.copy(CIL);
+  cil.group.quaternion.copy(qC);
+  cil.group.scale.setScalar(KM);
+  /** A point in the cylinder's frame (km, not turning) to the world (AU). */
+  const cil2w = (v: THREE.Vector3) => v.clone().applyQuaternion(qC).multiplyScalar(KM).add(CIL);
   const swarm = enjambre();
   const plates = placas();
   const merc = mercurio();
@@ -101,6 +117,7 @@ export function sistema(): Acto {
     { color: new THREE.Color(1.0, 0.9, 0.75), px: 2.2 }, // 3 Jupiter
     { color: new THREE.Color(1.0, 0.97, 0.9), px: 2.6 }, // 4 our payload
     { color: new THREE.Color(0.85, 0.85, 0.8), px: 1.3 }, // 5 the Moon
+    { color: new THREE.Color(0.6, 1.0, 0.88), px: 2.0 }, // 6 the cylinder
   ]);
 
   // ------------------------------------------------------------ the camera's route
@@ -115,7 +132,7 @@ export function sistema(): Acto {
   }
   function camSalida(p: number): Vista {
     // Back out until the Earth, its ring and the Moon fit together.
-    const k = ease(P('a3'), P('a3.viaje'), p);
+    const k = ease(P('a3'), P('a3.oneill'), p);
     const end = finAscensor();
     const dir = end.pos.clone().sub(E).normalize();
     const d = Math.exp(lerp(Math.log(end.pos.distanceTo(E)), Math.log(150 * R_E), k));
@@ -124,9 +141,32 @@ export function sistema(): Acto {
     const target = E.clone().lerp(LUNA, 0.35 * k);
     return { pos, target, up: end.up.clone().lerp(UP, k).normalize(), fov: lerp(48, 44, k) };
   }
+  /** A world from the inside: outside the cylinder, in through the port at its axis, along it. */
+  // Inside, 1 km over one valley (at +z), «up» towards the axis: the other two valleys climb overhead.
+  const CIL_TOMAS: Vista[] = [
+    { pos: V(14, -36, 10), target: V(0, -6, 0), up: V(1, 0, 0), fov: 46 },
+    { pos: V(0.2, -17.6, 0.3), target: V(0, -6, 1.2), up: V(1, 0, 0), fov: 58 },
+    { pos: V(0, -9, 2.9), target: V(0, 4, 2.3), up: V(0, 0, -1), fov: 70 },
+    { pos: V(0.2, 3, 2.7), target: V(0.6, 15, 1.7), up: V(0, 0, -1), fov: 72 },
+  ];
+  const cilW = (v: Vista): Vista => ({ pos: cil2w(v.pos), target: cil2w(v.target), up: v.up.clone().applyQuaternion(qC), fov: v.fov });
+  function camCilindro(p: number): Vista {
+    const t0 = P('a3.oneill');
+    const k = (p - t0) / (P('a3.viaje') - t0);
+    const [a, b, c, d] = CIL_TOMAS.map(cilW);
+    // From where the last view leaves us (the Earth, its ring and the Moon) to the cylinder.
+    const desde = camSalida(P('a3.oneill'));
+    // First turn to it (a point of light far away), then close in.
+    const a0: Vista = { pos: desde.pos.clone(), target: CIL.clone(), up: desde.up.clone(), fov: 40 };
+    if (k < 0.12) return { pos: desde.pos, target: desde.target.clone().lerp(CIL, ease(0, 0.12, k)), up: desde.up, fov: lerp(desde.fov, 40, ease(0, 0.12, k)) };
+    if (k < 0.3) return mezcla(a0, a, ease(0.12, 0.3, k));
+    if (k < 0.5) return mezcla(a, b, ease(0.3, 0.5, k));
+    if (k < 0.72) return mezcla(b, c, ease(0.5, 0.72, k));
+    return mezcla(c, d, ease(0.72, 1, k));
+  }
   function camViaje(p: number): Vista {
     const s = ease(P('a3.viaje'), P('a3.mercurio'), p);
-    const start = camSalida(P('a3.viaje'));
+    const start = camCilindro(P('a3.viaje'));
     const endPos = M.clone().add(V(0.0, 0.0006, 0.0012).applyQuaternion(qL));
     const base = start.pos.clone().lerp(endPos, s);
     base.y += 0.09 * Math.sin(Math.PI * s);
@@ -204,7 +244,8 @@ export function sistema(): Acto {
   }
   const SEGS: [string, number, (p: number) => Vista][] = [
     ['a3', 0, camSalida],
-    ['a3.viaje', 0.05, camViaje],
+    ['a3.oneill', 0, camCilindro],
+    ['a3.viaje', 0, camViaje],
     ['a3.mercurio', 0.2, camMercurio],
     ['a3.carga', 0.12, camCarga],
     ['a3.enjambre', 0.18, camAnillo],
@@ -235,9 +276,11 @@ export function sistema(): Acto {
       P = (l) => tl.at(l);
       tl.label('a3');
       tl.set({ 'a3.lp': 16.25, 'a3.ly': 2.54, 'a3.lr': 7.6, 'a3.built': 0, 'a3.eat': 0 });
-      tl.caption(3.0, 'Hacia el Sol', 'Todo pasa a la vez: la Luna lanza roca, el cinturón se mina y alrededor del Sol empieza a crecer un enjambre.');
-      tl.to(1.4, { 'a3.lp': 16.5, 'a3.ly': 2.6, 'a3.lr': 9.0, 'a3.built': 0.15, 'a3.eat': 0.04 });
-      tl.label('a3.viaje').to(1.6, { 'a3.lp': 17.5, 'a3.ly': 2.7, 'a3.lr': 11.2, 'a3.built': 0.3, 'a3.eat': 0.07 });
+      tl.caption(6.4, 'Un mundo por dentro', 'Un cilindro de 8 km de ancho y 32 de largo, en un punto de Lagrange. Gira una vez cada dos minutos: ese giro es su gravedad, y el paisaje sube por los lados hasta el cielo (O’Neill, 1976).');
+      tl.to(1.4, { 'a3.lp': 16.4, 'a3.ly': 2.6, 'a3.lr': 8.6, 'a3.built': 0.1, 'a3.eat': 0.02 });
+      tl.label('a3.oneill').to(5.0, { 'a3.lp': 16.6, 'a3.built': 0.15, 'a3.eat': 0.04 });
+      tl.caption(2.6, 'Hacia el Sol', 'Todo pasa a la vez: la Luna lanza roca, el cinturón se mina y alrededor del Sol empieza a crecer un enjambre.');
+      tl.label('a3.viaje').to(2.6, { 'a3.lp': 17.5, 'a3.ly': 2.7, 'a3.lr': 11.2, 'a3.built': 0.3, 'a3.eat': 0.07 });
       tl.caption(3.0, 'Desarmar Mercurio', 'Máquinas que se copian a sí mismas convierten un planeta entero en colectores: unos 31 años, casi todo en los últimos cuatro.');
       tl.label('a3.mercurio').to(3.0, { 'a3.lp': 18.5, 'a3.ly': 2.76, 'a3.eat': 0.12, 'a3.built': 0.38 });
       tl.caption(4.2, 'La catapulta', 'Un riel de 2 000 km lanza la materia al espacio sin cohetes: Mercurio no tiene aire que la frene. Viajamos en una carga.');
@@ -253,7 +296,8 @@ export function sistema(): Acto {
     },
     montar(mundo) {
       m = mundo;
-      m.root.add(swarm.points, plates.mesh, merc.group, belt.points, orbits, B.points);
+      m.root.add(cil.group, swarm.points, plates.mesh, merc.group, belt.points, orbits, B.points);
+      m.nubes.push(cil.casas);
       for (const r of rutas) m.root.add(r.group);
       m.nubes.push(swarm, ...merc.nubes, belt, ...rutas.map((r) => r.nube));
     },
@@ -277,6 +321,10 @@ export function sistema(): Acto {
       const built = tl.get('a3.built', p);
       const on = built > 0.001;
       const cam = vista.pos;
+      // The cylinder turns (its gravity); inside, the camera's place in its turning frame for the haze.
+      const near = cam.distanceTo(CIL) < 2000 * KM;
+      cil.group.visible = p > P('a3') - 1 && near;
+      if (cil.group.visible) cil.update(cil.giro.worldToLocal(V(0, 0, 0)), time, 0.15);
       // The swarm.
       const spin = time * 0.0006;
       swarm.points.visible = on;
@@ -323,6 +371,7 @@ export function sistema(): Acto {
       const ride = ease(P('a3.carga') - 0.05, P('a3.carga') + 0.05, p) * (1 - ease(P('a3.enjambre') + 0.1, P('a3.enjambre') + 0.3, p));
       B.set(4, mercRoute.at(rideT(p), V()), ride);
       B.set(5, LUNA, fadeBy(LUNA, R_E * 0.2727) * 0.8);
+      B.set(6, CIL, fadeBy(CIL, 16 * KM) * ease(P('a3') - 0.5, P('a3'), p) * (1 - ease(P('a3.viaje') + 1, P('a3.viaje') + 2, p)));
       B.commit();
       B.mat.uniforms.uDpr.value = f.dpr;
       B.points.visible = p > P('a3') - 1;
@@ -336,7 +385,27 @@ export function sistema(): Acto {
         const q = f.proj(w);
         if (q && q.x > 0 && q.x < W && q.y > 0 && q.y < H) nota(g, u, q.x, q.y, text, dx, dy, a);
       };
-      add(LUNA, 'la Luna lanza roca al espacio', 30, -26, win('a3', 'a3.viaje', 0.2) * ease(P('a3') + 0.6, P('a3') + 1.0, p));
+      add(LUNA, 'la Luna lanza roca al espacio', 30, -26, win('a3', 'a3.oneill', 0.2) * ease(P('a3') + 0.6, P('a3') + 1.0, p));
+      // The cylinder: what it is, from outside; inside (plate), why the ground holds.
+      const ko = (p - P('a3.oneill')) / (P('a3.viaje') - P('a3.oneill'));
+      const fuera = ease(0.18, 0.28, ko) * (1 - ease(0.42, 0.5, ko));
+      add(cil2w(V(R_CIL, 0, 0)), '8 km de ancho · 32 km de largo', 30, -30, fuera);
+      add(cil2w(V(-R_CIL * 1.6, -4, R_CIL * 0.9)), 'espejo: mete la luz del Sol', -40, 30, fuera);
+      const dentro = ease(0.58, 0.68, ko) * (1 - ease(0.94, 1.0, ko));
+      if (dentro > 0.01) {
+        texto(g, u, W / 2, H * 0.17, 'una vuelta cada 2 minutos: el giro es la gravedad', TEAL, dentro, 12, 'center');
+        if (f.lamina) {
+          // On the land, the pull of the turn: outwards, away from the axis.
+          const spin = f.time * OMEGA;
+          for (let k = 0; k < 6; k++) {
+            const th = spin + (k * Math.PI) / 3 + 0.5;
+            const y = 2 + k * 1.6;
+            const a0 = f.proj(cil2w(V(Math.cos(th) * R_CIL * 0.75, y, Math.sin(th) * R_CIL * 0.75)));
+            const a1 = f.proj(cil2w(V(Math.cos(th) * R_CIL * 0.97, y, Math.sin(th) * R_CIL * 0.97)));
+            if (a0 && a1) flecha(g, u, a0, a1, TEAL, dentro, 1.6);
+          }
+        }
+      }
       const viajeA = win('a3.viaje', 'a3.mercurio', 0.2);
       add(E, 'Tierra', 26, -24, viajeA);
       add(VENUS, 'Venus', 26, -20, viajeA);
