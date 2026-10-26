@@ -108,6 +108,13 @@ const EN: Record<string, string> = {
 
   // ---- Act III.
   'Hacia el Sol': 'Towards the Sun',
+  'Mundos que giran': 'Worlds that turn',
+  'Esferas, ruedas, cilindros y anillos: giran para tener gravedad. Los más grandes, un anillo de 2 000 km (Bishop, 1997) y un cilindro de 4 600 km (McKendree, 2000), piden materiales que aún no sabemos fabricar.': 'Spheres, wheels, cylinders and rings: they turn to have gravity. The largest, a ring 2,000 km across (Bishop, 1997) and a cylinder 4,600 km long (McKendree, 2000), need materials we cannot make yet.',
+  'anillo de Bishop · 2 000 km': 'Bishop ring · 2,000 km',
+  'cilindro de McKendree · 4 600 km': 'McKendree cylinder · 4,600 km',
+  'el de O’Neill: 32 km, aquí un punto': 'O’Neill’s: 32 km, a point from here',
+  'toro de Stanford · 1,8 km': 'Stanford torus · 1.8 km',
+  'esfera de Bernal · 0,5 km': 'Bernal sphere · 0.5 km',
   'Un mundo por dentro': 'A world from the inside',
   'Un cilindro de 8 km de ancho y 32 de largo, en un punto de Lagrange. Gira una vez cada dos minutos: ese giro es su gravedad, y el paisaje sube por los lados hasta el cielo (O’Neill, 1976).': 'A cylinder 8 km wide and 32 km long at a Lagrange point. It turns once every two minutes: that turn is its gravity, and the land climbs up the sides into the sky (O’Neill, 1976).',
   '8 km de ancho · 32 km de largo': '8 km wide · 32 km long',

@@ -8,6 +8,7 @@ import { mezcla, type Vista } from '../engine/vista';
 import { E, LUNA, LUNA_DIR, type Mundo } from '../mundo/mundo';
 import { cilindro, OMEGA } from '../mundo/habitat';
 import { espejoShkadov, levante, motorCaplan } from '../mundo/estrella';
+import { anilloBishop, cilindroMcKendree, esferaBernal, toroStanford } from '../mundo/habitats';
 import { L1_VEN, R_MARS, R_PARASOL, R_VEN, marte, venus } from '../mundo/planetas';
 import { MOON_D, R_E, R_MER, R_SUN, RING_A, cinturon, enjambre, faros, mercurio, orbitas, placas, ringABasis, ringAPoint, ruta } from '../mundo/obras';
 import type { Acto, Cuadro } from './tipos';
@@ -35,7 +36,9 @@ import type { Acto, Cuadro } from './tipos';
  * people live under domes; Venus with cities floating ~50 km up, at ~1 bar and 0–50 °C (Landis
  * 2003), and a parasol at L1 that shades it to cool it (Birch 1991).
  *
- * Still to come in this act: the other habitats (Bernal, Stanford, Bishop, McKendree).
+ * On the way to it, the other habitats that turn for their gravity: a Bishop ring 2 000 km across
+ * and a McKendree cylinder 4 600 km long (both need carbon nanotubes), a Stanford torus (1.8 km)
+ * and a Bernal sphere (~0.5 km) beside the O'Neill cylinder.
  *
  * World units: AU. The prototype's layout is turned with the Earth's place in its orbit.
  */
@@ -93,6 +96,20 @@ export function sistema(): Acto {
   const caplan = motorCaplan(2.5, 0.055);
   caplan.group.position.copy(MOTOR).multiplyScalar(-0.06);
   caplan.group.quaternion.setFromUnitVectors(UP, MOTOR.clone().negate());
+  // The other habitats at L5.
+  const ring = anilloBishop();
+  const mck = cilindroMcKendree();
+  const torus = toroStanford();
+  const bernal = esferaBernal();
+  for (const h of [ring, mck, torus, bernal]) h.group.scale.setScalar(KM);
+  const habSun = CIL.clone().negate().normalize();
+  // The small ones float beside the cylinder (cylinder frame, km), turned like it, towards the Sun.
+  const TORO = cil2w(V(-26, 12, -18));
+  const BERNAL = cil2w(V(-14, 26, 22));
+  torus.group.position.copy(TORO);
+  torus.group.quaternion.copy(qC);
+  bernal.group.position.copy(BERNAL);
+  bernal.group.quaternion.copy(qC);
   // The other planets at work.
   const mars = marte();
   mars.group.position.copy(MARS);
@@ -163,7 +180,7 @@ export function sistema(): Acto {
   }
   function camSalida(p: number): Vista {
     // Back out until the Earth, its ring and the Moon fit together.
-    const k = ease(P('a3'), P('a3.oneill'), p);
+    const k = ease(P('a3'), P('a3.habitats'), p);
     const end = finAscensor();
     const dir = end.pos.clone().sub(E).normalize();
     const d = Math.exp(lerp(Math.log(end.pos.distanceTo(E)), Math.log(150 * R_E), k));
@@ -171,6 +188,39 @@ export function sistema(): Acto {
     const pos = E.clone().addScaledVector(dir.lerp(sideW.multiplyScalar(-1).add(V(0, 0.35, 0)).normalize(), k * 0.7).normalize(), d);
     const target = E.clone().lerp(LUNA, 0.35 * k);
     return { pos, target, up: end.up.clone().lerp(UP, k).normalize(), fov: lerp(48, 44, k) };
+  }
+  /**
+   * Worlds that turn: from the Earth towards L5, where the big habitats float. Laid out (once the
+   * world is there) from the side we come from: the ring ahead and to one side, the McKendree
+   * cylinder beyond it on the other, the O'Neill cylinder a point far behind them.
+   */
+  let HAB: { ring: THREE.Vector3; ringAxis: THREE.Vector3; mck: THREE.Vector3; mckAxis: THREE.Vector3; cam0: THREE.Vector3; cam1: THREE.Vector3; tgt: THREE.Vector3 } | null = null;
+  function hab() {
+    if (HAB) return HAB;
+    const dirIn = camSalida(P('a3.habitats')).pos.sub(CIL).normalize();
+    const side = dirIn.clone().cross(UP).normalize();
+    const up = side.clone().cross(dirIn).normalize();
+    const at = (f: number, sd: number, u: number) => CIL.clone().addScaledVector(dirIn, f * KM).addScaledVector(side, sd * KM).addScaledVector(up, u * KM);
+    HAB = {
+      ring: at(34000, 3200, 1400),
+      ringAxis: dirIn.clone().multiplyScalar(0.75).addScaledVector(side, 0.45).addScaledVector(up, 0.5).normalize(),
+      mck: at(26000, -3800, -1300),
+      mckAxis: side.clone().addScaledVector(up, 0.3).addScaledVector(dirIn, 0.25).normalize(),
+      cam0: at(42000, 500, 900),
+      cam1: at(39500, 400, 700),
+      tgt: at(22000, -500, -150),
+    };
+    return HAB;
+  }
+  function camHabitats(p: number): Vista {
+    const k = (p - P('a3.habitats')) / (P('a3.oneill') - P('a3.habitats'));
+    const h = hab();
+    const desde = camSalida(P('a3.habitats'));
+    const hold: Vista = { pos: h.cam0.clone().lerp(h.cam1, ease(0.5, 1, k)), target: h.tgt.clone(), up: UP.clone(), fov: 50 };
+    if (k >= 0.55) return hold;
+    const s = ease(0.12, 0.55, k);
+    const pos = vuelo(desde.pos, h.cam0, s, 3 * R_E, 2000 * KM);
+    return { pos, target: mirar(pos, desde.target, h.tgt, ease(0, 0.2, k)), up: desde.up.clone().lerp(UP, ease(0, 0.2, k)).normalize(), fov: lerp(desde.fov, 50, ease(0.1, 0.5, k)) };
   }
   /** A world from the inside: outside the cylinder, in through the port at its axis, along it. */
   // Inside, 1 km over one valley (at +z), «up» towards the axis: the other two valleys climb overhead.
@@ -186,10 +236,10 @@ export function sistema(): Acto {
     const k = (p - t0) / (P('a3.marte') - t0);
     const [a, b, c, d] = CIL_TOMAS.map(cilW);
     // From where the last view leaves us (the Earth, its ring and the Moon) to the cylinder.
-    const desde = camSalida(P('a3.oneill'));
+    const desde = camHabitats(P('a3.oneill'));
     // First turn to it (a point of light far away), then close in.
     const a0: Vista = { pos: desde.pos.clone(), target: CIL.clone(), up: desde.up.clone(), fov: 40 };
-    if (k < 0.12) return { pos: desde.pos, target: desde.target.clone().lerp(CIL, ease(0, 0.12, k)), up: desde.up, fov: lerp(desde.fov, 40, ease(0, 0.12, k)) };
+    if (k < 0.12) return { pos: desde.pos, target: mirar(desde.pos, desde.target, CIL, ease(0, 0.12, k)), up: desde.up, fov: lerp(desde.fov, 40, ease(0, 0.12, k)) };
     if (k < 0.3) return mezcla(a0, a, ease(0.12, 0.3, k));
     if (k < 0.5) return mezcla(a, b, ease(0.3, 0.5, k));
     if (k < 0.72) return mezcla(b, c, ease(0.5, 0.72, k));
@@ -383,6 +433,7 @@ export function sistema(): Acto {
   }
   const SEGS: [string, number, (p: number) => Vista][] = [
     ['a3', 0, camSalida],
+    ['a3.habitats', 0, camHabitats],
     ['a3.oneill', 0, camCilindro],
     ['a3.marte', 0, camMarte],
     ['a3.viaje', 0, camViaje],
@@ -419,8 +470,10 @@ export function sistema(): Acto {
       P = (l) => tl.at(l);
       tl.label('a3');
       tl.set({ 'a3.lp': 16.25, 'a3.ly': 2.54, 'a3.lr': 7.6, 'a3.built': 0, 'a3.eat': 0 });
-      tl.caption(6.4, 'Un mundo por dentro', 'Un cilindro de 8 km de ancho y 32 de largo, en un punto de Lagrange. Gira una vez cada dos minutos: ese giro es su gravedad, y el paisaje sube por los lados hasta el cielo (O’Neill, 1976).');
+      tl.caption(5.2, 'Mundos que giran', 'Esferas, ruedas, cilindros y anillos: giran para tener gravedad. Los más grandes, un anillo de 2 000 km (Bishop, 1997) y un cilindro de 4 600 km (McKendree, 2000), piden materiales que aún no sabemos fabricar.');
       tl.to(1.4, { 'a3.lp': 16.4, 'a3.ly': 2.6, 'a3.lr': 8.6, 'a3.built': 0.1, 'a3.eat': 0.02 });
+      tl.label('a3.habitats').to(3.8, { 'a3.lp': 16.5, 'a3.built': 0.12, 'a3.eat': 0.03 });
+      tl.caption(5.0, 'Un mundo por dentro', 'Un cilindro de 8 km de ancho y 32 de largo, en un punto de Lagrange. Gira una vez cada dos minutos: ese giro es su gravedad, y el paisaje sube por los lados hasta el cielo (O’Neill, 1976).');
       tl.label('a3.oneill').to(5.0, { 'a3.lp': 16.6, 'a3.built': 0.15, 'a3.eat': 0.04 });
       tl.caption(5.4, 'Calentar Marte', 'Espejos en órbita le dan más luz al polo sur para liberar su hielo (Zubrin y McKay, 1993). Pero su CO₂ no alcanza para un aire como el nuestro (Jakosky y Edwards, 2018): se vive bajo cúpulas.');
       tl.label('a3.marte').to(5.4, { 'a3.lp': 16.95, 'a3.ly': 2.64, 'a3.lr': 11.36, 'a3.built': 0.2, 'a3.eat': 0.05 });
@@ -447,6 +500,12 @@ export function sistema(): Acto {
     },
     montar(mundo) {
       m = mundo;
+      const h = hab();
+      ring.group.position.copy(h.ring);
+      ring.group.quaternion.setFromUnitVectors(UP, h.ringAxis);
+      mck.group.position.copy(h.mck);
+      mck.group.quaternion.setFromUnitVectors(UP, h.mckAxis);
+      m.root.add(ring.group, mck.group, torus.group, bernal.group);
       m.root.add(mars.group, ven.group, lift.group, espejo.mesh, caplan.group, cil.group, swarm.points, plates.mesh, merc.group, belt.points, orbits, B.points);
       m.nubes.push(cil.casas, lift.nube, caplan.nube, ...mars.nubes, ...ven.nubes);
       for (const r of rutas) m.root.add(r.group);
@@ -500,6 +559,15 @@ export function sistema(): Acto {
       plates.u.uTime.value = time;
       plates.u.uFocus.value = 0;
       plates.u.uCam.value.copy(cam);
+      // The habitats at L5: only drawn while we are around.
+      const atL5 = cam.distanceTo(CIL) < 3e6 * KM && p < P('a3.marte') + 2;
+      for (const hb of [ring, mck, torus, bernal]) {
+        hb.group.visible = atL5;
+        if (atL5) {
+          hb.uni.uSun.value.copy(habSun);
+          hb.update(time);
+        }
+      }
       // Mars, warmed; Venus, shaded. Only drawn near them (beacons stand in from afar).
       const km = (p - P('a3.marte')) / (P('a3.viaje') - P('a3.marte'));
       mars.group.visible = cam.distanceTo(MARS) < 400 * R_MARS;
@@ -562,7 +630,20 @@ export function sistema(): Acto {
         const q = f.proj(w);
         if (q && q.x > 0 && q.x < W && q.y > 0 && q.y < H) nota(g, u, q.x, q.y, text, dx, dy, a);
       };
-      add(LUNA, 'la Luna lanza roca al espacio', 30, -26, win('a3', 'a3.oneill', 0.2) * ease(P('a3') + 0.6, P('a3') + 1.0, p));
+      add(LUNA, 'la Luna lanza roca al espacio', 30, -26, win('a3', 'a3.habitats', 0.2) * ease(P('a3') + 0.6, P('a3') + 1.0, p));
+      // The habitats, and how big each one is.
+      const kh = (p - P('a3.habitats')) / (P('a3.oneill') - P('a3.habitats'));
+      const ha = ease(0.6, 0.7, kh) * (1 - ease(0.96, 1.04, kh));
+      if (ha > 0.01) {
+        const h = hab();
+        add(h.ring.clone().addScaledVector(UP, 1000 * KM), 'anillo de Bishop · 2 000 km', 34, -30, ha);
+        add(h.mck, 'cilindro de McKendree · 4 600 km', -40, 32, ha);
+        add(CIL, 'el de O’Neill: 32 km, aquí un punto', 34, 30, ha);
+      }
+      const kc = (p - P('a3.oneill')) / (P('a3.marte') - P('a3.oneill'));
+      const hc = ease(0.24, 0.3, kc) * (1 - ease(0.44, 0.5, kc));
+      add(TORO, 'toro de Stanford · 1,8 km', 30, -26, hc);
+      add(BERNAL, 'esfera de Bernal · 0,5 km', -36, -26, hc);
       // The cylinder: what it is, from outside; inside (plate), why the ground holds.
       const ko = (p - P('a3.oneill')) / (P('a3.marte') - P('a3.oneill'));
       const fuera = ease(0.18, 0.28, ko) * (1 - ease(0.42, 0.5, ko));
