@@ -1,7 +1,7 @@
 # Destino · estado
 
 ## Dónde estamos
-**Fase 2 · Prueba de fuego, acto III completo en el motor.** El sitio real corre (`index.html` + `src/`): un solo mundo compartido, la cámara con pivote, el reloj de potencia con su escalera y sus muros, la lámina (I), las teclas A/S/I/L, sonido básico y hojas de contactos. El viaje va de la portada hasta el tipo II y su muro (actos 0, I provisional, II y III): ~99 beats, unos 3 minutos con autoplay. Capturas: `docs/fase1/` (primer tramo) y `docs/fase2/momentos.jpg` y `docs/fase2/viaje.jpg` (acto III). Nada publicado: el repo es solo local.
+**Fase 3 · Actos IV y V en el motor.** El sitio real corre (`index.html` + `src/`): un solo mundo compartido, la cámara con pivote, el reloj de potencia con su escalera y sus muros, la lámina (I), las teclas A/S/I/L, sonido básico y hojas de contactos. El viaje va de la portada hasta el borde de la galaxia (actos 0, I provisional, II, III, IV y V): ~162 beats, unos 5 minutos con autoplay. Capturas: `docs/fase1/`, `docs/fase2/` (acto III) y `docs/fase3/momentos.jpg` y `docs/fase3/viaje.jpg` (actos IV y V). Nada publicado: el repo es solo local.
 
 ## Decisiones
 - **26 de octubre de 2026 · plan nuevo.** Despertar pasa a llamarse **Destino** y se rehace con el formato de Espacio y Tiempo: un solo viaje con scroll de ~10–12 minutos, teclas A/S/I/L, lámina opcional; sin modo explorar y sin estaciones. Se mantienen el muro → la obra y la galaxia de las posibilidades. La simulación, lo computable y los multiversos pasan a Infinito. Termina creando un universo y pasándole el relevo a Infinito. Detalle en `BRIEF.md` § 2.
@@ -22,6 +22,10 @@
   - Marte, con honestidad: espejos sobre el polo sur (Zubrin y McKay, 1993), pero su CO₂ da como mucho ~20 mbar (Jakosky y Edwards, 2018), así que se vive bajo cúpulas; el verde que avanza es la parte especulativa. La distancia de los espejos es ilustrativa (ellos los ponían a ~60 radios).
   - Venus: ciudades flotantes a ~50 km, 1 bar y 0–50 °C (Landis, 2003); parasol en L1, a ~1 millón de km (Birch, 1991), de unas dos veces el ancho de Venus para tapar todo el disco. Se termina viendo desde atrás, como un eclipse.
   - Alargar la vida del Sol (Scoggins y Kipping, 2023: hasta ~3 000 millones de años) y moverlo (Shkadov, 1987: 34 000 años luz en mil millones de años; Caplan, 2019: ~50 años luz en un millón de años).
+- **26 de octubre · Diego, al ver el acto III:** Tiempo y Espacio eran «más clean, 1 objeto en pantalla»; Destino se sentía más homogéneo de color y «no del todo cool». Desde entonces: **un protagonista por momento** (rutas, órbitas y enjambre solo cuando son el tema), **rótulos sobre objetos en la lámina** (sin ella, solo la cifra grande y lo imprescindible, como «tamaño ilustrativo») y **un color propio por momento** (el verde azulado queda como acento de la civilización).
+- **26 de octubre · fase 3 (decisiones sin pasar por Diego):**
+  - Acto IV: velas de luz (Starshot: unos metros y gramos, decenas de GW, un quinto de la luz en minutos, ~20 años a Alfa Centauri); el viaje en la vela con **aberración y Doppler reales** del cielo; el paso entre Alfa Centauri A y B en cámara lenta; **frenar con la luz de A** según Heller y Hippke (2017: al 4,6 % de c como mucho) en vez de la vela magnética del brief; el muro de la velocidad de la luz (Murphy 2011) con el vecindario unido por rutas y la galaxia donde la burbuja es un punto. Las estrellas vecinas son reales (posiciones aproximadas, ubicadas respecto del centro de la galaxia del modelo).
+  - Acto V: la burbuja como **un frente luminoso** que la cámara recorre y que crece hasta cubrir la galaxia (Carroll-Nellenback et al. 2019: menos de ~300 millones de años); tipo III con la cortina visible/infrarrojo (Griffith et al. 2015: ninguna de ~100 000); las respuestas a Fermi como lugares dibujados en punteado: la reserva (Ball 1973), los que callan (Brin 1983) y las ruinas de un enjambre muerto alrededor de una enana blanca (Hanson 1996); el muro del borde de la galaxia. Las que duermen y las que se van hacia adentro (Sandberg et al. 2017; Smart 2012) se anuncian en el texto del muro; las expansivas quedan para el acto VII.
 - Pendiente: confirmar repo y URL (`drayzu/Destino` → drayzu.github.io/Destino) antes de crear el remoto.
 
 ## Cómo está hecho
@@ -34,7 +38,10 @@
   - `despertar.ts` (acto I, **provisional**): la Tierra oscura mientras el reloj cuenta los vatios de pensar. La página lo dice («acto provisional»).
   - `hoy.ts` (acto II): doscientos años de luces (curva de OWID, el año como cifra), hoy, más energía más calor, el muro con la cortina infrarroja (`src/mundo/calor.ts`, del estudio), subir sin cohetes montados en el ascensor (con la lámina, las fuerzas sobre el cable cuando se ve de lado), la industria sale al espacio.
   - `sistema.ts` (acto III): ver el orden en Decisiones. Los objetos nuevos viven en `src/mundo/`: `habitat.ts` (el cilindro de O'Neill por dentro), `habitats.ts` (Bishop, McKendree, Stanford, Bernal), `planetas.ts` (Marte y Venus), `estrella.ts` (el levante por los polos, el espejo de Shkadov, el motor de Caplan) y `obras.ts` (el Sol, el enjambre y sus placas, Mercurio y su riel, rutas, cinturón, faros).
-  - Para viajar entre lugares lejanos, `vuelo` (la distancia desde el origen crece en logaritmo y la distancia al destino decrece en logaritmo) y `mirar` (la mirada gira por ángulo; deslizar el objetivo por el espacio la desvía de golpe).
+  - Para viajar entre lugares lejanos, `vuelo` (la distancia desde el origen crece en logaritmo y la distancia al destino decrece en logaritmo) y `mirar` (la mirada gira por ángulo; deslizar el objetivo por el espacio la desvía de golpe). Están en `src/engine/vista.ts`.
+  - `estrellas.ts` (acto IV): las vecinas (`src/mundo/vecinas.ts`: posiciones por coordenadas galácticas, estrellas de cerca, las velas) y la **cabina**: lo que viaja con la cámara (las velas) se dibuja en el espacio de la cámara, en metros, porque a años luz del Sol las coordenadas del mundo ya no distinguen metros (precisión doble ≈ 9 m a 4 años luz).
+  - `galactica.ts` (acto V): la burbuja de la galaxia (`galaxia.ts`: estrellas y luz difusa se tiñen dentro de ella; hueco para la reserva; modo infrarrojo con cortina) y los lugares de Fermi (`src/mundo/fermi.ts`: el frente como membrana, la reserva, los que callan, las ruinas).
+  - El mundo sabe de **la velocidad del observador** (`estado.beta`, `estado.vel`): las partículas y el cielo de fondo se ven con aberración y Doppler.
 - **El reloj y la escalera** (`src/engine/placa.ts`): potencia, tipo, cuándo (o un año del pasado) y alcance; la escalera vacía con un anillo hueco para la potencia que nadie usa; los muros la cruzan.
 - **Lecciones nuevas** (evitan horas):
   - Las partículas no prueban profundidad: un planeta tapa lo que tiene detrás con `uOcc` (su centro en espacio de vista y su radio), que el mundo pone a todas las nubes salvo las del propio planeta.
@@ -43,7 +50,16 @@
   - **Un NaN en un solo píxel vuelve negro todo el cuadro** (el resplandor lo esparce; la placa 2D sigue viéndose). Casi siempre es `pow(1.0 - mu, n)` con `mu` apenas mayor que 1: usar `pow(max(1.0 - mu, 0.0), n)`.
   - `smoothstep` con los bordes al revés no está definido en GLSL; en este equipo (ANGLE sobre D3D11) a veces invierte el resultado. Escribir siempre `1.0 - smoothstep(a, b, x)` con `a < b`.
   - Otro planeta también tapa las estrellas: `estado.oclusor` (centro, radio y sus propias nubes) toma el lugar de la Tierra cuando se ve más grande.
-  - Puntos de luz más chicos que un píxel se pierden aunque tengan `fuente`: el punto se muestrea fuera de su centro. Las luces de ciudades necesitan al menos 2–3 px.
+  - Puntos de luz más chicos que un píxel se pierden aunque tengan `fuente`: el punto se muestrea fuera de su centro. Las luces de ciudades necesitan al menos 2–3 px; cuando unos puntos son el tema, su tamaño se calcula por la distancia (unos píxeles a cualquier escala).
+  - **`sqrt` también da NaN:** un varying que en el vértice era `max(x, 0)` puede llegar apenas negativo al fragmento (en D3D la interpolación no es exacta). Siempre `sqrt(max(x, 0.0))`.
+  - Lo que conserva su brillo bajo un píxel (`fuente`) se suma: a escala galáctica, las obras del sistema solar y las luces de la Tierra hacían una mancha donde está el Sol. Lejos se ocultan (`estado.faros` apaga también los faros del Sol y la Tierra).
+  - Para encontrar qué dibuja un NaN: ocultar grupos con un parche a `update` del acto desde `tools/hoja.mjs` y medir el brillo medio de la foto.
+
+## Pendiente de los actos IV y V (para pulir)
+- Algunas transiciones largas dejan un cuadro vacío (la caída hacia la vela; de las ruinas al borde de la galaxia; el paso por dentro de la membrana del frente).
+- La reserva del zoológico se lee poco: su esfera punteada parece una pila de anillos.
+- Faltan los «a la vez» del acto IV (naves generacionales, sondas que se copian, un motor estelar llevándose una estrella) y del V (radiotelescopios que escuchan, estrellas que se mueven y mezclan los asentamientos).
+- Lámina: el cono de aberración y lo que la física no permite (Bussard, Alcubierre, agujeros de gusano) en punteado; cómo buscamos a otros (radio, láser, infrarrojo).
 
 ## Pendiente del acto III (para pulir)
 - Algunos traslados largos tienen cuadros casi vacíos (de la Tierra a los hábitats; de Marte a la vista general).
@@ -75,7 +91,8 @@
 - **26 de octubre · plan nuevo:** brief y biblia reescritos como Destino; este documento.
 - **26 de octubre · fase 0 con el plan nuevo:** la apertura terminada como Destino (reloj de la potencia sin usar); «Dejar de ser materia» en tres maneras y la mezcla elegida; Diego eligió los estilos.
 - **26 de octubre · fase 1:** el motor y el primer tramo del viaje (actos 0, I provisional y II).
+- **26 de octubre · fase 3:** limpieza del acto III según Diego (un protagonista, rótulos a la lámina, color propio); acto IV (velas de luz, el viaje a un quinto de la luz con aberración real, frenar con la luz de Alfa Centauri A, el muro de la velocidad de la luz) y acto V (la burbuja, tipo III, la reserva, los que callan, el Gran Filtro, el borde y el silencio). Capturas sin ventana con `tools/hoja.mjs`.
 - **26 de octubre · fase 2:** el acto III completo: el cilindro de O'Neill por dentro, los otros hábitats, Marte, Venus, Mercurio y su catapulta, el enjambre, visto desde lejos, alargar la vida del Sol, moverlo y el tipo II con su muro. Arreglos de shaders (NaN y `smoothstep`) que también afectaban al acto II.
 
 ## Siguiente paso
-Que Diego vea el acto III (`docs/fase2/momentos.jpg`, y en vivo en `http://localhost:5197/?p=45`) y diga si la prueba de fuego impresiona. Si sí, la **fase 3**: actos IV (estrellas vecinas: velas de luz, a un quinto de la luz, frenar, el muro de la luz) y V (la galaxia: la burbuja, el tipo III, la galaxia de las posibilidades), con la misma lógica.
+Que Diego vea los actos IV y V (`docs/fase3/momentos.jpg`; en vivo `http://localhost:5197/?p=98`) con el criterio de cuadros limpios. Después, la **fase 4**: actos 0 (pulir), I (la materia que despierta: células, una neurona, un cerebro, las máquinas), VI (hacia adentro: «Dejar de ser materia», la mezcla que eligió Diego), VII (el cosmos) y VIII (el final y el relevo a Infinito).
