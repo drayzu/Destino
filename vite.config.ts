@@ -40,6 +40,7 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
+        main: 'index.html',
         laboratorio: 'prototypes/index.html',
         sistema: 'prototypes/sistema.html',
         estudios: 'prototypes/estudios.html',

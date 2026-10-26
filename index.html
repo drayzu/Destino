@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Destino</title>
+    <meta name="description" content="Un solo scroll de una civilización que deja atrás su planeta: de ¿hay alguien más? a la última obra posible." />
+    <meta name="theme-color" content="#000000" />
+    <meta property="og:title" content="Destino" />
+    <meta property="og:description" content="Un solo scroll de una civilización que deja atrás su planeta: de ¿hay alguien más? a la última obra posible." />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23000'/%3E%3Cpath d='M18 46 L46 18' stroke='%23ece7db' stroke-opacity='.5' stroke-width='1.5'/%3E%3Ccircle cx='46' cy='18' r='5' fill='%236fe3c1'/%3E%3Ccircle cx='18' cy='46' r='3' fill='%23ece7db' fill-opacity='.6'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+    <canvas id="placa" aria-hidden="true"></canvas>
+    <div id="spacer"></div>
+
+    <section id="intro">
+      <h1>Destino</h1>
+      <p class="lede" data-i18n>¿Adónde podemos llegar?</p>
+      <p class="cue" data-i18n>Desliza para empezar<span class="cue-line"></span></p>
+    </section>
+
+    <header class="brand">
+      <span class="brand-name">Destino</span>
+    </header>
+    <div class="chips">
+      <button id="plate" class="chip" aria-pressed="false"><span class="chip-k">I</span><span class="chip-t" data-i18n>Lámina</span></button>
+      <button id="sound" class="chip" aria-pressed="false"><span class="chip-k">S</span><span class="chip-t" data-i18n>Sonido</span></button>
+      <button id="play" class="chip"><span class="chip-k">A</span><span class="chip-t" data-i18n>Reproducir</span></button>
+      <button id="lang" class="chip"><span class="chip-k">L</span><span class="chip-t">English</span></button>
+    </div>
+
+    <nav id="ruler" aria-label="Actos" data-i18n-label></nav>
+    <p id="leer" class="sr-only" aria-live="polite"></p>
+    <p id="provisional" data-i18n>acto provisional</p>
+
+    <a id="enlace" class="enlace" target="_blank" rel="noopener"></a>
+
+    <section id="outro">
+      <p class="outro-k" data-i18n>Continuará</p>
+      <p class="outro-t" data-i18n>Destino se está construyendo: lo que sigue es el sistema solar trabajando.</p>
+    </section>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
