@@ -163,7 +163,7 @@ export function adentro(): Acto {
     },
     placa(g, f: Cuadro) {
       const { p, W, H, u, time } = f;
-      if (p < P('a6') - 0.5 || p > P('a6.fin') + 0.6) return;
+      if (p < P('a6') - 0.5 || p > P('a6.fin') + 0.3) return;
       const at = (d: number, az: number, el: number) => orbita(d, az, el).pos;
       // The temperature of each shell, on the cut's edge (plate); the scale's honesty, always.
       const ta = ease(P('a6') + 4.0, P('a6') + 4.6, p) * (1 - ease(P('a6.mente') + 0.4, P('a6.mente') + 1.0, p));
