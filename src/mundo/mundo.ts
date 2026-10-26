@@ -72,9 +72,11 @@ export interface Estado {
   /** The observer's speed (fraction of c) and direction (world): the sky and every point aberrate. */
   beta: number;
   vel: THREE.Vector3;
+  /** The Sun's and the Earth's beacons (0..1). */
+  faros: number;
 }
 
-const DEFECTO: Estado = { luces: 0.36, nuevas: 0, giro: 0, cercanias: 0, luna: 1, galaxia: 1, cielo: 0.8, solDim: 0.55, oclusor: null, beta: 0, vel: new THREE.Vector3(0, 0, -1) };
+const DEFECTO: Estado = { luces: 0.36, nuevas: 0, giro: 0, cercanias: 0, luna: 1, galaxia: 1, cielo: 0.8, solDim: 0.55, oclusor: null, beta: 0, vel: new THREE.Vector3(0, 0, -1), faros: 1 };
 
 export type Mundo = ReturnType<typeof crearMundo>;
 
@@ -225,6 +227,10 @@ export function crearMundo(scene: THREE.Scene) {
 
       // The Sun.
       sun.update(camera, time, estado.solDim);
+      // Light years away the Earth and its works are inside the Sun's pixel: their lights (which keep
+      // their brightness below a pixel) would only blur it.
+      const cerca = camW.length() < 5000;
+      earthSys.visible = cerca;
 
       // The Earth: turned, lit from the Sun, its lights as the acts say.
       body.quaternion.copy(giroQ(estado.giro, q));
@@ -240,13 +246,13 @@ export function crearMundo(scene: THREE.Scene) {
       near.group.visible = estado.cercanias > 0.001;
       moon.uni.uSun.value.copy(SOL_DESDE_E);
       moon.group.worldToLocal(moon.uni.uCamL.value.set(0, 0, 0));
-      moon.group.visible = estado.luna > 0.001;
+      moon.group.visible = cerca && estado.luna > 0.001;
       for (const n of moon.nubes) n.u.uGain.value = estado.luna;
 
       // Beacons, while the bodies are smaller than a few pixels.
       const px = (c: THREE.Vector3, r: number) => (r / Math.max(c.distanceTo(camW), 1e-300)) * focal;
-      B.set(0, V(), 1 - smoothstep(2, 8, px(V(), R_SUN)));
-      B.set(1, E, 1 - smoothstep(2, 6, px(E, R_E)));
+      B.set(0, V(), (1 - smoothstep(2, 8, px(V(), R_SUN))) * estado.faros);
+      B.set(1, E, (1 - smoothstep(2, 6, px(E, R_E))) * estado.faros);
       B.commit();
       B.mat.uniforms.uDpr.value = dpr;
 

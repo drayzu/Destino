@@ -13,7 +13,9 @@ import { pantalla } from '../engine/pantalla';
  *   through the disk, gathering starlight and losing it to dust (the band and its rift from inside,
  *   the spiral from outside). Adapted from Tiempo's galaxia.ts to world space.
  * - A bubble: points of light inside a sphere turn teal (a civilization lights its stars) and its
- *   front glows; used for the bubble that should exist and does not.
+ *   front glows; used for the bubble that should exist and does not, and for ours (act V). A hole in
+ *   it (`uHueco`: centre and radius) is left as it was (a reserve). The diffuse light takes its tint.
+ * - Seen as Type III: behind a curtain (`uWipePx`), the visible light dims and the infrared glows.
  */
 
 export const CENTRO = new THREE.Vector3(0, 0, -26000);
@@ -139,7 +141,9 @@ export function galaxia(ruta: [THREE.Vector3, THREE.Vector3] = [new THREE.Vector
       uniform float uLocal;
       float pow2(float x) { return x * x; }
       uniform float uScale, uFlux, uFloor, uOld, uNear;
-      uniform vec3 uBub; uniform float uBubR, uBubOn, uBubFront;`,
+      uniform vec3 uBub; uniform float uBubR, uBubOn, uBubFront;
+      uniform vec4 uHueco;
+      uniform float uIR, uWipePx, uResX;`,
     move: /* glsl */ `
       vec4 mq = modelViewMatrix * vec4(p, 1.0);
       float dly = length(mq.xyz) / uScale;
@@ -152,8 +156,10 @@ export function galaxia(ruta: [THREE.Vector3, THREE.Vector3] = [new THREE.Vector
       if (uBubOn > 0.001) {
         float dd = distance(position, uBub);
         float inside = 1.0 - smoothstep(uBubR * 0.97, uBubR, dd);
+        if (uHueco.w > 0.0) inside *= smoothstep(uHueco.w, uHueco.w * 1.05, distance(position, uHueco.xyz));
         float front = exp(-pow2((dd - uBubR) / (uBubR * 0.04 + 1.0)));
-        em = mix(em, vec3(0.4, 1.0, 0.82) * (dot(em, vec3(0.33)) * 1.6 + 0.01), inside * uBubOn);
+        // (the neighbourhood drawn denser than it is stays faded from afar, even lit)
+        em = mix(em, vec3(0.4, 1.0, 0.82) * (dot(em, vec3(0.33)) * 1.6 + 0.01 * mix(1.0, uLocal, aLoc)), inside * uBubOn);
         em += vec3(0.5, 1.0, 0.85) * front * uBubFront * uBubOn * (0.02 + f * 2.0);
       }
       // Near ones grow a little: they pass by.
@@ -170,7 +176,19 @@ export function galaxia(ruta: [THREE.Vector3, THREE.Vector3] = [new THREE.Vector
       uBubOn: { value: 0 },
       uBubFront: { value: 1 },
       uLocal: { value: 1 },
+      uHueco: { value: new THREE.Vector4(0, 0, 0, 0) },
+      uIR: { value: 0 },
+      uWipePx: { value: 1e9 },
+      uResX: { value: 1 },
     },
+    // Type III: to the right of the curtain, the infrared (the heat of all of it); to the left, dimmed.
+    post: /* glsl */ `
+      if (uIR > 0.0) {
+        float sx = (gl_Position.x / gl_Position.w * 0.5 + 0.5) * uResX;
+        float lum = dot(em, vec3(0.33));
+        if (sx > uWipePx) em = mix(em, vec3(1.0, 0.42, 0.14) * lum * 1.5, uIR);
+        else em *= 1.0 - 0.85 * uIR;
+      }`,
     extra: { aLum: [new Float32Array(lum), 1], aOld: [new Float32Array(old), 1], aLoc: [new Float32Array(loc), 1] },
   });
   nube.u.uSpread.value = 0;
@@ -183,8 +201,8 @@ export function galaxia(ruta: [THREE.Vector3, THREE.Vector3] = [new THREE.Vector
 
   const luz = pantalla(
     /* glsl */ `
-    uniform vec3 uCam;
-    uniform float uLight, uDustK, uAlpha, uBar;
+    uniform vec3 uCam, uBub;
+    uniform float uLight, uDustK, uAlpha, uBar, uBubR, uBubOn, uIR, uWipePx;
     float h31(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
     float n3(vec3 p) {
       vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -227,14 +245,24 @@ export function galaxia(ruta: [THREE.Vector3, THREE.Vector3] = [new THREE.Vector
             float bul = 1.1 * exp(-length(vec3(bq.x / 0.5, q.y / 0.11, bq.y / 0.18))) + 0.45 * exp(-length(vec3(q.x, q.y * 1.8, q.z)) / 0.2);
             float dust = uDustK * exp(-R / 1.4) * exp(-abs(q.y) / 0.035) * (0.3 + 0.7 * armsG(R / 0.94, phi + 0.35)) * (0.45 + 0.55 * n3(q * 9.0)) * smoothstep(0.15, 0.5, R);
             vec3 lit = mix(vec3(1.0, 0.8, 0.58), vec3(0.72, 0.82, 1.0), smoothstep(0.4, 2.6, R)) * disk + vec3(1.0, 0.8, 0.56) * bul * uBar;
+            // Inside our bubble the galaxy's light takes the civilization's tint.
+            if (uBubOn > 0.001) {
+              float inb = 1.0 - smoothstep(uBubR * 0.97, uBubR, distance(q * ${RD.toFixed(1)}, uBub));
+              lit = mix(lit, vec3(0.4, 1.0, 0.82) * dot(lit, vec3(0.4)), inb * uBubOn * 0.85);
+            }
             col += T * lit * dt;
             T *= exp(-dust * dt);
           }
         }
       }
+      if (uIR > 0.0) {
+        float lum = dot(col, vec3(0.33));
+        if (gl_FragCoord.x > uWipePx) col = mix(col, vec3(1.0, 0.42, 0.14) * lum * 1.6, uIR);
+        else col *= 1.0 - 0.85 * uIR;
+      }
       gl_FragColor = vec4(col * uLight * uAlpha, 1.0);
     }`,
-    { uCam: { value: new THREE.Vector3() }, uLight: { value: 1 }, uDustK: { value: 45 }, uAlpha: { value: 1 }, uBar: { value: 1 } },
+    { uCam: { value: new THREE.Vector3() }, uLight: { value: 1 }, uDustK: { value: 45 }, uAlpha: { value: 1 }, uBar: { value: 1 }, uBub: { value: new THREE.Vector3() }, uBubR: { value: 0 }, uBubOn: { value: 0 }, uIR: { value: 0 }, uWipePx: { value: 1e9 } },
   );
   (luz.mesh.material as THREE.ShaderMaterial).blending = THREE.AdditiveBlending;
   (luz.mesh.material as THREE.ShaderMaterial).transparent = true;

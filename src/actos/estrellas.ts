@@ -233,6 +233,9 @@ export function estrellas(): Acto {
     },
     estado(mundo, p) {
       const e = mundo.estado;
+      // Light years away the Sun is one star among many: its beacon fades.
+      const lejos = vista(p).pos.length() / LY_AU;
+      e.faros = 1 - smoothstep(0.5, 6, lejos);
       e.solDim = 0.9;
       e.cercanias = 0;
       e.luna = 0;

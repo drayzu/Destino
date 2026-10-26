@@ -75,3 +75,27 @@ export function proyectarMundo(w: THREE.Vector3, v: Vista, k: number, camera: TH
   out.y = ((1 - tmp.y) / 2) * H;
   return out;
 }
+
+/**
+ * From one place to another far away, across scales: the distance from the start grows in
+ * logarithm, then the distance to the end shrinks in logarithm (a powers-of-ten flight). `d0`,
+ * `d1`: the scale of the start and of the end.
+ */
+export function vuelo(a: THREE.Vector3, b: THREE.Vector3, s: number, d0: number, d1: number) {
+  const u = b.clone().sub(a);
+  const D = u.length();
+  u.divideScalar(D);
+  if (s < 0.5) return a.clone().addScaledVector(u, Math.exp(lerp(Math.log(d0), Math.log(D / 2), s * 2)) - d0 * (1 - s * 2));
+  return b.clone().addScaledVector(u, -(Math.exp(lerp(Math.log(D / 2), Math.log(d1), s * 2 - 1)) - d1 * (s * 2 - 1)));
+}
+
+/** Turning the gaze from one point to another by angle (sliding the target across space would swing it away at once). */
+export function mirar(pos: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3, t: number) {
+  const da = a.clone().sub(pos);
+  const db = b.clone().sub(pos);
+  const la = da.length();
+  const lb = db.length();
+  const q = new THREE.Quaternion().setFromUnitVectors(da.divideScalar(la), db.divideScalar(lb));
+  const d = da.applyQuaternion(new THREE.Quaternion().slerp(q, t));
+  return pos.clone().addScaledVector(d, Math.exp(lerp(Math.log(la), Math.log(lb), t)));
+}

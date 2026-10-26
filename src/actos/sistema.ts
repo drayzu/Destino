@@ -638,6 +638,12 @@ export function sistema(): Acto {
       B.commit();
       B.mat.uniforms.uDpr.value = f.dpr;
       B.points.visible = p > P('a3') - 1;
+      // Light years away the whole system is one star: its works (whose lights keep their brightness
+      // below a pixel) would make a blur where the Sun is.
+      if (cam.length() > 3000) {
+        for (const o of [lift.group, espejo.mesh, caplan.group, swarm.points, plates.mesh, merc.group, belt.points, orbits, B.points]) o.visible = false;
+        for (const r of rutas) r.group.visible = false;
+      }
     },
     placa(g, f: Cuadro) {
       const { p, W, H, u } = f;
