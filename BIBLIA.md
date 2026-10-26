@@ -19,8 +19,10 @@ Tercera obra de la serie **Horizontes**: Espacio responde *¿dónde?* (metros), 
 11. **Nunca un cuadro vacío por accidente; nada parpadea sin razón física.** Los destellos de las velas son reflejos del Sol. Lo invisible (un haz láser, el calor infrarrojo) se dibuja en lámina y se dice.
 12. **Los números son el espectáculo** en los extremos: 2⁴⁰ máquinas, 10⁹ galaxias en seis horas, 10⁴⁶ W, el número finito de pensamientos que le quedan al universo.
 
-## Estilo elegido
-*(Se completa cuando Diego elija entre los estudios de la fase 0: el muro, la apertura y «Dejar de ser materia». Ver `ESTADO.md`.)*
+## Estilo elegido (fase 0, 26 de octubre de 2026)
+- **Los muros se ven en el mundo, en falso color:** el del calor es la Tierra que se tiñe del color de su calor (infrarrojo) detrás de una cortina que barre la pantalla; la industria que sube a órbita se enfría. La escalera marca el muro, pero el protagonista es el mundo. Referencia: `docs/estudios/resumen-muro.jpg`, fila 1.
+- **La apertura es escuchar:** desde el Sol hacia afuera, nuestra voz (una burbuja de radio de 100 años luz) contra una galaxia de 100 000, y lo poco que hemos escuchado; luego la caída a la Tierra. Referencia: `docs/estudios/resumen-apertura.jpg`, fila 3.
+- **Dejar de ser materia es entrar en el cálculo:** la cámara entra entre las capas y queda rodeada de bits (cuadros que se encienden y apagan, en el color de su temperatura); de los bits nace la red que piensa (nodos y pulsos de lámina viva). Inmersivo ante todo. Referencia: `docs/estudios/resumen-mente.jpg` (cuadros de la fila 3, red de las filas 1 y 2) y la manera 4 del estudio.
 
 ## Lenguaje
 | Capa | Qué es | Dónde |

@@ -9,6 +9,10 @@
   - Sin enlace al Atlas en cada momento. El Atlas se alcanza desde la lámina (rótulos enlazados a su ficha) y desde un solo enlace al final; el Atlas enlaza de vuelta a Destino.
   - En el acto 0, el reloj muestra la galaxia sin usar (~10³⁷ W, «tipo —»).
   - En el acto I, el reloj cuenta los vatios de pensar (célula → cerebro → todos los cerebros → las máquinas → hoy).
+- **26 de octubre · estilos de la fase 0 (Diego):**
+  - Muro «El calor nos echa»: **manera 1**, la Tierra que se tiñe del color de su calor (infrarrojo detrás de una cortina).
+  - Apertura «¿Hay alguien más?»: **manera 3, Escuchar** (nuestra burbuja de radio de 100 años luz contra la galaxia, y lo poco que hemos escuchado).
+  - «Dejar de ser materia»: **una mezcla**. Le gusta la red neuronal de las maneras 1 y 2, y de la 3 le gustan mucho los cuadros (bits) que se encienden y apagan cuando la cámara entra: «es inmersivo, súper cool». La versión elegida une las dos: entrar entre los bits y que de ellos nazca la red.
 - Pendiente: confirmar repo y URL (`drayzu/Destino` → drayzu.github.io/Destino) antes de crear el remoto.
 
 ## Los estudios de la fase 0
