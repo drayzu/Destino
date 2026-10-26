@@ -55,6 +55,28 @@ export const CIUDADES: [number, number, number][] = [
   [30.27, -97.74, 2.3], [29.42, -98.49, 2.6], [32.72, -117.16, 3.3], [38.58, -121.49, 2.4], [21.31, -157.86, 1],
 ];
 
+/**
+ * When a place lit up (the order its lights come on, 0..0.24, before today's 0.36): first western
+ * Europe and the north-east of the United States, then the rest of Europe and North America, Japan,
+ * Latin America, the Middle East, East and South Asia, and Africa last. A rough map of
+ * industrialization, so «two hundred years of lights» spread the way they did.
+ */
+export function ordenHistorico(la: number, lo: number) {
+  const en = (a0: number, a1: number, o0: number, o1: number) => la >= a0 && la <= a1 && lo >= o0 && lo <= o1;
+  if (en(36, 60, -10, 30)) return 0.0;
+  if (en(35, 48, -95, -68)) return 0.02;
+  if (en(40, 66, 30, 60)) return 0.06;
+  if (en(25, 60, -130, -55)) return 0.07;
+  if (en(30, 46, 128, 146)) return 0.08;
+  if (en(-48, -10, 110, 180)) return 0.1;
+  if (en(-56, 33, -120, -30)) return 0.13;
+  if (en(12, 42, -18, 62)) return 0.15;
+  if (en(18, 55, 100, 135)) return 0.17;
+  if (en(-12, 35, 60, 125)) return 0.19;
+  if (en(-36, 15, -20, 55)) return 0.21;
+  return 0.15;
+}
+
 /** Land of the world, as a function. Loaded once. */
 let tierraLista: Promise<(la: number, lo: number) => number> | null = null;
 export function mascaraTierra() {
@@ -273,7 +295,7 @@ export function tierra(): Tierra {
         const clo = lo + (so + Math.cos(a) * rr) / Math.max(0.2, Math.cos(la * D2R));
         if (isLand(cla, clo) < 0.5 && lb.r() < 0.85) continue;
         const centro = 1 - Math.min(1, Math.hypot(cla - la, (clo - lo) * Math.cos(la * D2R)) / rad);
-        put(cla, clo, warm[k % 3], 0.0008 + 0.0006 * centro, 0.35 + 0.75 * centro, lb.r() * 0.3);
+        put(cla, clo, warm[k % 3], 0.0008 + 0.0006 * centro, 0.35 + 0.75 * centro, ordenHistorico(la, lo) + lb.r() * 0.06 * (1.2 - centro));
       }
     }
     // Roads: dotted lines between cities closer than ~12°.
@@ -289,7 +311,7 @@ export function tierra(): Tierra {
           const la = a1 + (a2 - a1) * t + gauss(lb.r) * 0.08;
           const lo = o1 + (o2 - o1) * t + gauss(lb.r) * 0.08;
           if (isLand(la, lo) < 0.5) continue;
-          put(la, lo, warm[0], 0.0007, 0.35, 0.05 + lb.r() * 0.25);
+          put(la, lo, warm[0], 0.0007, 0.35, ordenHistorico(la, lo) + 0.03 + lb.r() * 0.05);
         }
       }
     }
@@ -304,7 +326,7 @@ export function tierra(): Tierra {
         if (la < -60) continue;
         const temperate = la > 0 ? smoothstep(5, 25, la) * (1 - smoothstep(58, 68, la)) : smoothstep(-5, -20, la) * (1 - smoothstep(-42, -50, la));
         const today = lb.r() < 0.18 * (0.25 + temperate);
-        const o = today ? 0.05 + lb.r() * 0.25 : 0.42 + lb.r() * 0.3 + 0.1 * smoothstep(55, 75, al);
+        const o = today ? ordenHistorico(la, lo) + 0.02 + lb.r() * 0.08 : 0.42 + lb.r() * 0.3 + 0.1 * smoothstep(55, 75, al);
         put(la, lo, today ? warm[lb.r() < 0.5 ? 0 : 1] : teal.clone().lerp(warm[2], lb.r() * 0.6), 0.0008, today ? 0.45 : 0.4, o);
       } else if (lb.r() < 0.12) {
         put(la, lo, teal, 0.0008, 0.35, 0.75 + lb.r() * 0.24);
