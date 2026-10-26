@@ -18,13 +18,14 @@
 |---|---|
 | Muro «El calor nos echa» (`?m=muro`, 3 maneras) | Sigue valiendo. Por elegir. |
 | Ascensor (`?m=ascensor`) | Hecho como estación paso a paso, formato que ya no va. Su subida y su dibujo de fuerzas sirven como la escena del ascensor con la lámina encendida. No necesita elección. |
-| Apertura «¿Hay alguien más?» (`?m=apertura`, 3 maneras) | Sigue valiendo; se termina con el nombre Destino y el reloj de la galaxia sin usar. Por elegir. |
-| «Dejar de ser materia» (`?m=mente`) | Por hacer, sin simulación. Por elegir. |
+| Apertura «¿Hay alguien más?» (`?m=apertura`, 3 maneras: Dentro, Desde fuera, Escuchar) | Terminada con el nombre Destino. El reloj muestra la potencia que hay y nadie usa (10³⁷ W, «tipo —», escalera vacía con un anillo hueco) y en la caída baja con lo que se ve: el Sol (10²⁶), la luz en la Tierra (10¹⁷), nosotros (10¹³, ahí se llena la escalera). Zona habitable rotulada. Resumen: `docs/estudios/resumen-apertura.jpg`. Por elegir. |
+| «Dejar de ser materia» (`?m=mente`, 3 maneras: Capas, Reordenar, Calor) | Hecho, sin simulación. Un cerebro Matrioshka con un corte; «El frío piensa más» (10⁴⁷ → 10⁴⁹ operaciones/s); la materia se vuelve lámina viva; muro «el frío» con un termómetro hasta 2,7 K. Resumen: `docs/estudios/resumen-mente.jpg`. Por elegir. |
 
 ## Historial
 - **26 de octubre de 2026 · planificación (como «Despertar»):** brief, investigación (`docs/investigacion.md`), prototipo del sistema solar (`prototypes/sistema.html`) con su estación del enjambre y modo explorar.
 - **26 de octubre · fase 0 (como «Despertar»):** página de estudios; el muro en tres maneras; la estación del ascensor; la apertura en tres maneras (en curso).
 - **26 de octubre · plan nuevo:** brief y biblia reescritos como Destino; este documento.
+- **26 de octubre · fase 0 con el plan nuevo:** la apertura terminada como Destino (reloj de la potencia sin usar: `hudLibre` y `escalera(…, vacia)` en `placa.ts`, `libre` en `estudios/tipos.ts`); «Dejar de ser materia» en tres maneras (`estudios/mente.ts`).
 
 ## Siguiente paso
-Terminar la apertura y hacer «Dejar de ser materia»; enseñarle a Diego los tres estudios con capturas y anotar aquí lo que elija.
+Diego elige el estilo del muro, la apertura y «Dejar de ser materia» (resúmenes en `docs/estudios/resumen-*.jpg`); anotarlo aquí y en `BIBLIA.md` («Estilo elegido»). Después, la fase 1 (motor).
