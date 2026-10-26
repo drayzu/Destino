@@ -76,9 +76,11 @@ export interface Estado {
   faros: number;
   /** The Earth and its works are there (0: taken apart, later in the journey). */
   tierra: number;
+  /** The Sun is there (0: gone out, at the end). */
+  sol: number;
 }
 
-const DEFECTO: Estado = { luces: 0.36, nuevas: 0, giro: 0, cercanias: 0, luna: 1, galaxia: 1, cielo: 0.8, solDim: 0.55, oclusor: null, beta: 0, vel: new THREE.Vector3(0, 0, -1), faros: 1, tierra: 1 };
+const DEFECTO: Estado = { luces: 0.36, nuevas: 0, giro: 0, cercanias: 0, luna: 1, galaxia: 1, cielo: 0.8, solDim: 0.55, oclusor: null, beta: 0, vel: new THREE.Vector3(0, 0, -1), faros: 1, tierra: 1, sol: 1 };
 
 export type Mundo = ReturnType<typeof crearMundo>;
 
@@ -229,6 +231,7 @@ export function crearMundo(scene: THREE.Scene) {
 
       // The Sun.
       sun.update(camera, time, estado.solDim);
+      sun.group.visible = estado.sol > 0.001;
       // Light years away the Earth and its works are inside the Sun's pixel: their lights (which keep
       // their brightness below a pixel) would only blur it.
       const cerca = camW.length() < 5000;

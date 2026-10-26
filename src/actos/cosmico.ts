@@ -119,7 +119,7 @@ export function cosmico(): Acto {
     },
     update(f: Cuadro) {
       const { p, time } = f;
-      const here = p > P('a7') - 0.5 && p < P('a7.fin') + 2;
+      const here = p > P('a7') - 0.5 && p < P('a7.fin') + 0.7;
       group.visible = here;
       if (!here) return;
       const on = ease(P('a7') + 1.2, P('a7') + 2.6, p);
