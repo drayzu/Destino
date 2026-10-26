@@ -271,12 +271,13 @@ const II = 26;
 const III = 36;
 
 /** The power ladder at the right edge: fills with the civilization's colour up to where it is. */
-export function escalera(g: CanvasRenderingContext2D, u: number, W: number, H: number, lp: number, muro: Muro | null = null) {
+export function escalera(g: CanvasRenderingContext2D, u: number, W: number, H: number, lp: number, muro: Muro | null = null, vacia = 0) {
   const x = W - 64 * u;
   const y0 = H - 70 * u;
   const y1 = 86 * u;
   const yOf = (v: number) => y0 + ((v - LP0) / (LP1 - LP0)) * (y1 - y0);
   g.save();
+  const A0 = g.globalAlpha;
   // The rail, by certainty: solid (measured) up to today, dashed (physics allows it) to II, dotted beyond.
   g.lineWidth = Math.max(1, 1.1 * u);
   const seg = (a: number, b: number, dash: number[], alpha: number) => {
@@ -307,7 +308,9 @@ export function escalera(g: CanvasRenderingContext2D, u: number, W: number, H: n
   grd.addColorStop(0, 'rgba(111,227,193,0.05)');
   grd.addColorStop(1, 'rgba(111,227,193,0.9)');
   g.fillStyle = grd;
+  g.globalAlpha = A0 * (1 - vacia);
   g.fillRect(x - 1.6 * u, yp, 3.2 * u, y0 - yp);
+  g.globalAlpha = A0;
   // Rungs: names show only near where we are (majors always, faint).
   g.font = FONT.mono(9 * u);
   g.letterSpacing = `${1 * u}px`;
@@ -318,7 +321,7 @@ export function escalera(g: CanvasRenderingContext2D, u: number, W: number, H: n
     const near = 1 - smoothstep(1.2, 3.2, Math.abs(r.lp - lp));
     const a = r.major ? 0.38 + 0.5 * near : 0.7 * near;
     if (a < 0.02) continue;
-    g.fillStyle = r.lp <= lp ? `rgba(111,227,193,${a})` : ink(a);
+    g.fillStyle = r.lp <= lp && vacia < 0.5 ? `rgba(111,227,193,${a})` : ink(a);
     g.fillText(r.label.toUpperCase(), x - 14 * u, yy);
     g.fillRect(x - (r.major ? 10 : 6) * u, yy - 0.5 * u, (r.major ? 10 : 6) * u, Math.max(1, u));
   }
@@ -361,14 +364,26 @@ export function escalera(g: CanvasRenderingContext2D, u: number, W: number, H: n
     }
     g.restore();
   }
-  // You are here.
-  g.fillStyle = TEAL;
-  g.shadowColor = TEAL;
-  g.shadowBlur = 10 * u;
-  g.beginPath();
-  g.arc(x, yp, 4 * u, 0, Math.PI * 2);
-  g.fill();
-  g.shadowBlur = 0;
+  // You are here (or, with an empty ladder, the power that is there and nobody uses: a hollow ring).
+  if (vacia < 1) {
+    g.globalAlpha = A0 * (1 - vacia);
+    g.fillStyle = TEAL;
+    g.shadowColor = TEAL;
+    g.shadowBlur = 10 * u;
+    g.beginPath();
+    g.arc(x, yp, 4 * u, 0, Math.PI * 2);
+    g.fill();
+    g.shadowBlur = 0;
+  }
+  if (vacia > 0) {
+    g.globalAlpha = A0 * vacia;
+    g.strokeStyle = ink(0.85);
+    g.lineWidth = Math.max(1, 1.2 * u);
+    g.beginPath();
+    g.arc(x, yp, 4.5 * u, 0, Math.PI * 2);
+    g.stroke();
+  }
+  g.globalAlpha = A0;
   g.textAlign = 'left';
   g.font = FONT.serif(15 * u);
   g.fillStyle = ink(0.9);
@@ -384,14 +399,45 @@ export function marca(g: CanvasRenderingContext2D, u: number, concepto: string, 
   g.shadowBlur = 10 * u;
   g.font = FONT.serif(27 * u);
   g.fillStyle = ink();
-  g.fillText('Despertar', 40 * u, 54 * u);
-  const w = g.measureText('Despertar').width;
+  g.fillText('Destino', 40 * u, 54 * u);
+  const w = g.measureText('Destino').width;
   g.font = FONT.mono(10.5 * u);
   g.letterSpacing = `${1.4 * u}px`;
   g.fillStyle = TEAL;
   g.fillText(concepto.toUpperCase(), 40 * u + w + 16 * u, 52 * u);
   g.fillStyle = ink(0.5);
   g.fillText(sub.toUpperCase(), 40 * u, 76 * u);
+  g.restore();
+}
+
+/**
+ * The power clock before there is a civilization: the power that is there (the galaxy, a star, the
+ * light on a planet) and nobody uses. Same place and size as the HUD, «tipo —» instead of the type.
+ */
+export function hudLibre(g: CanvasRenderingContext2D, u: number, H: number, lp: number, linea: string, cap: Rotulo | null, capAlpha = 1, alpha = 1) {
+  const x = 44 * u;
+  g.save();
+  g.textBaseline = 'alphabetic';
+  g.shadowColor = 'rgba(0,0,0,0.85)';
+  g.shadowBlur = 12 * u;
+  if (cap && capAlpha > 0.01) {
+    g.globalAlpha = capAlpha;
+    g.font = FONT.italic(31 * u);
+    g.fillStyle = ink();
+    g.fillText(cap.name, x, H - 236 * u);
+    g.font = FONT.sans(14 * u);
+    g.fillStyle = ink(0.62);
+    wrap(g, cap.fact, 470 * u).forEach((line, i) => g.fillText(line, x, H - 208 * u + i * 20 * u));
+  }
+  g.globalAlpha = alpha;
+  const w = potencia(g, x, H - 86 * u, sup(Math.floor(lp)), 'W', 66 * u);
+  g.font = FONT.italic(24 * u);
+  g.fillStyle = ink(0.45);
+  g.fillText('tipo —', x + w + 22 * u, H - 92 * u);
+  g.font = FONT.mono(11 * u);
+  g.letterSpacing = `${0.9 * u}px`;
+  g.fillStyle = ink(0.78);
+  g.fillText(linea.toUpperCase(), x, H - 52 * u);
   g.restore();
 }
 

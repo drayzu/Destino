@@ -20,6 +20,10 @@ import type { Escena, Frame, Instancia } from './tipos';
  * 3 · Listening: from the Sun out: our own voice (a bubble of radio ~100 ly) against a galaxy of
  *     100 000 ly; how little we have listened; then back down.
  *
+ * The clock has no civilization to measure yet: it reads the power that is there and nobody uses
+ * (the galaxy, ~10³⁷ W), and on the dive it falls with what is in view (a star, the light on a planet)
+ * until it reaches ours, 10¹³ W, where the ladder starts to fill.
+ *
  * Figures: 6 451 confirmed planets (NASA Exoplanet Archive, 15 Oct 2026); at least one planet per star
  * on average (Cassan et al. 2012); three in four Earth-like planets older than the Earth, by 1.8 ±
  * 0.9 Gyr on average (Lineweaver 2001); at 0.1 c the galaxy is crossed in ~650 000 years (Hart
@@ -98,7 +102,7 @@ export const apertura: Escena = {
     // ------------------------------------------------------------ the journey
     const tl = new Timeline({ f: 0, plan: 0, old: 0, bub: 0, dive: 0, voz: 0, lejos: 0 });
     const cap = (d: number, n: string, f: string) => tl.caption(d, n, f);
-    cap(1.8, '¿Hay alguien más?', 'La Vía Láctea: cien mil años luz de lado a lado, cientos de miles de millones de estrellas y unos 13 000 millones de años.');
+    cap(1.8, '¿Hay alguien más?', 'La Vía Láctea: cientos de miles de millones de estrellas que brillan con unos 10³⁷ vatios desde hace 13 000 millones de años. Que sepamos, nadie los usa.');
     tl.label('portada').to(1.8, { f: 0.06 });
     if (s === 3) {
       cap(2.6, 'Nuestra voz', 'Las primeras radios salieron hace un siglo. Desde entonces, nuestra voz llena una burbuja de unos 100 años luz.');
@@ -189,10 +193,17 @@ export const apertura: Escena = {
       tl,
       listo: earth.listo,
       lectura: (p) => (ended(p) ? { lp: 13.28, ly: -1, lr: 5.6 } : null),
-      reloj: (p) => {
+      // The power that is there and nobody uses; on the dive it falls with what is in view.
+      libre: (p) => {
         const k = tl.get('dive', p);
-        if (k > 0.75) return { cifra: 'Hoy', unidad: '', linea: 'la Tierra · ocho mil millones de personas', a: ease(0.75, 0.9, k) };
-        return { cifra: '13 000', unidad: 'millones de años', linea: s === 3 ? 'la Vía Láctea · 100 000 años luz · nuestra radio: 100' : `la Vía Láctea · 100 000 años luz · ${tl.get('plan', p) > 0.05 ? '6 451 planetas confirmados' : 'cientos de miles de millones de estrellas'}`, a: 1 - ease(0.6, 0.72, k) };
+        const lp = lerp(lerp(lerp(37.0, 26.58, ease(0.1, 0.35, k)), 17.24, ease(0.5, 0.75, k)), 13.28, ease(0.85, 0.985, k));
+        const linea =
+          k > 0.85 ? 'la Tierra · ocho mil millones de personas'
+          : k > 0.5 ? 'la luz del Sol que llega a un planeta azul'
+          : k > 0.1 ? 'una estrella amarilla · el Sol'
+          : s === 3 ? 'la Vía Láctea · 13 000 millones de años · nuestra radio: 100 años luz'
+          : `la Vía Láctea · 13 000 millones de años · ${tl.get('plan', p) > 0.05 ? '6 451 planetas confirmados' : 'nadie la usa'}`;
+        return { lp, linea };
       },
       rotulo: (p) => tl.captionAt(p),
       update(f: Frame) {
@@ -266,10 +277,10 @@ export const apertura: Escena = {
           g.shadowBlur = 20 * u;
           g.font = FONT.serif(118 * u);
           g.fillStyle = ink();
-          g.fillText('Despertar', W / 2, H * 0.44);
+          g.fillText('Destino', W / 2, H * 0.44);
           g.font = FONT.italic(30 * u);
           g.fillStyle = ink(0.75);
-          g.fillText('¿Hay alguien más?', W / 2, H * 0.44 + 54 * u);
+          g.fillText('¿Adónde podemos llegar?', W / 2, H * 0.44 + 54 * u);
           g.restore();
         }
         const dive = tl.get('dive', p);
@@ -277,6 +288,7 @@ export const apertura: Escena = {
         const plan = tl.get('plan', p) * (1 - ease(0.05, 0.25, dive));
         if (plan > 0.01) {
           let shown = 0;
+          let zona: { x: number; y: number; a: number } | null = null;
           for (let i = 0; i < G.conPlanetas.length && shown < 260; i++) {
             const st = G.conPlanetas[i];
             const dly = st.distanceTo(v.pos);
@@ -303,6 +315,7 @@ export const apertura: Escena = {
                 const ang = time * (0.4 / (1 + o)) + i;
                 const px = q.x + Math.cos(ang) * rr * Math.cos(rot) - Math.sin(ang) * rr * (0.25 + 0.6 * tilt) * Math.sin(rot);
                 const py = q.y + Math.cos(ang) * rr * Math.sin(rot) + Math.sin(ang) * rr * (0.25 + 0.6 * tilt) * Math.cos(rot);
+                if (o === 1 && amber <= 0.5 && !zona && q.x > W * 0.3 && q.x < W * 0.7 && q.y > H * 0.15 && q.y < H * 0.55) zona = { x: q.x + rr * Math.cos(rot), y: q.y + rr * Math.sin(rot), a: a };
                 g.fillStyle = amber > 0.5 ? '#ffb070' : o === 1 ? TEAL : ink(0.85);
                 g.beginPath();
                 g.arc(px, py, 1.6 * u, 0, Math.PI * 2);
@@ -333,7 +346,29 @@ export const apertura: Escena = {
               shown += 0.1;
             }
           }
-          if (s === 1) texto(g, u, W / 2, H - 300 * u, 'órbitas dibujadas · tamaño ilustrativo', ink(0.5), plan, 9, 'center', false);
+          if (s === 1) {
+            texto(g, u, W / 2, H - 300 * u, 'órbitas dibujadas · tamaño ilustrativo', ink(0.5), plan, 9, 'center', false);
+            const z = zona as { x: number; y: number; a: number } | null;
+            if (z) nota(g, u, z.x, z.y, 'zona habitable: agua líquida posible', 36, -30, z.a * ease(P('planetas') + 0.6, P('planetas') + 1.2, p) * (1 - ease(P('viejos') - 0.2, P('viejos') + 0.3, p)));
+          } else {
+            // The key, from afar: the teal ones have a planet in their habitable zone.
+            const ka = plan * ease(P('planetas') + 0.6, P('planetas') + 1.2, p);
+            if (ka > 0.01) {
+              g.save();
+              g.globalAlpha = ka;
+              g.fillStyle = ink(0.8);
+              g.beginPath();
+              g.arc(W / 2 - 150 * u, H - 300 * u, 2.4 * u, 0, Math.PI * 2);
+              g.fill();
+              g.fillStyle = TEAL;
+              g.beginPath();
+              g.arc(W / 2 + 6 * u, H - 300 * u, 2.4 * u, 0, Math.PI * 2);
+              g.fill();
+              g.restore();
+              texto(g, u, W / 2 - 142 * u, H - 300 * u, 'una estrella con planetas', ink(0.7), ka, 9.5, 'left', false);
+              texto(g, u, W / 2 + 14 * u, H - 300 * u, 'uno en la zona habitable', TEAL, ka, 9.5, 'left', false);
+            }
+          }
           // The count, as the show.
           if (s !== 3) {
             const c = ease(P('planetas') + 0.2, P('planetas') + 0.8, p) * (1 - ease(P('viejos') - 0.3, P('viejos'), p));

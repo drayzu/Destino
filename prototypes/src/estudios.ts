@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { clamp, damp } from './math';
 import { createStage, liberar } from './stage';
 import { FONDOS } from './pantalla';
-import { escalera, hud, marca, reloj } from './placa';
+import { escalera, hud, hudLibre, marca, reloj } from './placa';
 import type { Escena, Frame, Instancia } from './estudios/tipos';
 import { muro } from './estudios/muro';
 import { ascensor } from './estudios/ascensor';
@@ -15,7 +15,7 @@ import { apertura } from './estudios/apertura';
 import { mente } from './estudios/mente';
 
 /**
- * Despertar's phase-0 studies: what defines the rest, each in two or three ways so Diego can choose.
+ * Destino's phase-0 studies: what defines the rest, each in two or three ways so Diego can choose.
  * A wall («El calor nos echa»), a second station («Cómo se sostiene un ascensor espacial»), the
  * opening («¿Hay alguien más?») and the turn away from matter («Dejar de ser materia»). The page
  * scroll is time; nothing else moves the camera.
@@ -155,8 +155,14 @@ function step(now: number, dt: number, at: number) {
     hud(g, u, W, H, l, cap, 1);
     if (inst.escalera !== false) escalera(g, u, W, H, l.lp, inst.muro?.(at) ?? null);
   } else {
-    const r = inst.reloj?.(at);
-    if (r) reloj(g, u, H, r.cifra, r.unidad, r.linea, cap, 1, r.a ?? 1);
+    const lb = inst.libre?.(at);
+    const r = lb ? null : inst.reloj?.(at);
+    if (lb) {
+      hudLibre(g, u, H, lb.lp, lb.linea, cap, 1, lb.a ?? 1);
+      g.globalAlpha = lb.a ?? 1;
+      escalera(g, u, W, H, lb.lp, null, 1);
+      g.globalAlpha = 1;
+    } else if (r) reloj(g, u, H, r.cifra, r.unidad, r.linea, cap, 1, r.a ?? 1);
   }
 }
 

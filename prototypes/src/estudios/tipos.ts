@@ -39,6 +39,8 @@ export interface Instancia {
   placa?(g: CanvasRenderingContext2D, f: Frame): void;
   /** The HUD reading; null hides the power clock (the opening has no power yet). */
   lectura(p: number): Lectura | null;
+  /** Before there is a civilization: the power that is there and nobody uses (log10 W), and its line. */
+  libre?(p: number): { lp: number; linea: string; a?: number } | null;
   /** Without power on the HUD: what the clock reads instead (big figure, unit, mono line). */
   reloj?(p: number): { cifra: string; unidad: string; linea: string; a?: number } | null;
   /** The moment's name and sentence. */
