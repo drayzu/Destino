@@ -145,7 +145,7 @@ export interface Tierra {
 export function tierra(): Tierra {
   const group = new THREE.Group();
   const nubes: Nube[] = [];
-  const uni = { uSun: { value: new THREE.Vector3(1, 0, 0) }, uCamL: { value: new THREE.Vector3(0, 0, 5) }, uLights: { value: 1 }, uNuevas: { value: 0 } };
+  const uni = { uSun: { value: new THREE.Vector3(1, 0, 0) }, uCamL: { value: new THREE.Vector3(0, 0, 5) }, uLights: { value: 1 }, uNuevas: { value: 0 }, uMentes: { value: 0 } };
 
   // A black core: hides the sky (and anything) behind the planet.
   const core = new THREE.Mesh<THREE.BufferGeometry, THREE.Material>(new THREE.SphereGeometry(0.992, 64, 48), new THREE.MeshBasicMaterial({ color: 0x000000 }));
@@ -333,13 +333,15 @@ export function tierra(): Tierra {
       }
     }
     const lights = materia(lb.data(), {
-      pre: `${SPHERE_PRE}\nuniform float uLights, uNuevas;\nattribute float aOrder;`,
+      pre: `${SPHERE_PRE}\nuniform float uLights, uNuevas, uMentes;\nattribute float aOrder;`,
       move: /* glsl */ `
         float d = dot(normalize(p), uSun);
         float on = smoothstep(aOrder, aOrder + 0.04, uLights);
         // The lights added after today can keep their light below a pixel, so a filling land reads from afar.
         if (aOrder > 0.4) fuente = uNuevas;
         em *= on * (1.0 - smoothstep(-0.1, 0.12, d));
+        // (act I) Where we are, as minds rather than lamps: the civilization's colour.
+        em = mix(em, vec3(0.45, 1.0, 0.85) * dot(em, vec3(0.4)) * 1.3, uMentes);
         // Seen through more air near the limb, the lights fade.
         em *= smoothstep(0.0, 0.3, dot(normalize(p), normalize(uCamL - p)));
         ${HORIZONTE}`,

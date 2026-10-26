@@ -78,9 +78,11 @@ export interface Estado {
   tierra: number;
   /** The Sun is there (0: gone out, at the end). */
   sol: number;
+  /** (act I) The Earth's lights read as minds, in the civilization's colour (0..1). */
+  mentes: number;
 }
 
-const DEFECTO: Estado = { luces: 0.36, nuevas: 0, giro: 0, cercanias: 0, luna: 1, galaxia: 1, cielo: 0.8, solDim: 0.55, oclusor: null, beta: 0, vel: new THREE.Vector3(0, 0, -1), faros: 1, tierra: 1, sol: 1 };
+const DEFECTO: Estado = { luces: 0.36, nuevas: 0, giro: 0, cercanias: 0, luna: 1, galaxia: 1, cielo: 0.8, solDim: 0.55, oclusor: null, beta: 0, vel: new THREE.Vector3(0, 0, -1), faros: 1, tierra: 1, sol: 1, mentes: 0 };
 
 export type Mundo = ReturnType<typeof crearMundo>;
 
@@ -244,6 +246,7 @@ export function crearMundo(scene: THREE.Scene) {
       const camL = body.worldToLocal(V(0, 0, 0));
       earth.update(sunL, camL, estado.luces);
       for (const n of earth.nubes) if (n.u.uNuevas) n.u.uNuevas.value = estado.nuevas;
+      for (const n of earth.nubes) if (n.u.uMentes) n.u.uMentes.value = estado.mentes;
       near.uni.uSun.value.copy(sunL);
       near.uni.uCamL.value.copy(camL);
       near.uni.uTime.value = time;

@@ -295,6 +295,15 @@ const EN: Record<string, string> = {
 
   // ---- Act I.
   'Una célula': 'A cell',
+  'Una célula que reacciona': 'A cell that reacts',
+  'Hace al menos 3 500 millones de años, en ese planeta, la materia empezó a reaccionar. Una célula vive con una billonésima de vatio.': 'At least 3.5 billion years ago, on that planet, matter began to react. A cell lives on a trillionth of a watt.',
+  'Nervios': 'Nerves',
+  'Hace unos 600 millones de años aparecieron los primeros nervios: células que se pasan señales, más rápido que cualquier otra cosa viva.': 'Some 600 million years ago the first nerves appeared: cells passing signals, faster than anything else alive.',
+  'Todos nuestros cerebros juntos, pensando a la vez: una central eléctrica grande. Están ahí, donde de noche hay luz.': 'All our brains together, thinking at once: a large power station. They are there, where there is light at night.',
+  'los primeros nervios': 'the first nerves',
+  'una molécula la toca: la membrana responde': 'a molecule touches it: the membrane answers',
+  'una señal corre por el axón': 'a signal runs down the axon',
+  'centros de datos': 'data centres',
   'En ese planeta, hace unos 3 500 millones de años, la materia empezó a reaccionar: una célula vive con una billonésima de vatio.': 'On that planet, some 3.5 billion years ago, matter began to react: a cell lives on a trillionth of a watt.',
   'Un cerebro': 'A brain',
   'Unos 86 000 millones de neuronas, lo más complejo que conocemos, piensan con unos 20 vatios: lo que gasta una bombilla.': 'Some 86 billion neurons, the most complex thing we know, think on about 20 watts: a light bulb.',
