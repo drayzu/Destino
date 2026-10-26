@@ -8,7 +8,7 @@ import { pantalla } from './pantalla';
 export function cielo(brillo = 1) {
   return pantalla(
     /* glsl */ `
-    uniform float uTanHalf, uBrillo, uIR, uWipePx;
+    uniform float uTanHalf, uBrillo, uIR, uWipePx, uBanda;
     float h13(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
     float n3(vec3 p) {
       vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -37,17 +37,17 @@ export function cielo(brillo = 1) {
       vec3 G = normalize(vec3(0.0, 0.5, 0.866));
       float lat = dot(d, G);
       float band = exp(-(lat / 0.16) * (lat / 0.16));
-      vec3 col = capa(d, 200.0, 0.99, pxRad, 1.0) + capa(d, 480.0, 0.994, pxRad, 0.6) + capa(d, 900.0, 0.985, pxRad, 0.5 * band);
+      vec3 col = capa(d, 200.0, 0.99, pxRad, 1.0) + capa(d, 480.0, 0.994, pxRad, 0.6) + capa(d, 900.0, 0.985, pxRad, 0.5 * band * uBanda);
       // The band: unresolved stars, warmer towards the centre, cut by dust lanes.
       vec3 gc = normalize(vec3(1.0, -0.3, 0.2) - G * dot(vec3(1.0, -0.3, 0.2), G));
       float toward = 0.5 + 0.5 * dot(d, gc);
       float glow = band * (0.35 + 0.65 * fbm(d * 7.0)) * (0.5 + 1.2 * toward * toward);
       float dust = smoothstep(0.45, 0.75, fbm(d * 11.0 + 3.0)) * exp(-(lat / 0.05) * (lat / 0.05));
-      col += mix(vec3(0.55, 0.6, 0.75), vec3(1.0, 0.85, 0.62), toward) * glow * 0.055 * (1.0 - 0.8 * dust);
+      col += mix(vec3(0.55, 0.6, 0.75), vec3(1.0, 0.85, 0.62), toward) * glow * 0.055 * (1.0 - 0.8 * dust) * uBanda;
       if (uIR > 0.5 && gl_FragCoord.x > uWipePx) col = vec3(dot(col, vec3(0.3, 0.5, 0.2))) * vec3(0.5, 0.22, 0.12);
       gl_FragColor = vec4(col * uBrillo, 1.0);
     }
   `,
-    { uBrillo: { value: brillo }, uIR: { value: 0 }, uWipePx: { value: 1e9 } },
+    { uBrillo: { value: brillo }, uIR: { value: 0 }, uWipePx: { value: 1e9 }, uBanda: { value: 1 } },
   );
 }
