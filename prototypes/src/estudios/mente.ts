@@ -29,6 +29,9 @@ import type { Escena, Frame, Instancia } from './tipos';
  * 3 · Calor: the camera rides the heat outwards, shell by shell (1 000 K → 10 K), in false colour;
  *     each shell is a grid of bits being erased, faster where it is colder; then the bits order
  *     themselves into patterns that travel: thought.
+ * 4 · Elegida (the mix Diego chose): the shells as matter from outside; their matter turns into
+ *     bits; the camera dives in among the bits switching on and off all around; they order
+ *     themselves, and the network that thinks (nodes and pulses of 1 and 2) grows out of them.
  *
  * World units: arbitrary, the star at the origin; the shells' radii are compressed (×2 each instead
  * of ×10 for the temperatures drawn) and the lámina says so. A wedge is cut away so the nesting shows.
@@ -355,6 +358,7 @@ export const mente: Escena = {
     { key: '1', nombre: 'Capas', nota: 'De fuera hacia dentro: la cámara cruza las capas del cerebro Matrioshka y cada una deja de ser materia y se vuelve dibujo, hasta que solo queda la lámina viva donde corren los pensamientos.' },
     { key: '2', nombre: 'Reordenar', nota: 'Nada se crea: los planetas y el enjambre fluyen hasta formar las capas; después esa misma materia se enciende como una red que piensa, y la cámara vuela por ella.' },
     { key: '3', nombre: 'Calor', nota: 'La cámara viaja con el calor que sale, de capa en capa, de 1 000 K a 10 K; cada capa es una cuadrícula de bits que se borran, más rápido donde hace más frío, y al final los bits se ordenan en pensamientos.' },
+    { key: '4', nombre: 'Elegida', nota: 'La mezcla que eligió Diego: la materia de las capas se vuelve bits; la cámara entra entre cuadros que se encienden y se apagan, los bits se ordenan y de ellos nace la red que piensa.' },
   ],
   montar(stage, estilo): Instancia {
     const s = estilo + 1;
@@ -372,9 +376,9 @@ export const mente: Escena = {
     root.add(star.group);
     const mat = s !== 3 ? RADIOS.map((_, n) => capaMateria(n, s === 2 ? sistemaViejo : undefined)) : [];
     for (const c of mat) root.add(c.points);
-    const lam = s !== 3 ? RADIOS.map((_, n) => capaLamina(n)) : [];
+    const lam = s === 1 || s === 2 ? RADIOS.map((_, n) => capaLamina(n)) : [];
     for (const c of lam) root.add(c.lines);
-    const bits = s === 3 ? RADIOS.map((_, n) => capaBits(n)) : [];
+    const bits = s >= 3 ? RADIOS.map((_, n) => capaBits(n)) : [];
     for (const c of bits) root.add(c.mesh);
     const net = s !== 3 ? red() : null;
     if (net) root.add(net.lines, net.puntos.points);
@@ -388,8 +392,8 @@ export const mente: Escena = {
     tl.label('estrella').to(2.8, { cam: 1, k: 1 });
     tl.caption(2.8, 'El frío piensa más', 'Borrar un bit cuesta al menos kT ln 2: a 3 K, 110 veces menos que a 300 K. Con la luz de un sol, de 10⁴⁷ a 10⁴⁹ operaciones por segundo.');
     tl.label('frio').to(2.8, { cam: 2, frio: 1, flow: 1 });
-    tl.caption(3.6, 'Dejar de ser materia', 'Una civilización así ya no necesita cuerpos: sus mentes son cálculo. Lo que queda de nosotros es la forma en que corre la información.');
-    tl.label('mente').to(0.4, { frio: 0 }).to(3.2, { cam: 3, lam: 1, red: 1, orden: 1 });
+    tl.caption(4.2, 'Dejar de ser materia', 'Una civilización así ya no necesita cuerpos: sus mentes son cálculo. Lo que queda de nosotros es la forma en que corre la información.');
+    tl.label('mente').to(0.4, { frio: 0 }).to(3.8, { cam: 3, lam: 1, red: 1, orden: 1 });
     tl.caption(2.8, 'El frío', 'Pensar cuesta energía, y la energía se paga en calor. Nada se enfría por debajo del fondo del universo: cada pensamiento tiene su precio.');
     tl.label('muro').to(2.8, { cam: 4, muro: 1 });
     tl.to(0.6, {});
@@ -430,6 +434,23 @@ export const mente: Escena = {
         if (c < 2) return mezcla(a, b, ease(1, 2, c));
         if (c < 3) return f;
         return mezcla(f, e, ease(3, 4, c));
+      }
+      if (s === 4) {
+        // Outside → into the cut → swooping in through the bits of the outer shells → skimming the
+        // inside of the fourth shell, among bits and then the network → far away.
+        const a = orbita(lerp(34, 26, ease(0, 1, c)), AZ + 0.75 - 0.1 * c + drift, lerp(0.55, 0.36, ease(0, 1, c)), V(), 40);
+        const b = orbita(16, AZ + 0.3 + drift, 0.24, V(), 44);
+        const kF = ease(2, 3, c);
+        const R = Math.exp(lerp(Math.log(16), Math.log(RADIOS[3] * 0.86), ease(0, 0.4, kF)));
+        const az = AZ + 0.3 + lerp(0, 1.0, ease(0, 0.25, kF)) + 1.3 * ease(0.35, 1, kF);
+        const pos = orbita(R, az, lerp(0.24, 0.1, ease(0, 0.4, kF))).pos;
+        const ahead = orbita(RADIOS[3] * 0.97, az + 0.5, 0.15).pos;
+        const fl: Vista = { pos, target: V().lerp(ahead, ease(0.18, 0.45, kF)), fov: lerp(44, 68, ease(0, 0.5, kF)) };
+        const e = orbita(70, AZ + 0.9 + drift, 0.4, V(), 36);
+        if (c < 1) return a;
+        if (c < 2) return mezcla(a, b, ease(1, 2, c));
+        if (c < 3) return fl;
+        return mezcla(fl, e, ease(3, 4, c));
       }
       // 3: outside → down to the star → riding the heat out to the fourth shell → out to space.
       const a = orbita(lerp(32, 24, ease(0, 1, c)), AZ + 0.6 + drift, 0.3, V(), 40);
@@ -475,20 +496,25 @@ export const mente: Escena = {
         const focal = f.H / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
         const dist = v.pos.length();
         const lamK = tl.get('lam', p);
-        const redK = tl.get('red', p);
         const flow = tl.get('flow', p);
         const muroK = tl.get('muro', p);
+        // Way 4: matter → bits (late in «El frío piensa más»), the bits ordered, then the network.
+        const bitsK = s === 4 ? ease(P('frio') + 1.0, P('frio') + 2.4, p) : 1;
+        // Inside, the bits flicker at random for a while (the immersion), then order themselves.
+        const ordenK = s === 4 ? ease(P('mente') + 2.4, P('mente') + 3.2, p) : tl.get('orden', p);
+        const redK = s === 4 ? ease(P('mente') + 2.8, P('mente') + 4.0, p) : tl.get('red', p);
         // The sky dims as the image stops being matter.
         sky.u.uBrillo.value = 0.7 * (1 - 0.75 * lamK) * (s === 3 ? 0.6 : 1);
         // The star: hidden by the shells, seen through the cut; drawn (dimmed) once all is lámina.
         star.update(camera, time, s === 3 ? 0.55 : lerp(0.35, 0.96, lamK));
-        star.group.children[1].visible = s === 3 || lamK < 0.35;
+        star.group.children[1].visible = s === 3 || (lamK < 0.35 && (s !== 4 || dist > 5));
         // Matter → drawing: way 1 shell by shell as the camera crosses it; way 2 all at once.
         mat.forEach((c, n) => {
           const crossed = s === 1 ? ease(RADIOS[n] * 1.25, RADIOS[n] * 0.85, dist) * ease(0, 0.15, lamK) : ease(0.15, 0.7, lamK);
-          c.u.uGain.value = (s === 2 ? 0.3 + 0.7 * ease(0, 0.12, tl.get('k', p)) : 1) * (1 - 0.85 * crossed) * (1 - 0.5 * muroK * (s === 2 ? 1 : 0));
+          const gone = s === 4 ? 0.88 * bitsK : 0.85 * crossed;
+          c.u.uGain.value = (s === 2 ? 0.3 + 0.7 * ease(0, 0.12, tl.get('k', p)) : 1) * (1 - gone) * (1 - 0.5 * muroK * (s === 2 ? 1 : 0));
           c.u.uK.value = s === 2 ? tl.get('k', p) : 1;
-          lam[n].mat.opacity = (s === 1 ? 0.24 * crossed : 0.16 * ease(0.3, 0.9, lamK)) * (n === 4 ? 0.7 : 1);
+          if (lam[n]) lam[n].mat.opacity = (s === 1 ? 0.24 * crossed : 0.16 * ease(0.3, 0.9, lamK)) * (n === 4 ? 0.7 : 1);
         });
         if (net) {
           net.u.uTime.value = time;
@@ -497,10 +523,13 @@ export const mente: Escena = {
         }
         bits.forEach((c, n) => {
           c.u.uTime.value = time;
-          c.u.uOrden.value = tl.get('orden', p);
+          c.u.uOrden.value = ordenK;
           // Bright when the camera is near it, so crossing one flashes its grid.
           const near = 1 - ease(0.0, 0.6, Math.abs(Math.log(dist / RADIOS[n])));
-          c.u.uA.value = (0.55 + 0.9 * near) * (n === 4 ? 0.85 : 1);
+          // Way 4: no white-out when the camera leaves through a shell close up.
+          const flash = s === 4 ? 0.9 - 0.5 * ordenK : 0.9;
+          c.u.uA.value = (0.55 + flash * near) * (n === 4 ? 0.85 : 1) * bitsK * (s === 4 ? (1 - 0.45 * redK) * (1 - 0.7 * ease(0, 0.3, muroK)) : 1);
+          c.mesh.visible = bitsK > 0.003;
         });
         heat.u.uFlow.value = s === 3 ? 0.35 + 0.65 * Math.max(flow, ease(1, 1.3, tl.get('cam', p))) : 0.9 * flow * (1 - lamK * 0.6);
         for (const n of nubes) {
@@ -579,8 +608,15 @@ export const mente: Escena = {
           texto(g, u, W / 2, H * 0.2, 'nada se crea: la mente reordena', ink(0.85), ease(0.9, 1.4, p) * (1 - ease(2.2, 2.8, p)), 12, 'center');
         }
         // Thought, named.
-        const ra = tl.get('red', p) * ease(P('mente') + 1.6, P('mente') + 2.2, p) * (1 - ease(P('muro') + 0.2, P('muro') + 0.8, p));
-        texto(g, u, W / 2, H * 0.2, s === 3 ? 'los mismos bits, ordenados: un pensamiento' : 'cada pulso, un mensaje entre mentes', TEAL, s === 3 ? tl.get('orden', p) * ease(P('mente') + 1.4, P('mente') + 2.0, p) * (1 - ease(P('muro') + 0.2, P('muro') + 0.8, p)) : ra, 12, 'center');
+        const fin = 1 - ease(P('muro') + 0.2, P('muro') + 0.8, p);
+        if (s === 4) {
+          texto(g, u, W / 2, H * 0.2, 'cada cuadro, un bit que se borra y se reescribe', ink(0.85), ease(P('mente') + 1.3, P('mente') + 1.7, p) * (1 - ease(P('mente') + 2.2, P('mente') + 2.5, p)), 12, 'center');
+          texto(g, u, W / 2, H * 0.2, 'los bits se ordenan: un pensamiento', TEAL, ease(P('mente') + 2.6, P('mente') + 2.9, p) * (1 - ease(P('mente') + 3.3, P('mente') + 3.6, p)), 12, 'center');
+          texto(g, u, W / 2, H * 0.2, 'cada pulso, un mensaje entre mentes', TEAL, ease(P('mente') + 3.6, P('mente') + 4.0, p) * fin, 12, 'center');
+        } else {
+          const ra = tl.get('red', p) * ease(P('mente') + 1.6, P('mente') + 2.2, p) * fin;
+          texto(g, u, W / 2, H * 0.2, s === 3 ? 'los mismos bits, ordenados: un pensamiento' : 'cada pulso, un mensaje entre mentes', TEAL, s === 3 ? tl.get('orden', p) * ease(P('mente') + 1.4, P('mente') + 2.0, p) * fin : ra, 12, 'center');
+        }
         // The wall: the cold. A thermometer down to the floor of the universe.
         const m = tl.get('muro', p);
         if (m > 0.01) termometro(g, f, ease(0.15, 0.5, m), ease(0.45, 0.9, m));
