@@ -9,7 +9,7 @@ import { Timeline } from './engine/timeline';
 import { createPost } from './engine/post';
 import { createScroll } from './engine/scroll';
 import { FONDOS } from './engine/pantalla';
-import { escalera, hud, hudLibre } from './engine/placa';
+import { escalera, hud, hudLibre, idioma } from './engine/placa';
 import { aplicar, mezcla, proyectarMundo, type Vista } from './engine/vista';
 import { contactos } from './engine/contactos';
 import { crearSonido } from './engine/sonido';
@@ -58,6 +58,7 @@ const sound = crearSonido();
 // ---------------------------------------------------------------- the page's words
 
 document.documentElement.lang = lang;
+idioma(tx, lang === 'en');
 for (const el of document.querySelectorAll<HTMLElement>('[data-i18n]')) {
   const text = [...el.childNodes].find((n) => n.nodeType === Node.TEXT_NODE && n.textContent!.trim());
   if (text) text.textContent = tx(text.textContent!.trim());

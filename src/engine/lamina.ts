@@ -1,4 +1,4 @@
-import { FONT, ink } from './placa';
+import { FONT, ink, tr } from './placa';
 
 /**
  * The plate's drawing tools, in device pixels: lines, arrows and labels. The plate (lámina) is the
@@ -63,6 +63,6 @@ export function texto(g: CanvasRenderingContext2D, u: number, x: number, y: numb
   g.shadowColor = 'rgba(0,0,0,0.95)';
   g.shadowBlur = 8 * u;
   g.fillStyle = color;
-  g.fillText(upper ? text.toUpperCase() : text, x, y);
+  g.fillText(upper ? tr(text).toUpperCase() : tr(text), x, y);
   g.restore();
 }

@@ -26,7 +26,20 @@ export const ink = (a = 1) => `rgba(236,231,219,${a})`;
 const SUP: Record<string, string> = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
 export const sup = (n: number) => [...String(n)].map((ch) => SUP[ch] ?? ch).join('');
 const group = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-const coma = (v: number, d = 1) => v.toFixed(d).replace('.', ',');
+
+/**
+ * The plate's language: the page hands over its dictionary (Spanish → current language) and every
+ * label on the plate goes through it; numbers take the decimal point in English.
+ */
+let EN = false;
+let dicc = (es: string) => es;
+export function idioma(tx: (es: string) => string, en: boolean) {
+  dicc = tx;
+  EN = en;
+}
+/** A label in the current language. */
+export const tr = (es: string) => dicc(es);
+const coma = (v: number, d = 1) => (EN ? v.toFixed(d) : v.toFixed(d).replace('.', ','));
 
 /** Sagan's interpolation of Kardashev's scale: K = (log10 P[W] − 6) / 10. */
 export const kardashev = (lp: number) => (lp - 6) / 10;
@@ -57,11 +70,11 @@ export function vatios(lp: number) {
 /** When: «2026 · hoy», «año 2340», «dentro de 1 000 años», «dentro de 10⁷ años». */
 export function cuando(ly: number) {
   const y = Math.pow(10, ly);
-  if (y < 1) return '2026 · hoy';
-  if (y < 7000) return `año ${2026 + Math.round(y / 10) * 10}`;
-  if (y < 1e6) return `dentro de ${group(Math.round(y / 1000) * 1000)} años`;
-  if (y < 1e9) return `dentro de ${Math.round(y / 1e6)} millones de años`;
-  return `dentro de 10${sup(Math.floor(ly))} años`;
+  if (y < 1) return EN ? '2026 · today' : '2026 · hoy';
+  if (y < 7000) return `${EN ? 'year' : 'año'} ${2026 + Math.round(y / 10) * 10}`;
+  if (y < 1e6) return EN ? `in ${group(Math.round(y / 1000) * 1000)} years` : `dentro de ${group(Math.round(y / 1000) * 1000)} años`;
+  if (y < 1e9) return EN ? `in ${Math.round(y / 1e6)} million years` : `dentro de ${Math.round(y / 1e6)} millones de años`;
+  return EN ? `in 10${sup(Math.floor(ly))} years` : `dentro de 10${sup(Math.floor(ly))} años`;
 }
 
 const LY_M = 9.4607e15;
@@ -71,8 +84,8 @@ export function alcance(lr: number) {
   const m = Math.pow(10, lr);
   if (m < 1e7) return `${group(Math.round(m / 1e3 / 10) * 10)} km`;
   if (m < 0.05 * AU_M) return `${group(Math.round(m / 1e3 / 1000) * 1000)} km`;
-  if (m < 2000 * AU_M) return `${m < 10 * AU_M ? coma(m / AU_M, 1) : group(m / AU_M)} UA`;
-  return `${m < 10 * LY_M ? coma(m / LY_M, 1) : group(m / LY_M)} años luz`;
+  if (m < 2000 * AU_M) return `${m < 10 * AU_M ? coma(m / AU_M, 1) : group(m / AU_M)} ${EN ? 'AU' : 'UA'}`;
+  return `${m < 10 * LY_M ? coma(m / LY_M, 1) : group(m / LY_M)} ${EN ? 'light years' : 'años luz'}`;
 }
 
 // ---------------------------------------------------------------- drawing helpers
@@ -135,7 +148,7 @@ export function nota(g: CanvasRenderingContext2D, u: number, x: number, y: numbe
   g.fill();
   g.font = FONT.mono(10.5 * u);
   g.letterSpacing = `${1.1 * u}px`;
-  const label = text.toUpperCase();
+  const label = tr(text).toUpperCase();
   const w = g.measureText(label).width;
   const tx = dx >= 0 ? lx + 6 * u : lx - 6 * u - w;
   g.fillStyle = 'rgba(4,4,8,0.5)';
@@ -158,7 +171,7 @@ export function rotulo(g: CanvasRenderingContext2D, u: number, x: number, y: num
   g.shadowColor = 'rgba(0,0,0,0.9)';
   g.shadowBlur = 8 * u;
   g.fillStyle = color;
-  g.fillText(upper ? text.toUpperCase() : text, x, y);
+  g.fillText(upper ? tr(text).toUpperCase() : tr(text), x, y);
   g.restore();
 }
 
@@ -186,7 +199,7 @@ export function cifra(g: CanvasRenderingContext2D, u: number, x: number, y: numb
     g.letterSpacing = `${1.2 * u}px`;
     g.textAlign = 'center';
     g.fillStyle = ink(0.75);
-    g.fillText(under.toUpperCase(), x, y + 26 * u);
+    g.fillText(tr(under).toUpperCase(), x, y + 26 * u);
   }
   g.restore();
 }
@@ -232,12 +245,12 @@ export function hud(g: CanvasRenderingContext2D, u: number, W: number, H: number
   const K = kardashev(lp);
   g.font = FONT.italic(24 * u);
   g.fillStyle = TEAL;
-  g.fillText(`tipo ${coma(K, 2)}`, x + w + 22 * u, H - 92 * u);
+  g.fillText(`${EN ? 'type' : 'tipo'} ${coma(K, 2)}`, x + w + 22 * u, H - 92 * u);
   g.font = FONT.mono(11 * u);
   g.letterSpacing = `${0.9 * u}px`;
   g.fillStyle = ink(0.78);
-  const when = l.anio !== undefined ? (l.anio >= 2026 ? '2026 · hoy' : `año ${Math.round(l.anio)}`) : cuando(l.ly);
-  g.fillText(`${vatios(lp)}  ·  ${when}  ·  alcance ${alcance(l.lr)}`.toUpperCase(), x, H - 52 * u);
+  const when = l.anio !== undefined ? (l.anio >= 2026 ? cuando(-1) : `${EN ? 'year' : 'año'} ${Math.round(l.anio)}`) : cuando(l.ly);
+  g.fillText(`${vatios(lp)}  ·  ${when}  ·  ${EN ? 'reach' : 'alcance'} ${alcance(l.lr)}`.toUpperCase(), x, H - 52 * u);
   g.restore();
 }
 
@@ -325,7 +338,7 @@ export function escalera(g: CanvasRenderingContext2D, u: number, W: number, H: n
     const a = r.major ? 0.38 + 0.5 * near : 0.7 * near;
     if (a < 0.02) continue;
     g.fillStyle = r.lp <= lp && vacia < 0.5 ? `rgba(111,227,193,${a})` : ink(a);
-    g.fillText(r.label.toUpperCase(), x - 14 * u, yy);
+    g.fillText(tr(r.label).toUpperCase(), x - 14 * u, yy);
     g.fillRect(x - (r.major ? 10 : 6) * u, yy - 0.5 * u, (r.major ? 10 : 6) * u, Math.max(1, u));
   }
   // A wall: a line across the ladder where the climb meets a physical limit (it glows when the
@@ -348,7 +361,7 @@ export function escalera(g: CanvasRenderingContext2D, u: number, W: number, H: n
     g.letterSpacing = `${1 * u}px`;
     g.textAlign = 'right';
     g.fillStyle = `rgba(255,140,110,${0.8 + 0.2 * hit})`;
-    g.fillText(muro.label.toUpperCase(), x - 46 * u, yw);
+    g.fillText(tr(muro.label).toUpperCase(), x - 46 * u, yw);
     const out = muro.fuera ?? 0;
     if (out > 0.01 && lp > muro.lp) {
       const y2 = yp;
@@ -364,7 +377,7 @@ export function escalera(g: CanvasRenderingContext2D, u: number, W: number, H: n
       // (on the left, under the wall's name: the right edge belongs to the screen's border)
       g.textAlign = 'right';
       g.fillStyle = TEAL;
-      g.fillText('FUERA DEL PLANETA', x - 46 * u, yw - 14 * u);
+      g.fillText(tr('fuera del planeta').toUpperCase(), x - 46 * u, yw - 14 * u);
     }
     g.restore();
   }
@@ -437,11 +450,11 @@ export function hudLibre(g: CanvasRenderingContext2D, u: number, H: number, lp: 
   const w = potencia(g, x, H - 86 * u, sup(Math.floor(lp)), 'W', 66 * u);
   g.font = FONT.italic(24 * u);
   g.fillStyle = ink(0.45);
-  g.fillText(tipo, x + w + 22 * u, H - 92 * u);
+  g.fillText(tr(tipo), x + w + 22 * u, H - 92 * u);
   g.font = FONT.mono(11 * u);
   g.letterSpacing = `${0.9 * u}px`;
   g.fillStyle = ink(0.78);
-  g.fillText(linea.toUpperCase(), x, H - 52 * u);
+  g.fillText(tr(linea).toUpperCase(), x, H - 52 * u);
   g.restore();
 }
 
