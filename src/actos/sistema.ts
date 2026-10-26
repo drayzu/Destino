@@ -7,7 +7,8 @@ import { espectro } from '../engine/espectro';
 import { mezcla, type Vista } from '../engine/vista';
 import { E, LUNA, LUNA_DIR, type Mundo } from '../mundo/mundo';
 import { cilindro, OMEGA } from '../mundo/habitat';
-import { MOON_D, R_E, R_MER, RING_A, cinturon, enjambre, faros, mercurio, orbitas, placas, ringABasis, ringAPoint, ruta } from '../mundo/obras';
+import { espejoShkadov, levante, motorCaplan } from '../mundo/estrella';
+import { MOON_D, R_E, R_MER, R_SUN, RING_A, cinturon, enjambre, faros, mercurio, orbitas, placas, ringABasis, ringAPoint, ruta } from '../mundo/obras';
 import type { Acto, Cuadro } from './tipos';
 
 /**
@@ -24,8 +25,11 @@ import type { Acto, Cuadro } from './tipos';
  * Before the Sun, a world from the inside: an O'Neill cylinder at the Earth–Moon L5 point (Island
  * Three, 8 km × 32 km; its turn, once every ~2 minutes, is its gravity).
  *
- * Still to come in this act (phase 2): star lifting, the stellar engines (Shkadov, Caplan), and the
- * habitats, Mars and Venus working at the same time.
+ * After the swarm, the star itself: matter lifted out through its poles lengthens its life (up to
+ * ~3 billion years, Scoggins & Kipping 2023), and stellar engines move it (Shkadov 1987: a mirror,
+ * ~34 000 light years in a billion years; Caplan 2019: jets of its own matter, ~1 000 times faster).
+ *
+ * Still to come in this act: the habitats, Mars and Venus working at the same time.
  *
  * World units: AU. The prototype's layout is turned with the Earth's place in its orbit.
  */
@@ -49,6 +53,8 @@ const KM = 1 / 1.495978707e8;
 /** The O'Neill cylinder: at the Earth–Moon L5 point, its axis towards the Sun. */
 const CIL = E.clone().addScaledVector(LUNA_DIR.clone().applyAxisAngle(UP, -Math.PI / 3), MOON_D * R_E);
 const R_CIL = 4;
+/** Where the stellar engines push the Sun (in the ecliptic). */
+const MOTOR = polar(1, TH_E + 2.2);
 const qC = new THREE.Quaternion().setFromUnitVectors(UP, CIL.clone().negate().normalize());
 
 export function sistema(): Acto {
@@ -69,6 +75,15 @@ export function sistema(): Acto {
   cil.group.scale.setScalar(KM);
   /** A point in the cylinder's frame (km, not turning) to the world (AU). */
   const cil2w = (v: THREE.Vector3) => v.clone().applyQuaternion(qC).multiplyScalar(KM).add(CIL);
+  // Engineering the star.
+  const lift = levante();
+  lift.group.scale.setScalar(R_SUN);
+  const espejo = espejoShkadov();
+  espejo.mesh.scale.setScalar(0.55);
+  espejo.mesh.quaternion.setFromUnitVectors(UP, MOTOR);
+  const caplan = motorCaplan(2.5, 0.055);
+  caplan.group.position.copy(MOTOR).multiplyScalar(-0.06);
+  caplan.group.quaternion.setFromUnitVectors(UP, MOTOR.clone().negate());
   const swarm = enjambre();
   const plates = placas();
   const merc = mercurio();
@@ -236,6 +251,18 @@ export function sistema(): Acto {
     const far: Vista = { pos: lejosDir.clone().multiplyScalar(26), target: V(), up: nA.clone(), fov: 3.4 };
     return mezcla(from, far, k);
   }
+  /** Close to the Sun, from the side: the jets out of its poles. */
+  const liftDir = polar(1, TH_E + 0.9).add(V(0, 0.22, 0)).normalize();
+  const vLift = (p: number): Vista => ({ pos: liftDir.clone().applyAxisAngle(UP, 0.03 * (p - P('a3.lift'))).multiplyScalar(24 * R_SUN), target: V(0, 0, 0), up: UP.clone(), fov: 58 });
+  function camLift(p: number): Vista {
+    return mezcla(camLejos(P('a3.lift')), vLift(p), ease(P('a3.lift'), P('a3.lift') + 1.6, p));
+  }
+  /** Side-on to the engines: the mirror on one side, the jet on the other. */
+  const motorDir = MOTOR.clone().cross(UP).normalize().add(V(0, 0.42, 0)).normalize();
+  const vMotor = (p: number): Vista => ({ pos: MOTOR.clone().multiplyScalar(-0.55).addScaledVector(motorDir.clone().applyAxisAngle(UP, 0.02 * (p - P('a3.motor'))), 3.4), target: MOTOR.clone().multiplyScalar(-0.55), up: UP.clone(), fov: 46 });
+  function camMotor(p: number): Vista {
+    return mezcla(vLift(P('a3.motor')), vMotor(p), ease(P('a3.motor'), P('a3.motor') + 1.8, p));
+  }
   function camTodo(p: number): Vista {
     const k = ease(P('a3.todo'), P('a3.todo') + 2.4, p);
     const dir = V(Math.cos(TH_E - 0.6), 0.85, Math.sin(TH_E - 0.6)).normalize();
@@ -250,6 +277,8 @@ export function sistema(): Acto {
     ['a3.carga', 0.12, camCarga],
     ['a3.enjambre', 0.18, camAnillo],
     ['a3.lejos', 0, camLejos],
+    ['a3.lift', 0, camLift],
+    ['a3.motor', 0, camMotor],
     ['a3.todo', 0.6, camTodo],
   ];
   function ruta0(p: number): Vista {
@@ -265,7 +294,7 @@ export function sistema(): Acto {
   }
 
   // Seen from afar: the curtain between visible light and the infrared.
-  const wipeAt = (p: number) => lerp(1.25, 0.0, ease(P('a3.lejos') + 1.7, P('a3.lejos') + 2.6, p)) + 1.3 * ease(P('a3.todo'), P('a3.todo') + 0.6, p);
+  const wipeAt = (p: number) => lerp(1.25, 0.0, ease(P('a3.lejos') + 1.7, P('a3.lejos') + 2.6, p)) + 1.3 * ease(P('a3.lift'), P('a3.lift') + 0.6, p);
 
   return {
     id: 'a3',
@@ -290,14 +319,18 @@ export function sistema(): Acto {
       tl.label('a3.enjambre').to(4.0, { 'a3.lp': 21.2, 'a3.ly': 2.89, 'a3.built': 0.58, 'a3.lr': 11.7 });
       tl.caption(4.4, 'Visto desde lejos', 'Desde otra estrella, el Sol se apaga en luz visible y brilla en infrarrojo con el calor de los colectores. Así buscamos a otros: entre millones de estrellas, siete candidatas, y varias resultaron galaxias lejanas.');
       tl.label('a3.lejos').to(4.4, { 'a3.lp': 24.0, 'a3.ly': 3.0, 'a3.built': 0.9 });
+      tl.caption(3.8, 'Alargar la vida del Sol', 'Campos magnéticos sacan materia por los polos del Sol. Con menos masa, arde más despacio: hasta unos 3 000 millones de años más de vida (Scoggins y Kipping, 2023).');
+      tl.label('a3.lift').to(3.8, { 'a3.lp': 24.6, 'a3.ly': 3.04 });
+      tl.caption(4.4, 'Mover el Sol', 'Un espejo gigante le devuelve parte de su luz y el Sol se desplaza hacia él: 34 000 años luz en mil millones de años (Shkadov, 1987). Con chorros de su propia materia, mil veces más rápido (Caplan, 2019).');
+      tl.label('a3.motor').to(4.4, { 'a3.lp': 25.3, 'a3.ly': 3.08 });
       tl.caption(3.8, 'Tipo II', 'Toda la luz del Sol: 3,8 × 10²⁶ W. Creciendo un 2,3 % al año, se llegaría en unos 1 350 años. Y la luz de una estrella se acaba.');
       tl.label('a3.todo').to(3.8, { 'a3.lp': 26.58, 'a3.ly': 3.13, 'a3.lr': 12.6, 'a3.built': 1.0, 'a3.eat': 0.2 });
       tl.label('a3.fin');
     },
     montar(mundo) {
       m = mundo;
-      m.root.add(cil.group, swarm.points, plates.mesh, merc.group, belt.points, orbits, B.points);
-      m.nubes.push(cil.casas);
+      m.root.add(lift.group, espejo.mesh, caplan.group, cil.group, swarm.points, plates.mesh, merc.group, belt.points, orbits, B.points);
+      m.nubes.push(cil.casas, lift.nube, caplan.nube);
       for (const r of rutas) m.root.add(r.group);
       m.nubes.push(swarm, ...merc.nubes, belt, ...rutas.map((r) => r.nube));
     },
@@ -314,7 +347,9 @@ export function sistema(): Acto {
       e.luces = 0.62;
       e.nuevas = 0.8;
       e.cercanias = 1;
-      e.solDim = tl.get('a3.built', p) * 0.9;
+      // Close to the Sun (lifting its matter) its glare would hide everything: it is dimmed.
+      const cerca = ease(P('a3.lift') - 0.4, P('a3.lift') + 0.8, p) * (1 - ease(P('a3.motor') + 0.4, P('a3.motor') + 1.4, p));
+      e.solDim = Math.max(tl.get('a3.built', p) * 0.9, 0.975 * cerca);
     },
     update(f: Cuadro) {
       const { p, time, W, vista } = f;
@@ -347,6 +382,13 @@ export function sistema(): Acto {
       merc.uni.uSun.value.copy(mercSunL);
       merc.group.worldToLocal(merc.uni.uCamL.value.set(0, 0, 0));
       merc.uni.uEat.value = tl.get('a3.eat', p);
+      // The star, engineered: lifting from the poles; the mirror and the engine's jets.
+      lift.set(ease(P('a3.lift'), P('a3.lift') + 0.8, p), f.lamina ? 1 : 0);
+      const mot = ease(P('a3.motor') + 0.3, P('a3.motor') + 1.2, p);
+      espejo.u.uOn.value = mot;
+      espejo.mesh.visible = mot > 0.001;
+      caplan.nube.u.uOn.value = mot;
+      caplan.group.visible = mot > 0.001;
       // Routes and the belt, once the work has begun.
       for (const r of rutas) r.group.visible = on;
       belt.points.visible = on;
@@ -420,8 +462,36 @@ export function sistema(): Acto {
         const n = Math.round(40 * ease(P('a3.mercurio') + 0.3, P('a3.riel') - 0.2, p));
         cifra(g, u, W * 0.74, H * 0.26, '2', sup(Math.max(1, n)), 64, ma, TEAL, 'máquinas que se copian a sí mismas');
       }
+      // Lifting the star.
+      const li = ease(P('a3.lift') + 1.4, P('a3.lift') + 2.0, p) * (1 - ease(P('a3.motor') + 0.2, P('a3.motor') + 0.8, p));
+      add(V(0, 9 * R_SUN, 0), 'materia que sale por los polos', 34, -26, li);
+      add(polar(1.7 * R_SUN, TH_E + 0.4), 'corriente en anillo: canaliza el plasma', 34, 30, li);
+      cifra(g, u, W * 0.76, H * 0.24, '+3 000', '', 58, li, TEAL, 'millones de años de vida, como mucho');
+      // Moving the star.
+      const mo = ease(P('a3.motor') + 1.4, P('a3.motor') + 2.0, p) * (1 - ease(P('a3.todo') + 0.2, P('a3.todo') + 0.8, p));
+      if (mo > 0.01) {
+        add(MOTOR.clone().multiplyScalar(0.55).add(V(0, 0.18, 0)), 'espejo de Shkadov', 30, -28, mo);
+        add(MOTOR.clone().multiplyScalar(-1.4), 'motor de Caplan: su chorro', 30, 28, mo);
+        const a0 = f.proj(V());
+        const a1 = f.proj(MOTOR.clone().multiplyScalar(0.32));
+        if (a0 && a1) {
+          flecha(g, u, a0, a1, TEAL, mo, 2.2);
+          texto(g, u, a1.x + 10 * u, a1.y - 14 * u, 'el Sol se mueve', TEAL, mo, 10);
+        }
+        const late = ease(P('a3.motor') + 2.6, P('a3.motor') + 3.0, p);
+        cifra(g, u, W * 0.76, H * 0.24, late > 0.5 ? '50' : '34 000', '', 58, mo, TEAL, late > 0.5 ? 'años luz en un millón de años, con chorros' : 'años luz en mil millones de años, con el espejo');
+        if (f.lamina) {
+          // The light the mirror sends back, past the star: more light leaves the other way.
+          for (let k = -2; k <= 2; k++) {
+            const side = MOTOR.clone().cross(UP).normalize();
+            const m0 = f.proj(MOTOR.clone().applyAxisAngle(UP, k * 0.25).multiplyScalar(0.55));
+            const m1 = f.proj(side.clone().multiplyScalar(k * 0.04).addScaledVector(MOTOR, -0.5));
+            if (m0 && m1) flecha(g, u, m0, m1, '#ffe0a0', mo * 0.7, 1.2, [4, 4], f.time * 30);
+          }
+        }
+      }
       // Seen from afar: the curtain and the spectrum that shows why.
-      const la = ease(P('a3.lejos') + 1.4, P('a3.lejos') + 2.0, p) * (1 - ease(P('a3.todo') + 0.2, P('a3.todo') + 0.8, p));
+      const la = ease(P('a3.lejos') + 1.4, P('a3.lejos') + 2.0, p) * (1 - ease(P('a3.lift') + 0.2, P('a3.lift') + 0.8, p));
       if (la > 0.01) {
         const x = ((wipeAt(p) + 1) / 2) * W;
         if (x < W - 10 && x > 10) {
