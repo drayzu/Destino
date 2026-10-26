@@ -64,9 +64,14 @@ export interface Estado {
   cielo: number;
   /** The Sun dimmed (0..1) by whatever surrounds it. */
   solDim: number;
+  /**
+   * Another planet that hides what is behind it (centre in AU, radius in AU), and its own points,
+   * which keep their own horizon. When it looks bigger than the Earth, it takes the Earth's place.
+   */
+  oclusor: { c: THREE.Vector3; r: number; propias: Nube[] } | null;
 }
 
-const DEFECTO: Estado = { luces: 0.36, nuevas: 0, giro: 0, cercanias: 0, luna: 1, galaxia: 1, cielo: 0.8, solDim: 0.55 };
+const DEFECTO: Estado = { luces: 0.36, nuevas: 0, giro: 0, cercanias: 0, luna: 1, galaxia: 1, cielo: 0.8, solDim: 0.55, oclusor: null };
 
 export type Mundo = ReturnType<typeof crearMundo>;
 
@@ -240,11 +245,15 @@ export function crearMundo(scene: THREE.Scene) {
       B.mat.uniforms.uDpr.value = dpr;
 
       // The Earth hides the stars (and anything far) behind it; its own lights and works have their own horizon.
-      const own = new Set<Nube>([...earth.nubes, ...near.nubes]);
-      const ec = earthSys.getWorldPosition(V()).applyMatrix4(camera.matrixWorldInverse);
+      // Or another planet, when it looks bigger.
+      const oc = estado.oclusor;
+      const otro = oc !== null && oc.r / Math.max(oc.c.distanceTo(camW), 1e-300) > R_E / Math.max(E.distanceTo(camW), 1e-300);
+      const own = new Set<Nube>(otro ? oc.propias : [...earth.nubes, ...near.nubes]);
+      const ec = otro ? oc.c.clone().sub(camW).multiplyScalar(k).applyMatrix4(camera.matrixWorldInverse) : earthSys.getWorldPosition(V()).applyMatrix4(camera.matrixWorldInverse);
+      const er = k * (otro ? oc.r : R_E) * 0.995;
       for (const n of nubes) {
         if (own.has(n)) n.u.uOcc.value.set(0, 0, 0, 0);
-        else n.u.uOcc.value.set(ec.x, ec.y, ec.z, k * R_E * 0.995);
+        else n.u.uOcc.value.set(ec.x, ec.y, ec.z, er);
         enfocar(n, focal, dpr, time);
         n.u.uSizeUnit.value = n.points.getWorldScale(tmp).x;
         n.u.uMinPx.value = 1.3 * dpr;
