@@ -1,3 +1,4 @@
+import { adentro } from './adentro';
 import { apertura } from './apertura';
 import { despertar } from './despertar';
 import { estrellas } from './estrellas';
@@ -12,5 +13,5 @@ import type { Acto } from './tipos';
  * work; phase 3, the neighbouring stars and the galaxy. The rest arrive in phase 4.
  */
 export function crearActos(): Acto[] {
-  return [apertura(), despertar(), hoy(), sistema(), estrellas(), galactica()];
+  return [apertura(), despertar(), hoy(), sistema(), estrellas(), galactica(), adentro()];
 }
