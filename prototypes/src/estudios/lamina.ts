@@ -5,8 +5,8 @@ import { FONT, TEAL, ink, proyectar } from '../placa';
 
 /**
  * The plate's drawing tools for the studies: lines, arrows and the station's indicator, in device
- * pixels, plus the station's clock (which step, how far into it). A station is the grammar of
- * Despertar: the journey stops, the scene itself becomes the diagram, one step per gesture.
+ * pixels, plus the station's clock (which step, how far into it). Stations were the grammar of the
+ * old plan (Despertar); Destino keeps their drawings as lámina over the journey, which never stops.
  */
 
 export type P2 = { x: number; y: number };
