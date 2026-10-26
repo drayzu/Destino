@@ -362,11 +362,17 @@ export function mercurio() {
           float sun = max(dot(N, uSun), 0.0);
           float alb = mix(0.3 + 0.12 * h0, 0.035 + 0.03 * step(0.5, terr), mined);
           vec3 c = vec3(alb) * vec3(1.0, 0.96, 0.9) * sun * 1.5 + vec3(alb) * 0.004;
-          // Factories: a grid across the pit, knots of light where the lines cross.
-          vec2 q = vec2(dot(n, uTA), dot(n, uTB)) * 26.0;
+          // Factories: districts of grids, each turned its own way and bent by the ground; some
+          // roads unfinished; knots of light where the lines cross.
+          vec2 q0 = vec2(dot(n, uTA), dot(n, uTB)) * 26.0;
+          vec3 dist = hash3(floor(vec3(q0 * 0.22, 1.0)));
+          float ang = (dist.x - 0.5) * 1.2;
+          vec2 q = mat2(cos(ang), -sin(ang), sin(ang), cos(ang)) * q0 * (0.8 + 0.5 * dist.y);
+          q += vec2(sin(q0.y * 0.37 + dist.z * 6.0), cos(q0.x * 0.31 + dist.x * 6.0)) * 0.35;
           vec2 gq = abs(fract(q) - 0.5);
           vec2 w = fwidth(q) * 1.2;
-          float line = max(smoothstep(0.485 - w.x, 0.485, gq.x), smoothstep(0.485 - w.y, 0.485, gq.y));
+          vec3 cell = hash3(floor(q.xyx) + 3.0);
+          float line = max(smoothstep(0.485 - w.x, 0.485, gq.x) * step(0.25, cell.y), smoothstep(0.485 - w.y, 0.485, gq.y) * step(0.25, cell.z));
           float fine = 1.0 - smoothstep(0.08, 0.35, max(w.x, w.y));
           line *= fine;
           float knot = (1.0 - smoothstep(0.0, 0.06, length(gq - 0.5))) * step(0.6, hash3(floor(q.xyx)).x) * fine;

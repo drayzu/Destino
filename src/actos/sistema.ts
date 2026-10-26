@@ -588,7 +588,8 @@ export function sistema(): Acto {
       // The star, engineered: lifting from the poles; the mirror and the engine's jets.
       lift.set(ease(P('a3.lift'), P('a3.lift') + 0.8, p), f.lamina ? 1 : 0);
       const mot = ease(P('a3.motor') + 0.3, P('a3.motor') + 1.2, p);
-      espejo.u.uOn.value = mot;
+      // Seen from far away, at Type II, only its rim: the full cap would hide the whole system.
+      espejo.u.uOn.value = mot * (1 - 0.8 * ease(P('a3.todo') - 0.4, P('a3.todo') + 0.4, p));
       espejo.mesh.visible = mot > 0.001;
       caplan.nube.u.uOn.value = mot;
       caplan.group.visible = mot > 0.001;
