@@ -545,6 +545,7 @@ export function sistema(): Acto {
       const spin = time * 0.0006;
       swarm.points.visible = on;
       swarm.u.uBuilt.value = built;
+      swarm.u.uGain.value = 1 - 0.85 * ease(P('a3.lift') - 0.2, P('a3.lift') + 0.8, p) * (1 - ease(P('a3.todo') - 0.4, P('a3.todo') + 0.6, p));
       swarm.u.uSpin.value = spin;
       swarm.u.uCamW.value.copy(cam);
       swarm.u.uFar.value = smoothstep(0.5, 0.95, cam.length()) * (1 - smoothstep(2, 4, cam.length()));
@@ -594,7 +595,23 @@ export function sistema(): Acto {
       caplan.nube.u.uOn.value = mot;
       caplan.group.visible = mot > 0.001;
       // Routes and the belt, once the work has begun.
-      for (const r of rutas) r.group.visible = on;
+      // Each route only while it is what the moment is about (one subject per frame).
+      const todoW = ease(P('a3.todo') - 0.4, P('a3.todo') + 0.6, p);
+      const overW = ease(P('a3.viaje') + 0.6, P('a3.viaje') + 1.2, p) * (1 - ease(P('a3.venus') - 0.4, P('a3.venus') + 0.2, p));
+      const rutaW = [
+        Math.max(ease(P('a3.mercurio') + 1.6, P('a3.riel'), p) * (1 - ease(P('a3.enjambre') + 0.4, P('a3.enjambre') + 1.0, p)), overW, todoW),
+        1 - ease(P('a3.habitats'), P('a3.habitats') + 0.6, p),
+        Math.max(overW, todoW),
+        Math.max(overW, todoW),
+        Math.max(overW, todoW),
+        Math.max(overW, todoW),
+      ];
+      rutas.forEach((r, i) => {
+        const w = on ? rutaW[i] : 0;
+        r.group.visible = w > 0.001;
+        r.nube.u.uGain.value = w;
+        (r.line.material as THREE.LineBasicMaterial).opacity = w;
+      });
       belt.points.visible = on;
       orbits.visible = p > P('a3.todo') - 0.2 && p < P('a3.fin') + 3;
       for (const l of orbits.children) ((l as THREE.Line).material as THREE.LineBasicMaterial).opacity = 0.1 * ease(P('a3.todo'), P('a3.todo') + 1, p);
@@ -626,8 +643,9 @@ export function sistema(): Acto {
       const { p, W, H, u } = f;
       if (p < P('a3') - 0.5 || p > P('a3.fin') + 1.5) return;
       const win = (a: string, b: string, pad = 0.15) => ease(P(a) - pad, P(a) + pad, p) * (1 - ease(P(b) - pad, P(b) + pad, p));
-      const add = (w: THREE.Vector3, text: string, dx: number, dy: number, a: number) => {
-        if (a < 0.01) return;
+      // Labels on things belong to the plate (key I); without it, only what cannot be left out.
+      const add = (w: THREE.Vector3, text: string, dx: number, dy: number, a: number, siempre = false) => {
+        if (a < 0.01 || (!f.lamina && !siempre)) return;
         const q = f.proj(w);
         if (q && q.x > 0 && q.x < W && q.y > 0 && q.y < H) nota(g, u, q.x, q.y, text, dx, dy, a);
       };
@@ -651,9 +669,9 @@ export function sistema(): Acto {
       add(cil2w(V(R_CIL, 0, 0)), '8 km de ancho · 32 km de largo', 30, -30, fuera);
       add(cil2w(V(-R_CIL * 1.6, -4, R_CIL * 0.9)), 'espejo: mete la luz del Sol', -40, 30, fuera);
       const dentro = ease(0.58, 0.68, ko) * (1 - ease(0.94, 1.0, ko));
-      if (dentro > 0.01) {
+      if (dentro > 0.01 && f.lamina) {
         texto(g, u, W / 2, H * 0.17, 'una vuelta cada 2 minutos: el giro es la gravedad', TEAL, dentro, 12, 'center');
-        if (f.lamina) {
+        {
           // On the land, the pull of the turn: outwards, away from the axis.
           const spin = f.time * OMEGA;
           for (let k = 0; k < 6; k++) {
@@ -715,7 +733,7 @@ export function sistema(): Acto {
       }
       add(merc2w(merc.riel.at(0.7, V())), 'riel de 2 000 km', 34, -30, win('a3.riel', 'a3.carga', 0.1));
       add(mercRoute.at(rideT(p), V()), 'nuestra carga', 26, -26, win('a3.carga', 'a3.enjambre', 0.1));
-      add(ringAPoint(ringAng(p) + 0.0012, SLOT + 1.56e-4, 0), 'colector · tamaño ilustrativo', 30, -30, win('a3.enjambre', 'a3.lejos', 0.15) * ease(P('a3.enjambre') + 0.2, P('a3.enjambre') + 0.5, p));
+      add(ringAPoint(ringAng(p) + 0.0012, SLOT + 1.56e-4, 0), 'colector · tamaño ilustrativo', 30, -30, win('a3.enjambre', 'a3.lejos', 0.15) * ease(P('a3.enjambre') + 0.2, P('a3.enjambre') + 0.5, p), true);
       // The machines that copy themselves: 2, 4, 8… 2⁴⁰.
       const ma = win('a3.mercurio', 'a3.riel', 0.2);
       if (ma > 0.01) {
@@ -734,7 +752,7 @@ export function sistema(): Acto {
         add(MOTOR.clone().multiplyScalar(-1.4), 'motor de Caplan: su chorro', 30, 28, mo);
         const a0 = f.proj(V());
         const a1 = f.proj(MOTOR.clone().multiplyScalar(0.32));
-        if (a0 && a1) {
+        if (a0 && a1 && f.lamina) {
           flecha(g, u, a0, a1, TEAL, mo, 2.2);
           texto(g, u, a1.x + 10 * u, a1.y - 14 * u, 'el Sol se mueve', TEAL, mo, 10);
         }
@@ -759,7 +777,7 @@ export function sistema(): Acto {
           texto(g, u, x - 12 * u, 112 * u, 'luz visible', ink(0.85), la, 10, 'right');
           texto(g, u, x + 12 * u, 112 * u, 'infrarrojo · falso color', '#ff9a6a', la, 10);
         }
-        espectro(g, u, W - 470 * u, H - 270 * u, 360 * u, 150 * u, 0.95 * tl.get('a3.built', p), la);
+        if (f.lamina) espectro(g, u, W - 470 * u, H - 270 * u, 360 * u, 150 * u, 0.95 * tl.get('a3.built', p), la);
       }
       // Everything at once.
       const todoA = ease(P('a3.todo') + 1.2, P('a3.todo') + 1.8, p);

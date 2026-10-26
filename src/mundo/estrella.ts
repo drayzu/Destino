@@ -25,7 +25,7 @@ export function levante() {
   // The jets: each particle rises along a pole, the cone widening with height.
   for (let i = 0; i < 9000; i++) {
     const side = i % 2 === 0 ? 1 : -1;
-    b.push(gauss(b.r), side, gauss(b.r), new THREE.Color(1.0, 0.85, 0.6), 0.05, 1.2);
+    b.push(gauss(b.r), side, gauss(b.r), new THREE.Color(1.0, 0.45, 0.7), 0.05, 1.2);
     kind.push(0);
   }
   // The ring current at the equator.
@@ -43,8 +43,8 @@ export function levante() {
         float r = 1.02 + 16.0 * f * f;
         float lat = 0.06 + 0.07 * r;
         p = vec3(position.x * lat, position.y * r, position.z * lat);
-        // Hot where it leaves the surface; the civilization's colour where it is collected.
-        em = mix(vec3(1.0, 0.85, 0.6) * 2.0, vec3(0.45, 1.0, 0.85), smoothstep(0.1, 0.7, f));
+        // Hot plasma, pink like a prominence (hydrogen's red line); the civilization's colour only where it is collected.
+        em = mix(vec3(1.0, 0.38, 0.62) * 2.0, vec3(0.45, 1.0, 0.85), smoothstep(0.55, 0.95, f));
         em *= smoothstep(0.0, 0.04, f) * (1.0 - smoothstep(0.75, 1.0, f));
       } else {
         float a = atan(position.z, position.x) + uTime * 0.9;
@@ -136,7 +136,7 @@ export function motorCaplan(largo: number, corto: number) {
   const b = materiaBuilder(717);
   const kind: number[] = [];
   for (let i = 0; i < 7000; i++) {
-    b.push(gauss(b.r), 0, gauss(b.r), new THREE.Color(0.7, 1.0, 0.92), largo * 0.0009, 1.4);
+    b.push(gauss(b.r), 0, gauss(b.r), new THREE.Color(0.62, 0.78, 1.0), largo * 0.0009, 1.4);
     kind.push(0);
   }
   for (let i = 0; i < 1500; i++) {
@@ -145,7 +145,7 @@ export function motorCaplan(largo: number, corto: number) {
   }
   for (let i = 0; i < 400; i++) {
     const [x, y, z] = b.onSphere();
-    b.push(x * largo * 0.004, y * largo * 0.004, z * largo * 0.004, new THREE.Color(0.8, 1.0, 0.95), largo * 0.0012, 2.0);
+    b.push(x * largo * 0.004, y * largo * 0.004, z * largo * 0.004, new THREE.Color(0.8, 0.9, 1.0), largo * 0.0012, 2.0);
     kind.push(2);
   }
   const nube = materia(b.data(), {
