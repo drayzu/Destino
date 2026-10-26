@@ -54,8 +54,7 @@
 ## Pendiente del primer tramo (para pulir)
 - El acto I tiene solo el reloj: sus imágenes (células, una neurona, una ciudad, un centro de datos) son de la fase 4.
 - «Hoy»: pasa la Estación Espacial (enlace con Espacio).
-- Las luces de 1800 se encienden en orden al azar; deberían empezar por Europa y la costa este de EE. UU.
-- Los textos del reloj (vatios, cuándo, alcance) todavía no se traducen al inglés; el sonido es básico (fase 5).
+- El sonido es básico (fase 5).
 - La escalera todavía no salta al tocar sus peldaños; no hay enlaces cruzados (Espacio, Tiempo, el Atlas).
 - En las hojas de contactos, el salto entre cuadros deja un poco del barrido de velocidad.
 - Móvil y modo liviano sin probar.
