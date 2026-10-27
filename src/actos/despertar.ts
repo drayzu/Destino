@@ -36,7 +36,7 @@ const SIGMA = 2e-3;
 
 export function despertar(): Acto {
   let tl: Timeline;
-  let P: (l: string) => number;
+  let P: (l: string, d?: number) => number;
   const ease = smoothstep;
   let m: Mundo;
 
@@ -90,18 +90,18 @@ export function despertar(): Acto {
   /** Down into the sea: the world camera dives to the ocean while the small space opens. */
   const mar = (): Vista => ({ pos: E.clone().addScaledVector(E.clone().normalize(), 1.03 * R_E), target: E.clone(), up: UP.clone(), fov: 40 });
   function vista(p: number): Vista {
-    if (p < P('a1.todos')) return mezcla(desde(), mar(), ease(P('a1'), P('a1') + 1.6, p));
-    return mezcla(mar(), hacia(p), ease(P('a1.todos'), P('a1.todos') + 1.6, p));
+    if (p < P('a1.todos')) return mezcla(desde(), mar(), ease(P('a1'), P('a1', 1.6), p));
+    return mezcla(mar(), hacia(p), ease(P('a1.todos'), P('a1.todos', 1.6), p));
   }
   /** The camera in the small space (micro units): the cell, out to the nerves, out to the brain, away. */
   function micro0(p: number): { pos: THREE.Vector3; target: THREE.Vector3 } {
     const t = time0;
     const a = 0.6 + 0.05 * Math.sin(t * 0.1);
     // Distance from the centre, in logarithm: 3 (a cell) → 30 (the nerves) → 140 (the brain) → 4000 (a point).
-    const d1 = ease(P('a1') + 0.2, P('a1') + 1.8, p);
-    const d2 = ease(P('a1.nervios') - 0.2, P('a1.nervios') + 1.6, p);
-    const d3 = ease(P('a1.cerebro') - 0.2, P('a1.cerebro') + 1.8, p);
-    const d4 = ease(P('a1.todos') - 0.4, P('a1.todos') + 1.4, p);
+    const d1 = ease(P('a1', 0.2), P('a1', 1.8), p);
+    const d2 = ease(P('a1.nervios', -0.2), P('a1.nervios', 1.6), p);
+    const d3 = ease(P('a1.cerebro', -0.2), P('a1.cerebro', 1.8), p);
+    const d4 = ease(P('a1.todos', -0.4), P('a1.todos', 1.4), p);
     const L = lerp(lerp(lerp(lerp(Math.log(60), Math.log(3.1), d1), Math.log(26), d2), Math.log(150), d3), Math.log(6000), d4);
     const d = Math.exp(L);
     const az = a + 0.25 * (p - P('a1')) * 0.1 + 0.8 * d2 + 0.6 * d3;
@@ -118,7 +118,7 @@ export function despertar(): Acto {
     nombre: 'La materia despierta',
     coreografia(t) {
       tl = t;
-      P = (l) => tl.at(l);
+      P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a1');
       tl.set({ 'a1.lp': -12, 'a1.ly': 9.54 });
       tl.caption(4.4, 'Una célula que reacciona', 'Hace al menos 3 500 millones de años, en ese planeta, la materia empezó a reaccionar. Una célula vive con una billonésima de vatio.');
@@ -155,29 +155,29 @@ export function despertar(): Acto {
     estado(mundo, p) {
       const e = mundo.estado;
       // In the small space the world steps back; then the Earth at night, its people as minds.
-      const enMicro = ease(P('a1') + 0.8, P('a1') + 1.8, p) * (1 - ease(P('a1.todos') - 0.2, P('a1.todos') + 0.8, p));
+      const enMicro = ease(P('a1', 0.8), P('a1', 1.8), p) * (1 - ease(P('a1.todos', -0.2), P('a1.todos', 0.8), p));
       e.tierra = enMicro > 0.98 ? 0 : 1;
       e.galaxia = 1 - enMicro;
       e.cielo = 0.8 * (1 - enMicro);
       e.faros = 1 - enMicro;
       e.sol = 1 - enMicro;
-      e.luces = 0.36 * ease(P('a1.todos') + 0.4, P('a1.todos') + 1.6, p) * (1 - ease(P('a1.fin') - 0.4, P('a1.fin') + 0.4, p));
+      e.luces = 0.36 * ease(P('a1.todos', 0.4), P('a1.todos', 1.6), p) * (1 - ease(P('a1.fin', -0.4), P('a1.fin', 0.4), p));
       // Minds in the civilization's colour; dimmer when the machines light up.
       e.mentes = 1;
-      e.luces *= 1 - 0.6 * ease(P('a1.maquinas') + 0.3, P('a1.maquinas') + 1.2, p);
+      e.luces *= 1 - 0.6 * ease(P('a1.maquinas', 0.3), P('a1.maquinas', 1.2), p);
     },
     update(f: Cuadro) {
       const { p, time, camera } = f;
       time0 = time;
-      const here = p > P('a1') - 0.5 && p < P('a1.fin') + 0.6;
+      const here = p > P('a1', -0.5) && p < P('a1.fin', 0.6);
       cabina.visible = here;
       fondo.mesh.visible = here;
       datos.points.visible = here;
       if (!here) return;
       // What the small space shows, moment by moment.
-      const celOn = ease(P('a1') + 0.6, P('a1') + 1.4, p) * (1 - ease(P('a1.nervios') + 0.4, P('a1.nervios') + 1.4, p));
-      const neuOn = ease(P('a1.nervios') + 0.2, P('a1.nervios') + 1.2, p) * (1 - ease(P('a1.cerebro') + 0.4, P('a1.cerebro') + 1.6, p));
-      const cerOn = ease(P('a1.cerebro') + 0.4, P('a1.cerebro') + 1.6, p) * (1 - ease(P('a1.todos') + 0.2, P('a1.todos') + 1.2, p));
+      const celOn = ease(P('a1', 0.6), P('a1', 1.4), p) * (1 - ease(P('a1.nervios', 0.4), P('a1.nervios', 1.4), p));
+      const neuOn = ease(P('a1.nervios', 0.2), P('a1.nervios', 1.2), p) * (1 - ease(P('a1.cerebro', 0.4), P('a1.cerebro', 1.6), p));
+      const cerOn = ease(P('a1.cerebro', 0.4), P('a1.cerebro', 1.6), p) * (1 - ease(P('a1.todos', 0.2), P('a1.todos', 1.2), p));
       cel.u.uOn.value = celOn;
       neu.u.uOn.value = neuOn;
       cer.u.uOn.value = cerOn;
@@ -185,13 +185,13 @@ export function despertar(): Acto {
       neu.points.visible = neuOn > 0.001;
       cer.points.visible = cerOn > 0.001;
       // The cell is touched; its membrane answers.
-      cel.u.uToque.value = ease(P('a1') + 2.0, P('a1') + 2.8, p);
-      cel.u.uOla.value = ease(P('a1') + 2.8, P('a1') + 4.0, p);
+      cel.u.uToque.value = ease(P('a1', 2.0), P('a1', 2.8), p);
+      cel.u.uOla.value = ease(P('a1', 2.8), P('a1', 4.0), p);
       // The background: sea blue for the cell, violet for the nerves, dark for the brain.
       const c1 = new THREE.Color(0.02, 0.07, 0.12);
       const c2 = new THREE.Color(0.06, 0.02, 0.1);
-      (fondo.u.uColor.value as THREE.Color).copy(c1).lerp(c2, ease(P('a1.nervios'), P('a1.nervios') + 1.2, p));
-      fondo.u.uOn.value = ease(P('a1') + 0.6, P('a1') + 1.6, p) * (1 - ease(P('a1.cerebro') + 0.4, P('a1.cerebro') + 1.8, p));
+      (fondo.u.uColor.value as THREE.Color).copy(c1).lerp(c2, ease(P('a1.nervios'), P('a1.nervios', 1.2), p));
+      fondo.u.uOn.value = ease(P('a1', 0.6), P('a1', 1.6), p) * (1 - ease(P('a1.cerebro', 0.4), P('a1.cerebro', 1.8), p));
       // Place the small space so that its own camera looks through the real one.
       const mc = micro0(p);
       vm.lookAt(mc.pos, mc.target, UP);
@@ -201,19 +201,19 @@ export function despertar(): Acto {
       micro.matrix.copy(real).multiply(new THREE.Matrix4().makeScale(SIGMA, SIGMA, SIGMA)).multiply(view);
       micro.matrixWorldNeedsUpdate = true;
       // Data centres: they light at the end.
-      const dOn = ease(P('a1.maquinas') + 0.3, P('a1.maquinas') + 1.2, p) * (1 - ease(P('a1.fin') - 0.2, P('a1.fin') + 0.6, p));
+      const dOn = ease(P('a1.maquinas', 0.3), P('a1.maquinas', 1.2), p) * (1 - ease(P('a1.fin', -0.2), P('a1.fin', 0.6), p));
       datos.u.uOn.value = dOn;
       m.body.worldToLocal(datos.u.uCamL.value.set(0, 0, 0));
     },
     placa(g, f: Cuadro) {
       const { p, W, H, u } = f;
-      if (p < P('a1') - 0.5 || p > P('a1.fin') + 0.5) return;
+      if (p < P('a1', -0.5) || p > P('a1.fin', 0.5)) return;
       if (!f.lamina) return;
-      const t1 = ease(P('a1') + 3.0, P('a1') + 3.4, p) * (1 - ease(P('a1.nervios'), P('a1.nervios') + 0.4, p));
+      const t1 = ease(P('a1', 3.0), P('a1', 3.4), p) * (1 - ease(P('a1.nervios'), P('a1.nervios', 0.4), p));
       texto(g, u, W / 2, H * 0.2, 'una molécula la toca: la membrana responde', TEAL, t1, 11, 'center');
-      const t2 = ease(P('a1.nervios') + 1.4, P('a1.nervios') + 1.8, p) * (1 - ease(P('a1.cerebro'), P('a1.cerebro') + 0.4, p));
+      const t2 = ease(P('a1.nervios', 1.4), P('a1.nervios', 1.8), p) * (1 - ease(P('a1.cerebro'), P('a1.cerebro', 0.4), p));
       texto(g, u, W / 2, H * 0.2, 'una señal corre por el axón', '#d8b8ff', t2, 11, 'center');
-      const t3 = ease(P('a1.maquinas') + 1.2, P('a1.maquinas') + 1.6, p) * (1 - ease(P('a1.fin') - 0.3, P('a1.fin'), p));
+      const t3 = ease(P('a1.maquinas', 1.2), P('a1.maquinas', 1.6), p) * (1 - ease(P('a1.fin', -0.3), P('a1.fin'), p));
       const q = f.proj(m.tierraAMundo(V(...esfera(39, -77.5, 1.0))));
       if (q) nota(g, u, q.x, q.y, 'centros de datos', 34, -30, t3);
     },

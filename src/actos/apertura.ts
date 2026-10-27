@@ -38,7 +38,7 @@ const SB = CENTRO.clone().add(V(-17000, 0, 11000));
 
 export function apertura(): Acto {
   let tl: Timeline;
-  let P: (l: string) => number;
+  let P: (l: string, d?: number) => number;
   const ease = smoothstep;
   let G: Mundo['G'];
   const bub = esferaLamina();
@@ -47,7 +47,7 @@ export function apertura(): Acto {
   function cerca(p: number) {
     const az = 0.35 + 0.05 * (p - P('a0'));
     const d0 = lerp(420, 300, ease(P('a0.voz'), P('a0.lejos'), p));
-    const k = ease(P('a0.lejos'), P('a0.planetas') - 0.2, p);
+    const k = ease(P('a0.lejos'), P('a0.planetas', -0.2), p);
     const d = Math.exp(lerp(Math.log(d0), Math.log(155000), k));
     // Pull straight back from the Sun first; only near the end turn to frame the whole galaxy.
     const target = V(0, 0, 0).lerp(CENTRO.clone().multiplyScalar(0.62), ease(0.55, 1, k));
@@ -82,7 +82,7 @@ export function apertura(): Acto {
     nombre: '¿Hay alguien más?',
     coreografia(t) {
       tl = t;
-      P = (l) => tl.at(l);
+      P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a0');
       tl.caption(1.8, '¿Hay alguien más?', 'La Vía Láctea: cientos de miles de millones de estrellas que brillan con unos 10³⁷ vatios desde hace 13 000 millones de años. Que sepamos, nadie los usa.');
       tl.to(1.8, {});
@@ -127,7 +127,7 @@ export function apertura(): Acto {
     },
     update(f) {
       const { p } = f;
-      const on = p < P('a0.fin') + 1;
+      const on = p < P('a0.fin', 1);
       bub.group.visible = on;
       // Our radio bubble around the Sun, then (El silencio) the bubble that should exist, over the galaxy.
       const voz = tl.get('a0.voz', p);
@@ -140,7 +140,7 @@ export function apertura(): Acto {
       } else {
         bub.group.position.set(0, 0, 0);
         bub.group.scale.setScalar(Math.max(100 * ease(0, 1, voz), 1e-6));
-        bub.nube.u.uGain.value = (voz > 0.001 ? 1 : 0) * (1 - 0.6 * ease(P('a0.lejos'), P('a0.lejos') + 1.4, p));
+        bub.nube.u.uGain.value = (voz > 0.001 ? 1 : 0) * (1 - 0.6 * ease(P('a0.lejos'), P('a0.lejos', 1.4), p));
       }
       G.nube.u.uBub.value.copy(SB);
       G.nube.u.uBubR.value = sil.r;
@@ -148,15 +148,15 @@ export function apertura(): Acto {
     },
     placa(g, f: Cuadro) {
       const { p, W, H, u, time } = f;
-      if (p > P('a0.fin') + 0.5) return;
+      if (p > P('a0.fin', 0.5)) return;
       const proj = (ly: THREE.Vector3) => f.proj(toAU(ly));
       const dive = tl.get('a0.caida', p);
       // Our voice, and how far it is from everything.
       const vq = proj(V(0, 100, 0));
-      const a = ease(P('a0.voz') + 0.4, P('a0.voz') + 1.0, p) * (1 - ease(P('a0.lejos') + 0.4, P('a0.lejos') + 1.0, p));
+      const a = ease(P('a0.voz', 0.4), P('a0.voz', 1.0), p) * (1 - ease(P('a0.lejos', 0.4), P('a0.lejos', 1.0), p));
       if (vq && a > 0.01) nota(g, u, vq.x, vq.y, 'nuestra radio · 100 años luz', 34, -30, a);
       const sq = proj(V());
-      const b2 = ease(P('a0.lejos') + 1.0, P('a0.lejos') + 1.6, p) * (1 - ease(P('a0.silencio'), P('a0.silencio') + 0.6, p));
+      const b2 = ease(P('a0.lejos', 1.0), P('a0.lejos', 1.6), p) * (1 - ease(P('a0.silencio'), P('a0.silencio', 0.6), p));
       if (sq && b2 > 0.01) {
         g.save();
         g.globalAlpha = b2;
@@ -193,11 +193,11 @@ export function apertura(): Acto {
           g.restore();
         }
         // The count, as the show.
-        const c = ease(P('a0.planetas') + 0.2, P('a0.planetas') + 0.8, p) * (1 - ease(P('a0.escuchado') - 0.3, P('a0.escuchado'), p));
-        const half = ease(P('a0.planetas') + 1.4, P('a0.planetas') + 2.0, p);
+        const c = ease(P('a0.planetas', 0.2), P('a0.planetas', 0.8), p) * (1 - ease(P('a0.escuchado', -0.3), P('a0.escuchado'), p));
+        const half = ease(P('a0.planetas', 1.4), P('a0.planetas', 2.0), p);
         cifra(g, u, W * 0.72, H * 0.3, half > 0.5 ? '10' : '6 451', half > 0.5 ? '11' : '', 64, c, half > 0.5 ? TEAL : ink(0.95), half > 0.5 ? 'planetas en la galaxia, al menos' : 'planetas confirmados');
         // The key.
-        const ka = plan * ease(P('a0.planetas') + 0.6, P('a0.planetas') + 1.2, p) * (1 - ease(P('a0.silencio'), P('a0.silencio') + 0.5, p));
+        const ka = plan * ease(P('a0.planetas', 0.6), P('a0.planetas', 1.2), p) * (1 - ease(P('a0.silencio'), P('a0.silencio', 0.5), p));
         if (ka > 0.01) {
           g.save();
           g.globalAlpha = ka;
@@ -215,7 +215,7 @@ export function apertura(): Acto {
         }
       }
       // What we have listened to: a speck around our point.
-      const esc = ease(P('a0.escuchado') + 0.3, P('a0.escuchado') + 0.9, p) * (1 - ease(P('a0.silencio') - 0.3, P('a0.silencio') + 0.2, p));
+      const esc = ease(P('a0.escuchado', 0.3), P('a0.escuchado', 0.9), p) * (1 - ease(P('a0.silencio', -0.3), P('a0.silencio', 0.2), p));
       if (sq && esc > 0.01) {
         const pulse = 0.5 + 0.5 * Math.sin(time * 2);
         g.save();
@@ -237,7 +237,7 @@ export function apertura(): Acto {
         const years = Math.round((650000 * ease(0, 0.82, bk)) / 1000) * 1000;
         cifra(g, u, W * 0.74, H * 0.28, years.toLocaleString('es').replace(/\./g, ' '), '', 52, ease(0.02, 0.1, bk) * (1 - ease(0.86, 0.95, bk)), TEAL, 'años');
       }
-      const none = ease(0.86, 0.95, bk) * (1 - ease(P('a0.caida'), P('a0.caida') + 0.5, p));
+      const none = ease(0.86, 0.95, bk) * (1 - ease(P('a0.caida'), P('a0.caida', 0.5), p));
       texto(g, u, W / 2, H * 0.3, 'bastaría una · no vemos ninguna', ink(0.9), none, 13, 'center');
       // The fall: a yellow star, a blue planet.
       const sun = proj(V());

@@ -40,7 +40,7 @@ function potenciaEn(anio: number) {
 
 export function hoy(): Acto {
   let tl: Timeline;
-  let P: (l: string) => number;
+  let P: (l: string, d?: number) => number;
   const ease = smoothstep;
   let m: Mundo;
   const ir = infrarrojo();
@@ -57,16 +57,16 @@ export function hoy(): Acto {
   // ------------------------------------------------------------ cameras
   function vNoche(p: number): Vista {
     // Closer as the heat rises.
-    const d = lerp(lerp(4.6, 4.1, ease(P('a2'), P('a2.hoy') + 1, p)), 3.6, ease(P('a2.crece'), P('a2.muro') + 1.5, p));
+    const d = lerp(lerp(4.6, 4.1, ease(P('a2'), P('a2.hoy', 1), p)), 3.6, ease(P('a2.crece'), P('a2.muro', 1.5), p));
     return noche(d, deriva(p));
   }
   /** Riding the elevator (from the prototype): beside the ribbon, the offset growing with the height. */
-  const rideR = (p: number) => Math.exp(lerp(Math.log(1.18), Math.log(9), ease(P('a2.asc') + 0.6, P('a2.sale') + 2.6, p)));
+  const rideR = (p: number) => Math.exp(lerp(Math.log(1.18), Math.log(9), ease(P('a2.asc', 0.6), P('a2.sale', 2.6), p)));
   function vAscensor(p: number): Vista {
     const up0 = m.ascensor;
     const sideL = up0.clone().cross(V(0, 1, 0)).normalize();
     const r = rideR(p);
-    const k = ease(P('a2.asc') + 0.6, P('a2.asc') + 2.4, p);
+    const k = ease(P('a2.asc', 0.6), P('a2.asc', 2.4), p);
     const posL = up0.clone().multiplyScalar(r).addScaledVector(sideL, 0.12 + 0.045 * r).add(V(0, 0.06 * r, 0));
     // Looking along the ribbon to the horizon first; then down at the Earth as we climb.
     const horizon = up0.clone().multiplyScalar(1.05).addScaledVector(sideL, -1.2).add(V(0, -0.15, 0));
@@ -82,7 +82,7 @@ export function hoy(): Acto {
     nombre: 'Nosotros, hoy',
     coreografia(t) {
       tl = t;
-      P = (l) => tl.at(l);
+      P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a2');
       tl.set({ 'a2.t': 0, 'a2.lp': 13.28, 'a2.ly': -1, 'a2.lr': 5.6, 'a2.luces': 0.36, 'a2.wipe': 1.25, 'a2.sube': 0, 'a2.giro': 0 });
       tl.caption(4.2, 'Doscientos años de luces', 'Desde 1800 las ciudades se encienden: primero de a poco, después de golpe. De 0,6 a 19 billones de vatios.');
@@ -108,7 +108,7 @@ export function hoy(): Acto {
     },
     vista(p) {
       if (p < P('a2.asc')) return vNoche(p);
-      return mezcla(vNoche(P('a2.asc')), vAscensor(p), ease(P('a2.asc'), P('a2.asc') + 1.4, p));
+      return mezcla(vNoche(P('a2.asc')), vAscensor(p), ease(P('a2.asc'), P('a2.asc', 1.4), p));
     },
     lectura(p) {
       if (p < P('a2.hoy')) return { lp: lpAt(p), ly: -1, lr: 5.6, anio: anio(p) };
@@ -116,25 +116,25 @@ export function hoy(): Acto {
     },
     muro(p): Muro {
       const k = tl.get('a2.sube', p);
-      return { lp: 15, label: 'muro · el calor', a: ease(P('a2.crece') + 1, P('a2.crece') + 2, p), choque: ease(14.9, 15.6, lpAt(p)) * (1 - k), fuera: k };
+      return { lp: 15, label: 'muro · el calor', a: ease(P('a2.crece', 1), P('a2.crece', 2), p), choque: ease(14.9, 15.6, lpAt(p)) * (1 - k), fuera: k };
     },
     estado(mundo, p) {
       const e = mundo.estado;
       // Two hundred years of lights: on with the power (today's cities by 2026), then the land filling.
       e.luces = p < P('a2.hoy') ? 0.36 * Math.min(1, Math.pow(10 ** (lpAt(p) - 13.28), 0.6)) : tl.get('a2.luces', p);
-      e.nuevas = 0.8 * ease(P('a2.hoy'), P('a2.crece') + 1, p);
+      e.nuevas = 0.8 * ease(P('a2.hoy'), P('a2.crece', 1), p);
       e.giro = mundo.giroNoche + giroDelta * ease(0, 1, tl.get('a2.giro', p));
       // The ring and the elevator: the way up.
-      e.cercanias = ease(P('a2.asc') - 0.2, P('a2.asc') + 0.9, p);
+      e.cercanias = ease(P('a2.asc', -0.2), P('a2.asc', 0.9), p);
     },
     update(f) {
       const { p, time, W } = f;
       // (the band in orbit stays while the next act leaves the Earth behind)
-      const on = p > P('a2') - 1 && p < P('a2.fin') + 6;
+      const on = p > P('a2', -1) && p < P('a2.fin', 6);
       ind.points.visible = on;
       // The industry rising.
       ind.u.uK.value = clamp(tl.get('a2.sube', p), 0, 1);
-      ind.u.uSpin.value = 0.6 * ease(P('a2.sale'), P('a2.sale') + 4, p) + time * 0.01;
+      ind.u.uSpin.value = 0.6 * ease(P('a2.sale'), P('a2.sale', 4), p) + time * 0.01;
       m.body.worldToLocal(ind.u.uCamL.value.set(0, 0, 0));
       // Infrared, behind the curtain.
       const wipe = tl.get('a2.wipe', p);
@@ -153,7 +153,7 @@ export function hoy(): Acto {
     },
     placa(g, f: Cuadro) {
       const { p, W, H, u, lamina } = f;
-      if (p < P('a2') - 0.5 || p > P('a2.fin') + 1) return;
+      if (p < P('a2', -0.5) || p > P('a2.fin', 1)) return;
       const k = tl.get('a2.sube', p);
       const dt = dT(p);
       const Ep = f.proj(E);
@@ -161,34 +161,34 @@ export function hoy(): Acto {
       const Lp = f.proj(limbW);
       const rPx = Ep && Lp ? Math.hypot(Lp.x - Ep.x, Lp.y - Ep.y) : 0;
       // The years, as the show.
-      const ya = ease(P('a2') + 0.2, P('a2') + 0.7, p) * (1 - ease(P('a2.hoy') - 0.2, P('a2.hoy') + 0.3, p));
+      const ya = ease(P('a2', 0.2), P('a2', 0.7), p) * (1 - ease(P('a2.hoy', -0.2), P('a2.hoy', 0.3), p));
       cifra(g, u, W * 0.76, H * 0.26, String(Math.round(anio(p))), '', 64, ya, ink(0.95), 'año');
       // The curtain.
       const wipe = tl.get('a2.wipe', p);
       const x = ((wipe + 1) / 2) * W;
-      const inWall = p > P('a2.hoy') && p < P('a2.asc') + 1.2;
+      const inWall = p > P('a2.hoy') && p < P('a2.asc', 1.2);
       if (inWall && x > 10 && x < W - 10) {
         linea(g, u, [{ x, y: 96 * u }, { x, y: H - 280 * u }], ink(0.6), 1);
         texto(g, u, x - 12 * u, 112 * u, 'luz visible', ink(0.85), 1, 10, 'right');
         texto(g, u, x + 12 * u, 112 * u, 'infrarrojo · falso color', '#ff9a6a', 1, 10);
       } else if (inWall && wipe < 0) {
-        texto(g, u, W / 2, 112 * u, 'infrarrojo · falso color · el calor de nuestras máquinas, realzado', '#ff9a6a', ease(P('a2.muro') + 0.6, P('a2.muro') + 1.1, p), 10, 'center');
+        texto(g, u, W / 2, 112 * u, 'infrarrojo · falso color · el calor de nuestras máquinas, realzado', '#ff9a6a', ease(P('a2.muro', 0.6), P('a2.muro', 1.1), p), 10, 'center');
       }
       // The planet's warming, as a big number by it (while we look at it from the night side).
-      const showT = ease(P('a2.hoy') + 0.3, P('a2.hoy') + 0.9, p) * (1 - ease(P('a2.asc') + 0.2, P('a2.asc') + 0.8, p));
+      const showT = ease(P('a2.hoy', 0.3), P('a2.hoy', 0.9), p) * (1 - ease(P('a2.asc', 0.2), P('a2.asc', 0.8), p));
       if (Ep && showT > 0.01) cifra(g, u, Ep.x + rPx * 0.98 + 70 * u, Ep.y - rPx * 0.62, grados(dt), '', 58, showT, dt > 3 ? '#ff8a5a' : dt > 0.4 ? '#ffb08a' : ink(0.9), 'calor de nuestra energía');
       // Riding up: what we pass, and (plate) why the ribbon stays up.
       if (p > P('a2.asc')) {
         const up0 = m.ascensor;
         const at = (r: number) => f.proj(m.tierraAMundo(up0.clone().multiplyScalar(r)));
-        const asc = ease(P('a2.asc') + 0.8, P('a2.asc') + 1.4, p);
+        const asc = ease(P('a2.asc', 0.8), P('a2.asc', 1.4), p);
         const ring = f.proj(m.tierraAMundo(up0.clone().applyAxisAngle(V(0, 1, 0), 0.5).setY(0).normalize().multiplyScalar(1.08)));
-        if (ring && asc > 0.01) nota(g, u, ring.x, ring.y, 'anillo orbital · 500 km', -40, 30, asc * (1 - ease(P('a2.asc') + 2.2, P('a2.asc') + 2.8, p)));
+        if (ring && asc > 0.01) nota(g, u, ring.x, ring.y, 'anillo orbital · 500 km', -40, 30, asc * (1 - ease(P('a2.asc', 2.2), P('a2.asc', 2.8), p)));
         // Once the ribbon is seen from the side: its station, and (plate) why it stays up.
         const base = at(1);
         const top = at(12.5);
         const side = base && top ? Math.hypot(top.x - base.x, top.y - base.y) / H : 0;
-        const lado = ease(0.25, 0.4, side) * ease(P('a2.sale'), P('a2.sale') + 0.8, p);
+        const lado = ease(0.25, 0.4, side) * ease(P('a2.sale'), P('a2.sale', 0.8), p);
         const geo = at(GEO);
         if (geo && lado > 0.01) nota(g, u, geo.x, geo.y, 'órbita geoestacionaria · 36 000 km', 34, -26, lado);
         if (lamina && lado > 0.01) {
@@ -213,7 +213,7 @@ export function hoy(): Acto {
         }
       }
       // The band in orbit, once it fills.
-      const band = ease(P('a2.sale') + 1.2, P('a2.sale') + 2.0, p);
+      const band = ease(P('a2.sale', 1.2), P('a2.sale', 2.0), p);
       if (band > 0.01) {
         const q = f.proj(m.tierraAMundo(V(-1.3, 0.02, 0.3)));
         if (q) nota(g, u, q.x, q.y, 'fábricas y cómputo en órbita', -60, -36, band);

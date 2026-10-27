@@ -71,7 +71,7 @@ const qC = new THREE.Quaternion().setFromUnitVectors(UP, CIL.clone().negate().no
 
 export function sistema(): Acto {
   let tl: Timeline;
-  let P: (l: string) => number;
+  let P: (l: string, d?: number) => number;
   const ease = smoothstep;
   let m: Mundo;
 
@@ -307,10 +307,11 @@ export function sistema(): Acto {
     // Out from Mars (still looking at it), across the whole system, round to Venus, and in.
     const o1: Vista = { ...VISTA_TODO, target: MARS.clone() };
     const o3: Vista = { ...VISTA_TODO, target: VENUS.clone() };
-    if (s < 0.36) return mezcla(vMarte(P('a3.viaje')), o1, ease(0, 0.36, s));
-    if (s < 0.5) return mezcla(o1, VISTA_TODO, ease(0.36, 0.5, s));
-    if (s < 0.64) return mezcla(VISTA_TODO, o3, ease(0.5, 0.64, s));
-    return mezcla(o3, vVenus(p), ease(0.64, 1, s));
+    // The legs between scales are quick (in between there is only black); the overview is the stay.
+    if (s < 0.22) return mezcla(vMarte(P('a3.viaje')), o1, ease(0, 0.22, s));
+    if (s < 0.5) return mezcla(o1, VISTA_TODO, ease(0.22, 0.5, s));
+    if (s < 0.76) return mezcla(VISTA_TODO, o3, ease(0.5, 0.76, s));
+    return mezcla(o3, vVenus(p), ease(0.76, 1, s));
   }
   /**
    * Venus: its cities first; then the shade comes; then, from behind it, the parasol in front of
@@ -408,7 +409,7 @@ export function sistema(): Acto {
   const aH = A0 + 0.016;
   const lejosDir = radA(aH).multiplyScalar(0.25).addScaledVector(tanA(aH), 0.95).addScaledVector(nA, 0.18).normalize();
   function camLejos(p: number): Vista {
-    const k = ease(P('a3.lejos'), P('a3.lejos') + 1.6, p);
+    const k = ease(P('a3.lejos'), P('a3.lejos', 1.6), p);
     const from = camAnillo(P('a3.lejos'));
     const far: Vista = { pos: lejosDir.clone().multiplyScalar(26), target: V(), up: nA.clone(), fov: 3.4 };
     return mezcla(from, far, k);
@@ -417,16 +418,16 @@ export function sistema(): Acto {
   const liftDir = polar(1, TH_E + 0.9).add(V(0, 0.22, 0)).normalize();
   const vLift = (p: number): Vista => ({ pos: liftDir.clone().applyAxisAngle(UP, 0.03 * (p - P('a3.lift'))).multiplyScalar(24 * R_SUN), target: V(0, 0, 0), up: UP.clone(), fov: 58 });
   function camLift(p: number): Vista {
-    return mezcla(camLejos(P('a3.lift')), vLift(p), ease(P('a3.lift'), P('a3.lift') + 1.6, p));
+    return mezcla(camLejos(P('a3.lift')), vLift(p), ease(P('a3.lift'), P('a3.lift', 1.6), p));
   }
   /** Side-on to the engines: the mirror on one side, the jet on the other. */
   const motorDir = MOTOR.clone().cross(UP).normalize().add(V(0, 0.42, 0)).normalize();
   const vMotor = (p: number): Vista => ({ pos: MOTOR.clone().multiplyScalar(-0.55).addScaledVector(motorDir.clone().applyAxisAngle(UP, 0.02 * (p - P('a3.motor'))), 3.4), target: MOTOR.clone().multiplyScalar(-0.55), up: UP.clone(), fov: 46 });
   function camMotor(p: number): Vista {
-    return mezcla(vLift(P('a3.motor')), vMotor(p), ease(P('a3.motor'), P('a3.motor') + 1.8, p));
+    return mezcla(vLift(P('a3.motor')), vMotor(p), ease(P('a3.motor'), P('a3.motor', 1.8), p));
   }
   function camTodo(p: number): Vista {
-    const k = ease(P('a3.todo'), P('a3.todo') + 2.4, p);
+    const k = ease(P('a3.todo'), P('a3.todo', 2.4), p);
     const dir = V(Math.cos(TH_E - 0.6), 0.85, Math.sin(TH_E - 0.6)).normalize();
     const d = Math.exp(lerp(Math.log(0.6), Math.log(6.2), k));
     return { pos: dir.multiplyScalar(d), target: V(0, 0, 0).lerp(E.clone().multiplyScalar(0.35), 1 - k), up: UP.clone(), fov: 50 };
@@ -459,7 +460,7 @@ export function sistema(): Acto {
   }
 
   // Seen from afar: the curtain between visible light and the infrared.
-  const wipeAt = (p: number) => lerp(1.25, 0.0, ease(P('a3.lejos') + 1.7, P('a3.lejos') + 2.6, p)) + 1.3 * ease(P('a3.lift'), P('a3.lift') + 0.6, p);
+  const wipeAt = (p: number) => lerp(1.25, 0.0, ease(P('a3.lejos', 1.7), P('a3.lejos', 2.6), p)) + 1.3 * ease(P('a3.lift'), P('a3.lift', 0.6), p);
 
   return {
     id: 'a3',
@@ -467,7 +468,7 @@ export function sistema(): Acto {
     nombre: 'El sistema solar trabaja',
     coreografia(t) {
       tl = t;
-      P = (l) => tl.at(l);
+      P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a3');
       tl.set({ 'a3.lp': 16.25, 'a3.ly': 2.54, 'a3.lr': 7.6, 'a3.built': 0, 'a3.eat': 0 });
       tl.caption(5.2, 'Mundos que giran', 'Esferas, ruedas, cilindros y anillos: giran para tener gravedad. Los más grandes, un anillo de 2 000 km (Bishop, 1997) y un cilindro de 4 600 km (McKendree, 2000), piden materiales que aún no sabemos fabricar.');
@@ -516,7 +517,7 @@ export function sistema(): Acto {
     vista: (p) => ruta0(p),
     lectura: (p) => ({ lp: tl.get('a3.lp', p), ly: tl.get('a3.ly', p), lr: tl.get('a3.lr', p) }),
     muro(p): Muro | null {
-      const a = ease(P('a3.todo') + 0.6, P('a3.todo') + 1.6, p);
+      const a = ease(P('a3.todo', 0.6), P('a3.todo', 1.6), p);
       return a > 0.01 ? { lp: 26.58, label: 'muro · la luz de una estrella', a, choque: ease(26.0, 26.55, tl.get('a3.lp', p)) } : null;
     },
     estado(mundo, p) {
@@ -527,7 +528,7 @@ export function sistema(): Acto {
       e.nuevas = 0.8;
       e.cercanias = 1;
       // Close to the Sun (lifting its matter) its glare would hide everything: it is dimmed.
-      const cerca = ease(P('a3.lift') - 0.4, P('a3.lift') + 0.8, p) * (1 - ease(P('a3.motor') + 0.4, P('a3.motor') + 1.4, p));
+      const cerca = ease(P('a3.lift', -0.4), P('a3.lift', 0.8), p) * (1 - ease(P('a3.motor', 0.4), P('a3.motor', 1.4), p));
       e.solDim = Math.max(tl.get('a3.built', p) * 0.9, 0.975 * cerca);
       // Mars and Venus hide the stars behind them.
       const cam = ruta0(p).pos;
@@ -541,13 +542,13 @@ export function sistema(): Acto {
       const cam = vista.pos;
       // The cylinder turns (its gravity); inside, the camera's place in its turning frame for the haze.
       const near = cam.distanceTo(CIL) < 2000 * KM;
-      cil.group.visible = p > P('a3') - 1 && near;
+      cil.group.visible = p > P('a3', -1) && near;
       if (cil.group.visible) cil.update(cil.giro.worldToLocal(V(0, 0, 0)), time, 0.15);
       // The swarm.
       const spin = time * 0.0006;
       swarm.points.visible = on;
       swarm.u.uBuilt.value = built;
-      swarm.u.uGain.value = 1 - 0.85 * ease(P('a3.lift') - 0.2, P('a3.lift') + 0.8, p) * (1 - ease(P('a3.todo') - 0.4, P('a3.todo') + 0.6, p));
+      swarm.u.uGain.value = 1 - 0.85 * ease(P('a3.lift', -0.2), P('a3.lift', 0.8), p) * (1 - ease(P('a3.todo', -0.4), P('a3.todo', 0.6), p));
       swarm.u.uSpin.value = spin;
       swarm.u.uCamW.value.copy(cam);
       swarm.u.uFar.value = smoothstep(0.5, 0.95, cam.length()) * (1 - smoothstep(2, 4, cam.length()));
@@ -563,7 +564,7 @@ export function sistema(): Acto {
       plates.u.uFocus.value = 0;
       plates.u.uCam.value.copy(cam);
       // The habitats at L5: only drawn while we are around.
-      const atL5 = cam.distanceTo(CIL) < 3e6 * KM && p < P('a3.marte') + 2;
+      const atL5 = cam.distanceTo(CIL) < 3e6 * KM && p < P('a3.marte', 2);
       for (const hb of [ring, mck, torus, bernal]) {
         hb.group.visible = atL5;
         if (atL5) {
@@ -588,20 +589,20 @@ export function sistema(): Acto {
       merc.group.visible = cam.distanceTo(M) < 400 * R_MER;
       if (merc.group.visible) merc.update(mercSunL, tl.get('a3.eat', p), f);
       // The star, engineered: lifting from the poles; the mirror and the engine's jets.
-      lift.set(ease(P('a3.lift'), P('a3.lift') + 0.8, p), f.lamina ? 1 : 0);
-      const mot = ease(P('a3.motor') + 0.3, P('a3.motor') + 1.2, p);
+      lift.set(ease(P('a3.lift'), P('a3.lift', 0.8), p), f.lamina ? 1 : 0);
+      const mot = ease(P('a3.motor', 0.3), P('a3.motor', 1.2), p);
       // Seen from far away, at Type II, only its rim: the full cap would hide the whole system.
-      espejo.u.uOn.value = mot * (1 - 0.8 * ease(P('a3.todo') - 0.4, P('a3.todo') + 0.4, p));
+      espejo.u.uOn.value = mot * (1 - 0.8 * ease(P('a3.todo', -0.4), P('a3.todo', 0.4), p));
       espejo.mesh.visible = mot > 0.001;
       caplan.nube.u.uOn.value = mot;
       caplan.group.visible = mot > 0.001;
       // Routes and the belt, once the work has begun.
       // Each route only while it is what the moment is about (one subject per frame).
-      const todoW = ease(P('a3.todo') - 0.4, P('a3.todo') + 0.6, p);
-      const overW = ease(P('a3.viaje') + 0.6, P('a3.viaje') + 1.2, p) * (1 - ease(P('a3.venus') - 0.4, P('a3.venus') + 0.2, p));
+      const todoW = ease(P('a3.todo', -0.4), P('a3.todo', 0.6), p);
+      const overW = ease(P('a3.viaje', 0.4), P('a3.viaje', 1.0), p) * (1 - ease(P('a3.venus', -1.0), P('a3.venus', -0.3), p));
       const rutaW = [
-        Math.max(ease(P('a3.mercurio') + 1.6, P('a3.riel'), p) * (1 - ease(P('a3.enjambre') + 0.4, P('a3.enjambre') + 1.0, p)), overW, todoW),
-        1 - ease(P('a3.habitats'), P('a3.habitats') + 0.6, p),
+        Math.max(ease(P('a3.mercurio', 1.6), P('a3.riel'), p) * (1 - ease(P('a3.enjambre', 0.4), P('a3.enjambre', 1.0), p)), overW, todoW),
+        1 - ease(P('a3.habitats'), P('a3.habitats', 0.6), p),
         Math.max(overW, todoW),
         Math.max(overW, todoW),
         Math.max(overW, todoW),
@@ -614,12 +615,12 @@ export function sistema(): Acto {
         (r.line.material as THREE.LineBasicMaterial).opacity = w;
       });
       belt.points.visible = on;
-      orbits.visible = p > P('a3.todo') - 0.2 && p < P('a3.fin') + 3;
-      for (const l of orbits.children) ((l as THREE.Line).material as THREE.LineBasicMaterial).opacity = 0.1 * ease(P('a3.todo'), P('a3.todo') + 1, p);
+      orbits.visible = p > P('a3.todo', -0.2) && p < P('a3.fin', 3);
+      for (const l of orbits.children) ((l as THREE.Line).material as THREE.LineBasicMaterial).opacity = 0.1 * ease(P('a3.todo'), P('a3.todo', 1), p);
       // Seen from afar: visible light and the infrared, behind the curtain.
       const wipe = wipeAt(p);
       const wipePx = ((wipe + 1) / 2) * W;
-      const ir = p > P('a3.lejos') && p < P('a3.fin') + 1 && wipe < 1.2 ? 1 : 0;
+      const ir = p > P('a3.lejos') && p < P('a3.fin', 1) && wipe < 1.2 ? 1 : 0;
       for (const u of [m.sun.uni, m.sky.u]) {
         u.uIR.value = ir;
         u.uWipePx.value = wipePx;
@@ -632,23 +633,23 @@ export function sistema(): Acto {
       B.set(1, VENUS, fadeBy(VENUS, R_VEN));
       B.set(2, MARS, fadeBy(MARS, R_MARS));
       B.set(3, JUPITER, 1);
-      const ride = ease(P('a3.carga') - 0.05, P('a3.carga') + 0.05, p) * (1 - ease(P('a3.enjambre') + 0.1, P('a3.enjambre') + 0.3, p));
+      const ride = ease(P('a3.carga', -0.05), P('a3.carga', 0.05), p) * (1 - ease(P('a3.enjambre', 0.1), P('a3.enjambre', 0.3), p));
       B.set(4, mercRoute.at(rideT(p), V()), ride);
       B.set(5, LUNA, fadeBy(LUNA, R_E * 0.2727) * 0.8);
-      B.set(6, CIL, fadeBy(CIL, 16 * KM) * ease(P('a3') - 0.5, P('a3'), p) * (1 - ease(P('a3.marte') + 2, P('a3.marte') + 3, p)));
+      B.set(6, CIL, fadeBy(CIL, 16 * KM) * ease(P('a3', -0.5), P('a3'), p) * (1 - ease(P('a3.marte', 2), P('a3.marte', 3), p)));
       B.commit();
       B.mat.uniforms.uDpr.value = f.dpr;
-      B.points.visible = p > P('a3') - 1;
+      B.points.visible = p > P('a3', -1);
       // Light years away the whole system is one star: its works (whose lights keep their brightness
       // below a pixel) would make a blur where the Sun is.
-      if (cam.length() > 3000 || p > P('a3.fin') + 8) {
+      if (cam.length() > 3000 || p > P('a3.fin', 8)) {
         for (const o of [lift.group, espejo.mesh, caplan.group, swarm.points, plates.mesh, merc.group, belt.points, orbits, B.points]) o.visible = false;
         for (const r of rutas) r.group.visible = false;
       }
     },
     placa(g, f: Cuadro) {
       const { p, W, H, u } = f;
-      if (p < P('a3') - 0.5 || p > P('a3.fin') + 1.5) return;
+      if (p < P('a3', -0.5) || p > P('a3.fin', 1.5)) return;
       const win = (a: string, b: string, pad = 0.15) => ease(P(a) - pad, P(a) + pad, p) * (1 - ease(P(b) - pad, P(b) + pad, p));
       // Labels on things belong to the plate (key I); without it, only what cannot be left out.
       const add = (w: THREE.Vector3, text: string, dx: number, dy: number, a: number, siempre = false) => {
@@ -656,7 +657,7 @@ export function sistema(): Acto {
         const q = f.proj(w);
         if (q && q.x > 0 && q.x < W && q.y > 0 && q.y < H) nota(g, u, q.x, q.y, text, dx, dy, a);
       };
-      add(LUNA, 'la Luna lanza roca al espacio', 30, -26, win('a3', 'a3.habitats', 0.2) * ease(P('a3') + 0.6, P('a3') + 1.0, p));
+      add(LUNA, 'la Luna lanza roca al espacio', 30, -26, win('a3', 'a3.habitats', 0.2) * ease(P('a3', 0.6), P('a3', 1.0), p));
       // The habitats, and how big each one is.
       const kh = (p - P('a3.habitats')) / (P('a3.oneill') - P('a3.habitats'));
       const ha = ease(0.6, 0.7, kh) * (1 - ease(0.96, 1.04, kh));
@@ -708,7 +709,7 @@ export function sistema(): Acto {
           }
         }
       }
-      const viajeA = ease(P('a3.viaje') + 1.0, P('a3.viaje') + 1.3, p) * (1 - ease(P('a3.viaje') + 2.5, P('a3.viaje') + 2.8, p));
+      const viajeA = ease(P('a3.viaje', 1.0), P('a3.viaje', 1.3), p) * (1 - ease(P('a3.viaje', 2.5), P('a3.viaje', 2.8), p));
       add(E, 'Tierra', 26, -24, viajeA);
       add(MARS, 'Marte · se calienta', 26, -20, viajeA);
       add(VENUS, 'Venus · a la sombra', 26, -20, viajeA);
@@ -740,20 +741,20 @@ export function sistema(): Acto {
       }
       add(merc2w(merc.riel.at(0.7, V())), 'riel de 2 000 km', 34, -30, win('a3.riel', 'a3.carga', 0.1));
       add(mercRoute.at(rideT(p), V()), 'nuestra carga', 26, -26, win('a3.carga', 'a3.enjambre', 0.1));
-      add(ringAPoint(ringAng(p) + 0.0012, SLOT + 1.56e-4, 0), 'colector · tamaño ilustrativo', 30, -30, win('a3.enjambre', 'a3.lejos', 0.15) * ease(P('a3.enjambre') + 0.2, P('a3.enjambre') + 0.5, p), true);
+      add(ringAPoint(ringAng(p) + 0.0012, SLOT + 1.56e-4, 0), 'colector · tamaño ilustrativo', 30, -30, win('a3.enjambre', 'a3.lejos', 0.15) * ease(P('a3.enjambre', 0.2), P('a3.enjambre', 0.5), p), true);
       // The machines that copy themselves: 2, 4, 8… 2⁴⁰.
       const ma = win('a3.mercurio', 'a3.riel', 0.2);
       if (ma > 0.01) {
-        const n = Math.round(40 * ease(P('a3.mercurio') + 0.3, P('a3.riel') - 0.2, p));
+        const n = Math.round(40 * ease(P('a3.mercurio', 0.3), P('a3.riel', -0.2), p));
         cifra(g, u, W * 0.74, H * 0.26, '2', sup(Math.max(1, n)), 64, ma, TEAL, 'máquinas que se copian a sí mismas');
       }
       // Lifting the star.
-      const li = ease(P('a3.lift') + 1.4, P('a3.lift') + 2.0, p) * (1 - ease(P('a3.motor') + 0.2, P('a3.motor') + 0.8, p));
+      const li = ease(P('a3.lift', 1.4), P('a3.lift', 2.0), p) * (1 - ease(P('a3.motor', 0.2), P('a3.motor', 0.8), p));
       add(V(0, 9 * R_SUN, 0), 'materia que sale por los polos', 34, -26, li);
       add(polar(1.7 * R_SUN, TH_E + 0.4), 'corriente en anillo: canaliza el plasma', 34, 30, li);
       cifra(g, u, W * 0.76, H * 0.24, '+3 000', '', 58, li, TEAL, 'millones de años de vida, como mucho');
       // Moving the star.
-      const mo = ease(P('a3.motor') + 1.4, P('a3.motor') + 2.0, p) * (1 - ease(P('a3.todo') + 0.2, P('a3.todo') + 0.8, p));
+      const mo = ease(P('a3.motor', 1.4), P('a3.motor', 2.0), p) * (1 - ease(P('a3.todo', 0.2), P('a3.todo', 0.8), p));
       if (mo > 0.01) {
         add(MOTOR.clone().multiplyScalar(0.55).add(V(0, 0.18, 0)), 'espejo de Shkadov', 30, -28, mo);
         add(MOTOR.clone().multiplyScalar(-1.4), 'motor de Caplan: su chorro', 30, 28, mo);
@@ -763,7 +764,7 @@ export function sistema(): Acto {
           flecha(g, u, a0, a1, TEAL, mo, 2.2);
           texto(g, u, a1.x + 10 * u, a1.y - 14 * u, 'el Sol se mueve', TEAL, mo, 10);
         }
-        const late = ease(P('a3.motor') + 2.6, P('a3.motor') + 3.0, p);
+        const late = ease(P('a3.motor', 2.6), P('a3.motor', 3.0), p);
         cifra(g, u, W * 0.76, H * 0.24, late > 0.5 ? '50' : '34 000', '', 58, mo, TEAL, late > 0.5 ? 'años luz en un millón de años, con chorros' : 'años luz en mil millones de años, con el espejo');
         if (f.lamina) {
           // The light the mirror sends back, past the star: more light leaves the other way.
@@ -776,7 +777,7 @@ export function sistema(): Acto {
         }
       }
       // Seen from afar: the curtain and the spectrum that shows why.
-      const la = ease(P('a3.lejos') + 1.4, P('a3.lejos') + 2.0, p) * (1 - ease(P('a3.lift') + 0.2, P('a3.lift') + 0.8, p));
+      const la = ease(P('a3.lejos', 1.4), P('a3.lejos', 2.0), p) * (1 - ease(P('a3.lift', 0.2), P('a3.lift', 0.8), p));
       if (la > 0.01) {
         const x = ((wipeAt(p) + 1) / 2) * W;
         if (x < W - 10 && x > 10) {
@@ -787,7 +788,7 @@ export function sistema(): Acto {
         if (f.lamina) espectro(g, u, W - 470 * u, H - 270 * u, 360 * u, 150 * u, 0.95 * tl.get('a3.built', p), la);
       }
       // Everything at once.
-      const todoA = ease(P('a3.todo') + 1.2, P('a3.todo') + 1.8, p);
+      const todoA = ease(P('a3.todo', 1.2), P('a3.todo', 1.8), p);
       add(E, 'Tierra', 22, -22, todoA);
       add(M, 'Mercurio', -30, 26, todoA);
       add(MARS, 'Marte', 22, -20, todoA);

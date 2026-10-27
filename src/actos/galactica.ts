@@ -39,7 +39,7 @@ const ARRIBA: Vista = { pos: ly(CENTRO.clone().add(V(9000, 118000, 52000))), tar
 
 export function galactica(): Acto {
   let tl: Timeline;
-  let P: (l: string) => number;
+  let P: (l: string, d?: number) => number;
   const ease = smoothstep;
   let m: Mundo;
 
@@ -55,8 +55,8 @@ export function galactica(): Acto {
 
   /** The bubble's radius by beat. */
   function radio(p: number) {
-    const k1 = ease(P('a5') + 0.4, P('a5.ola'), p);
-    const k2 = ease(P('a5.ola'), P('a5.tipo3') - 0.6, p);
+    const k1 = ease(P('a5', 0.4), P('a5.ola'), p);
+    const k2 = ease(P('a5.ola'), P('a5.tipo3', -0.6), p);
     if (p < P('a5.ola')) return Math.exp(lerp(Math.log(50), Math.log(4000), k1));
     return Math.exp(lerp(Math.log(4000), Math.log(R_FIN), k2));
   }
@@ -146,7 +146,7 @@ export function galactica(): Acto {
     nombre: 'La galaxia',
     coreografia(t) {
       tl = t;
-      P = (l) => tl.at(l);
+      P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a5');
       tl.set({ 'a5.lp': 29.0, 'a5.ly': 3.4, 'a5.lr': 17.7 });
       tl.caption(9.6, 'La burbuja', 'Sondas que se copian en cada sistema que tocan. Lentas, y ayudadas por el movimiento de las estrellas, llenarían la galaxia en menos de 300 millones de años (Carroll-Nellenback et al., 2019).');
@@ -178,7 +178,7 @@ export function galactica(): Acto {
     vista: (p) => vista(p),
     lectura: (p) => ({ lp: tl.get('a5.lp', p), ly: tl.get('a5.ly', p), lr: tl.get('a5.lr', p) }),
     muro(p): Muro | null {
-      const a = ease(P('a5.muro') + 1.0, P('a5.muro') + 2.0, p);
+      const a = ease(P('a5.muro', 1.0), P('a5.muro', 2.0), p);
       return a > 0.01 ? { lp: 37.0, label: 'muro · el borde de la galaxia', a, choque: ease(36.6, 36.98, tl.get('a5.lp', p)) } : null;
     },
     estado(mundo) {
@@ -191,11 +191,11 @@ export function galactica(): Acto {
     },
     update(f: Cuadro) {
       const { p, time, camera, vista: v } = f;
-      const here = p > P('a5') - 0.5 && p < P('a5.fin') + 2;
+      const here = p > P('a5', -0.5) && p < P('a5.fin', 2);
       lug.nube.points.visible = here;
       ru.nube.points.visible = here;
       // The front itself, while we ride it and while it spreads.
-      const mOn = here ? ease(P('a5') + 1.2, P('a5') + 2.4, p) * (1 - ease(P('a5.tipo3') - 1.6, P('a5.tipo3') - 0.4, p)) : 0;
+      const mOn = here ? ease(P('a5', 1.2), P('a5', 2.4), p) * (1 - ease(P('a5.tipo3', -1.6), P('a5.tipo3', -0.4), p)) : 0;
       membrana.mesh.visible = mOn > 0.001;
       membrana.u.uOn.value = mOn;
       membrana.u.uTime.value = time;
@@ -218,22 +218,22 @@ export function galactica(): Acto {
       G.nube.u.uBub.value.set(0, 0, 0);
       G.nube.u.uBubR.value = R;
       G.nube.u.uBubOn.value = 1;
-      G.nube.u.uBubFront.value = 1 - ease(P('a5.tipo3') - 1, P('a5.tipo3'), p);
+      G.nube.u.uBubFront.value = 1 - ease(P('a5.tipo3', -1), P('a5.tipo3'), p);
       G.nube.u.uHueco.value.set(RESERVA.x, RESERVA.y, RESERVA.z, 34);
       G.luz.u.uBub.value.copy(CENTRO).negate();
       G.luz.u.uBubR.value = R;
-      G.luz.u.uBubOn.value = ease(P('a5.ola'), P('a5.ola') + 2, p);
+      G.luz.u.uBubOn.value = ease(P('a5.ola'), P('a5.ola', 2), p);
       // Type III: the curtain sweeps from the right and stays half-way; it lifts afterwards.
-      const ir = ease(P('a5.tipo3') + 0.8, P('a5.tipo3') + 1.2, p) * (1 - ease(P('a5.zoo') - 0.4, P('a5.zoo') + 0.2, p));
-      const wipe = lerp(1.25, 0.5, ease(P('a5.tipo3') + 1.0, P('a5.tipo3') + 2.6, p));
+      const ir = ease(P('a5.tipo3', 0.8), P('a5.tipo3', 1.2), p) * (1 - ease(P('a5.zoo', -0.4), P('a5.zoo', 0.2), p));
+      const wipe = lerp(1.25, 0.5, ease(P('a5.tipo3', 1.0), P('a5.tipo3', 2.6), p));
       for (const u of [G.nube.u, G.luz.u]) {
         u.uIR.value = ir;
         u.uWipePx.value = wipe * f.W;
       }
       G.nube.u.uResX.value = f.W;
       // The places: the reserve and the silent ones while we visit; the ruins up close.
-      const zooOn = ease(P('a5.zoo') + 0.8, P('a5.zoo') + 1.6, p) * (1 - ease(P('a5.filtro') + 0.6, P('a5.filtro') + 1.4, p));
-      const callOn = ease(P('a5.callan') + 0.6, P('a5.callan') + 1.4, p) * (1 - ease(P('a5.filtro') + 0.6, P('a5.filtro') + 1.4, p));
+      const zooOn = ease(P('a5.zoo', 0.8), P('a5.zoo', 1.6), p) * (1 - ease(P('a5.filtro', 0.6), P('a5.filtro', 1.4), p));
+      const callOn = ease(P('a5.callan', 0.6), P('a5.callan', 1.4), p) * (1 - ease(P('a5.filtro', 0.6), P('a5.filtro', 1.4), p));
       lug.nube.u.uOn.value = Math.max(zooOn, callOn);
       lug.nube.u.uScale.value = f.k * LY_AU;
       lug.zoo.group.visible = zooOn > 0.001;
@@ -248,36 +248,36 @@ export function galactica(): Acto {
     },
     placa(g, f: Cuadro) {
       const { p, W, H, u } = f;
-      if (p < P('a5') - 0.5 || p > P('a5.fin') + 1.5) return;
+      if (p < P('a5', -0.5) || p > P('a5.fin', 1.5)) return;
       const add = (w: THREE.Vector3, text: string, dx: number, dy: number, a: number) => {
         if (a < 0.01 || !f.lamina) return;
         const q = f.proj(w);
         if (q && q.x > 0 && q.x < W && q.y > 0 && q.y < H) nota(g, u, q.x, q.y, text, dx, dy, a);
       };
       // The bubble: how long it takes, at most.
-      const bu = ease(P('a5.ola') + 1.0, P('a5.ola') + 1.6, p) * (1 - ease(P('a5.tipo3') + 0.2, P('a5.tipo3') + 0.8, p));
+      const bu = ease(P('a5.ola', 1.0), P('a5.ola', 1.6), p) * (1 - ease(P('a5.tipo3', 0.2), P('a5.tipo3', 0.8), p));
       cifra(g, u, W * 0.76, H * 0.24, '300', '', 58, bu, TEAL, 'millones de años, como mucho, para llenarla');
-      add(V(), 'aquí empezó', 30, -30, ease(P('a5.ola') + 1.4, P('a5.ola') + 2.0, p) * (1 - ease(P('a5.tipo3') - 0.4, P('a5.tipo3'), p)));
+      add(V(), 'aquí empezó', 30, -30, ease(P('a5.ola', 1.4), P('a5.ola', 2.0), p) * (1 - ease(P('a5.tipo3', -0.4), P('a5.tipo3'), p)));
       if (f.lamina) {
-        const ride = ease(P('a5') + 3.4, P('a5') + 3.9, p) * (1 - ease(P('a5.ola') + 0.3, P('a5.ola') + 0.8, p));
+        const ride = ease(P('a5', 3.4), P('a5', 3.9), p) * (1 - ease(P('a5.ola', 0.3), P('a5.ola', 0.8), p));
         texto(g, u, W * 0.3, H * 0.16, 'adentro: los sistemas ya alcanzados', TEAL, ride, 10.5, 'center');
         texto(g, u, W * 0.72, H * 0.16, 'afuera: todavía nadie', '#f2e6cf', ride, 10.5, 'center');
       }
       // Type III: the curtain, and how many we have looked at.
-      const t3 = ease(P('a5.tipo3') + 1.0, P('a5.tipo3') + 1.6, p) * (1 - ease(P('a5.zoo') - 0.6, P('a5.zoo'), p));
+      const t3 = ease(P('a5.tipo3', 1.0), P('a5.tipo3', 1.6), p) * (1 - ease(P('a5.zoo', -0.6), P('a5.zoo'), p));
       if (t3 > 0.01) {
-        const x = lerp(1.25, 0.5, ease(P('a5.tipo3') + 1.0, P('a5.tipo3') + 2.6, p)) * W;
+        const x = lerp(1.25, 0.5, ease(P('a5.tipo3', 1.0), P('a5.tipo3', 2.6), p)) * W;
         if (x < W - 10) {
           linea(g, u, [{ x, y: 96 * u }, { x, y: H - 280 * u }], 'rgba(242,236,224,0.6)', t3);
           texto(g, u, x - 12 * u, 112 * u, 'luz visible', 'rgba(242,236,224,0.85)', t3, 10, 'right');
           texto(g, u, x + 12 * u, 112 * u, 'infrarrojo · falso color', '#ff9a6a', t3, 10);
         }
-        cifra(g, u, W * 0.76, H * 0.3, '0', '', 58, ease(P('a5.tipo3') + 2.6, P('a5.tipo3') + 3.2, p) * t3, '#ff9a6a', 'de unas 100 000 galaxias revisadas se ven así');
+        cifra(g, u, W * 0.76, H * 0.3, '0', '', 58, ease(P('a5.tipo3', 2.6), P('a5.tipo3', 3.2), p) * t3, '#ff9a6a', 'de unas 100 000 galaxias revisadas se ven así');
       }
       // The places.
-      add(RESERVA.clone().multiplyScalar(LY_AU), 'una reserva: la dejamos como estaba', 34, -30, ease(P('a5.zoo') + 2.2, P('a5.zoo') + 2.8, p) * (1 - ease(P('a5.callan'), P('a5.callan') + 0.5, p)));
-      add(CALLADAS[0].clone().multiplyScalar(LY_AU), 'sistemas que no emiten nada', 34, -30, ease(P('a5.callan') + 2.0, P('a5.callan') + 2.6, p) * (1 - ease(P('a5.filtro'), P('a5.filtro') + 0.5, p)));
-      add(RUINAS.clone().multiplyScalar(LY_AU), 'una enana blanca: lo que queda de su estrella', 34, -30, ease(P('a5.filtro') + 2.8, P('a5.filtro') + 3.4, p) * (1 - ease(P('a5.muro'), P('a5.muro') + 0.5, p)));
+      add(RESERVA.clone().multiplyScalar(LY_AU), 'una reserva: la dejamos como estaba', 34, -30, ease(P('a5.zoo', 2.2), P('a5.zoo', 2.8), p) * (1 - ease(P('a5.callan'), P('a5.callan', 0.5), p)));
+      add(CALLADAS[0].clone().multiplyScalar(LY_AU), 'sistemas que no emiten nada', 34, -30, ease(P('a5.callan', 2.0), P('a5.callan', 2.6), p) * (1 - ease(P('a5.filtro'), P('a5.filtro', 0.5), p)));
+      add(RUINAS.clone().multiplyScalar(LY_AU), 'una enana blanca: lo que queda de su estrella', 34, -30, ease(P('a5.filtro', 2.8), P('a5.filtro', 3.4), p) * (1 - ease(P('a5.muro'), P('a5.muro', 0.5), p)));
     },
   };
 }

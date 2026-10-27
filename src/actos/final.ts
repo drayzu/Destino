@@ -131,7 +131,7 @@ function comienzo() {
 
 export function final(): Acto {
   let tl: Timeline;
-  let P: (l: string) => number;
+  let P: (l: string, d?: number) => number;
   const ease = smoothstep;
   let m: Mundo;
 
@@ -161,7 +161,7 @@ export function final(): Acto {
     fov: 46,
   });
   /** The bubble's radius (AU) by beat: a seed, then inflating past everything. */
-  const radio = (p: number) => Math.exp(lerp(Math.log(0.02), Math.log(4000), ease(P('a8.crear') + 1.2, P('a8.relevo') + 2.4, p) ** 1.4));
+  const radio = (p: number) => Math.exp(lerp(Math.log(0.02), Math.log(4000), ease(P('a8.crear', 1.2), P('a8.relevo', 2.4), p) ** 1.4));
   function vista(p: number): Vista {
     // From the cosmos (where act VII leaves us), down to a black hole: the stars have gone out.
     const desde: Vista = { pos: V(-0.3, 0.62, 0.72).normalize().multiplyScalar(90000 * MLY_AU), target: V(), up: UP.clone(), fov: 46 };
@@ -184,7 +184,7 @@ export function final(): Acto {
     nombre: 'El final',
     coreografia(t) {
       tl = t;
-      P = (l) => tl.at(l);
+      P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a8');
       tl.set({ 'a8.lp': 46.0, 'a8.ly': 10.7 });
       tl.caption(6.6, 'Las últimas centrales', 'Cuando las estrellas se apagan, quedan los agujeros negros. De uno que gira al máximo se puede sacar hasta el 29 % de su masa (el proceso de Penrose); después, solo su radiación de Hawking.');
@@ -209,13 +209,13 @@ export function final(): Acto {
     vista: (p) => vista(p),
     lectura: (p) => ({ lp: tl.get('a8.lp', p), ly: tl.get('a8.ly', p), lr: 26.1 }),
     muro(p): Muro | null {
-      const a = ease(P('a8.contados') + 1.4, P('a8.contados') + 2.4, p) * (1 - ease(P('a8.relevo'), P('a8.relevo') + 1.0, p));
-      return a > 0.01 ? { lp: 21.5, label: 'muro · la muerte térmica', a, choque: ease(P('a8.contados') + 2.4, P('a8.contados') + 4.0, p) } : null;
+      const a = ease(P('a8.contados', 1.4), P('a8.contados', 2.4), p) * (1 - ease(P('a8.relevo'), P('a8.relevo', 1.0), p));
+      return a > 0.01 ? { lp: 21.5, label: 'muro · la muerte térmica', a, choque: ease(P('a8.contados', 2.4), P('a8.contados', 4.0), p) } : null;
     },
     estado(mundo, p) {
       const e = mundo.estado;
       // The stars have gone out: no sky, no galaxy, no Sun.
-      const apaga = ease(P('a8') + 0.6, P('a8') + 2.6, p);
+      const apaga = ease(P('a8', 0.6), P('a8', 2.6), p);
       e.tierra = 0;
       e.faros = 0;
       e.cielo = 0.25 * (1 - apaga);
@@ -226,56 +226,56 @@ export function final(): Acto {
     },
     update(f: Cuadro) {
       const { p, time, camera, vista: v, k } = f;
-      const here = p > P('a8') - 0.5 && p < P('a8.fin') + 2;
+      const here = p > P('a8', -0.5) && p < P('a8.fin', 2);
       penG.visible = here;
       nuevoG.visible = here;
       bh.mesh.visible = here;
       if (!here) return;
       // The hole: its disk while there is matter; its Hawking glow at the end.
-      const disco = ease(P('a8') + 1.6, P('a8') + 2.8, p) * (1 - ease(P('a8.contados') + 0.6, P('a8.contados') + 3.4, p));
+      const disco = ease(P('a8', 1.6), P('a8', 2.8), p) * (1 - ease(P('a8.contados', 0.6), P('a8.contados', 3.4), p));
       bh.u.uDiskL.value = disco;
-      bh.u.uHawk.value = 0.07 * ease(P('a8.contados') + 2.0, P('a8.contados') + 4.4, p) * (1 - ease(P('a8.relevo'), P('a8.relevo') + 1, p));
+      bh.u.uHawk.value = 0.07 * ease(P('a8.contados', 2.0), P('a8.contados', 4.4), p) * (1 - ease(P('a8.relevo'), P('a8.relevo', 1), p));
       const center = V().sub(v.pos).multiplyScalar(k);
-      bh.update({ camera, center, normal: NORMAL, rs: RS * k, sky: new THREE.Matrix3(), time, alpha: 1 - ease(P('a8.relevo') + 0.6, P('a8.relevo') + 1.6, p) });
+      bh.update({ camera, center, normal: NORMAL, rs: RS * k, sky: new THREE.Matrix3(), time, alpha: 1 - ease(P('a8.relevo', 0.6), P('a8.relevo', 1.6), p) });
       // Penrose: the civilization's matter, in and out.
-      pen.u.uOn.value = ease(P('a8') + 3.2, P('a8') + 4.2, p) * (1 - ease(P('a8.contados') + 0.4, P('a8.contados') + 1.6, p));
+      pen.u.uOn.value = ease(P('a8', 3.2), P('a8', 4.2), p) * (1 - ease(P('a8.contados', 0.4), P('a8.contados', 1.6), p));
       pen.points.visible = pen.u.uOn.value > 0.001;
       // The new universe: a seed, the bubble inflating, inside the light pouring out.
       const R = radio(p);
-      const sem = ease(P('a8.crear') + 0.6, P('a8.crear') + 1.4, p);
+      const sem = ease(P('a8.crear', 0.6), P('a8.crear', 1.4), p);
       burbuja.mesh.scale.setScalar(R);
       // From inside, the membrane is only a faint veil.
-      burbuja.u.uOn.value = sem * 0.9 * (1 - 0.8 * ease(P('a8.relevo') - 0.4, P('a8.relevo') + 0.6, p));
+      burbuja.u.uOn.value = sem * 0.9 * (1 - 0.8 * ease(P('a8.relevo', -0.4), P('a8.relevo', 0.6), p));
       burbuja.u.uTime.value = time;
       burbuja.mesh.visible = sem > 0.001;
       nuevo.nube.points.scale.setScalar(R);
       // The first light pours out, then thins: the new universe goes on, dark, for the last words.
-      nuevo.nube.u.uOn.value = sem * (0.35 + 0.4 * ease(P('a8.relevo'), P('a8.relevo') + 1.5, p)) * (1 - 0.8 * ease(P('a8.relevo') + 1.8, P('a8.relevo') + 3.0, p));
+      nuevo.nube.u.uOn.value = sem * (0.35 + 0.4 * ease(P('a8.relevo'), P('a8.relevo', 1.5), p)) * (1 - 0.8 * ease(P('a8.relevo', 1.8), P('a8.relevo', 3.0), p));
       nuevo.nube.points.visible = sem > 0.001;
       nuevo.fill.scale.setScalar(R);
-      (nuevo.fill.material as THREE.ShaderMaterial).uniforms.uOn.value = ease(P('a8.relevo') + 0.4, P('a8.relevo') + 2.0, p);
+      (nuevo.fill.material as THREE.ShaderMaterial).uniforms.uOn.value = ease(P('a8.relevo', 0.4), P('a8.relevo', 2.0), p);
       nuevo.fill.visible = p > P('a8.relevo');
     },
     placa(g, f: Cuadro) {
       const { p, W, H, u } = f;
-      if (p < P('a8') - 0.5 || p > P('a8.fin') + 1.5) return;
+      if (p < P('a8', -0.5) || p > P('a8.fin', 1.5)) return;
       // 29 %.
-      const ce = ease(P('a8') + 3.6, P('a8') + 4.2, p) * (1 - ease(P('a8.contados') - 0.4, P('a8.contados') + 0.2, p));
+      const ce = ease(P('a8', 3.6), P('a8', 4.2), p) * (1 - ease(P('a8.contados', -0.4), P('a8.contados', 0.2), p));
       cifra(g, u, W * 0.76, H * 0.24, '29 %', '', 58, ce, TEAL, 'de su masa, como mucho, de un agujero que gira al máximo');
       if (f.lamina && ce > 0.01) {
         const q = f.proj(V(0, 0, 0));
         if (q) nota(g, u, q.x, q.y, 'ergosfera: la materia entra y sale con más energía', 60, -60, ce);
       }
       // The thoughts, counted: the counter runs and stops.
-      const co = ease(P('a8.contados') + 0.8, P('a8.contados') + 1.4, p) * (1 - ease(P('a8.crear'), P('a8.crear') + 0.6, p));
+      const co = ease(P('a8.contados', 0.8), P('a8.contados', 1.4), p) * (1 - ease(P('a8.crear'), P('a8.crear', 0.6), p));
       if (co > 0.01) {
-        const run = ease(P('a8.contados') + 1.0, P('a8.contados') + 3.6, p);
+        const run = ease(P('a8.contados', 1.0), P('a8.contados', 3.6), p);
         const e = Math.round(lerp(30, 70, Math.sqrt(run)));
         const stop = run > 0.995;
         cifra(g, u, W * 0.76, H * 0.24, '10', sup(e), 58, co, stop ? '#ff9a6a' : TEAL, stop ? 'pensamientos posibles, y no más · ilustrativo' : 'pensamientos posibles · ilustrativo');
       }
       // The relay.
-      const re = ease(P('a8.relevo') + 2.0, P('a8.relevo') + 3.0, p);
+      const re = ease(P('a8.relevo', 2.0), P('a8.relevo', 3.0), p);
       if (re > 0.01) {
         texto(g, u, W / 2, H * 0.42, 'continúa en', 'rgba(242,236,224,0.7)', re, 11, 'center');
         g.save();

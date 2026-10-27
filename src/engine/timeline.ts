@@ -48,6 +48,11 @@ export class Timeline {
   private slopes = new Map<string, number[]>();
   private cursor = 0;
   length = 0;
+  /**
+   * How long a beat of choreography lasts in beats of scroll: the acts are written at 1; the
+   * journey breathes at more (every move, hold and caption lasts that much longer).
+   */
+  escala = 1;
 
   constructor(defaults: Record<string, number> = {}) {
     this.defaults = defaults;
@@ -60,12 +65,13 @@ export class Timeline {
 
   to(dur: number, values: Record<string, number>, ease: Ease | null = null) {
     this.with(dur, values, ease);
-    this.cursor += dur;
+    this.cursor += dur * this.escala;
     this.length = Math.max(this.length, this.cursor);
     return this;
   }
 
   with(dur: number, values: Record<string, number>, ease: Ease | null = null) {
+    dur *= this.escala;
     for (const [name, v] of Object.entries(values)) {
       // Hold the previous value until the tween starts (keeping a key that already ends here intact).
       const keys = this.tracks.get(name);
@@ -77,14 +83,14 @@ export class Timeline {
   }
 
   wait(dur: number) {
-    this.cursor += dur;
+    this.cursor += dur * this.escala;
     this.length = Math.max(this.length, this.cursor);
     return this;
   }
 
   /** Names the moment starting at the cursor and lasting `dur` beats (the cursor stays). */
   caption(dur: number, name: string, fact: string) {
-    this.captions.push({ from: this.cursor, to: this.cursor + dur, name, fact });
+    this.captions.push({ from: this.cursor, to: this.cursor + dur * this.escala, name, fact });
     return this;
   }
 

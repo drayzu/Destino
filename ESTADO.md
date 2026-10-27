@@ -1,7 +1,7 @@
 # Destino · estado
 
 ## Dónde estamos
-**Fase 4 · El viaje completo, del acto 0 al VIII.** El sitio real corre (`index.html` + `src/`): un solo mundo compartido, la cámara con pivote, el reloj de potencia con su escalera y sus muros, la lámina (I), las teclas A/S/I/L, sonido básico y hojas de contactos. El viaje va de la portada al relevo a Infinito: ~245 beats, unos 7 minutos y medio con autoplay. Capturas: `docs/fase1/` a `docs/fase4/` (`docs/fase4/viaje.jpg` es el viaje entero). El código está en github.com/drayzu/Destino; el sitio todavía no se publica (Pages apagado).
+**Fase 4 · El viaje completo, del acto 0 al VIII.** El sitio real corre (`index.html` + `src/`): un solo mundo compartido, la cámara con pivote, el reloj de potencia con su escalera y sus muros, la lámina (I), las teclas A/S/I/L, sonido básico y hojas de contactos. El viaje va de la portada al relevo a Infinito: ~338 beats, unos 10 minutos con autoplay. Capturas: `docs/fase1/` a `docs/fase4/` (`docs/fase4/viaje.jpg` es el viaje entero). El código está en github.com/drayzu/Destino; el sitio todavía no se publica (Pages apagado).
 
 ## Decisiones
 - **26 de octubre de 2026 · plan nuevo.** Despertar pasa a llamarse **Destino** y se rehace con el formato de Espacio y Tiempo: un solo viaje con scroll de ~10–12 minutos, teclas A/S/I/L, lámina opcional; sin modo explorar y sin estaciones. Se mantienen el muro → la obra y la galaxia de las posibilidades. La simulación, lo computable y los multiversos pasan a Infinito. Termina creando un universo y pasándole el relevo a Infinito. Detalle en `BRIEF.md` § 2.
@@ -32,7 +32,7 @@
   - Acto VII: una red cósmica propia (nudos y filamentos difusos), las sondas a todas las galaxias alcanzables, el horizonte que enrojece lo que se lleva la energía oscura, y otras burbujas expansivas de colores que tocan la nuestra; distancias comprimidas y así rotuladas.
   - Acto VIII: el agujero negro trazado con rayos de Tiempo (con disco dorado y la materia de Penrose), el contador de pensamientos que se detiene (ilustrativo, así rotulado) y el muro de la muerte térmica, la burbuja de falso vacío que se infla y, adentro, un universo que empieza: «continúa en Infinito · pronto». El outro de la página dice lo mismo.
 - **27 de octubre · los planetas (Diego):** la Tierra, la Luna y Mercurio se veían «baratos» y cada planeta no puede tener su estilo. Tras el estudio `?m=planetas`, eligió los **puntitos** coloreados con mapas reales, con una foto tenue debajo y puntos más finos cerca de la cámara: «Me mola mucho. Confirmado». Mapas 2K de Solar System Scope (CC BY 4.0), bajados con su permiso.
-- **27 de octubre · una biblioteca común (Diego):** el diseño pasó a un repo privado, **drayzu/horizontes-cuerpos**. Tiene el Sol (la estrella del Atlas en puntos) y los nueve cuerpos con sus mapas, Saturno con sus anillos incluido. Cada obra lleva una copia (`node tools/copiar.mjs <obra> --cuerpos …`, que escribe `src/horizontes/`), así que publicar con GitHub Actions no necesita tokens. Destino usa la Tierra, la Luna, Mercurio, Venus y Marte de esa copia. Su Sol sigue siendo el propio, hasta que Diego vea el nuevo.
+- **27 de octubre · una biblioteca común (Diego):** el diseño pasó a un repo privado, **drayzu/horizontes-cuerpos**. Tiene el Sol (la estrella del Atlas en puntos) y los nueve cuerpos con sus mapas, Saturno con sus anillos incluido. Cada obra lleva una copia (`node tools/copiar.mjs <obra> --cuerpos …`, que escribe `src/horizontes/`), así que publicar con GitHub Actions no necesita tokens. Destino usa de esa copia la Tierra, la Luna, Mercurio, Venus, Marte y el Sol (en puntos desde que mide unos píxeles; más lejos, un disco brillante). Diego eligió para el Sol el aspecto **visible**, el más realista.
 - **26 de octubre · el repo:** Diego creó `drayzu/Destino` (público) y pidió subir el código sin publicar el sitio todavía: GitHub Pages sigue apagado. BRIEF.md y `.claude/` se sacaron de todo el historial antes del primer push y quedan en `.gitignore`. La URL del sitio será drayzu.github.io/Destino cuando Diego diga que se publique.
 
 ## Cómo está hecho
@@ -66,7 +66,8 @@
   - Para encontrar qué dibuja un NaN: ocultar grupos con un parche a `update` del acto desde `tools/hoja.mjs` y medir el brillo medio de la foto.
 
 ## Pendiente del viaje completo (fase 5 y pulido)
-- Duración: ~7,5 minutos; el brief apuntaba a 10–12. Se puede alargar donde respira (las vistas grandes) en vez de agregar momentos.
+- Duración: ~10 minutos desde el 27 de octubre. Los actos se escriben a su ritmo y la línea de tiempo los estira (`tl.escala = 1.38` en `main.ts`). Los desfases fijos dentro de un momento se escriben `P('etiqueta', d)` para que se estiren igual. Capturas: `docs/fase5/`.
+- Estilo de las estructuras (cilindro de O'Neill y demás hábitats): estudio de tres maneras (`?m=estructuras`, `docs/estudios/estructuras.jpg`), esperando la elección de Diego.
 - Transiciones con cuadros vacíos (sobre todo los traslados largos entre escalas).
 - El cerebro del acto I parece más una nube que un cerebro: faltan los surcos y la línea media.
 - Sonido propio por acto (fase 5), enlaces de la lámina a sus fichas del Atlas y el enlace final al Atlas, la escalera que salta al tocar sus peldaños, modo móvil y liviano, el README con media (receta de `readme-visual`).

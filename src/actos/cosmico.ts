@@ -39,7 +39,7 @@ const HOR = 16000;
 
 export function cosmico(): Acto {
   let tl: Timeline;
-  let P: (l: string) => number;
+  let P: (l: string, d?: number) => number;
   const ease = smoothstep;
   let m: Mundo;
 
@@ -72,8 +72,8 @@ export function cosmico(): Acto {
   }
 
   /** Our probes' front and the universe's scale factor, by beat. */
-  const frenteK = (p: number) => R_NUESTRA * ease(P('a7') + 2.6, P('a7.expansivas') + 1.0, p) ** 0.7;
-  const escala = (p: number) => lerp(1, 2.4, ease(P('a7.prisa') + 0.6, P('a7.muro') + 2, p));
+  const frenteK = (p: number) => R_NUESTRA * ease(P('a7', 2.6), P('a7.expansivas', 1.0), p) ** 0.7;
+  const escala = (p: number) => lerp(1, 2.4, ease(P('a7.prisa', 0.6), P('a7.muro', 2), p));
 
   return {
     id: 'a7',
@@ -81,7 +81,7 @@ export function cosmico(): Acto {
     nombre: 'El cosmos',
     coreografia(t) {
       tl = t;
-      P = (l) => tl.at(l);
+      P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a7');
       tl.set({ 'a7.lp': 37.0, 'a7.ly': 8.7, 'a7.lr': 20.98 });
       tl.caption(7.0, 'La eternidad en seis horas', 'Con la energía de un enjambre alrededor de una sola estrella, en seis horas se pueden lanzar sondas a todas las galaxias alcanzables: de 10⁸ a 4 × 10⁹, según lo rápido que vayan (Armstrong y Sandberg, 2013).');
@@ -108,7 +108,7 @@ export function cosmico(): Acto {
     vista: (p) => vista(p),
     lectura: (p) => ({ lp: tl.get('a7.lp', p), ly: tl.get('a7.ly', p), lr: tl.get('a7.lr', p) }),
     muro(p): Muro | null {
-      const a = ease(P('a7.muro') + 0.8, P('a7.muro') + 1.8, p);
+      const a = ease(P('a7.muro', 0.8), P('a7.muro', 1.8), p);
       return a > 0.01 ? { lp: 46.2, label: 'muro · el horizonte', a, choque: ease(45.6, 46.0, tl.get('a7.lp', p)) } : null;
     },
     estado(mundo) {
@@ -119,10 +119,10 @@ export function cosmico(): Acto {
     },
     update(f: Cuadro) {
       const { p, time } = f;
-      const here = p > P('a7') - 0.5 && p < P('a7.fin') + 0.7;
+      const here = p > P('a7', -0.5) && p < P('a7.fin', 0.7);
       group.visible = here;
       if (!here) return;
-      const on = ease(P('a7') + 1.2, P('a7') + 2.6, p);
+      const on = ease(P('a7', 1.2), P('a7', 2.6), p);
       uni.nube.u.uOn.value = on;
       uni.nube.u.uScale.value = f.k * MLY_AU;
       const a = escala(p);
@@ -131,7 +131,7 @@ export function cosmico(): Acto {
       const R = frenteK(p);
       const b = uni.nube.u.uB.value as THREE.Vector4[];
       b[0].set(0, 0, 0, R);
-      const kx = ease(P('a7.expansivas') - 0.4, P('a7.tipo4') + 1.6, p);
+      const kx = ease(P('a7.expansivas', -0.4), P('a7.tipo4', 1.6), p);
       OTRAS.forEach((c, i) => {
         // Each grows until it touches ours (its centre's distance minus ours), a little more where they press.
         const r = Math.max(0, (c.length() - R_NUESTRA) * 1.04) * kx;
@@ -144,14 +144,14 @@ export function cosmico(): Acto {
         o.mesh.visible = r > 1;
       });
       nuestra.mesh.scale.setScalar(Math.max(R * a, 1e-6));
-      nuestra.u.uOn.value = 0.5 * ease(P('a7') + 3.0, P('a7') + 4.0, p);
+      nuestra.u.uOn.value = 0.5 * ease(P('a7', 3.0), P('a7', 4.0), p);
       nuestra.u.uTime.value = time;
       nuestra.mesh.visible = R > 1;
       pr.u.uProg.value = R;
       pr.u.uA.value = a;
-      pr.u.uOn.value = ease(P('a7') + 2.6, P('a7') + 3.4, p) * (1 - 0.6 * ease(P('a7.expansivas'), P('a7.expansivas') + 1, p));
+      pr.u.uOn.value = ease(P('a7', 2.6), P('a7', 3.4), p) * (1 - 0.6 * ease(P('a7.expansivas'), P('a7.expansivas', 1), p));
       // The horizon, once the hurry begins.
-      const hor = ease(P('a7.prisa') + 0.6, P('a7.prisa') + 1.6, p);
+      const hor = ease(P('a7.prisa', 0.6), P('a7.prisa', 1.6), p);
       uni.nube.u.uHor.value = hor > 0.001 ? HOR : 0;
       horizonte.group.visible = hor > 0.001;
       horizonte.group.scale.setScalar(HOR);
@@ -159,27 +159,27 @@ export function cosmico(): Acto {
     },
     placa(g, f: Cuadro) {
       const { p, W, H, u } = f;
-      if (p < P('a7') - 0.5 || p > P('a7.fin') + 1.5) return;
+      if (p < P('a7', -0.5) || p > P('a7.fin', 1.5)) return;
       const add = (w: THREE.Vector3, text: string, dx: number, dy: number, a: number) => {
         if (a < 0.01 || !f.lamina) return;
         const q = f.proj(w);
         if (q && q.x > 0 && q.x < W && q.y > 0 && q.y < H) nota(g, u, q.x, q.y, text, dx, dy, a);
       };
       // Six hours; then how many galaxies.
-      const ei = ease(P('a7') + 3.0, P('a7') + 3.6, p) * (1 - ease(P('a7.prisa') - 0.4, P('a7.prisa') + 0.2, p));
+      const ei = ease(P('a7', 3.0), P('a7', 3.6), p) * (1 - ease(P('a7.prisa', -0.4), P('a7.prisa', 0.2), p));
       if (ei > 0.01) {
-        const late = ease(P('a7') + 5.0, P('a7') + 5.6, p);
+        const late = ease(P('a7', 5.0), P('a7', 5.6), p);
         if (late < 0.5) cifra(g, u, W * 0.76, H * 0.24, '6', '', 64, ei * (1 - late * 2), TEAL, 'horas de la luz de un sol: sondas a todas');
         else cifra(g, u, W * 0.76, H * 0.24, '4 × 10', '9', 58, ei * (late * 2 - 1), TEAL, 'galaxias alcanzables, como mucho');
       }
-      const pa = ease(P('a7.prisa') + 1.6, P('a7.prisa') + 2.2, p) * (1 - ease(P('a7.expansivas'), P('a7.expansivas') + 0.6, p));
+      const pa = ease(P('a7.prisa', 1.6), P('a7.prisa', 2.2), p) * (1 - ease(P('a7.expansivas'), P('a7.expansivas', 0.6), p));
       cifra(g, u, W * 0.76, H * 0.24, '16 000', '', 58, pa, '#ff9a6a', 'millones de años luz: más allá, inalcanzable');
-      add(V(), 'nuestra galaxia', 30, -30, ease(P('a7') + 2.4, P('a7') + 3.0, p) * (1 - ease(P('a7.prisa'), P('a7.prisa') + 0.6, p)));
+      add(V(), 'nuestra galaxia', 30, -30, ease(P('a7', 2.4), P('a7', 3.0), p) * (1 - ease(P('a7.prisa'), P('a7.prisa', 0.6), p)));
       const a = escala(p);
       add(mly(V(0, HOR, 0)), 'el horizonte: lo que lo cruza no vuelve', 30, -30, pa);
-      OTRAS.forEach((c) => add(mly(c.clone().multiplyScalar(a)), 'otra civilización expansiva', 30, -30, ease(P('a7.expansivas') + 1.6, P('a7.expansivas') + 2.2, p) * (1 - ease(P('a7.tipo4'), P('a7.tipo4') + 0.5, p))));
+      OTRAS.forEach((c) => add(mly(c.clone().multiplyScalar(a)), 'otra civilización expansiva', 30, -30, ease(P('a7.expansivas', 1.6), P('a7.expansivas', 2.2), p) * (1 - ease(P('a7.tipo4'), P('a7.tipo4', 0.5), p))));
       // Honest about the scale.
-      const esc = ease(P('a7') + 2.6, P('a7') + 3.2, p) * (1 - ease(P('a7.fin') - 0.6, P('a7.fin'), p));
+      const esc = ease(P('a7', 2.6), P('a7', 3.2), p) * (1 - ease(P('a7.fin', -0.6), P('a7.fin'), p));
       texto(g, u, W / 2, H - 300 * u, 'distancias comprimidas · ilustrativo', ink(0.5), esc, 9, 'center');
     },
   };

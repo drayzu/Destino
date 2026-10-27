@@ -58,7 +58,7 @@ const ARRIBA = LADO.clone().cross(RUMBO).normalize();
 
 export function estrellas(): Acto {
   let tl: Timeline;
-  let P: (l: string) => number;
+  let P: (l: string, d?: number) => number;
   const ease = smoothstep;
   let m: Mundo;
 
@@ -190,8 +190,8 @@ export function estrellas(): Acto {
   }
   function vista(p: number): Vista {
     if (p < P('a4.viaje')) return camVelas(p);
-    if (p < P('a4.frenar') - 0.6) return camViaje(p);
-    if (p < P('a4.frenar') + 0.6) return mezcla(camViaje(p), camFreno(p), ease(P('a4.frenar') - 0.6, P('a4.frenar') + 0.6, p));
+    if (p < P('a4.frenar', -0.6)) return camViaje(p);
+    if (p < P('a4.frenar', 0.6)) return mezcla(camViaje(p), camFreno(p), ease(P('a4.frenar', -0.6), P('a4.frenar', 0.6), p));
     if (p < P('a4.muro')) return camFreno(p);
     return camMuro(p);
   }
@@ -202,7 +202,7 @@ export function estrellas(): Acto {
     nombre: 'Estrellas vecinas',
     coreografia(t) {
       tl = t;
-      P = (l) => tl.at(l);
+      P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a4');
       tl.set({ 'a4.lp': 26.58, 'a4.ly': 3.13, 'a4.lr': 12.6, 'a4.bub': 0 });
       tl.caption(5.4, 'Velas de luz', 'Un haz de láser de decenas de gigavatios empuja una vela de unos gramos y pocos metros: en minutos va a un quinto de la velocidad de la luz (Breakthrough Starshot, 2016).');
@@ -228,7 +228,7 @@ export function estrellas(): Acto {
     vista: (p) => vista(p),
     lectura: (p) => ({ lp: tl.get('a4.lp', p), ly: tl.get('a4.ly', p), lr: tl.get('a4.lr', p) }),
     muro(p): Muro | null {
-      const a = ease(P('a4.muro') + 1.0, P('a4.muro') + 2.0, p);
+      const a = ease(P('a4.muro', 1.0), P('a4.muro', 2.0), p);
       return a > 0.01 ? { lp: 29.0, label: 'muro · la velocidad de la luz', a, choque: ease(28.3, 28.95, tl.get('a4.lp', p)) } : null;
     },
     estado(mundo, p) {
@@ -241,23 +241,23 @@ export function estrellas(): Acto {
       e.luna = 0;
       // Riding the sail: the sky as it looks at that speed.
       const { beta } = vuelo(Math.min(p, P('a4.frenar')));
-      e.beta = p < P('a4.frenar') ? beta : beta * (1 - ease(P('a4.frenar') - 0.4, P('a4.frenar') + 0.4, p));
+      e.beta = p < P('a4.frenar') ? beta : beta * (1 - ease(P('a4.frenar', -0.4), P('a4.frenar', 0.4), p));
       e.vel = RUMBO.clone();
     },
     update(f: Cuadro) {
       const { p, time, camera, vista: v } = f;
-      const here = p > P('a4') - 1 && p < P('a4.fin') + 2;
+      const here = p > P('a4', -1) && p < P('a4.fin', 2);
       vec.u.uScale.value = f.k * LY_AU;
       vec.u.uOn.value = here ? 1 : 0.6;
-      vec.points.visible = p > P('a4') - 1;
-      vec.u.uBubR.value = 50 * tl.get('a4.bub', p) * ease(P('a4.muro') + 0.5, P('a4.muro') + 2.5, p);
+      vec.points.visible = p > P('a4', -1);
+      vec.u.uBubR.value = 50 * tl.get('a4.bub', p) * ease(P('a4.muro', 0.5), P('a4.muro', 2.5), p);
       // At the wall the neighbours are the subject: brighter, joined to the Sun by routes.
-      const barrio = ease(P('a4.muro') + 0.3, P('a4.muro') + 1.4, p) * (1 - ease(P('a4.muro') + 3.6, P('a4.muro') + 4.6, p));
+      const barrio = ease(P('a4.muro', 0.3), P('a4.muro', 1.4), p) * (1 - ease(P('a4.muro', 3.6), P('a4.muro', 4.6), p));
       vec.u.uPiso.value = lerp(0.006, 0.5, barrio);
-      rutas.mat.opacity = 0.55 * barrio * ease(P('a4.muro') + 1.0, P('a4.muro') + 2.2, p);
+      rutas.mat.opacity = 0.55 * barrio * ease(P('a4.muro', 1.0), P('a4.muro', 2.2), p);
       rutas.lines.visible = rutas.mat.opacity > 0.001;
       // The galaxy's own stars in our bubble too.
-      const bub = ease(P('a4.muro') + 0.5, P('a4.muro') + 2.5, p);
+      const bub = ease(P('a4.muro', 0.5), P('a4.muro', 2.5), p);
       if (here) {
         m.G.nube.u.uBub.value.set(0, 0, 0);
         m.G.nube.u.uBubR.value = 50 * bub;
@@ -276,7 +276,7 @@ export function estrellas(): Acto {
       velaG.group.visible = false;
       if (!here) return;
       const toView = (w: THREE.Vector3) => w.clone().transformDirection(camera.matrixWorldInverse);
-      if (p < P('a4.frenar') + 0.3) {
+      if (p < P('a4.frenar', 0.3)) {
         // Starshot's sail: where it is from the camera (metres), facing ahead.
         const mt = montura(p);
         const near = p >= P('a4') + (P('a4.viaje') - P('a4')) * 0.3;
@@ -290,7 +290,7 @@ export function estrellas(): Acto {
           velaS.group.scale.setScalar(2 * SIGMA);
           velaS.group.quaternion.setFromUnitVectors(V(0, 0, 1), RUMBO);
           const kL = (p - P('a4')) / (P('a4.viaje') - P('a4'));
-          velaS.uni.uCalor.value = p < P('a4.viaje') ? ease(0.42, 0.55, kL) * (1 - ease(0.9, 1.0, kL) * 0.7) : 0.3 * (1 - ease(P('a4.viaje'), P('a4.viaje') + 1, p));
+          velaS.uni.uCalor.value = p < P('a4.viaje') ? ease(0.42, 0.55, kL) * (1 - ease(0.9, 1.0, kL) * 0.7) : 0.3 * (1 - ease(P('a4.viaje'), P('a4.viaje', 1), p));
           // The Sun's light on it before it leaves; A's as it passes.
           const sail = velaW(vuelo(p).s);
           const sunDir = sail.clone().negate().normalize();
@@ -301,7 +301,7 @@ export function estrellas(): Acto {
           velaS.uni.uLuz.value = useA ? Math.min(3, 4 / (aD * aD)) : Math.min(2, 0.3 / sail.lengthSq());
           velaS.uni.uLuzCol.value.set(useA ? 0xffd9a0 : 0xffe8c8);
         }
-      } else if (p < P('a4.muro') + 1.5) {
+      } else if (p < P('a4.muro', 1.5)) {
         // The braking sail: its face to A, metres from the camera.
         const k = kFreno(Math.min(p, P('a4.muro')));
         const rel = frenoRel(ease(0, 1, k));
@@ -325,7 +325,7 @@ export function estrellas(): Acto {
     },
     placa(g, f: Cuadro) {
       const { p, W, H, u } = f;
-      if (p < P('a4') - 0.5 || p > P('a4.fin') + 1.5) return;
+      if (p < P('a4', -0.5) || p > P('a4.fin', 1.5)) return;
       const add = (w: THREE.Vector3, text: string, dx: number, dy: number, a: number) => {
         if (a < 0.01 || !f.lamina) return;
         const q = f.proj(w);

@@ -43,6 +43,9 @@ renderer.toneMappingExposure = 1.0;
 const mundo = crearMundo(scene);
 const actos = crearActos();
 const tl = new Timeline({});
+// The acts are written at their own pace; the journey breathes slower, so each moment can be read
+// and looked at (about ten minutes with autoplay, as Espacio and Tiempo).
+tl.escala = 1.38;
 const tramos = actos.map((a) => {
   const desde = tl.length;
   a.coreografia(tl);

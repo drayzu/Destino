@@ -34,7 +34,7 @@ const coma = (v: number, d: number) => v.toFixed(d).replace('.', ',');
 
 export function adentro(): Acto {
   let tl: Timeline;
-  let P: (l: string) => number;
+  let P: (l: string, d?: number) => number;
   const ease = smoothstep;
   let m: Mundo;
 
@@ -85,7 +85,7 @@ export function adentro(): Acto {
     nombre: 'Hacia adentro',
     coreografia(t) {
       tl = t;
-      P = (l) => tl.at(l);
+      P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a6');
       tl.set({ 'a6.cam': 0, 'a6.frio': 0, 'a6.lam': 0, 'a6.flow': 0, 'a6.muro': 0, 'a6.ly': 8.6 });
       tl.caption(5.6, 'Pensar con una estrella', 'O las civilizaciones maduras dejan de crecer hacia afuera y piensan hacia adentro: capas de computadoras alrededor de una estrella, cada una con el calor de la de adentro (un cerebro Matrioshka, Bradbury).');
@@ -127,7 +127,7 @@ export function adentro(): Acto {
     },
     update(f: Cuadro) {
       const { p, time, vista: v } = f;
-      const here = p > P('a6') - 0.5 && p < P('a6.fin') + 2;
+      const here = p > P('a6', -0.5) && p < P('a6.fin', 2);
       group.visible = here;
       if (!here) return;
       const dist = v.pos.length() / S;
@@ -136,9 +136,9 @@ export function adentro(): Acto {
       const flow = tl.get('a6.flow', p);
       // Matter → bits (late in «El frío piensa más»); inside, the bits flicker at random for a while,
       // then order themselves; then the network.
-      const bitsK = ease(P('a6.frio') + 1.4, P('a6.frio') + 3.2, p);
-      const ordenK = ease(P('a6.mente') + 3.2, P('a6.mente') + 4.2, p);
-      const redK = ease(P('a6.mente') + 3.7, P('a6.mente') + 5.2, p);
+      const bitsK = ease(P('a6.frio', 1.4), P('a6.frio', 3.2), p);
+      const ordenK = ease(P('a6.mente', 3.2), P('a6.mente', 4.2), p);
+      const redK = ease(P('a6.mente', 3.7), P('a6.mente', 5.2), p);
       // Its glow hidden inside the shells (they wrap it).
       m.sun.group.children[1].visible = lamK < 0.35 && dist > 5;
       mat.forEach((c) => {
@@ -163,10 +163,10 @@ export function adentro(): Acto {
     },
     placa(g, f: Cuadro) {
       const { p, W, H, u, time } = f;
-      if (p < P('a6') - 0.5 || p > P('a6.fin') + 0.3) return;
+      if (p < P('a6', -0.5) || p > P('a6.fin', 0.3)) return;
       const at = (d: number, az: number, el: number) => orbita(d, az, el).pos;
       // The temperature of each shell, on the cut's edge (plate); the scale's honesty, always.
-      const ta = ease(P('a6') + 4.0, P('a6') + 4.6, p) * (1 - ease(P('a6.mente') + 0.4, P('a6.mente') + 1.0, p));
+      const ta = ease(P('a6', 4.0), P('a6', 4.6), p) * (1 - ease(P('a6.mente', 0.4), P('a6.mente', 1.0), p));
       if (ta > 0.01) {
         if (f.lamina) {
           RADIOS.forEach((R, n) => {
@@ -182,7 +182,7 @@ export function adentro(): Acto {
       // The numbers are the show: from 10⁴⁷ to 10⁴⁹ operations per second with the light of one sun.
       const fr = tl.get('a6.frio', p);
       if (fr > 0.01) {
-        const late = ease(P('a6.frio') + 1.8, P('a6.frio') + 2.7, p);
+        const late = ease(P('a6.frio', 1.8), P('a6.frio', 2.7), p);
         cifra(g, u, W * 0.74, H * 0.24, '10', late > 0.5 ? '49' : '47', 64, fr * (late > 0.5 ? 1 : 1 - 0.6 * ease(0.3, 0.5, late)), late > 0.5 ? TEAL : ink(0.95), late > 0.5 ? 'operaciones/s · cerca del frío del fondo' : 'operaciones/s · una esfera a 1 UA');
       }
       // The star, drawn, once everything is lámina.
@@ -191,7 +191,7 @@ export function adentro(): Acto {
         const e = f.proj(f.vista.pos.clone().normalize().cross(UP).normalize().multiplyScalar(0.07 * 1.6 * S));
         const rr = c && e ? Math.max(6 * u, Math.hypot(e.x - c.x, e.y - c.y)) : 0;
         if (c && e && rr < 0.2 * H) {
-          const a = ease(0.3, 0.8, lamK(p)) * (1 - ease(P('a6.muro'), P('a6.muro') + 1.2, p));
+          const a = ease(0.3, 0.8, lamK(p)) * (1 - ease(P('a6.muro'), P('a6.muro', 1.2), p));
           g.save();
           g.globalAlpha = a;
           g.strokeStyle = '#ffe0a0';
@@ -207,10 +207,10 @@ export function adentro(): Acto {
         }
       }
       // Thought, named.
-      const fin = 1 - ease(P('a6.muro') + 0.2, P('a6.muro') + 0.8, p);
-      texto(g, u, W / 2, H * 0.2, 'cada cuadro, un bit que se borra y se reescribe', ink(0.85), ease(P('a6.mente') + 1.8, P('a6.mente') + 2.2, p) * (1 - ease(P('a6.mente') + 2.9, P('a6.mente') + 3.2, p)), 12, 'center');
-      texto(g, u, W / 2, H * 0.2, 'los bits se ordenan: un pensamiento', TEAL, ease(P('a6.mente') + 3.3, P('a6.mente') + 3.6, p) * (1 - ease(P('a6.mente') + 4.1, P('a6.mente') + 4.4, p)), 12, 'center');
-      texto(g, u, W / 2, H * 0.2, 'cada pulso, un mensaje entre mentes', TEAL, ease(P('a6.mente') + 4.5, P('a6.mente') + 4.9, p) * fin, 12, 'center');
+      const fin = 1 - ease(P('a6.muro', 0.2), P('a6.muro', 0.8), p);
+      texto(g, u, W / 2, H * 0.2, 'cada cuadro, un bit que se borra y se reescribe', ink(0.85), ease(P('a6.mente', 1.8), P('a6.mente', 2.2), p) * (1 - ease(P('a6.mente', 2.9), P('a6.mente', 3.2), p)), 12, 'center');
+      texto(g, u, W / 2, H * 0.2, 'los bits se ordenan: un pensamiento', TEAL, ease(P('a6.mente', 3.3), P('a6.mente', 3.6), p) * (1 - ease(P('a6.mente', 4.1), P('a6.mente', 4.4), p)), 12, 'center');
+      texto(g, u, W / 2, H * 0.2, 'cada pulso, un mensaje entre mentes', TEAL, ease(P('a6.mente', 4.5), P('a6.mente', 4.9), p) * fin, 12, 'center');
       // The wall: the cold. A thermometer down to the floor of the universe.
       const mk = tl.get('a6.muro', p);
       if (mk > 0.01) termometro(g, f, ease(0.15, 0.5, mk), ease(0.45, 0.9, mk));
