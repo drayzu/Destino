@@ -10,7 +10,7 @@ import { cilindro, OMEGA } from '../mundo/habitat';
 import { espejoShkadov, levante, motorCaplan } from '../mundo/estrella';
 import { anilloBishop, cilindroMcKendree, esferaBernal, toroStanford } from '../mundo/habitats';
 import { L1_VEN, R_MARS, R_PARASOL, R_VEN, marte, venus } from '../mundo/planetas';
-import { MOON_D, R_E, R_MER, R_SUN, RING_A, cinturon, enjambre, faros, mercurio, orbitas, placas, ringABasis, ringAPoint, ruta } from '../mundo/obras';
+import { MOON_D, R_E, R_MER, R_SUN, RING_A, bezier, camino, cinturon, enjambre, faros, mercurio, orbitas, placas, ringABasis, ringAPoint, transferencia } from '../mundo/obras';
 import type { Acto, Cuadro } from './tipos';
 
 /**
@@ -134,27 +134,27 @@ export function sistema(): Acto {
   const aArr = aM + 0.22;
   const launchDir = merc.riel.dir(1, V()).applyQuaternion(qL);
   const mercSun = M.clone().negate().normalize();
-  const mercRoute = ruta(900, 0.05, teal, 4e-6, 0.16);
+  const mercRoute = camino(1800, 0.05, teal, 4e-6, 14);
   {
     const p0 = merc2w(merc.riel.at(1, V()));
     const p1 = p0.clone().addScaledVector(launchDir, 0.03).addScaledVector(mercSun, 0.01);
     const p3 = ringAPoint(aArr, 0, 0);
     const p2 = p3.clone().addScaledVector(tanA(aArr), -0.06).addScaledVector(radA(aArr), 0.015);
-    mercRoute.set(p0, p1, p2, p3);
+    mercRoute.trazar(bezier(p0, p1, p2, p3));
   }
   const moonDir = LUNA.clone().sub(E).normalize();
   const depot = E.clone().addScaledVector(moonDir, LUNA.distanceTo(E) + 9 * R_E).add(V(0, 4 * R_E, 0));
-  const moonRoute = ruta(260, 0.08, teal, 1.2e-6, 0.25);
-  moonRoute.set(LUNA.clone().addScaledVector(moonDir, -0.27 * R_E), LUNA.clone().add(V(0, 3 * R_E, 0)), depot.clone().add(V(0, 6 * R_E, 0)), depot);
-  const beltRoutes = [0.4, 1.3, 2.4].map((a, i) => {
-    const r = ruta(500, 0.015 + i * 0.004, warm, 2.2e-5, 0.08);
-    const p0 = polar(2.6, TH_E + a, 0.05 * (i - 1));
-    const p3 = E.clone().add(V(0, 0, 0.002 * (i - 1)));
-    r.set(p0, p0.clone().multiplyScalar(0.75).add(V(0, 0.3, 0)), p3.clone().multiplyScalar(1.3).add(V(0, 0.15, 0)), p3);
+  const moonRoute = camino(700, 0.08, teal, 1.2e-6, 7);
+  moonRoute.trazar(bezier(LUNA.clone().addScaledVector(moonDir, -0.27 * R_E), LUNA.clone().add(V(0, 3 * R_E, 0)), depot.clone().add(V(0, 6 * R_E, 0)), depot));
+  // From the belt to the Earth, and the first seeds from the Earth to Mercury: spirals between orbits,
+  // prograde, as ships would fly them (not straight lines across the system).
+  const beltRoutes = [0, 1, 2].map((i) => {
+    const r = camino(2400, 0.012 + i * 0.003, warm, 2.2e-5, 10);
+    r.trazar(transferencia(2.6, TH_E - 2.2 - 0.6 * i, 1, TH_E, 0.04 * (i - 1), 0));
     return r;
   });
-  const seedRoute = ruta(300, 0.02, teal, 1.4e-5, 0.1);
-  seedRoute.set(E.clone().add(V(0, 0.0005, 0)), E.clone().multiplyScalar(0.8).add(V(0, 0.08, 0)), M.clone().multiplyScalar(1.4).add(V(0, 0.05, 0)), M.clone().add(V(0, 0.0002, 0)));
+  const seedRoute = camino(2600, 0.015, teal, 1.4e-5, 10);
+  seedRoute.trazar(transferencia(1, TH_E, 0.387, TH_E - 0.34 + Math.PI * 2, 0.0005, 0.0002));
   const rutas = [mercRoute, moonRoute, ...beltRoutes, seedRoute];
 
   // Beacons for what is too small to see.
@@ -612,7 +612,6 @@ export function sistema(): Acto {
         const w = on ? rutaW[i] : 0;
         r.group.visible = w > 0.001;
         r.nube.u.uGain.value = w;
-        (r.line.material as THREE.LineBasicMaterial).opacity = w;
       });
       belt.points.visible = on;
       orbits.visible = p > P('a3.todo', -0.2) && p < P('a3.fin', 3);

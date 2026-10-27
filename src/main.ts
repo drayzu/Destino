@@ -9,6 +9,7 @@ import { Timeline } from './engine/timeline';
 import { createPost } from './engine/post';
 import { createScroll } from './engine/scroll';
 import { FONDOS } from './engine/pantalla';
+import { ambiente } from './engine/ambiente';
 import { escalera, hud, hudLibre, idioma, regla } from './engine/placa';
 import { aplicar, mezcla, proyectarMundo, type Vista } from './engine/vista';
 import { contactos } from './engine/contactos';
@@ -41,6 +42,9 @@ renderer.toneMappingExposure = 1.0;
 // ---------------------------------------------------------------- the world and the acts
 
 const mundo = crearMundo(scene);
+// Each moment's colour: a faint nebula behind everything, and the chapter's label.
+const amb = ambiente();
+scene.add(amb.mesh);
 const actos = crearActos();
 const tl = new Timeline({});
 // The acts are written at their own pace; the journey breathes slower, so each moment can be read
@@ -186,7 +190,10 @@ function step(now: number) {
   const c = tl.captionAt(p);
   // The moment's caption under its chapter; its source only with the plate. Each caption fades in
   // and out at its edges, so one gives way to the next instead of jumping.
-  const cap = c ? { name: tx(c.name), fact: c.fact ? tx(c.fact) : '', fuente: plateOn ? c.fuente : undefined, capitulo: `${acto.numero} · ${tx(acto.nombre)}`, viaje: c.viaje } : null;
+  if (jumped) amb.saltar(c?.name);
+  amb.update(c?.name, dt, 1);
+  const tono = `rgb(${amb.color.toArray().map((x) => Math.round(255 * Math.min(1, 0.35 + 0.75 * x))).join(',')})`;
+  const cap = c ? { name: tx(c.name), fact: c.fact ? tx(c.fact) : '', fuente: plateOn ? c.fuente : undefined, capitulo: `${acto.numero} · ${tx(acto.nombre)}`, viaje: c.viaje, tono } : null;
   const capFade = c ? Math.min(1, (p - c.from) / 0.45, (c.to - p) / 0.45) : 0;
   const l = acto.lectura(p);
   if (l) {

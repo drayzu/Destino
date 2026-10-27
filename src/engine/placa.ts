@@ -275,6 +275,8 @@ export interface Rotulo {
   capitulo?: string;
   /** A journey between moments: an arrow and a name, nothing else. */
   viaje?: boolean;
+  /** The moment's colour (CSS), for the chapter's label. */
+  tono?: string;
 }
 
 /**
@@ -312,8 +314,8 @@ function rotuloMomento(g: CanvasRenderingContext2D, u: number, H: number, cap: R
   if (cap.capitulo) {
     g.font = FONT.mono(10.5 * u);
     g.letterSpacing = `${1.6 * u}px`;
-    g.fillStyle = TEAL;
-    g.globalAlpha *= 0.85;
+    g.fillStyle = cap.tono ?? TEAL;
+    g.globalAlpha *= 0.9;
     g.fillText(cap.capitulo.toUpperCase(), x, top - 72 * u);
     g.letterSpacing = '0px';
   }

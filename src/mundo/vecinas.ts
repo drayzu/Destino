@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { materia, materiaBuilder } from '../engine/materia';
+import { materia, materiaBuilder, type Nube } from '../engine/materia';
+import { camino } from './obras';
 import { lerp } from '../engine/math';
 
 /**
@@ -110,18 +111,32 @@ export function vecinas(extra: { pos: THREE.Vector3; L: number; color: THREE.Col
 
 /** Routes from the Sun to each neighbour: thin lines of the civilization's colour (light years). */
 export function rutasVecinas() {
-  const pts: number[] = [];
+  // Probes on their way to each neighbour: a faint trail and packets of light running out (light years).
+  const lines = new THREE.Group();
+  const nubes: Nube[] = [];
   for (const v of VECINAS) {
     if (v.d > 50) continue;
     const q = dondeVecina(v);
-    pts.push(0, 0, 0, q.x, q.y, q.z);
+    const c = camino(Math.round(160 + v.d * 14), 0.05 / Math.max(v.d / 8, 1), new THREE.Color(0.45, 1.0, 0.85), 0.05, 2);
+    const fin = new THREE.Vector3(q.x, q.y, q.z);
+    c.trazar((t, out) => out.copy(fin).multiplyScalar(t));
+    lines.add(c.group);
+    nubes.push(c.nube);
   }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-  const mat = new THREE.LineBasicMaterial({ color: new THREE.Color(0.35, 0.8, 0.68), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false });
-  const lines = new THREE.LineSegments(geo, mat);
-  lines.frustumCulled = false;
-  return { lines, mat };
+  let opacidad = 0;
+  return {
+    lines,
+    nubes,
+    mat: {
+      get opacity() {
+        return opacidad;
+      },
+      set opacity(v: number) {
+        opacidad = v;
+        for (const n of nubes) n.u.uGain.value = v;
+      },
+    },
+  };
 }
 
 /** A near star: its disc (limb-darkened, granulated) and its glow. Radius 1 (scale the group). */

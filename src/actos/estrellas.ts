@@ -229,6 +229,7 @@ export function estrellas(): Acto {
     montar(mundo) {
       m = mundo;
       m.gal.add(vec.points, rutas.lines);
+      m.nubes.push(...rutas.nubes);
       m.nubes.push(vec);
       m.root.add(starA.group, starB.group, starP.group);
       m.root.parent!.add(cabina);

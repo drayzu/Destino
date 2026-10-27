@@ -166,7 +166,11 @@ export function enjambre() {
         delay: (k + i / count) / RINGS,
         kind: k,
       });
-      orb.push(r + gauss(b.r) * 0.0015, inc, node, ph, (Math.floor(b.r() * 4) - 1.5) * 1.2e-4);
+      // Ring A is one exact band (the camera flies along it); the others are loose families of
+      // orbits, each collector a little off its family's plane, so from afar the swarm reads as a
+      // glowing cloud with denser bands, not as wire rings.
+      const suelto = k === 0 ? 0 : 1;
+      orb.push(r + gauss(b.r) * (0.0015 + 0.012 * suelto), inc + gauss(b.r) * 0.2 * suelto, node + gauss(b.r) * 0.35 * suelto, ph, (Math.floor(b.r() * 4) - 1.5) * 1.2e-4);
       tilt.push(gauss(b.r) * 0.35, gauss(b.r) * 0.35);
     }
   }
@@ -579,77 +583,89 @@ export function cercanias() {
 // ---------------------------------------------------------------- routes: matter in motion
 
 /**
- * A route: a cubic Bézier from P0 to P3 (world, AU), drawn as a faint thread with packets running
- * along it. The group sits at P0 so packets near the start stay precise.
+ * A route: no hard line, but a faint trail of points along the path, along which packets of light
+ * travel (the cargo), fading in at the start and out at the end. The path is any function of t
+ * (0..1) in the world; `n` points sample it. `speed`: laps per second of a packet; `paquetes`: how
+ * many are on the route at once.
  */
-export function ruta(count: number, speed: number, color: THREE.Color, size: number, thread = 0.12) {
+export function camino(n: number, speed: number, color: THREE.Color, size: number, paquetes = 6) {
   const group = new THREE.Group();
-  const P = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
-  const u = {
-    uP1: { value: new THREE.Vector3() },
-    uP2: { value: new THREE.Vector3() },
-    uP3: { value: new THREE.Vector3() },
-    uSpeed: { value: speed },
-    uAccel: { value: 1 },
-  };
-  const b = materiaBuilder(71 + count);
-  for (let k = 0; k < count; k++) b.push(0, 0, 0, color, size, 1.3);
+  const ts = new Float32Array(n);
+  for (let k = 0; k < n; k++) ts[k] = (k + 0.5) / n;
+  const b = materiaBuilder(71 + n);
+  for (let k = 0; k < n; k++) b.push(0, 0, 0, color, size, 1);
+  const u = { uSpeed: { value: speed }, uPaquetes: { value: paquetes }, uAccel: { value: 1 } };
   const nube = materia(b.data(), {
-    pre: /* glsl */ `uniform vec3 uP1, uP2, uP3; uniform float uSpeed, uAccel;
-      vec3 bez(float t) { float s = 1.0 - t; return 3.0 * s * s * t * uP1 + 3.0 * s * t * t * uP2 + t * t * t * uP3; }`,
+    pre: /* glsl */ `attribute float aT; uniform float uSpeed, uPaquetes, uAccel;`,
     move: /* glsl */ `
-      float t = fract(seed + uTime * uSpeed);
-      t = pow(t, uAccel);
-      p = bez(t);
-      em *= smoothstep(0.0, 0.03, t) * (1.0 - smoothstep(0.95, 1.0, t));
-      fuente = 1.0;`,
+      float t = aT;
+      // A packet: a bright head and a short tail behind it, running along t (faster towards the end with uAccel).
+      float tt = pow(t, 1.0 / max(uAccel, 0.05));
+      float f = fract(tt * uPaquetes - uTime * uSpeed * uPaquetes);
+      float paquete = smoothstep(0.93, 0.992, f) * (1.0 - smoothstep(0.992, 1.0, f));
+      float ends = smoothstep(0.0, 0.06, t) * (1.0 - smoothstep(0.92, 1.0, t));
+      // The trail itself is a faint dotted path, so the route reads as a way, not as loose sparks.
+      em *= ends * (0.16 + 1.8 * paquete);
+      sz *= 0.7 + 1.1 * paquete;
+      fuente = 0.25 + 0.75 * paquete;`,
     uniforms: u,
+    extra: { aT: [ts, 1] },
   });
   nube.u.uSpread.value = 0;
   group.add(nube.points);
-  // The thread.
-  const SEG = 160;
-  const pos = new Float32Array(SEG * 6);
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const lineMat = new THREE.LineBasicMaterial({ color: color.clone().multiplyScalar(thread), transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending });
-  const line = new THREE.LineSegments(geo, lineMat);
-  line.frustumCulled = false;
-  group.add(line);
+  const pos = nube.points.geometry.getAttribute('position') as THREE.BufferAttribute;
+  const from = nube.points.geometry.getAttribute('aFrom') as THREE.BufferAttribute;
+  let fn: (t: number, out: THREE.Vector3) => THREE.Vector3 = (_t, out) => out.set(0, 0, 0);
   const tmp = new THREE.Vector3();
-  const at = (t: number, out: THREE.Vector3) => {
-    const s = 1 - t;
-    return out
-      .copy(P[0])
-      .multiplyScalar(s * s * s)
-      .addScaledVector(P[1], 3 * s * s * t)
-      .addScaledVector(P[2], 3 * s * t * t)
-      .addScaledVector(P[3], t * t * t);
-  };
+  const p0 = new THREE.Vector3();
   return {
     group,
     nube,
-    line,
-    /** Sets the control points (world); call when they move. */
-    set(p0: THREE.Vector3, p1: THREE.Vector3, p2: THREE.Vector3, p3: THREE.Vector3) {
-      P[0].copy(p0);
-      P[1].copy(p1);
-      P[2].copy(p2);
-      P[3].copy(p3);
+    u,
+    /** Sets the path (a function of t in the world); call when it moves. */
+    trazar(path: (t: number, out: THREE.Vector3) => THREE.Vector3) {
+      fn = path;
+      path(0, p0);
       group.position.copy(p0);
-      u.uP1.value.copy(p1).sub(p0);
-      u.uP2.value.copy(p2).sub(p0);
-      u.uP3.value.copy(p3).sub(p0);
-      for (let k = 0; k < SEG; k++) {
-        at(k / SEG, tmp).sub(p0);
-        pos.set([tmp.x, tmp.y, tmp.z], k * 6);
-        at((k + 1) / SEG, tmp).sub(p0);
-        pos.set([tmp.x, tmp.y, tmp.z], k * 6 + 3);
+      for (let k = 0; k < n; k++) {
+        path(ts[k], tmp).sub(p0);
+        pos.setXYZ(k, tmp.x, tmp.y, tmp.z);
+        from.setXYZ(k, tmp.x, tmp.y, tmp.z);
       }
-      geo.attributes.position.needsUpdate = true;
+      pos.needsUpdate = true;
+      from.needsUpdate = true;
     },
     /** World point at t (0..1). */
-    at,
+    at(t: number, out: THREE.Vector3) {
+      return fn(t, out);
+    },
+  };
+}
+
+/** A cubic Bézier through four world points, as a path for `camino`. */
+export function bezier(p0: THREE.Vector3, p1: THREE.Vector3, p2: THREE.Vector3, p3: THREE.Vector3) {
+  return (t: number, out: THREE.Vector3) => {
+    const s = 1 - t;
+    return out
+      .copy(p0)
+      .multiplyScalar(s * s * s)
+      .addScaledVector(p1, 3 * s * s * t)
+      .addScaledVector(p2, 3 * s * t * t)
+      .addScaledVector(p3, t * t * t);
+  };
+}
+
+/**
+ * A transfer between two orbits round the Sun, as a path for `camino`: the radius changes smoothly
+ * (in logarithm) while the angle sweeps prograde, the way a ship spirals in or out (AU, the ecliptic
+ * in XZ; `y0`, `y1`: a little out of the plane at each end).
+ */
+export function transferencia(r0: number, th0: number, r1: number, th1: number, y0 = 0, y1 = 0) {
+  return (t: number, out: THREE.Vector3) => {
+    const s = t * t * (3 - 2 * t);
+    const r = Math.exp(Math.log(r0) + (Math.log(r1) - Math.log(r0)) * s);
+    const th = th0 + (th1 - th0) * t;
+    return out.set(r * Math.cos(th), y0 + (y1 - y0) * s, r * Math.sin(th));
   };
 }
 
