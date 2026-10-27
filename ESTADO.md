@@ -94,8 +94,8 @@
 
 ## Pendiente del acto III (para pulir)
 - Algunos traslados largos tienen cuadros casi vacíos (de la Tierra a los hábitats; de Marte a la vista general).
-- Los rótulos de la vista general y del tipo II a veces se tocan.
-- Marte: el verde aparece sobre todo en el norte; podría verse avanzar más en la cara visible.
+- Los rótulos del tipo II ya no se tocan (la Tierra se rotula abajo a la izquierda, 27 oct).
+- Marte gira con el scroll (antes, con el reloj: cada uno veía otra cara) y muestra Hellas en la cara iluminada: el agua y el verde aparecen ahí, en el centro, junto a las ciudades bajo cúpulas (27 oct).
 - Lámina: los rótulos todavía no enlazan a sus fichas del Atlas; sonido propio del acto (fase 5).
 
 ## Pendiente del primer tramo (para pulir)

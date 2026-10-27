@@ -67,6 +67,11 @@ const MOTOR = polar(1, TH_E + 2.2);
 /** Two directions in the plane of a view: the Sun's side seen from each planet. */
 const SUN_MARS = MARS.clone().negate().normalize();
 const SUN_VEN = VENUS.clone().negate().normalize();
+/**
+ * How Mars is turned: with Hellas (the deepest basin, where water and green come first; 42° S, 70° E)
+ * on the lit face we look at, between the Sun and the camera.
+ */
+const GIRO_MARTE = -TH_E - 1.16 - Math.PI;
 const qC = new THREE.Quaternion().setFromUnitVectors(UP, CIL.clone().negate().normalize());
 
 export function sistema(): Acto {
@@ -590,7 +595,7 @@ export function sistema(): Acto {
       mars.group.visible = cam.distanceTo(MARS) < 400 * R_MARS;
       if (mars.group.visible) {
         const camL = cam.clone().sub(MARS).divideScalar(R_MARS);
-        mars.update(SUN_MARS, camL, time, ease(0.6, 0.95, km), ease(0.66, 1.0, km), ease(0.56, 0.84, km), ease(0.58, 0.68, km), f);
+        mars.update(SUN_MARS, camL, time, GIRO_MARTE + 0.03 * (p - P('a3.marte')), ease(0.6, 0.95, km), ease(0.66, 1.0, km), ease(0.56, 0.84, km), ease(0.58, 0.68, km), f);
       }
       const kv = (p - P('a3.venus')) / (P('a3.mercurio') - P('a3.venus'));
       ven.group.visible = cam.distanceTo(VENUS) < 400 * R_VEN;
@@ -827,7 +832,7 @@ export function sistema(): Acto {
       }
       // Everything at once.
       const todoA = ease(P('a3.todo', 1.2), P('a3.todo', 1.8), p);
-      add(E, 'Tierra', 22, -22, todoA);
+      add(E, 'Tierra', -26, 26, todoA);
       add(M, 'Mercurio', -30, 26, todoA);
       add(MARS, 'Marte', 22, -20, todoA);
       add(VENUS, 'Venus', 22, -20, todoA);

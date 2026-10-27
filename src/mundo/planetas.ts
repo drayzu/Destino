@@ -147,9 +147,12 @@ export function marte() {
     nubes,
     listo: suelo.listo,
     espejos,
-    /** Per frame: the Sun and the camera in the planet's (not turning) frame; how warm, how green, how many domes, the mirrors. */
-    update(sunL: THREE.Vector3, camL: THREE.Vector3, time: number, calor: number, verde: number, cupulas: number, espejo: number, vista: Vista) {
-      giro.rotation.y = time * 0.01;
+    /**
+     * Per frame: the Sun and the camera in the planet's (not turning) frame; how far it has turned
+     * (radians); how warm, how green, how many domes, the mirrors.
+     */
+    update(sunL: THREE.Vector3, camL: THREE.Vector3, time: number, giroY: number, calor: number, verde: number, cupulas: number, espejo: number, vista: Vista) {
+      giro.rotation.y = giroY;
       const q = giro.quaternion.clone().invert();
       uni.uSun.value.copy(sunL).applyQuaternion(q);
       uni.uCamL.value.copy(camL).applyQuaternion(q);
