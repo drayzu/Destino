@@ -88,16 +88,16 @@ export function adentro(): Acto {
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a6');
       tl.set({ 'a6.cam': 0, 'a6.frio': 0, 'a6.lam': 0, 'a6.flow': 0, 'a6.muro': 0, 'a6.ly': 8.6 });
-      tl.caption(5.6, 'Pensar con una estrella', 'O las civilizaciones maduras dejan de crecer hacia afuera y piensan hacia adentro: capas de computadoras alrededor de una estrella, cada una con el calor de la de adentro (un cerebro Matrioshka, Bradbury).');
+      tl.caption(5.6, 'Pensar con una estrella', 'Hacia adentro: en vez de seguir expandiéndose, una civilización madura podría envolver su estrella en capas de computadoras, cada una alimentada con el calor de la anterior.', { fuente: 'Bradbury, 1999 (cerebro Matrioshka)' });
       tl.to(3.0, {}).to(2.6, { 'a6.cam': 1, 'a6.ly': 8.62 });
       tl.label('a6.frio');
-      tl.caption(3.8, 'El frío piensa más', 'Borrar un bit cuesta al menos kT ln 2 (Landauer, 1961): a 3 K, 110 veces menos que a 300 K. Con la luz de un sol, de 10⁴⁷ a 10⁴⁹ operaciones por segundo.');
+      tl.caption(3.8, 'El frío piensa más', 'Cuanto más frío, más barato es pensar: borrar un bit a 3 K cuesta 110 veces menos que a 300 K. Con la luz de un sol, de 10⁴⁷ a 10⁴⁹ operaciones por segundo.', { fuente: 'Landauer, 1961' });
       tl.to(3.8, { 'a6.cam': 2, 'a6.frio': 1, 'a6.flow': 1, 'a6.ly': 8.64 });
       tl.label('a6.mente');
-      tl.caption(5.6, 'Dejar de ser materia', 'Una civilización así ya no necesita cuerpos: sus mentes son cálculo. Lo que queda de nosotros es la forma en que corre la información.');
+      tl.caption(5.6, 'Dejar de ser materia', 'Una civilización así ya no necesita cuerpos: sus mentes son cálculo. De nosotros queda la forma en que corre la información.');
       tl.to(0.5, { 'a6.frio': 0 }).to(5.1, { 'a6.cam': 3, 'a6.lam': 1, 'a6.ly': 8.68 });
       tl.label('a6.muro');
-      tl.caption(4.0, 'El frío', 'Pensar cuesta energía, y la energía se paga en calor. Nada se enfría por debajo del fondo del universo: cada pensamiento tiene su precio.');
+      tl.caption(4.0, 'El frío', 'Pero pensar cuesta energía, y toda energía termina como calor. Nada se enfría por debajo del fondo del universo: cada pensamiento tiene su precio.');
       tl.to(4.0, { 'a6.cam': 4, 'a6.muro': 1, 'a6.ly': 8.7 });
       tl.label('a6.fin');
     },

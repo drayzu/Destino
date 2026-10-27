@@ -192,16 +192,16 @@ export function final(): Acto {
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a8');
       tl.set({ 'a8.lp': 46.0, 'a8.ly': 10.7 });
-      tl.caption(6.6, 'Las últimas centrales', 'Cuando las estrellas se apagan, quedan los agujeros negros. De uno que gira al máximo se puede sacar hasta el 29 % de su masa (el proceso de Penrose); después, solo su radiación de Hawking.');
+      tl.caption(6.6, 'Las últimas centrales', 'Cuando las estrellas se apagan, quedan los agujeros negros. De uno que gira al máximo se puede sacar hasta el 29 % de su masa; después, solo su débil radiación de Hawking.', { fuente: 'Penrose, 1969' });
       tl.to(6.6, { 'a8.lp': 38.0, 'a8.ly': 14.0 });
       tl.label('a8.contados');
-      tl.caption(5.6, 'Pensamientos contados', 'En un universo que se expande sin acelerar, la vida podría pensar para siempre (Dyson, 1979). Pero la expansión se acelera: los pensamientos posibles son un número finito (Krauss y Starkman, 2000).');
+      tl.caption(5.6, 'Pensamientos contados', 'Si el universo se expandiera sin acelerar, la vida podría pensar para siempre. Pero se acelera: los pensamientos posibles son un número finito.', { fuente: 'Dyson, 1979; Krauss y Starkman, 2000' });
       tl.to(5.6, { 'a8.lp': 22.0, 'a8.ly': 100.0 });
       tl.label('a8.crear');
-      tl.caption(6.0, 'Crear un universo', 'La última obra posible: una burbuja de falso vacío que se infla en un universo propio. Hoy no sabemos hacerlo (Farhi y Guth, 1987), y hay ideas para sortear el obstáculo (Ansoldi y Guendelman, 2006).');
+      tl.caption(6.0, 'Crear un universo', 'La última obra posible: una burbuja de falso vacío que crece hasta ser un universo propio. Hoy no sabemos hacerlo, pero hay ideas para intentarlo.', { fuente: 'Farhi y Guth, 1987; Ansoldi y Guendelman, 2006' });
       tl.to(6.0, {});
       tl.label('a8.relevo');
-      tl.caption(5.4, 'El relevo', 'Adentro, un universo empieza. Lo que hay afuera de la burbuja, otros universos y otras leyes, es la pregunta de la próxima obra: Infinito.');
+      tl.caption(5.4, 'El relevo', 'Adentro, un universo empieza. Lo que hay afuera de la burbuja, otros universos con otras leyes, es la pregunta de la próxima obra: Infinito.');
       tl.to(5.4, {});
       tl.label('a8.fin');
     },

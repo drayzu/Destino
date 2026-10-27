@@ -121,19 +121,19 @@ export function despertar(): Acto {
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a1');
       tl.set({ 'a1.lp': -12, 'a1.ly': 9.54 });
-      tl.caption(4.4, 'Una célula que reacciona', 'Hace al menos 3 500 millones de años, en ese planeta, la materia empezó a reaccionar. Una célula vive con una billonésima de vatio.');
+      tl.caption(4.4, 'Una célula que reacciona', 'Hace al menos 3 500 millones de años, en la Tierra, la materia empezó a reaccionar a lo que la rodea. Una célula vive con una billonésima de vatio.');
       tl.to(4.4, { 'a1.lp': -12 });
       tl.label('a1.nervios');
-      tl.caption(3.6, 'Nervios', 'Hace unos 600 millones de años aparecieron los primeros nervios: células que se pasan señales, más rápido que cualquier otra cosa viva.');
+      tl.caption(3.6, 'Nervios', 'Hace unos 600 millones de años, algunas células empezaron a pasarse señales eléctricas: los primeros nervios. Con ellos, un cuerpo entero reacciona, y rápido.');
       tl.to(3.6, { 'a1.lp': -12 });
       tl.label('a1.cerebro');
-      tl.caption(3.6, 'Un cerebro', 'Unos 86 000 millones de neuronas, lo más complejo que conocemos, piensan con unos 20 vatios: lo que gasta una bombilla.');
+      tl.caption(3.6, 'Un cerebro', 'Un cerebro humano junta 86 000 millones de neuronas, lo más complejo que conocemos, y funciona con unos 20 vatios: lo que gasta una bombilla.');
       tl.to(0.9, { 'a1.lp': Math.log10(20) }).to(2.7, {});
       tl.label('a1.todos');
-      tl.caption(3.4, 'Ocho mil millones de cerebros', 'Todos nuestros cerebros juntos, pensando a la vez: una central eléctrica grande. Están ahí, donde de noche hay luz.');
+      tl.caption(3.4, 'Ocho mil millones de cerebros', 'Todos los cerebros humanos juntos gastan lo que una central eléctrica grande. Están ahí, donde de noche hay luz.');
       tl.to(0.9, { 'a1.lp': Math.log10(8.2e9 * 20) }).to(2.5, {});
       tl.label('a1.maquinas');
-      tl.caption(3.2, 'Las máquinas que piensan', 'Hoy los centros de datos ya gastan casi un tercio de lo que gastan todos nuestros cerebros. Y crecen.');
+      tl.caption(3.2, 'Las máquinas que piensan', 'Y ya no pensamos solo con cerebros: los centros de datos gastan casi un tercio de lo que gastan todos ellos, y crecen cada año.');
       tl.to(0.9, { 'a1.lp': Math.log10(4.7e10) }).to(2.3, {});
       tl.label('a1.fin');
     },

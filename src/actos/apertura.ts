@@ -79,24 +79,24 @@ export function apertura(): Acto {
   return {
     id: 'a0',
     numero: '0',
-    nombre: '¿Hay alguien más?',
+    nombre: 'Escuchar',
     coreografia(t) {
       tl = t;
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a0');
-      tl.caption(1.8, '¿Hay alguien más?', 'La Vía Láctea: cientos de miles de millones de estrellas que brillan con unos 10³⁷ vatios desde hace 13 000 millones de años. Que sepamos, nadie los usa.');
+      tl.caption(1.8, '¿Hay alguien más?', 'Nuestra galaxia tiene cientos de miles de millones de estrellas. Juntas brillan con unos 10³⁷ vatios y, hasta donde sabemos, nadie usa esa energía.');
       tl.to(1.8, {});
-      tl.caption(2.6, 'Nuestra voz', 'Las primeras radios salieron hace un siglo. Desde entonces, nuestra voz llena una burbuja de unos 100 años luz.');
+      tl.caption(2.6, 'Nuestra voz', 'Hace un siglo empezamos a transmitir por radio. Esas señales viajan a la velocidad de la luz y ya forman una burbuja de 100 años luz alrededor de la Tierra.');
       tl.label('a0.voz').to(2.6, { 'a0.voz': 1 });
-      tl.caption(2.8, 'Cien mil años luz', 'A la escala de la galaxia, esa burbuja es un punto. Todo lo que hemos dicho no ha salido de nuestro barrio.');
+      tl.caption(2.8, 'Cien mil años luz', 'Pero la galaxia mide 100 000 años luz. A esta escala, toda nuestra voz cabe en un punto.');
       tl.label('a0.lejos').to(2.8, {});
-      tl.caption(3.0, 'Planetas por todas partes', 'Ya confirmamos 6 451 planetas. En promedio hay al menos uno por estrella: cientos de miles de millones, muchos en la zona donde puede haber agua líquida.');
+      tl.caption(3.0, 'Planetas por todas partes', 'Y planetas no faltan: ya confirmamos 6 451 y calculamos que hay al menos uno por estrella. Muchos están donde podría haber agua líquida.');
       tl.label('a0.planetas').to(3.0, { 'a0.plan': 1 });
-      tl.caption(2.6, 'Lo que hemos escuchado', 'Lo que llevamos escuchado equivale a buscar peces en un jacuzzi sacado del océano (Wright y otros, 2018).');
+      tl.caption(2.6, 'Lo que hemos escuchado', 'Llevamos décadas escuchando por si alguien transmite. Lo revisado hasta ahora es como buscar peces en un jacuzzi de agua sacada del océano.', { fuente: 'Wright y otros, 2018' });
       tl.label('a0.escuchado').to(2.6, {});
-      tl.caption(3.0, 'El silencio', 'A una décima de la velocidad de la luz, una sola civilización llenaría la galaxia en 650 000 años. Ha tenido 13 000 millones. ¿Dónde están todos?');
+      tl.caption(3.0, 'El silencio', 'Aun así, el silencio es raro: a una décima de la velocidad de la luz, una sola civilización llenaría la galaxia en 650 000 años, y ha habido 13 000 millones. ¿Dónde están todos?', { fuente: 'Fermi, 1950; Hart, 1975' });
       tl.label('a0.silencio').to(3.0, { 'a0.bub': 1 });
-      tl.caption(3.4, 'Una estrella amarilla', 'La pregunta queda abierta. La respuesta empieza aquí: en un planeta azul, alrededor de una estrella amarilla.');
+      tl.caption(3.4, 'Una estrella amarilla', 'No lo sabemos. Pero podemos imaginar cómo crecería una, empezando por la única que conocemos: la nuestra, junto a una estrella amarilla.');
       tl.label('a0.caida').to(3.4, { 'a0.caida': 1, 'a0.plan': 0 });
       tl.label('a0.fin');
     },

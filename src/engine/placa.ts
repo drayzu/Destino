@@ -220,6 +220,47 @@ export interface Lectura {
 export interface Rotulo {
   name: string;
   fact: string;
+  /** Where the fact comes from (only with the plate). */
+  fuente?: string;
+  /** The chapter it belongs to, above the name: «III · El sistema solar trabaja». */
+  capitulo?: string;
+}
+
+/**
+ * The moment's caption, above the clock: the chapter (small, in the work's colour), the name, the
+ * sentence, and with the plate its source. Laid out from the bottom up, so a longer sentence grows
+ * upwards and never runs into the clock.
+ */
+function rotuloMomento(g: CanvasRenderingContext2D, u: number, H: number, cap: Rotulo, alpha: number) {
+  const x = 44 * u;
+  g.save();
+  g.globalAlpha *= alpha;
+  g.font = FONT.sans(14.5 * u);
+  const lines = wrap(g, cap.fact, 500 * u);
+  const fuente = cap.fuente ? tr(cap.fuente) : '';
+  const bottom = H - 174 * u - (fuente ? 20 * u : 0);
+  const top = bottom - (lines.length - 1) * 21 * u;
+  g.fillStyle = ink(0.7);
+  lines.forEach((line, i) => g.fillText(line, x, top + i * 21 * u));
+  if (fuente) {
+    g.font = FONT.mono(10 * u);
+    g.letterSpacing = `${0.6 * u}px`;
+    g.fillStyle = ink(0.42);
+    g.fillText(fuente, x, bottom + 22 * u);
+    g.letterSpacing = '0px';
+  }
+  g.font = FONT.italic(32 * u);
+  g.fillStyle = ink();
+  g.fillText(cap.name, x, top - 30 * u);
+  if (cap.capitulo) {
+    g.font = FONT.mono(10.5 * u);
+    g.letterSpacing = `${1.6 * u}px`;
+    g.fillStyle = TEAL;
+    g.globalAlpha *= 0.85;
+    g.fillText(cap.capitulo.toUpperCase(), x, top - 72 * u);
+    g.letterSpacing = '0px';
+  }
+  g.restore();
 }
 
 /** The reading at bottom left: the moment's name and sentence, the power, the type, when and how far. */
@@ -229,16 +270,7 @@ export function hud(g: CanvasRenderingContext2D, u: number, W: number, H: number
   g.textBaseline = 'alphabetic';
   g.shadowColor = 'rgba(0,0,0,0.85)';
   g.shadowBlur = 12 * u;
-  if (cap && capAlpha > 0.01) {
-    g.globalAlpha = capAlpha;
-    g.font = FONT.italic(31 * u);
-    g.fillStyle = ink();
-    g.fillText(cap.name, x, H - 236 * u);
-    g.font = FONT.sans(14 * u);
-    g.fillStyle = ink(0.62);
-    wrap(g, cap.fact, 470 * u).forEach((line, i) => g.fillText(line, x, H - 208 * u + i * 20 * u));
-    g.globalAlpha = 1;
-  }
+  if (cap && capAlpha > 0.01) rotuloMomento(g, u, H, cap, capAlpha);
   const lp = l.lp;
   const e = Math.floor(lp);
   const w = potencia(g, x, H - 86 * u, sup(e).replace(/^⁻/, '⁻'), 'W', 66 * u);
@@ -437,15 +469,7 @@ export function hudLibre(g: CanvasRenderingContext2D, u: number, H: number, lp: 
   g.textBaseline = 'alphabetic';
   g.shadowColor = 'rgba(0,0,0,0.85)';
   g.shadowBlur = 12 * u;
-  if (cap && capAlpha > 0.01) {
-    g.globalAlpha = capAlpha;
-    g.font = FONT.italic(31 * u);
-    g.fillStyle = ink();
-    g.fillText(cap.name, x, H - 236 * u);
-    g.font = FONT.sans(14 * u);
-    g.fillStyle = ink(0.62);
-    wrap(g, cap.fact, 470 * u).forEach((line, i) => g.fillText(line, x, H - 208 * u + i * 20 * u));
-  }
+  if (cap && capAlpha > 0.01) rotuloMomento(g, u, H, cap, capAlpha);
   g.globalAlpha = alpha;
   const w = potencia(g, x, H - 86 * u, sup(Math.floor(lp)), 'W', 66 * u);
   g.font = FONT.italic(24 * u);
@@ -469,15 +493,7 @@ export function reloj(g: CanvasRenderingContext2D, u: number, H: number, cifra: 
   g.textBaseline = 'alphabetic';
   g.shadowColor = 'rgba(0,0,0,0.85)';
   g.shadowBlur = 12 * u;
-  if (cap && capAlpha > 0.01) {
-    g.globalAlpha = capAlpha;
-    g.font = FONT.italic(31 * u);
-    g.fillStyle = ink();
-    g.fillText(cap.name, x, H - 236 * u);
-    g.font = FONT.sans(14 * u);
-    g.fillStyle = ink(0.62);
-    wrap(g, cap.fact, 470 * u).forEach((line, i) => g.fillText(line, x, H - 208 * u + i * 20 * u));
-  }
+  if (cap && capAlpha > 0.01) rotuloMomento(g, u, H, cap, capAlpha);
   g.globalAlpha = alpha;
   g.font = FONT.serif(66 * u);
   g.fillStyle = ink();

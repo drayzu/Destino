@@ -84,19 +84,19 @@ export function cosmico(): Acto {
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a7');
       tl.set({ 'a7.lp': 37.0, 'a7.ly': 8.7, 'a7.lr': 20.98 });
-      tl.caption(7.0, 'La eternidad en seis horas', 'Con la energía de un enjambre alrededor de una sola estrella, en seis horas se pueden lanzar sondas a todas las galaxias alcanzables: de 10⁸ a 4 × 10⁹, según lo rápido que vayan (Armstrong y Sandberg, 2013).');
+      tl.caption(7.0, 'La eternidad en seis horas', 'O hacia afuera, a lo grande: con la energía de una sola estrella, en seis horas se pueden lanzar sondas a todas las galaxias alcanzables, entre 100 y 4 000 millones.', { fuente: 'Armstrong y Sandberg, 2013' });
       tl.to(7.0, { 'a7.lp': 41.0, 'a7.ly': 9.6, 'a7.lr': 24.5 });
       tl.label('a7.prisa');
-      tl.caption(5.6, 'La prisa', 'La energía oscura aleja las galaxias cada vez más rápido. Las que cruzan el horizonte, hoy a unos 16 000 millones de años luz, ya no se podrán alcanzar nunca.');
+      tl.caption(5.6, 'La prisa', 'Hay que apurarse: la energía oscura aleja las galaxias cada vez más rápido. Las que cruzan el horizonte, hoy a unos 16 000 millones de años luz, ya no se alcanzan nunca.');
       tl.to(5.6, { 'a7.lp': 43.5, 'a7.ly': 10.0, 'a7.lr': 25.6 });
       tl.label('a7.expansivas');
-      tl.caption(5.6, 'Las expansivas se tocan', 'Si hay otras que se expanden casi a la velocidad de la luz, nuestras burbujas se encuentran: cada una ocupa su parte del cielo (Hanson et al., 2021).');
+      tl.caption(5.6, 'Las expansivas se tocan', 'Si hay otras civilizaciones que se expanden casi a la velocidad de la luz, nuestras burbujas terminan tocándose, y cada una se queda con su parte del cielo.', { fuente: 'Hanson y otros, 2021' });
       tl.to(5.6, { 'a7.lp': 45.2, 'a7.ly': 10.3, 'a7.lr': 26.1 });
       tl.label('a7.tipo4');
-      tl.caption(4.4, 'Tipo IV', 'Unos 10⁴⁶ W: del orden de todo el universo observable (Gray, 2020). Más allá no hay a dónde ir.');
+      tl.caption(4.4, 'Tipo IV', 'Unos 10⁴⁶ W, del orden de todo el universo observable: tipo IV. Más allá no hay a dónde ir.', { fuente: 'Gray, 2020' });
       tl.to(4.4, { 'a7.lp': 46.0, 'a7.ly': 10.5 });
       tl.label('a7.muro');
-      tl.caption(4.6, 'El horizonte', 'Lo que la energía oscura se lleva no vuelve. El universo que podemos tocar ya no crece: se vacía.');
+      tl.caption(4.6, 'El horizonte', 'Y lo que la energía oscura se lleva no vuelve. El universo que podemos tocar ya no crece: se vacía.');
       tl.to(4.6, { 'a7.ly': 10.7 });
       tl.label('a7.fin');
     },

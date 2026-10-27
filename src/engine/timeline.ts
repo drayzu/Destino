@@ -38,6 +38,8 @@ export interface Caption {
   to: number;
   name: string;
   fact: string;
+  /** Where the fact comes from (shown with the plate). */
+  fuente?: string;
 }
 
 export class Timeline {
@@ -88,9 +90,13 @@ export class Timeline {
     return this;
   }
 
-  /** Names the moment starting at the cursor and lasting `dur` beats (the cursor stays). */
-  caption(dur: number, name: string, fact: string) {
-    this.captions.push({ from: this.cursor, to: this.cursor + dur * this.escala, name, fact });
+  /**
+   * Names the moment starting at the cursor and lasting `dur` beats (the cursor stays). `desde`
+   * starts it that many beats later (a moment that opens with a journey names the journey first).
+   */
+  caption(dur: number, name: string, fact: string, o: { fuente?: string; desde?: number } = {}) {
+    const from = this.cursor + (o.desde ?? 0) * this.escala;
+    this.captions.push({ from, to: this.cursor + dur * this.escala, name, fact, fuente: o.fuente });
     return this;
   }
 

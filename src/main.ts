@@ -184,15 +184,18 @@ function step(now: number) {
   for (const t of tramos) t.a.placa?.(g, f);
   const introOut = Math.min(1, Math.max(0, (p - 0.05) / 0.55));
   const c = tl.captionAt(p);
-  const cap = c ? { name: tx(c.name), fact: tx(c.fact) } : null;
+  // The moment's caption under its chapter; its source only with the plate. Each caption fades in
+  // and out at its edges, so one gives way to the next instead of jumping.
+  const cap = c ? { name: tx(c.name), fact: tx(c.fact), fuente: plateOn ? c.fuente : undefined, capitulo: `${acto.numero} · ${tx(acto.nombre)}` } : null;
+  const capFade = c ? Math.min(1, (p - c.from) / 0.45, (c.to - p) / 0.45) : 0;
   const l = acto.lectura(p);
   if (l) {
-    hud(g, u, W, H, l, cap, introOut);
+    hud(g, u, W, H, l, cap, introOut * capFade);
     escalera(g, u, W, H, l.lp, acto.muro?.(p) ?? null);
   } else {
     const lb = acto.libre?.(p);
     if (lb) {
-      hudLibre(g, u, H, lb.lp, lb.linea, cap, introOut, introOut, lb.tipo);
+      hudLibre(g, u, H, lb.lp, lb.linea, cap, introOut * capFade, introOut, lb.tipo);
       g.globalAlpha = introOut;
       escalera(g, u, W, H, lb.lp, null, 1);
       g.globalAlpha = 1;

@@ -85,17 +85,17 @@ export function hoy(): Acto {
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a2');
       tl.set({ 'a2.t': 0, 'a2.lp': 13.28, 'a2.ly': -1, 'a2.lr': 5.6, 'a2.luces': 0.36, 'a2.wipe': 1.25, 'a2.sube': 0, 'a2.giro': 0 });
-      tl.caption(4.2, 'Doscientos años de luces', 'Desde 1800 las ciudades se encienden: primero de a poco, después de golpe. De 0,6 a 19 billones de vatios.');
+      tl.caption(4.2, 'Doscientos años de luces', 'Desde 1800 fuimos encendiendo el planeta, primero de a poco y después de golpe. La energía que usamos pasó de 0,6 a 19 billones de vatios.');
       tl.to(4.2, { 'a2.t': 1 });
-      tl.caption(2.6, 'Hoy', 'Usamos unos 19 TW: tipo 0,73. La luz del Sol que llega a la Tierra son 174 000 TW. Toda la energía que usamos termina en calor.');
+      tl.caption(2.6, 'Hoy', 'Hoy son 19 TW: en la escala de Kardashev, tipo 0,73. Parece mucho, pero la Tierra recibe del Sol 174 000 TW. Y toda la energía que usamos termina como calor.');
       tl.label('a2.hoy').with(1.6, { 'a2.wipe': 0.02 }).to(2.6, {});
-      tl.caption(3.0, 'Más energía, más calor', 'Si seguimos creciendo, las luces llenan la Tierra y el calor que sueltan crece con ellas.');
+      tl.caption(3.0, 'Más energía, más calor', 'Si seguimos creciendo, las luces llenan la Tierra y el calor de nuestras máquinas crece con ellas. A la derecha, el planeta como lo vería una cámara infrarroja.');
       tl.label('a2.crece').to(3.0, { 'a2.lp': 15.0, 'a2.ly': 2.35, 'a2.luces': 0.62 });
-      tl.caption(2.8, 'El calor nos echa', 'Un planeta solo suelta su calor radiando. Con 10¹⁶ W en su superficie, la Tierra se calentaría al menos 6 grados.');
+      tl.caption(2.8, 'El calor nos echa', 'Un planeta solo puede soltar calor irradiándolo al espacio. Con 10¹⁶ W usados en su superficie, la Tierra se calentaría al menos 6 grados: hay que salir.', { fuente: 'Balbi y Lingam, 2025' });
       tl.label('a2.muro').with(1.3, { 'a2.wipe': -1.25 }).to(2.8, { 'a2.lp': 16.0, 'a2.ly': 2.54 });
-      tl.caption(3.6, 'Subir sin cohetes', 'Un cable desde el ecuador hasta más allá de la órbita geoestacionaria: el giro de la Tierra lo mantiene tenso. Falta un material dos veces más fuerte que el mejor de hoy.');
+      tl.caption(3.6, 'Subir sin cohetes', 'Para salir sin quemar cohetes, un cable desde el ecuador hasta más allá de la órbita geoestacionaria, tenso por el giro de la Tierra. Falta un material el doble de fuerte que el mejor de hoy.');
       tl.label('a2.asc').with(1.0, { 'a2.wipe': 1.25 }).with(1.6, { 'a2.giro': 1 }).to(3.6, { 'a2.lr': 7.6 });
-      tl.caption(3.8, 'La industria sale al espacio', 'En órbita, el calor se va directo al vacío sin calentar el planeta. Así se puede seguir creciendo: tipo I hacia el año 2370.');
+      tl.caption(3.8, 'La industria sale al espacio', 'En órbita, el calor se va directo al vacío sin calentar el planeta. Con la industria allá arriba se puede seguir creciendo: tipo I hacia el año 2370.');
       tl.label('a2.sale').to(3.8, { 'a2.sube': 1, 'a2.lp': 16.25, 'a2.ly': 2.54 });
       tl.label('a2.fin');
     },

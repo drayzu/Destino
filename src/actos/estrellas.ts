@@ -205,16 +205,16 @@ export function estrellas(): Acto {
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a4');
       tl.set({ 'a4.lp': 26.58, 'a4.ly': 3.13, 'a4.lr': 12.6, 'a4.bub': 0 });
-      tl.caption(5.4, 'Velas de luz', 'Un haz de láser de decenas de gigavatios empuja una vela de unos gramos y pocos metros: en minutos va a un quinto de la velocidad de la luz (Breakthrough Starshot, 2016).');
+      tl.caption(5.4, 'Velas de luz', 'Para ir a otra estrella, un láser enorme empuja una vela de pocos gramos: en minutos va a un quinto de la velocidad de la luz.', { fuente: 'Breakthrough Starshot, 2016' });
       tl.to(5.4, { 'a4.lp': 26.62, 'a4.ly': 3.132 });
       tl.label('a4.viaje');
-      tl.caption(8.0, 'A un quinto de la luz', 'Veinte años hasta Alfa Centauri. A esta velocidad el cielo cambia: las estrellas se juntan hacia adelante y se ven más azules; las de atrás, más rojas y débiles.');
+      tl.caption(8.0, 'A un quinto de la luz', 'Son veinte años hasta Alfa Centauri. A esta velocidad el cielo se deforma: las estrellas se juntan hacia adelante y se ven más azules; las de atrás, más rojas.');
       tl.to(8.0, { 'a4.lp': 26.8, 'a4.ly': 3.138, 'a4.lr': 16.62 });
       tl.label('a4.frenar');
-      tl.caption(6.4, 'Frenar con su luz', 'Nada la frena: pasa de largo. Una vela más lenta y grande sí puede frenar con la luz y la gravedad de Alfa Centauri A y B, y quedarse en Próxima (Heller y Hippke, 2017).');
+      tl.caption(6.4, 'Frenar con su luz', 'Al llegar no hay con qué frenar. Una vela más grande y más lenta sí puede usar la luz de Alfa Centauri A y B como freno, y quedarse en Próxima.', { fuente: 'Heller y Hippke, 2017' });
       tl.to(6.4, { 'a4.lp': 27.4, 'a4.ly': 3.163 });
       tl.label('a4.muro');
-      tl.caption(7.0, 'La luz pone el freno', 'Creciendo un 2,3 % al año querríamos toda la galaxia en unos 2 500 años. Pero la luz tarda 100 000 en cruzarla (Murphy, 2011). Desde aquí, el tiempo se mide en millones de años.');
+      tl.caption(7.0, 'La luz pone el freno', 'Al ritmo de hoy querríamos toda la galaxia en unos 2 500 años, pero la luz tarda 100 000 en cruzarla. Desde aquí, el tiempo se mide en millones de años.', { fuente: 'Murphy, 2011' });
       tl.to(7.0, { 'a4.lp': 29.0, 'a4.ly': 3.4, 'a4.lr': 17.7, 'a4.bub': 1 });
       tl.label('a4.fin');
     },
