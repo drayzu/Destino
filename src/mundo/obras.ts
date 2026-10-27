@@ -178,8 +178,9 @@ export function enjambre() {
       vec3 t2 = cross(L, t1);
       vec3 nn = normalize(L + t1 * aTilt.x + t2 * aTilt.y);
       float front = dot(nn, V);
-      float glint = pow(max(dot(reflect(-L, nn), V), 0.0), 60.0);
-      em *= on * (front > 0.0 ? 0.16 + 26.0 * glint : 0.035 + 4.0 * glint);
+      // A soft, broad glint (a sharp one makes thousands of sub-pixel points twinkle as they turn).
+      float glint = pow(max(dot(reflect(-L, nn), V), 0.0), 14.0);
+      em *= on * (front > 0.0 ? 0.18 + 2.2 * glint : 0.04 + 0.4 * glint);
       em *= 1.0 - 0.6 * uFar;
       em *= 1.0 - uFocus * (aKind < 0.5 ? 0.4 : 0.92);
       occ = on * 0.3;
@@ -279,7 +280,7 @@ export function placas() {
         vec3 col;
         if (lit) {
           // The face that drinks the light: dark glass, the Sun's reflection sliding over it.
-          float spec = pow(max(dot(reflect(-L, nn), V), 0.0), 1600.0);
+          float spec = pow(max(dot(reflect(-L, nn), V), 0.0), 300.0) * 0.3;
           float sheen = pow(max(dot(reflect(-L, nn), V), 0.0), 24.0);
           col = vec3(0.01, 0.025, 0.035) + (vec3(0.1, 0.45, 0.4) * sheen * 0.12 + vec3(1.0, 0.92, 0.75) * spec * 6.0) * sunlit;
           col += vec3(0.6, 1.0, 0.9) * edge * (0.08 + 0.4 * sunlit);
