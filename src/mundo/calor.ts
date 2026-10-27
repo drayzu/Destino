@@ -145,14 +145,17 @@ export function infrarrojo() {
 }
 
 /**
- * The industry that leaves: points that start where the energy is used (around the cities) and rise
- * to orbit (a band around the orbital ring), where they keep circling. In infrared they glow with
- * the heat their radiators give to space.
+ * The industry that leaves: factories and data centres, from where the energy is used (around the
+ * cities), gather at the space elevator's foot, climb its cable to their height and drift along
+ * the orbit to their place in a band around the orbital ring, where they keep circling. In infrared
+ * they glow with the heat their radiators give to space. `asc`: the elevator's direction (body frame).
  */
-export function industria() {
+export function industria(asc: THREE.Vector3) {
   const b = materiaBuilder(97);
   const total = CIUDADES.reduce((s, c) => s + c[2], 0);
   const teal = new THREE.Color(0.55, 1.0, 0.86);
+  // The data centres: a cooler white.
+  const datos = new THREE.Color(0.85, 0.93, 1.0);
   const N = 14000;
   for (let i = 0; i < N; i++) {
     // A city, by its size.
@@ -170,25 +173,40 @@ export function industria() {
     const R = b.r() < 0.8 ? 1.07 + Math.pow(b.r(), 1.6) * 0.32 : 1.4 + b.r() * 1.1;
     const a = b.r() * Math.PI * 2;
     const inc = gauss(b.r) * 0.05;
-    b.push(Math.cos(a) * R, Math.sin(a) * R * inc, -Math.sin(a) * R, teal, 0.0035, b.r() < 0.06 ? 3 : 1.1, { from: [fx, fy, fz], delay: b.r() });
+    b.push(Math.cos(a) * R, Math.sin(a) * R * inc, -Math.sin(a) * R, b.r() < 0.4 ? datos : teal, 0.0035, b.r() < 0.06 ? 3 : 1.1, { from: [fx, fy, fz], delay: b.r() });
   }
   const n = materia(b.data(), {
-    pre: /* glsl */ `uniform vec3 uCamL; uniform float uSpin, uIR, uWipe;
+    pre: /* glsl */ `uniform vec3 uCamL, uAsc; uniform float uSpin, uIR, uWipe;
+      vec3 slerpU(vec3 a, vec3 b, float t) {
+        float c = clamp(dot(a, b), -1.0, 1.0);
+        float w = acos(c);
+        if (w < 1e-4) return a;
+        return (a * sin((1.0 - t) * w) + b * sin(t * w)) / sin(w);
+      }
       bool tapado(vec3 q, vec3 c) { vec3 d = q - c; float t = clamp(-dot(c, d) / dot(d, d), 0.0, 1.0); return t < 0.995 && length(c + d * t) < 0.996; }`,
     move: /* glsl */ `
+      // To the elevator's foot over the ground, up its cable to its height, then along the orbit to its place.
       float rr = max(length(position), 1.0);
-      float ang = uSpin * k / (rr * sqrt(rr));
+      if (k < 0.25) p = slerpU(normalize(aFrom), uAsc, smoothstep(0.0, 1.0, k / 0.25)) * 1.004;
+      else if (k < 0.6) p = uAsc * mix(1.004, rr, smoothstep(0.0, 1.0, (k - 0.25) / 0.35));
+      else {
+        float t = smoothstep(0.0, 1.0, (k - 0.6) / 0.4);
+        p = slerpU(uAsc, normalize(position), t) * rr;
+      }
+      float ang = uSpin * smoothstep(0.6, 1.0, k) / (rr * sqrt(rr));
       float ca = cos(ang), sa = sin(ang);
       p = vec3(ca * p.x + sa * p.z, p.y, -sa * p.x + ca * p.z);
       // Rising: a spark; parked in orbit: a steady light.
       float rising = k * (1.0 - k) * 4.0;
-      em *= (0.25 + 0.75 * k) * (1.0 + 2.5 * rising);
+      em *= (0.25 + 0.75 * k) * (1.0 + 1.5 * rising);
+      // Gathering at the foot they pile up: dimmer there, so the foot is a light, not a blaze.
+      em *= mix(0.3, 1.0, smoothstep(0.3, 0.45, k));
       em *= step(0.002, k);
       fuente = 1.0;
       if (tapado(p, uCamL)) { em *= 0.0; }`,
     post: /* glsl */ `
       if (uIR > 0.5 && gl_Position.x / gl_Position.w > uWipe) { em = vec3(1.0, 0.45, 0.14) * 2.6 * step(0.002, k) * (0.3 + 0.7 * k); sz *= 1.6; }`,
-    uniforms: { uCamL: { value: V() }, uSpin: { value: 0 }, uIR: { value: 0 }, uWipe: { value: 2 } },
+    uniforms: { uCamL: { value: V() }, uAsc: { value: asc.clone().normalize() }, uSpin: { value: 0 }, uIR: { value: 0 }, uWipe: { value: 2 } },
   });
   n.u.uSpread.value = 1.6;
   n.u.uK.value = 0;

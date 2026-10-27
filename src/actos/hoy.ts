@@ -6,7 +6,7 @@ import { flecha, linea, texto } from '../engine/lamina';
 import { mezcla, type Vista } from '../engine/vista';
 import { calentamiento, grados, industria, infrarrojo } from '../mundo/calor';
 import { E, deriva, noche, type Mundo } from '../mundo/mundo';
-import { GEO, R_E } from '../mundo/obras';
+import { GEO, R_E, ascensorDir } from '../mundo/obras';
 import type { Acto, Cuadro } from './tipos';
 
 /**
@@ -44,7 +44,7 @@ export function hoy(): Acto {
   const ease = smoothstep;
   let m: Mundo;
   const ir = infrarrojo();
-  const ind = industria();
+  const ind = industria(ascensorDir());
   let giroAsc = 0;
   let giroDelta = 0;
 
@@ -95,9 +95,10 @@ export function hoy(): Acto {
       tl.label('a2.muro').with(1.3, { 'a2.wipe': -1.25 }).to(2.8, { 'a2.lp': 16.0, 'a2.ly': 2.54 });
       // The elevator is the way up, not a moment of its own: the ride is a journey, and the moment
       // begins at the top, where the point is (the heat goes to the void). Its physics is on the plate.
-      tl.caption(6.4, 'La industria sale al espacio', 'Arriba, en órbita, el calor se va directo al vacío sin calentar el planeta. Con la industria allá se puede seguir creciendo: tipo I hacia el año 2370.', { desde: 2.2, viaje: 'Por el ascensor espacial, hasta 36 000 km' });
-      tl.label('a2.asc').with(1.0, { 'a2.wipe': 1.25 }).with(1.6, { 'a2.giro': 1 }).to(2.6, { 'a2.lr': 7.6 });
-      tl.label('a2.sale').to(3.8, { 'a2.sube': 1, 'a2.lp': 16.25, 'a2.ly': 2.54 });
+      tl.caption(6.4, 'La industria sale al espacio', 'Por el cable suben fábricas y centros de datos. En órbita, su calor se va directo al vacío sin calentar el planeta: se puede seguir creciendo, y hacia el año 2370 llegamos al tipo I.', { desde: 2.2, viaje: 'Por el ascensor espacial, hasta 36 000 km' });
+      // The industry starts climbing as we do: we ride up beside it.
+      tl.label('a2.asc').with(1.0, { 'a2.wipe': 1.25 }).with(1.6, { 'a2.giro': 1 }).with(6.4, { 'a2.sube': 1 }).to(2.6, { 'a2.lr': 7.6 });
+      tl.label('a2.sale').to(3.8, { 'a2.lp': 16.25, 'a2.ly': 2.54 });
       tl.label('a2.fin');
     },
     montar(mundo) {
