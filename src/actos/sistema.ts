@@ -438,13 +438,18 @@ export function sistema(): Acto {
   }
   /** Close to the Sun, from the side: the jets out of its poles. */
   const liftDir = polar(1, TH_E + 0.9).add(V(0, 0.22, 0)).normalize();
-  const vLift = (p: number): Vista => ({ pos: liftDir.clone().applyAxisAngle(UP, 0.03 * (p - P('a3.lift'))).multiplyScalar(24 * R_SUN), target: V(0, 0, 0), up: UP.clone(), fov: 58 });
+  // (rising a little above the equator and closing in, so the jets from the poles turn in depth)
+  const vLift = (p: number): Vista => {
+    const k = ease(P('a3.lift'), P('a3.motor'), p);
+    const eje = liftDir.clone().cross(UP).normalize();
+    return { pos: liftDir.clone().applyAxisAngle(eje, -0.3 * k).applyAxisAngle(UP, 0.03 * (p - P('a3.lift'))).multiplyScalar(lerp(24, 19, k) * R_SUN), target: V(0, 0, 0), up: UP.clone(), fov: 58 };
+  };
   function camLift(p: number): Vista {
     return mezcla(camLejos(P('a3.lift')), vLift(p), ease(P('a3.lift'), P('a3.lift', 1.6), p));
   }
   /** Side-on to the engines: the mirror on one side, the jet on the other. */
   const motorDir = MOTOR.clone().cross(UP).normalize().add(V(0, 0.42, 0)).normalize();
-  const vMotor = (p: number): Vista => ({ pos: MOTOR.clone().multiplyScalar(-0.55).addScaledVector(motorDir.clone().applyAxisAngle(UP, 0.02 * (p - P('a3.motor'))), 3.4), target: MOTOR.clone().multiplyScalar(-0.55), up: UP.clone(), fov: 46 });
+  const vMotor = (p: number): Vista => ({ pos: MOTOR.clone().multiplyScalar(-0.55).addScaledVector(motorDir.clone().applyAxisAngle(UP, 0.06 * (p - P('a3.motor'))), 3.4), target: MOTOR.clone().multiplyScalar(-0.55), up: UP.clone(), fov: 46 });
   function camMotor(p: number): Vista {
     return mezcla(vLift(P('a3.motor')), vMotor(p), ease(P('a3.motor'), P('a3.motor', 1.8), p));
   }
