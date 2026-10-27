@@ -554,6 +554,36 @@ export const planetas: Escena = {
       }
     })();
 
+    // Free look: drag to turn round the planet, Shift + wheel (or + / −) to come closer; double click resets.
+    const libre = { yaw: 0, pitch: 0, zoom: 0, toma: -1 };
+    let drag: { x: number; y: number } | null = null;
+    const down = (ev: PointerEvent) => {
+      if (ev.button !== 0 || (ev.target as Element | null)?.closest?.('button, a')) return;
+      drag = { x: ev.clientX, y: ev.clientY };
+    };
+    const move = (ev: PointerEvent) => {
+      if (!drag) return;
+      libre.yaw -= ((ev.clientX - drag.x) / innerWidth) * 3.2;
+      libre.pitch = Math.max(-1.45, Math.min(1.45, libre.pitch + ((ev.clientY - drag.y) / innerHeight) * 2.4));
+      drag = { x: ev.clientX, y: ev.clientY };
+    };
+    const up = () => (drag = null);
+    const wheel = (ev: WheelEvent) => {
+      if (!ev.shiftKey) return;
+      ev.preventDefault();
+      libre.zoom = Math.max(-4, Math.min(2.5, libre.zoom + Math.sign(ev.deltaY || ev.deltaX) * 0.12));
+    };
+    const key = (ev: KeyboardEvent) => {
+      if (ev.key === '+' || ev.key === '=') libre.zoom = Math.max(-4, libre.zoom - 0.15);
+      if (ev.key === '-' || ev.key === '_') libre.zoom = Math.min(2.5, libre.zoom + 0.15);
+    };
+    const reset = () => Object.assign(libre, { yaw: 0, pitch: 0, zoom: 0 });
+    addEventListener('pointerdown', down);
+    addEventListener('pointermove', move);
+    addEventListener('pointerup', up);
+    addEventListener('wheel', wheel, { passive: false });
+    addEventListener('keydown', key);
+    addEventListener('dblclick', reset);
     const tl = new Timeline({});
     NOMBRES.forEach(([n, f], i) => {
       tl.caption(2, n, f);
@@ -573,10 +603,27 @@ export const planetas: Escena = {
         const tm = TOMAS[i];
         const k = (p - P(`t${i}`)) / 2;
         // A slow drift within each view.
+        // A new view starts from its own framing.
+        if (libre.toma !== i) {
+          reset();
+          libre.toma = i;
+        }
         const pos = tm.pos.clone().applyAxisAngle(UP, (k - 0.5) * 0.06);
+        const tgt = tm.target.clone();
+        const upv = (tm.up ?? UP).clone();
+        // Turn the whole rig round the planet's centre (the Sun stays where it is), then move in or out.
+        const right = tgt.clone().sub(pos).cross(upv).normalize();
+        const q = new THREE.Quaternion().setFromAxisAngle(UP, libre.yaw).multiply(new THREE.Quaternion().setFromAxisAngle(right, libre.pitch));
+        pos.applyQuaternion(q);
+        tgt.applyQuaternion(q);
+        upv.applyQuaternion(q);
+        const alt = Math.max(pos.length() - 1, 1e-4) * Math.exp(libre.zoom);
+        const nuevo = pos.clone().normalize().multiplyScalar(1 + Math.max(alt, 0.004));
+        tgt.add(nuevo.clone().sub(pos).multiplyScalar(tgt.length() < 1e-6 ? 0 : 1));
+        pos.copy(nuevo);
         camera.position.copy(pos);
-        camera.up.copy(tm.up ?? UP);
-        camera.lookAt(tm.target);
+        camera.up.copy(upv);
+        camera.lookAt(tgt);
         camera.fov = tm.fov;
         camera.near = 1e-4;
         camera.far = 200;
@@ -594,7 +641,23 @@ export const planetas: Escena = {
         }
         void lerp;
       },
-      dispose() {},
+      placa(g, f: Frame) {
+        // How to move it.
+        g.save();
+        g.font = `500 ${Math.round(11 * f.u)}px "Geist Mono Variable", monospace`;
+        g.fillStyle = 'rgba(236,231,219,0.55)';
+        g.textAlign = 'center';
+        g.fillText('ARRASTRA PARA GIRAR · SHIFT + RUEDA O + / − PARA ACERCAR · DOBLE CLIC: VOLVER · SCROLL: OTRA VISTA · 1 2 3: OTRA MANERA', f.W / 2, f.H - 26 * f.u);
+        g.restore();
+      },
+      dispose() {
+        removeEventListener('pointerdown', down);
+        removeEventListener('pointermove', move);
+        removeEventListener('pointerup', up);
+        removeEventListener('wheel', wheel);
+        removeEventListener('keydown', key);
+        removeEventListener('dblclick', reset);
+      },
     };
   },
 };
