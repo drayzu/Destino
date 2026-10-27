@@ -538,8 +538,13 @@ export function sistema(): Acto {
       // Close to the Sun (lifting its matter) its glare would hide everything: it is dimmed.
       const cerca = ease(P('a3.lift', -0.4), P('a3.lift', 0.8), p) * (1 - ease(P('a3.motor', 0.4), P('a3.motor', 1.4), p));
       e.solDim = Math.max(tl.get('a3.built', p) * 0.9, 0.975 * cerca);
-      // Mars and Venus hide the stars behind them.
       const cam = ruta0(p).pos;
+      // Close to the cylinder it fills the view and hides the sky (its points cannot occlude the galaxy
+      // drawn over them); inside, the daylight would hide the stars anyway.
+      const cilCerca = 1 - smoothstep(19 * KM, 34 * KM, cam.distanceTo(CIL));
+      e.galaxia *= 1 - 0.92 * cilCerca;
+      e.cielo *= 1 - 0.85 * cilCerca;
+      // Mars and Venus hide the stars behind them.
       if (cam.distanceTo(MARS) < 400 * R_MARS) e.oclusor = { c: MARS, r: R_MARS, propias: mars.nubes };
       else if (cam.distanceTo(VENUS) < 400 * R_VEN) e.oclusor = { c: VENUS, r: R_VEN, propias: ven.nubes };
     },
@@ -623,7 +628,11 @@ export function sistema(): Acto {
         r.group.visible = w > 0.001;
         r.nube.u.uGain.value = w;
       });
-      belt.points.visible = on;
+      // Seen from inside its plane the belt is a band across the sky; by the cylinder it would cross
+      // the cap (points cannot be hidden behind it), so it fades there.
+      const cilCercaU = 1 - smoothstep(19 * KM, 34 * KM, cam.distanceTo(CIL));
+      belt.u.uGain.value = 1 - cilCercaU;
+      belt.points.visible = on && cilCercaU < 0.999;
       orbits.visible = p > P('a3.todo', -0.2) && p < P('a3.fin', 3);
       orbits.opacidad = 0.5 * ease(P('a3.todo'), P('a3.todo', 1), p);
       // Seen from afar: visible light and the infrared, behind the curtain.
@@ -717,6 +726,13 @@ export function sistema(): Acto {
             if (a0 && pole) flecha(g, u, a0, pole, '#ffe0a0', ma1 * 0.8, 1.2, [4, 4], f.time * 30);
           }
         }
+      }
+      // Towards the cylinder: a point of light until we are close.
+      const kO = (p - P('a3.oneill')) / (P('a3.marte') - P('a3.oneill'));
+      const rumboO = ease(0.05, 0.09, kO) * (1 - ease(0.2, 0.24, kO));
+      if (rumboO > 0.01) {
+        const q = f.proj(CIL);
+        if (q && q.x > 0 && q.x < W && q.y > 0 && q.y < H) rumbo(g, u, q.x, q.y, "el cilindro de O'Neill", rumboO);
       }
       // Far from the Sun: what we are looking back at.
       const rumboL = ease(P('a3.lejos', 0.25), P('a3.lejos', 0.45), p) * (1 - ease(P('a3.lejos', 1.2), P('a3.lejos', 1.5), p));

@@ -268,8 +268,15 @@ export function cilindroPuntos(root: THREE.Group) {
       continue;
     }
     const port = r < 0.38 ? 1 : 0;
-    const ring = Math.abs(((r * 3) % 1) - 0.5) > 0.47 ? 1 : 0;
-    const v = port ? 1.2 : 0.14 + 0.06 * ring;
+    // Built, not a flat disc: panels in rings and sectors (each its own shade), lighter seams
+    // every 500 m and along 24 spokes, and a docking collar round the port.
+    const anillo = Math.floor(r / 0.5);
+    const SECT = (Math.PI * 2) / 24;
+    const sector = Math.floor(a / SECT);
+    const panel = 0.72 + 0.56 * (Math.sin(anillo * 91.7 + sector * 47.3) * 43758.5453 - Math.floor(Math.sin(anillo * 91.7 + sector * 47.3) * 43758.5453));
+    const costura = Math.abs((r / 0.5) % 1 - 0.5) > 0.47 || Math.min(a % SECT, SECT - (a % SECT)) * r < 0.025 ? 1 : 0;
+    const collar = r < 0.9 && r > 0.75 ? 1 : 0;
+    const v = port ? 1.2 : 0.075 * panel + 0.11 * costura + 0.08 * collar;
     cc.set(port ? [0.5 * v, 1.0 * v, 0.85 * v] : [v, v, v * 1.04], i * 3);
   }
   const caps = puntos(geometria({ position: cp, color: cc, size: new Float32Array(capsN).fill(0.04), seed: new Float32Array(capsN), aKind: new Float32Array(capsN) }), {

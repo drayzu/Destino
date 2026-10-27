@@ -245,6 +245,7 @@ const EN: Record<string, string> = {
   'Marte': 'Mars',
   'naves con los espejos': 'ships with the mirrors',
   'un agujero negro': 'a black hole',
+  "el cilindro de O'Neill": "the O'Neill cylinder",
   'Júpiter': 'Jupiter',
   'cinturón · minas': 'belt · mines',
   'el Sol, casi cubierto': 'the Sun, almost covered',
