@@ -510,7 +510,7 @@ export function sistema(): Acto {
       m.root.add(mars.group, ven.group, lift.group, espejo.mesh, caplan.group, cil.group, swarm.points, plates.mesh, merc.group, belt.points, orbits, B.points);
       m.nubes.push(cil.casas, lift.nube, caplan.nube);
       for (const r of rutas) m.root.add(r.group);
-      m.nubes.push(swarm, belt, ...rutas.map((r) => r.nube));
+      m.nubes.push(swarm, belt, orbits.nube, ...rutas.map((r) => r.nube));
       // The planets join once their maps are loaded and their points built.
       return Promise.all([mars.listo, ven.listo, merc.listo]).then(() => void m.nubes.push(...mars.nubes, ...ven.nubes, ...merc.nubes));
     },
@@ -615,7 +615,7 @@ export function sistema(): Acto {
       });
       belt.points.visible = on;
       orbits.visible = p > P('a3.todo', -0.2) && p < P('a3.fin', 3);
-      for (const l of orbits.children) ((l as THREE.Line).material as THREE.LineBasicMaterial).opacity = 0.1 * ease(P('a3.todo'), P('a3.todo', 1), p);
+      orbits.opacidad = 0.5 * ease(P('a3.todo'), P('a3.todo', 1), p);
       // Seen from afar: visible light and the infrared, behind the curtain.
       const wipe = wipeAt(p);
       const wipePx = ((wipe + 1) / 2) * W;

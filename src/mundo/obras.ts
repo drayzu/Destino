@@ -813,17 +813,23 @@ export { smoothstep };
 
 /** The planets' orbits, as plate lines (faint): they make the overview readable. */
 export function orbitas(radii: number[]) {
+  // Dotted circles of light (not lines): the same family as the routes. Opacity via `opacity`.
   const group = new THREE.Group();
+  const b = materiaBuilder(4242);
   for (const r of radii) {
-    const pts: THREE.Vector3[] = [];
-    for (let k = 0; k <= 256; k++) {
-      const a = (k / 256) * Math.PI * 2;
-      pts.push(new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r));
+    const n = Math.round(900 * Math.sqrt(r));
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * Math.PI * 2;
+      b.push(Math.cos(a) * r, 0, Math.sin(a) * r, new THREE.Color(0.93, 0.9, 0.86), 2.4e-3 * Math.sqrt(r), 1);
     }
-    const geo = new THREE.BufferGeometry().setFromPoints(pts);
-    const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: new THREE.Color(0.93, 0.9, 0.86), transparent: true, opacity: 0.1, depthTest: false, depthWrite: false }));
-    line.frustumCulled = false;
-    group.add(line);
   }
-  return group;
+  const nube = materia(b.data(), { move: 'fuente = 0.6;' });
+  nube.u.uSpread.value = 0;
+  group.add(nube.points);
+  return Object.assign(group, {
+    nube,
+    set opacidad(v: number) {
+      nube.u.uGain.value = v;
+    },
+  });
 }
