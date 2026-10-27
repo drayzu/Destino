@@ -569,7 +569,7 @@ export function sistema(): Acto {
         hb.group.visible = atL5;
         if (atL5) {
           hb.uni.uSun.value.copy(habSun);
-          hb.update(time);
+          hb.update(time, f);
         }
       }
       // Mars, warmed; Venus, shaded. Only drawn near them (beacons stand in from afar).
