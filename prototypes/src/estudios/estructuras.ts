@@ -87,7 +87,7 @@ const GLSL = /* glsl */ `
     return mix(vec3(0.2, 0.19, 0.17) * (0.8 + 0.2 * step(0.5, fract(s * 40.0))), col, rise);
   }
   // Inside, the air: what is far fades into a pale haze.
-  vec3 aire(vec3 col, float d, float dia) { return mix(col, vec3(0.42, 0.55, 0.72) * 0.5 * dia, (1.0 - exp(-d / 14.0)) * 0.75); }`;
+  vec3 aire(vec3 col, float d, float dia) { return mix(col, vec3(0.42, 0.55, 0.72) * 0.5 * dia, (1.0 - exp(-d / 22.0)) * 0.5); }`;
 
 const LOG_V = /* glsl */ `
   #include <common>
@@ -283,7 +283,7 @@ function maneraPuntos(root: THREE.Group) {
   root.add(fondo, g.points, pa.points);
   capas.push(g, pa);
   // The end caps: discs of points, with the port at the axis lit.
-  const capsN = 40000;
+  const capsN = 160000;
   const cp = new Float32Array(capsN * 3);
   const cc = new Float32Array(capsN * 3);
   for (let i = 0; i < capsN; i++) {
@@ -296,7 +296,7 @@ function maneraPuntos(root: THREE.Group) {
     const v = port ? 1.2 : 0.14 + 0.06 * ring;
     cc.set(port ? [0.5 * v, 1.0 * v, 0.85 * v] : [v, v, v * 1.04], i * 3);
   }
-  const caps = puntos(geometria({ position: cp, color: cc, size: new Float32Array(capsN).fill(0.05), seed: new Float32Array(capsN), aKind: new Float32Array(capsN) }), {
+  const caps = puntos(geometria({ position: cp, color: cc, size: new Float32Array(capsN).fill(0.04), seed: new Float32Array(capsN), aKind: new Float32Array(capsN) }), {
     pre: `uniform vec3 uCamL, uSun; uniform float uDentro;`,
     cuerpo: /* glsl */ `
       vec3 nCap = vec3(0.0, sign(p.y), 0.0);
@@ -304,7 +304,15 @@ function maneraPuntos(root: THREE.Group) {
       if (uDentro < 0.5) {
         if (dot(nCap, uCamL - p) < 0.0) em *= 0.0;
         else em = mix(color * (smoothstep(-0.1, 0.4, dot(nCap, uSun)) * 0.9 + 0.05), color, port);
-      } else em = color * 0.4;`,
+      } else {
+        // Inside, the far end: terraced land climbing to the port, lit by day, under the haze.
+        float r = length(p.xz);
+        float terr = fract(r * 3.0);
+        vec3 alb = mix(vec3(0.12, 0.17, 0.08), vec3(0.24, 0.23, 0.16), step(0.5, terr)) * (0.85 + 0.3 * fract(sin(dot(p.xz, vec2(12.9, 78.2))) * 43758.5));
+        float d = distance(p, uCamL);
+        em = mix(alb * 0.6, vec3(0.42, 0.55, 0.72) * 0.35, (1.0 - exp(-d / 22.0)) * 0.5) * 0.7;
+        em = mix(em, color, port);
+      }`,
     uniforms: u,
   });
   root.add(caps.points);
@@ -326,11 +334,52 @@ function maneraPuntos(root: THREE.Group) {
         vec3 Vv = normalize(uCamL - p);
         float glint = pow(max(dot(reflect(-uSun, nn), Vv), 0.0), 18.0);
         float sheen = pow(max(1.0 - abs(dot(nn, Vv)), 0.0), 3.0);
-        em = vec3(0.55, 0.6, 0.66) * (0.012 + 0.12 * sheen) + vec3(1.0, 0.96, 0.9) * glint * 0.8;`,
+        em = vec3(0.55, 0.6, 0.66) * (0.012 + 0.12 * sheen) + vec3(1.0, 0.96, 0.9) * glint * 0.8;
+        // Seen from inside, through a window, a mirror is where the day comes from: bright sky.
+        bool inn = length(uCamL.xz) < ${R.toFixed(1)} && abs(uCamL.y) < ${(L / 2).toFixed(1)};
+        if (inn) em = vec3(0.55, 0.62, 0.72) * 0.03 + vec3(1.0, 0.95, 0.85) * glint * 0.15;`,
       uniforms: { uCamL: u.uCamL, uSun: u.uSun, uN: { value: nrm } },
     });
     root.add(mm.points);
     capas.push(mm);
+  }
+  // Under the mirrors' and the caps' points, their surfaces, dim (as under the hull).
+  const bajo = (geo: THREE.BufferGeometry, M: THREE.Matrix4, glsl: string) => {
+    const mesh = new THREE.Mesh(
+      geo,
+      new THREE.ShaderMaterial({
+        uniforms: u,
+        side: THREE.DoubleSide,
+        vertexShader: /* glsl */ `${LOG_V}
+          varying vec3 vW;
+          void main() { vW = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            #include <logdepthbuf_vertex>
+          }`,
+        fragmentShader: /* glsl */ `${LOG_F}
+          uniform vec3 uCamL; uniform float uDentro;
+          varying vec3 vW;
+          void main() {
+            #include <logdepthbuf_fragment>
+            vec3 c;
+            ${glsl}
+            gl_FragColor = vec4(c, 1.0);
+          }`,
+      }),
+    );
+    mesh.geometry.applyMatrix4(M);
+    root.add(mesh);
+  };
+  for (const M of espejos()) {
+    const back = M.clone().multiply(new THREE.Matrix4().makeTranslation(0, 0, -0.01));
+    bajo(new THREE.PlaneGeometry(ANCHO_ESPEJO, L), back, `c = uDentro > 0.5 ? vec3(0.42, 0.5, 0.62) * 0.025 : vec3(0.006);`);
+  }
+  for (const sg of [-1, 1]) {
+    const M = new THREE.Matrix4().makeTranslation(0, sg * (L / 2 + 0.002), 0).multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2));
+    bajo(new THREE.CircleGeometry(R, 128), M, `
+      float r = length(vW.xz);
+      float terr = fract(r * 3.0);
+      vec3 alb = mix(vec3(0.12, 0.17, 0.08), vec3(0.24, 0.23, 0.16), step(0.5, terr));
+      c = uDentro > 0.5 ? mix(alb * 0.6, vec3(0.42, 0.55, 0.72) * 0.5, (1.0 - exp(-distance(vW, uCamL) / 22.0)) * 0.5) : vec3(0.02);`);
   }
   // Inside: the towns' lights.
   capas.push(...luces(root, u.uCamL, 0.35));
