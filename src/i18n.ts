@@ -363,4 +363,5 @@ const EN: Record<string, string> = {
   'Por el cable suben fábricas y centros de datos. En órbita, su calor se va directo al vacío sin calentar el planeta: se puede seguir creciendo, y hacia el año 2370 llegamos al tipo I.': 'Factories and data centres climb the cable. In orbit their heat goes straight into the void without warming the planet: we can keep growing, and around the year 2370 we reach type I.',
   'Por el ascensor espacial, hasta 36 000 km': 'Up the space elevator, to 36,000 km',
   'un cable así necesita un material el doble de fuerte que el mejor de hoy': 'a cable like this needs a material twice as strong as the best we have',
+  'El Atlas': 'The Atlas',
 };
