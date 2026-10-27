@@ -262,7 +262,12 @@ export function cilindroPuntos(root: THREE.Group) {
     const a = Math.random() * Math.PI * 2;
     const y = (i % 2 ? 1 : -1) * L * 0.5;
     cp.set([Math.cos(a) * r, y, Math.sin(a) * r], i * 3);
-    const port = r < 0.35 ? 1 : 0;
+    // The docking port at the axis is open (the camera comes in through it): only its rim is lit.
+    if (r < 0.3) {
+      i--;
+      continue;
+    }
+    const port = r < 0.38 ? 1 : 0;
     const ring = Math.abs(((r * 3) % 1) - 0.5) > 0.47 ? 1 : 0;
     const v = port ? 1.2 : 0.14 + 0.06 * ring;
     cc.set(port ? [0.5 * v, 1.0 * v, 0.85 * v] : [v, v, v * 1.04], i * 3);
@@ -320,6 +325,7 @@ export function cilindroPuntos(root: THREE.Group) {
     const M = new THREE.Matrix4().makeTranslation(0, sg * (L / 2 + 0.002), 0).multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2));
     bajo(new THREE.CircleGeometry(R, 128), M, `
       float r = length(vW.xz);
+      if (r < 0.3) discard;
       float terr = fract(r * 3.0);
       vec3 alb = mix(vec3(0.12, 0.17, 0.08), vec3(0.24, 0.23, 0.16), step(0.5, terr));
       c = uDentro > 0.5 ? mix(alb * 0.6, vec3(0.42, 0.55, 0.72) * 0.5, (1.0 - exp(-distance(vW, uCamL) / 22.0)) * 0.5) : vec3(0.035);`);
