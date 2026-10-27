@@ -182,11 +182,14 @@ export function rumbo(g: CanvasRenderingContext2D, u: number, x: number, y: numb
   g.letterSpacing = `${1.1 * u}px`;
   const label = tr(text).toUpperCase();
   const w = g.measureText(label).width;
+  // To the right, unless it would run onto the ladder: then to the left.
+  const izq = x + r + 14 * u + w > g.canvas.width - 90 * u;
+  const lx = izq ? x - r - 14 * u - w : x + r + 4 * u;
   g.fillStyle = 'rgba(4,4,8,0.5)';
-  g.fillRect(x + r + 4 * u, y - 9 * u, w + 10 * u, 17 * u);
+  g.fillRect(lx, y - 9 * u, w + 10 * u, 17 * u);
   g.fillStyle = ink(0.92);
   g.textBaseline = 'middle';
-  g.fillText(label, x + r + 9 * u, y + 0.5 * u);
+  g.fillText(label, lx + 5 * u, y + 0.5 * u);
   g.restore();
 }
 
