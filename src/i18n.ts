@@ -247,6 +247,7 @@ const EN: Record<string, string> = {
   'naves con los espejos': 'ships with the mirrors',
   'un agujero negro': 'a black hole',
   'una estrella muerta': 'a dead star',
+  'una semilla de falso vacío': 'a seed of false vacuum',
   'más rápido, solo en papel': 'faster, only on paper',
   'Bussard: el gas que recoge frena más de lo que empuja': 'Bussard: the gas it scoops up brakes it more than it pushes',
   'Alcubierre: pide energía negativa': 'Alcubierre: it needs negative energy',

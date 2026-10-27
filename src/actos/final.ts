@@ -324,6 +324,12 @@ export function final(): Acto {
         const stop = run > 0.995;
         cifra(g, u, W * 0.76, H * 0.24, '10', sup(e), 58, co, stop ? '#ff9a6a' : TEAL, stop ? 'pensamientos posibles, y no más · ilustrativo' : 'pensamientos posibles · ilustrativo');
       }
+      // The seed, while it is still a point: what we are going to.
+      const rs = ease(P('a8.crear', 0.1), P('a8.crear', 0.4), p) * (1 - ease(P('a8.crear', 3.3), P('a8.crear', 3.7), p));
+      if (rs > 0.01) {
+        const q = f.proj(SEMILLA);
+        if (q && q.x > 0 && q.x < W && q.y > 0 && q.y < H) rumbo(g, u, q.x, q.y, 'una semilla de falso vacío', rs);
+      }
       // The last mind.
       if (f.lamina && co > 0.01) {
         const q = f.proj(MENTE);
