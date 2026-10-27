@@ -66,3 +66,31 @@ export function texto(g: CanvasRenderingContext2D, u: number, x: number, y: numb
   g.fillText(upper ? tr(text).toUpperCase() : tr(text), x, y);
   g.restore();
 }
+
+/**
+ * A small list on the plate, under a dotted rule: a title and a few short lines. On a wide screen it
+ * sits at (fx, fy) of the frame; in portrait it moves left of the ladder, between its rungs, so it
+ * neither runs off the edge nor over the rungs' names.
+ */
+export function panel(g: CanvasRenderingContext2D, u: number, W: number, H: number, fx: number, fy: number, title: string, lines: string[], a: number) {
+  if (a < 0.01) return;
+  const vertical = W < H;
+  const x = vertical ? W * 0.42 : W * fx;
+  let y = vertical ? H * 0.44 : H * fy;
+  const half = (vertical ? 0.4 * W : 130 * u);
+  g.save();
+  g.globalAlpha = a * 0.6;
+  g.strokeStyle = ink(0.7);
+  g.lineWidth = Math.max(1, u);
+  g.setLineDash([3 * u, 4 * u]);
+  g.beginPath();
+  g.moveTo(x - half, y - 15 * u);
+  g.lineTo(x + half, y - 15 * u);
+  g.stroke();
+  g.restore();
+  texto(g, u, x, y, title, ink(0.85), a, 10.5, 'center');
+  for (const t of lines) {
+    y += 19 * u;
+    texto(g, u, x, y, t, ink(0.62), a, vertical ? 9 : 10, 'center', false);
+  }
+}

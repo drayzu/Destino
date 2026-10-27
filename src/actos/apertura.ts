@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { Timeline } from '../engine/timeline';
 import { lerp, smoothstep } from '../engine/math';
 import { TEAL, cifra, ink, nota } from '../engine/placa';
-import { linea, texto } from '../engine/lamina';
+import { linea, panel, texto } from '../engine/lamina';
 import type { Vista } from '../engine/vista';
 import { CENTRO, esferaLamina } from '../mundo/galaxia';
 import { E, LY_AU, type Mundo } from '../mundo/mundo';
@@ -248,25 +248,7 @@ export function apertura(): Acto {
         nota(g, u, sq.x, sq.y, 'lo que hemos escuchado: casi nada', 40, 36, esc);
       }
       // How we look: the three ways (plate).
-      if (f.lamina && esc > 0.01) {
-        const x = W * 0.72;
-        let y = H * 0.12;
-        g.save();
-        g.globalAlpha = esc * 0.6;
-        g.strokeStyle = ink(0.7);
-        g.lineWidth = Math.max(1, u);
-        g.setLineDash([3 * u, 4 * u]);
-        g.beginPath();
-        g.moveTo(x - 130 * u, y - 15 * u);
-        g.lineTo(x + 130 * u, y - 15 * u);
-        g.stroke();
-        g.restore();
-        texto(g, u, x, y, 'cómo buscamos', ink(0.85), esc, 10.5, 'center');
-        for (const t of ['radio: señales angostas, desde 1960', 'láser: destellos de mil millonésimas de segundo', 'infrarrojo: el calor de obras enormes']) {
-          y += 19 * u;
-          texto(g, u, x, y, t, ink(0.62), esc, 10, 'center', false);
-        }
-      }
+      if (f.lamina) panel(g, u, W, H, 0.72, 0.12, 'cómo buscamos', ['radio: señales angostas, desde 1960', 'láser: destellos de mil millonésimas de segundo', 'infrarrojo: el calor de obras enormes'], esc);
       // The silence: a timer, and then nothing.
       const bk = tl.get('a0.bub', p);
       if (bk > 0.01 && bk < 0.999) {
