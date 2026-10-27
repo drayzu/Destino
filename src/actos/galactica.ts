@@ -81,7 +81,7 @@ export function galactica(): Acto {
   }
   function camTipo3(p: number): Vista {
     const k = (p - P('a5.tipo3')) / (P('a5.zoo') - P('a5.tipo3'));
-    const a = 0.05 * k;
+    const a = 0.3 * k;
     return { ...ARRIBA, pos: ARRIBA.target.clone().add(ARRIBA.pos.clone().sub(ARRIBA.target).applyAxisAngle(UP, a)) };
   }
   /** A place, seen from `d` light years, from a side. */
@@ -91,8 +91,8 @@ export function galactica(): Acto {
     up: UP.clone(),
     fov,
   });
-  const vZoo = (p: number) => lugar(RESERVA, 150, 0.6 + 0.05 * (p - P('a5.zoo')), 0.22);
-  const vCallan = (p: number) => lugar(SILENCIO.clone().add(V(0, 0, 20)), 420, 2.3 + 0.04 * (p - P('a5.callan')), 0.3);
+  const vZoo = (p: number) => lugar(RESERVA, lerp(165, 120, ease(P('a5.zoo'), P('a5.callan'), p)), 0.6 + 0.12 * (p - P('a5.zoo')), 0.22);
+  const vCallan = (p: number) => lugar(SILENCIO.clone().add(V(0, 0, 20)), 420, 2.3 + 0.1 * (p - P('a5.callan')), 0.3);
   /** At the ruins: an AU from the dead star, the torn rings against the galaxy's glow. */
   const vRuinas = (p: number): Vista => {
     const k = (p - P('a5.filtro')) / (P('a5.muro') - P('a5.filtro'));
@@ -123,7 +123,10 @@ export function galactica(): Acto {
   const BORDE: Vista = { pos: ly(CENTRO.clone().add(V(-150000, 42000, 70000))), target: ly(CENTRO.clone()), up: UP.clone(), fov: 44 };
   function camMuro(p: number): Vista {
     const k = (p - P('a5.muro')) / (P('a5.fin') - P('a5.muro'));
-    return mezcla(vRuinas(P('a5.muro')), BORDE, ease(0.0, 0.6, k));
+    // (and round the galaxy while the question comes back)
+    const c = ly(CENTRO.clone());
+    const borde = { ...BORDE, pos: c.clone().add(BORDE.pos.clone().sub(c).applyAxisAngle(UP, -0.35 * ease(0.2, 1.4, k))) };
+    return mezcla(vRuinas(P('a5.muro')), borde, ease(0.0, 0.6, k));
   }
   const SEGS: [string, (p: number) => Vista][] = [
     ['a5', camBurbuja],
