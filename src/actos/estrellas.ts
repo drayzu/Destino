@@ -5,7 +5,7 @@ import { TEAL, cifra, ink, nota, type Muro } from '../engine/placa';
 import { flecha, texto } from '../engine/lamina';
 import { mezcla, mirar, type Vista } from '../engine/vista';
 import { LY_AU, type Mundo } from '../mundo/mundo';
-import { R_SUN } from '../mundo/obras';
+import { R_SUN, faros } from '../mundo/obras';
 import { VECINAS, dondeVecina, estrella, rutasVecinas, vecinas, vela } from '../mundo/vecinas';
 import type { Acto, Cuadro } from './tipos';
 
@@ -79,6 +79,9 @@ export function estrellas(): Acto {
   const velaS = vela(12);
   const velaG = vela(24);
   cabina.add(velaS.group, velaG.group);
+  // While the sail is too small to see (metres across, kilometres away), a light marks it.
+  const faro = faros([{ color: new THREE.Color(1.4, 2.6, 2.2), px: 4.5 }]);
+  cabina.add(faro.points);
 
   // ------------------------------------------------------------ the sail's flight
   /** How far the sail is from its launch (AU) and its speed (c), by beat. */
@@ -280,6 +283,7 @@ export function estrellas(): Acto {
       cabina.visible = false;
       velaS.group.visible = false;
       velaG.group.visible = false;
+      faro.points.visible = false;
       if (!here) return;
       const toView = (w: THREE.Vector3) => w.clone().transformDirection(camera.matrixWorldInverse);
       if (p < P('a4.frenar', 0.3)) {
@@ -289,7 +293,16 @@ export function estrellas(): Acto {
         let rel: THREE.Vector3;
         if (near) rel = mt.off.clone().negate();
         else rel = velaW(vuelo(p).s).sub(v.pos).divideScalar(M);
-        if (rel.length() < 3000) {
+        const lejos = rel.length();
+        if (lejos > 1500 && p < P('a4.viaje')) {
+          // Its light, in its direction (the cabin keeps it near; only the direction matters).
+          cabina.visible = true;
+          faro.points.visible = true;
+          faro.set(0, rel.clone().normalize().multiplyScalar(1000 * SIGMA), smoothstep(1500, 4000, lejos) * smoothstep(3e12, 3e11, lejos));
+          faro.commit();
+          faro.mat.uniforms.uDpr.value = f.dpr;
+        }
+        if (lejos < 3000) {
           cabina.visible = true;
           velaS.group.visible = true;
           velaS.group.position.copy(rel).multiplyScalar(SIGMA);
