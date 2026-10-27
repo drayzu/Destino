@@ -67,7 +67,7 @@
 
 ## Pendiente del viaje completo (fase 5 y pulido)
 - Duración: ~10 minutos desde el 27 de octubre. Los actos se escriben a su ritmo y la línea de tiempo los estira (`tl.escala = 1.38` en `main.ts`). Los desfases fijos dentro de un momento se escriben `P('etiqueta', d)` para que se estiren igual. Capturas: `docs/fase5/`.
-- Estilo de las estructuras: Diego eligió **puntitos con espejos en silueta**, los espejos como pétalos (abiertos a 45° desde el extremo opuesto al Sol, como en O'Neill). Ya está en el cilindro de O'Neill (`src/mundo/cilindro.ts`; estudio `?m=estructuras&espejos=silueta`). Faltan los demás hábitats (Bishop, McKendree, Stanford, Bernal) y las obras alrededor del Sol.
+- Estilo de las estructuras: Diego eligió **puntitos con espejos en silueta**, los espejos como pétalos (abiertos a 45° desde el extremo opuesto al Sol, como en O'Neill). Ya está en el cilindro de O'Neill (`src/mundo/cilindro.ts`; estudio `?m=estructuras&espejos=silueta`), en los demás hábitats (`habitats.ts`: cada superficie es un trozo de GLSL que colorea los puntos y, más tenue, la malla de debajo) y en el espejo de Shkadov (silueta). El enjambre, las velas y el motor de Caplan ya eran puntos.
 - Transiciones con cuadros vacíos (sobre todo los traslados largos entre escalas).
 - El cerebro del acto I parece más una nube que un cerebro: faltan los surcos y la línea media.
 - Sonido propio por acto (fase 5), enlaces de la lámina a sus fichas del Atlas y el enlace final al Atlas, la escalera que salta al tocar sus peldaños, modo móvil y liviano, el README con media (receta de `readme-visual`).

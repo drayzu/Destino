@@ -105,8 +105,6 @@ export function espejoShkadov() {
       uniforms: u,
       side: THREE.DoubleSide,
       transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
       vertexShader: /* glsl */ `${LOG_V}
         varying vec3 vP; varying vec2 vUv;
         void main() { vP = position; vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
@@ -116,11 +114,13 @@ export function espejoShkadov() {
         uniform float uOn; varying vec3 vP; varying vec2 vUv;
         void main() {
           #include <logdepthbuf_fragment>
-          // Facing the Sun: it shines with the light it sends back; its rim and its panels glow.
+          // A silhouette, as the habitats' mirrors: dark glass with a thin frame. Its back is black
+          // against the sky; its face, towards the Sun, holds the light it sends back.
           float rim = smoothstep(0.62, 0.67, 1.0 - vP.y);
-          float panel = smoothstep(0.47, 0.5, abs(fract(vUv.x * 64.0) - 0.5)) + smoothstep(0.47, 0.5, abs(fract(vUv.y * 10.0) - 0.5));
-          vec3 col = vec3(1.0, 0.92, 0.75) * 0.05 * (0.6 + 0.4 * vP.y) + vec3(0.6, 1.0, 0.9) * (rim * 0.6 + panel * 0.05);
-          gl_FragColor = vec4(col * uOn, 1.0);
+          float panel = smoothstep(0.48, 0.5, abs(fract(vUv.x * 64.0) - 0.5)) + smoothstep(0.48, 0.5, abs(fract(vUv.y * 10.0) - 0.5));
+          vec3 col = vec3(0.006) + vec3(0.6, 0.65, 0.7) * panel * 0.04 + vec3(0.6, 1.0, 0.9) * rim * 0.55;
+          if (!gl_FrontFacing) col += vec3(1.0, 0.9, 0.72) * 0.025 * (0.5 + 0.5 * vP.y);
+          gl_FragColor = vec4(col, uOn);
         }`,
     }),
   );
