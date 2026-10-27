@@ -97,7 +97,7 @@ export function hoy(): Acto {
       // begins at the top, where the point is (the heat goes to the void). Its physics is on the plate.
       tl.caption(6.4, 'La industria sale al espacio', 'Por el cable suben fábricas y centros de datos. En órbita, su calor se va directo al vacío sin calentar el planeta: se puede seguir creciendo, y hacia el año 2370 llegamos al tipo I.', { desde: 2.2, viaje: 'Por el ascensor espacial, hasta 36 000 km' });
       // The industry starts climbing as we do: we ride up beside it.
-      tl.label('a2.asc').with(1.0, { 'a2.wipe': 1.25 }).with(1.6, { 'a2.giro': 1 }).with(6.4, { 'a2.sube': 1 }).to(2.6, { 'a2.lr': 7.6 });
+      tl.label('a2.asc').with(0.5, { 'a2.wipe': 1.25 }).with(1.6, { 'a2.giro': 1 }).with(6.4, { 'a2.sube': 1 }).to(2.6, { 'a2.lr': 7.6 });
       tl.label('a2.sale').to(3.8, { 'a2.lp': 16.25, 'a2.ly': 2.54 });
       tl.label('a2.fin');
     },

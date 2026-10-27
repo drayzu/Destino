@@ -3,7 +3,7 @@ import type { Timeline } from '../engine/timeline';
 import { gauss, lerp, smoothstep } from '../engine/math';
 import { TEAL, cifra, nota, sup, type Muro } from '../engine/placa';
 import { texto } from '../engine/lamina';
-import { mezcla, type Vista } from '../engine/vista';
+import { mezcla, mirar, type Vista } from '../engine/vista';
 import { crearAgujero } from '../engine/agujero';
 import { materia, materiaBuilder } from '../engine/materia';
 import { type Mundo } from '../mundo/mundo';
@@ -179,7 +179,14 @@ export function final(): Acto {
     const R = radio(p);
     const enSemilla: Vista = { pos: SEMILLA.clone().add(V(0.35, 0.12, 1).normalize().multiplyScalar(Math.max(R * 2.6, 3))), target: SEMILLA.clone(), up: UP.clone(), fov: 50 };
     const dentro: Vista = { pos: SEMILLA.clone().add(V(0.35, 0.12, 1).normalize().multiplyScalar(R * 0.3)), target: SEMILLA.clone().add(V(-0.2, 0, -1).multiplyScalar(R)), up: UP.clone(), fov: 70 };
-    if (kc < 0.55) return mezcla(fuera, enSemilla, ease(0.0, 0.35, kc));
+    // First turn from the hole to the seed (a point of light beside it), then fly to it: the path
+    // never crosses the hole, and the seed stays in the middle of the view.
+    if (kc < 0.55) {
+      const tgt = mirar(fuera.pos, fuera.target, SEMILLA, ease(0.0, 0.12, kc));
+      const s = ease(0.1, 0.35, kc);
+      const pos = fuera.pos.clone().lerp(enSemilla.pos, s);
+      return { pos, target: mirar(pos, tgt, SEMILLA, ease(0.08, 0.14, kc)), up: UP.clone(), fov: lerp(fuera.fov, enSemilla.fov, s) };
+    }
     return mezcla(enSemilla, dentro, ease(0.55, 0.85, kc));
   }
 
