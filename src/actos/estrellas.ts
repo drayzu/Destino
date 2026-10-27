@@ -149,15 +149,21 @@ export function estrellas(): Acto {
   const offW = (o: THREE.Vector3) => LADO.clone().multiplyScalar(o.x).addScaledVector(ARRIBA, o.y).addScaledVector(RUMBO, o.z);
 
   /** The camera's offset from the sail (metres, world axes) and where it looks. */
+  /** Mid-cruise the camera swings round the sail to look back: the Sun, a red star behind. */
+  const vuelta = (p: number) => {
+    const kV = (p - P('a4.viaje')) / (P('a4.frenar') - P('a4.viaje'));
+    return ease(0.2, 0.36, kV) * (1 - ease(0.56, 0.72, kV));
+  };
   function montura(p: number): { off: THREE.Vector3; mira: THREE.Vector3; fov: number } {
     const kL = (p - P('a4')) / (P('a4.viaje') - P('a4'));
     const sw = ease(0.5, 0.85, kL);
-    const off = offW(LADO_ANTES.clone().lerp(DETRAS, sw));
+    const th = vuelta(p) * 2.75;
+    const off = offW(LADO_ANTES.clone().lerp(DETRAS, sw)).applyAxisAngle(ARRIBA, th);
     const { s } = vuelo(p);
     const sail = velaW(s);
     // Before it leaves: looking at the sail (the Sun and its swarm behind it). Then further and
     // further ahead of it, so the sail stays in view while the camera swings behind.
-    const ahead = sail.clone().addScaledVector(RUMBO, 1).addScaledVector(ARRIBA, 0.03);
+    const ahead = sail.clone().addScaledVector(RUMBO.clone().applyAxisAngle(ARRIBA, th), 1).addScaledVector(ARRIBA, 0.03);
     let mira = ahead.clone();
     if (p < P('a4.viaje')) {
       const t = ease(0.5, 0.9, kL);
@@ -303,6 +309,8 @@ export function estrellas(): Acto {
       // Light years away the Sun is one star among many: its beacon fades.
       const lejos = vista(p).pos.length() / LY_AU;
       e.faros = 1 - smoothstep(0.5, 6, lejos);
+      // Looking back mid-cruise: the Sun, the brightest star behind, reddened.
+      e.faroSol = 1 + 2.5 * vuelta(p);
       e.solDim = 0.9;
       e.cercanias = 0;
       e.luna = 0;
@@ -455,8 +463,10 @@ export function estrellas(): Acto {
         const anos = Math.max(0, Math.min(21.8, (s / TRAMO) * 21.8));
         cifra(g, u, W * 0.76, H * 0.24, String(Math.round(anos)), '', 58, vy, TEAL, 'años de viaje');
         if (f.lamina) {
-          texto(g, u, W / 2, H * 0.12, 'adelante: las estrellas se juntan y se ven más azules', '#9fc4ff', vy, 10.5, 'center');
-          texto(g, u, W / 2, H * 0.12 + 18 * u, 'atrás: más rojas y débiles', '#ffab8a', vy, 10.5, 'center');
+          const at = vuelta(p);
+          texto(g, u, W / 2, H * 0.12, 'adelante: las estrellas se juntan y se ven más azules', '#9fc4ff', vy * (1 - 0.6 * at), 10.5, 'center');
+          texto(g, u, W / 2, H * 0.12 + 18 * u, 'atrás: más rojas y débiles', '#ffab8a', vy * (0.4 + 0.6 * at), 10.5, 'center');
+          add(V(), 'el Sol', 30, -30, vy * ease(0.7, 0.95, at));
         }
       }
       // Faster ways that stay on paper: what physics does not allow (or nobody knows how to do).

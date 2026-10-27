@@ -1,11 +1,13 @@
-// Finds the near-empty stretches of the journey: headless Chrome (with the GPU) against the dev server
-// plays the whole timeline at 1 beat per second (sampled every `paso` beats), measures how much of
-// the film's canvas is lit, and saves a thumbnail of every frame that is almost black.
+// Finds the near-empty and the still stretches of the journey: headless Chrome (with the GPU) against
+// the dev server plays the whole timeline at 1 beat per second (sampled every `paso` beats), measures
+// how much of the film's canvas is lit and how much it changed since the beat before, and saves a
+// thumbnail of every frame that is almost black.
 //
 //   npm run dev   (in another terminal)
 //   node tools/vacios.mjs [paso=0.25] [desde=0] [hasta=end]
 //
-// Writes tools/vacios/medidas.json (beat, moment, lit fraction, mean) and tools/vacios/<beat>.jpg.
+// Writes tools/vacios/medidas.json (beat, moment, lit fraction, mean, a 24 × 14 grey thumbnail) and
+// tools/vacios/<beat>.jpg, and prints the dark stretches and the still ones (≥ 3 beats that barely change).
 import { spawn } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -85,7 +87,13 @@ for (let b = desde; b <= fin; b += paso) {
     }
     const n = d.length / 4;
     const c = destino.tl.captionAt(${b});
-    const out = { b: ${b}, nombre: c ? c.name : '', lit: lit / n, media: sum / n };
+    const mini = [];
+    for (let y = 0; y < 14; y++) for (let x = 0; x < 24; x++) {
+      let a = 0;
+      for (let yy = 0; yy < 4; yy++) for (let xx = 0; xx < 4; xx++) { const i = ((y * 4 + yy) * 96 + x * 4 + xx) * 4; a += d[i] + d[i + 1] + d[i + 2]; }
+      mini.push(Math.round(a / 48));
+    }
+    const out = { b: ${b}, nombre: c ? c.name : '', lit: lit / n, media: sum / n, mini };
     if (lit / n < 0.004) { __t.drawImage(s, 0, 0, 320, 180); out.img = __t.canvas.toDataURL('image/jpeg', 0.8); }
     return out;
   })()`);
@@ -110,6 +118,25 @@ for (const m of medidas) {
   }
 }
 if (tramo) console.log(`${tramo.desde.toFixed(2)}–${tramo.hasta.toFixed(2)}  ${tramo.nombre}`);
+// The still stretches: how much the picture changed over the last beat (mean absolute difference of
+// the thumbnails, 0–255), low for 3 beats or more.
+const porBeat = Math.round(1 / paso);
+let quieto = null;
+console.log('still:');
+for (let i = porBeat; i < medidas.length; i++) {
+  const a = medidas[i].mini;
+  const b = medidas[i - porBeat].mini;
+  let dif = 0;
+  for (let k = 0; k < a.length; k++) dif += Math.abs(a[k] - b[k]);
+  dif /= a.length;
+  if (dif < 2.5) {
+    if (!quieto) quieto = { desde: medidas[i - porBeat].b, nombre: medidas[i].nombre };
+    quieto.hasta = medidas[i].b;
+  } else if (quieto) {
+    if (quieto.hasta - quieto.desde >= 3) console.log(`${quieto.desde.toFixed(2)}–${quieto.hasta.toFixed(2)}  ${quieto.nombre}`);
+    quieto = null;
+  }
+}
 await send('Browser.close');
 chrome.kill();
 process.exit(0);
