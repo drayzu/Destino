@@ -310,7 +310,7 @@ export function sistema(): Acto {
   const VISTA_TODO: Vista = { pos: polar(0.5, TH_E - 0.3, 2.1), target: polar(0.25, TH_E - 0.2), up: UP.clone(), fov: 52 };
   const dirVen = SUN_VEN.clone().applyAxisAngle(UP, -0.95).multiplyScalar(Math.cos(0.22)).add(V(0, Math.sin(0.22), 0));
   const vVenus = (p: number): Vista => ({
-    pos: VENUS.clone().addScaledVector(dirVen.clone().applyAxisAngle(UP, 0.03 * (p - P('a3.venus'))), 4.2 * R_VEN),
+    pos: VENUS.clone().addScaledVector(dirVen.clone().applyAxisAngle(UP, 0.09 * (p - P('a3.venus'))), lerp(4.2, 3.4, ease(P('a3.venus'), P('a3.venus', 2.6), p)) * R_VEN),
     target: VENUS.clone(),
     up: UP.clone(),
     fov: 44,
