@@ -40,7 +40,7 @@
 - One shared world in astronomical units with a pivoting camera, so the metres of a space elevator and the hundred thousand light years of the galaxy are exact in the same frame.
 - Everything is points: the planets and the Sun come from a shared library of bodies drawn in points over real maps (Solar System Scope, CC BY 4.0); habitats, swarms and sails are points too, with their mirrors as silhouettes.
 - A plate layer with labels, diagrams and the source of every figure; each act has its own sound, synthesized in the browser.
-- English and Spanish. Keys: `A` plays, `S` sound, `I` the plate, `L` language.
-- TypeScript, Three.js and Vite, no framework. `npm install`, `npm run dev`. The clips above are recorded from the piece itself: `node tools/clip.mjs tools/readme.json tools/readme`, then `python tools/readme_media.py`.
+- English and Spanish. Keys: `A` plays, `S` sound, `I` the plate, `L` language; the ladder's rungs I, II and III take you to where the civilization reaches them.
+- TypeScript, Three.js and Vite, no framework. `npm install`, `npm run dev`. The clips above are recorded from the piece itself: `node tools/clip.mjs`, then `python tools/readme_media.py`.
 
 </details>
