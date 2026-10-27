@@ -317,8 +317,11 @@ function maneraPuntos(root: THREE.Group) {
   });
   root.add(caps.points);
   capas.push(caps);
-  // The mirrors: points over their plane, catching the Sun towards the camera.
-  for (const M of espejos()) {
+  // The mirrors: points over their plane, catching the Sun towards the camera (or, with
+  // ?espejos=silueta, as silhouettes: dark glass with a glint and a frame).
+  const espejosComoSilueta = new URLSearchParams(location.search).get('espejos') === 'silueta';
+  if (espejosComoSilueta) espejosSilueta(root, u);
+  for (const M of espejosComoSilueta ? [] : espejos()) {
     const n = 60000;
     const mp = new Float32Array(n * 3);
     const v = new THREE.Vector3();
@@ -369,7 +372,7 @@ function maneraPuntos(root: THREE.Group) {
     mesh.geometry.applyMatrix4(M);
     root.add(mesh);
   };
-  for (const M of espejos()) {
+  for (const M of espejosComoSilueta ? [] : espejos()) {
     const back = M.clone().multiply(new THREE.Matrix4().makeTranslation(0, 0, -0.01));
     bajo(new THREE.PlaneGeometry(ANCHO_ESPEJO, L), back, `c = uDentro > 0.5 ? vec3(0.42, 0.5, 0.62) * 0.025 : vec3(0.006);`);
   }
@@ -436,6 +439,39 @@ function luces(root: THREE.Group, uCamL: { value: THREE.Vector3 }, brillo: numbe
 }
 
 // ---------------------------------------------------------------- way 2 · silhouette
+
+/** The mirrors as silhouettes: dark glass, a glint where the Sun is reflected towards the camera, a thin frame. */
+function espejosSilueta(root: THREE.Group, u: { uCamL: { value: THREE.Vector3 }; uSun: { value: THREE.Vector3 } }) {
+  for (const M of espejos()) {
+    const nrm = V(0, 0, 1).transformDirection(M);
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(ANCHO_ESPEJO, L),
+      new THREE.ShaderMaterial({
+        uniforms: { uCamL: u.uCamL, uSun: u.uSun, uN: { value: nrm } },
+        side: THREE.DoubleSide,
+        vertexShader: /* glsl */ `${LOG_V}
+          varying vec2 vUv; varying vec3 vW;
+          void main() { vUv = uv; vW = (modelMatrix * vec4(position, 1.0)).xyz; gl_Position = projectionMatrix * viewMatrix * vec4(vW, 1.0);
+            #include <logdepthbuf_vertex>
+          }`,
+        fragmentShader: /* glsl */ `${LOG_F}
+          uniform vec3 uCamL, uSun, uN; varying vec2 vUv; varying vec3 vW;
+          void main() {
+            #include <logdepthbuf_fragment>
+            vec3 nn = dot(uN, uSun) > 0.0 ? uN : -uN;
+            float glint = pow(max(dot(reflect(-uSun, nn), normalize(uCamL - vW)), 0.0), 30.0);
+            vec2 e = min(vUv, 1.0 - vUv);
+            float edge = 1.0 - smoothstep(0.0, 0.006, min(e.x, e.y));
+            vec3 c = vec3(0.006) + vec3(1.0, 0.95, 0.88) * glint * 0.9 + vec3(0.6, 0.65, 0.7) * edge * 0.25;
+            gl_FragColor = vec4(c, 1.0);
+          }`,
+      }),
+    );
+    m.applyMatrix4(M);
+    root.add(m);
+  }
+}
+
 
 function maneraSilueta(root: THREE.Group) {
   const u = { uCamL: { value: V() }, uSun: { value: SOL.clone() }, uDentro: { value: 0 } };
@@ -510,36 +546,9 @@ function maneraSilueta(root: THREE.Group) {
     cap.position.y = (sg * L) / 2;
     root.add(cap);
   }
-  // The mirrors: dark glass, a glint where the Sun is reflected towards the camera, a thin frame.
+  // The mirrors: dark glass, a glint, a thin frame.
   const capas: Puntos[] = [];
-  for (const M of espejos()) {
-    const nrm = V(0, 0, 1).transformDirection(M);
-    const m = new THREE.Mesh(
-      new THREE.PlaneGeometry(ANCHO_ESPEJO, L),
-      new THREE.ShaderMaterial({
-        uniforms: { uCamL: u.uCamL, uSun: u.uSun, uN: { value: nrm } },
-        side: THREE.DoubleSide,
-        vertexShader: /* glsl */ `${LOG_V}
-          varying vec2 vUv; varying vec3 vW;
-          void main() { vUv = uv; vW = (modelMatrix * vec4(position, 1.0)).xyz; gl_Position = projectionMatrix * viewMatrix * vec4(vW, 1.0);
-            #include <logdepthbuf_vertex>
-          }`,
-        fragmentShader: /* glsl */ `${LOG_F}
-          uniform vec3 uCamL, uSun, uN; varying vec2 vUv; varying vec3 vW;
-          void main() {
-            #include <logdepthbuf_fragment>
-            vec3 nn = dot(uN, uSun) > 0.0 ? uN : -uN;
-            float glint = pow(max(dot(reflect(-uSun, nn), normalize(uCamL - vW)), 0.0), 30.0);
-            vec2 e = min(vUv, 1.0 - vUv);
-            float edge = 1.0 - smoothstep(0.0, 0.006, min(e.x, e.y));
-            vec3 c = vec3(0.006) + vec3(1.0, 0.95, 0.88) * glint * 0.9 + vec3(0.6, 0.65, 0.7) * edge * 0.25;
-            gl_FragColor = vec4(c, 1.0);
-          }`,
-      }),
-    );
-    m.applyMatrix4(M);
-    root.add(m);
-  }
+  espejosSilueta(root, u);
   // Navigation lights round the caps' rims, blinking.
   const nN = 48;
   const np = new Float32Array(nN * 3);
