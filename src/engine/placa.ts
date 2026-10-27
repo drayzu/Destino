@@ -297,7 +297,7 @@ function rotuloMomento(g: CanvasRenderingContext2D, u: number, H: number, cap: R
   if (fuente) {
     g.font = FONT.mono(10 * u);
     g.letterSpacing = `${0.6 * u}px`;
-    g.fillStyle = ink(0.42);
+    g.fillStyle = ink(0.55);
     g.fillText(fuente, x, bottom + 22 * u);
     g.letterSpacing = '0px';
   }

@@ -218,7 +218,7 @@ function step(now: number) {
   provisional.classList.toggle('is-in', !!acto.provisional && p > desde + 0.2);
   outro.classList.toggle('is-in', p > tl.length - 0.9);
   playBtn.classList.toggle('is-on', scroll.playing);
-  sound.update(l?.lp ?? acto.libre?.(p)?.lp ?? 13, pace, cap?.name === tx('El silencio') ? 1 : 0);
+  sound.update(l?.lp ?? acto.libre?.(p)?.lp ?? 13, pace, cap?.name === tx('El silencio') ? 1 : 0, i, mundo.estado.beta);
 }
 
 /** Adaptive quality, as in Potencias and Tiempo: fewer pixels when frames run slow, more when there is room. */
