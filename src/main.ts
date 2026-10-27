@@ -10,7 +10,7 @@ import { createPost } from './engine/post';
 import { createScroll } from './engine/scroll';
 import { FONDOS } from './engine/pantalla';
 import { ambiente } from './engine/ambiente';
-import { escalera, hud, hudLibre, idioma, regla } from './engine/placa';
+import { escalera, hud, hudLibre, idioma, peldanoEn, regla } from './engine/placa';
 import { aplicar, mezcla, proyectarMundo, type Vista } from './engine/vista';
 import { contactos } from './engine/contactos';
 import { crearSonido } from './engine/sonido';
@@ -60,6 +60,32 @@ tl.wait(1.2);
 const listo = Promise.all([mundo.listo, ...actos.map((a) => a.montar(mundo))]);
 
 const scroll = createScroll(document.querySelector<HTMLElement>('#spacer')!, tl.length);
+
+// The ladder's rungs (I, II, III) take you to where the civilization first reaches them (from act I:
+// act 0 reads the galaxy's power, not ours).
+let escaleraOn = false;
+function beatDe(lpObj: number) {
+  for (let b = tramos[1].desde; b < tl.length; b += 0.2) {
+    const l = tramos[tramoEn(b)].a.lectura(b);
+    if (l && l.lp >= lpObj) return b;
+  }
+  return null;
+}
+const rungAt = (e: MouseEvent) => {
+  if (!escaleraOn) return null;
+  const W = renderer.domElement.width;
+  const H = renderer.domElement.height;
+  const k = W / innerWidth;
+  return peldanoEn(W, H, Math.min(H / 860, W / 540), e.clientX * k, e.clientY * k);
+};
+addEventListener('click', (e) => {
+  const r = rungAt(e);
+  const b = r === null ? null : beatDe(r);
+  if (b !== null) scroll.jump(b);
+});
+addEventListener('mousemove', (e) => {
+  document.body.style.cursor = rungAt(e) !== null ? 'pointer' : '';
+});
 const sound = crearSonido();
 
 // ---------------------------------------------------------------- the page's words
@@ -196,6 +222,7 @@ function step(now: number) {
   const cap = c ? { name: tx(c.name), fact: c.fact ? tx(c.fact) : '', fuente: plateOn ? c.fuente : undefined, capitulo: `${acto.numero} · ${tx(acto.nombre)}`, viaje: c.viaje, tono } : null;
   const capFade = c ? Math.min(1, (p - c.from) / 0.45, (c.to - p) / 0.45) : 0;
   const l = acto.lectura(p);
+  escaleraOn = !!l;
   if (l) {
     hud(g, u, W, H, l, cap, introOut * capFade);
     escalera(g, u, W, H, l.lp, acto.muro?.(p) ?? null);
@@ -295,6 +322,12 @@ if (params.has('debug')) {
       step,
       at: (l: string) => tl.at(l),
       seek: (b: number | null) => scroll.freeze(b),
+      /** For recordings (tools/clip.mjs): full quality, and the page's own loop paused, so frames come only from `step`. */
+      grabar: () => {
+        fijo = true;
+        quality = 1;
+        post.setQuality(1);
+      },
       hoja: async (...a: Parameters<typeof sheets.hoja>) => {
         try {
           return await sheets.hoja(...a);

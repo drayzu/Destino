@@ -415,6 +415,25 @@ const II = 26;
 const III = 36;
 
 /** The power ladder at the right edge: fills with the civilization's colour up to where it is. */
+/** The major rung (I, II, III) under a point of the plate (in its pixels), if any: its power, to jump to. */
+export function peldanoEn(W: number, H: number, u: number, px: number, py: number): number | null {
+  const x = W - 64 * u;
+  if (px < x - 190 * u || px > x + 18 * u) return null;
+  const y0 = H - 70 * u;
+  const y1 = 86 * u;
+  let best: number | null = null;
+  let dmin = 10 * u;
+  for (const r of PELDANOS) {
+    if (!r.major) continue;
+    const d = Math.abs(y0 + ((r.lp - LP0) / (LP1 - LP0)) * (y1 - y0) - py);
+    if (d < dmin) {
+      dmin = d;
+      best = r.lp;
+    }
+  }
+  return best;
+}
+
 export function escalera(g: CanvasRenderingContext2D, u: number, W: number, H: number, lp: number, muro: Muro | null = null, vacia = 0) {
   const x = W - 64 * u;
   const y0 = H - 70 * u;

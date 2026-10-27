@@ -101,10 +101,8 @@
 - Lámina: los rótulos todavía no enlazan a sus fichas del Atlas; sonido propio del acto (fase 5).
 
 ## Pendiente del primer tramo (para pulir)
-- El acto I tiene solo el reloj: sus imágenes (células, una neurona, una ciudad, un centro de datos) son de la fase 4.
 - «Hoy»: pasa la Estación Espacial (enlace con Espacio).
-- El sonido es básico (fase 5).
-- La escalera todavía no salta al tocar sus peldaños; no hay enlaces cruzados (Espacio, Tiempo, el Atlas).
+- La escalera salta al tocar sus peldaños mayores (I, II, III): lleva a donde la civilización llega a esa potencia por primera vez (27 oct). Los enlaces cruzados están al final (Espacio, Tiempo, el Atlas, Horizontes).
 - En las hojas de contactos, el salto entre cuadros deja un poco del barrido de velocidad.
 - Móvil y modo liviano sin probar. Los planetas suman unos 2,5 millones de puntos (los lejanos se ocultan); en móvil convendría bajar sus cantidades.
 
