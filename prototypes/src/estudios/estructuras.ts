@@ -161,8 +161,9 @@ const PUNTO_CIL = /* glsl */ `
       float rib = 1.0 - smoothstep(0.0, max(0.02, paso * 0.6), abs(fract(p0.y * 1.5) - 0.5) - 0.48);
       em = vec3(0.32, 0.36, 0.4) * rib * 0.12 * min(1.0, 0.04 / max(paso, 0.001));
     } else {
-      vec3 alb = tierraCil(vec2(th * RC, p0.y), s) * (0.82 + 0.36 * hp);
+      vec3 alb = tierraCil(vec2(th * RC, p0.y), s) * (0.92 + 0.16 * hp);
       em = aire(grado(alb) * 1.1 * uDia, dCam, uDia) * uPeso;
+      if (paso < 0.04) em *= 0.75;
     }
   } else {
     vec3 nOut = normalize(vec3(p0.x, 0.0, p0.z));
@@ -242,7 +243,8 @@ function maneraPuntos(root: THREE.Group) {
       on *= mix(1.0, smoothstep(0.7, 0.95, dF / (${NVC.toFixed(1)} * sp * 0.5)), clamp(uNivel - lv, 0.0, 1.0));
       on *= step(abs(vv), ${(L / 2).toFixed(1)});
       em *= on;
-      sz = sp * 0.8;
+      // Inside, the ground is close and grazing: the points overlap so it reads as land, not foam.
+      sz = sp * mix(0.8, 1.25, uDentro);
     }`,
     uniforms: u,
   });
@@ -269,7 +271,7 @@ function maneraPuntos(root: THREE.Group) {
           vec3 c;
           if (uDentro > 0.5) {
             if (t >= 0.5) discard;
-            c = aire(grado(tierraCil(vec2(th * RC, vP.y), t / 0.5)) * 1.1 * uDia, d, uDia) * 0.6;
+            c = aire(grado(tierraCil(vec2(th * RC, vP.y), t / 0.5)) * 1.1 * uDia, d, uDia) * 0.85;
           } else {
             vec3 nOut = normalize(vec3(vP.x, 0.0, vP.z));
             c = t >= 0.5 ? vec3(0.42, 0.58, 0.72) * 0.08 : vec3(0.3) * 0.25 * smoothstep(-0.02, 0.3, dot(nOut, uSun)) + 0.003;
