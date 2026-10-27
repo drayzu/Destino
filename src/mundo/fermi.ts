@@ -93,7 +93,14 @@ export function ruinas() {
       // The last lights blink, slowly.
       if (aLit > 0.5 && aLit < 1.5) em *= 0.3 + 0.7 * step(0.6, fract(uTime * 0.35 + seed * 7.0));
       // The pieces facing the dwarf catch a little of its light.
-      if (aLit < 0.5) em *= 0.5 + 0.5 * fract(seed * 13.0);
+      if (aLit < 0.5) {
+        em *= 0.5 + 0.5 * fract(seed * 13.0);
+        // A few wrecks still tumble: as a flat face turns to the dwarf, a brief glint.
+        float vuelta = sin(uTime * (0.5 + 1.3 * fract(seed * 31.0)) + seed * 50.0);
+        float brillo = pow(max(vuelta, 0.0), 60.0) * step(0.93, fract(seed * 91.7));
+        em += vec3(0.85, 0.92, 1.0) * brillo * 5.0;
+        fuente = brillo;
+      }
       if (aLit > 1.5) fuente = 1.0;
       em *= uOn;
       occ *= uOn;`,

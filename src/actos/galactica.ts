@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { Timeline } from '../engine/timeline';
 import { lerp, smoothstep } from '../engine/math';
-import { TEAL, cifra, nota, type Muro } from '../engine/placa';
+import { TEAL, cifra, nota, rumbo, type Muro } from '../engine/placa';
 import { linea, texto } from '../engine/lamina';
 import { mezcla, mirar, vuelo, type Vista } from '../engine/vista';
 import { CENTRO } from '../mundo/galaxia';
@@ -254,6 +254,12 @@ export function galactica(): Acto {
         const q = f.proj(w);
         if (q && q.x > 0 && q.x < W && q.y > 0 && q.y < H) nota(g, u, q.x, q.y, text, dx, dy, a);
       };
+      // On the way to the dead star: where we are going.
+      const rm = ease(P('a5.filtro', 0.1), P('a5.filtro', 0.4), p) * (1 - ease(P('a5.filtro', 1.9), P('a5.filtro', 2.3), p));
+      if (rm > 0.01) {
+        const q = f.proj(RUINAS.clone().multiplyScalar(LY_AU));
+        if (q && q.x > 0 && q.x < W && q.y > 0 && q.y < H) rumbo(g, u, q.x, q.y, 'una estrella muerta', rm);
+      }
       // The bubble: how long it takes, at most.
       const bu = ease(P('a5.ola', 1.0), P('a5.ola', 1.6), p) * (1 - ease(P('a5.tipo3', 0.2), P('a5.tipo3', 0.8), p));
       cifra(g, u, W * 0.76, H * 0.24, '300', '', 58, bu, TEAL, 'millones de años, como mucho, para llenarla');
