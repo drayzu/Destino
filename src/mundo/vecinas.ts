@@ -240,7 +240,9 @@ export function vela(rejilla = 10) {
           float rib = smoothstep(0.47, 0.495, abs(fract(atan(vP.y, vP.x) / 6.2831853 * ${rejilla.toFixed(1)}) - 0.5));
           float ring = smoothstep(0.47, 0.495, abs(fract(r * 4.0) - 0.5));
           vec3 col = vec3(0.016, 0.018, 0.022) + vec3(0.2, 0.21, 0.23) * max(rib, ring) * 0.1;
-          col += vec3(0.45, 1.0, 0.85) * (1.0 - smoothstep(0.0, 0.02, 1.0 - r)) * 0.35;
+          // Its rim catches the light (so it reads as a sail, not as a hole in the sky).
+          col += vec3(0.45, 1.0, 0.85) * (1.0 - smoothstep(0.0, 0.025, 1.0 - r)) * 0.9;
+          col += vec3(0.5, 0.56, 0.62) * pow(max(1.0 - abs(dot(n, normalize(vV))), 0.0), 3.0) * 0.12;
           // A star's light, mirrored towards us.
           vec3 L = normalize(uLuzDir);
           vec3 R = reflect(-L, n);

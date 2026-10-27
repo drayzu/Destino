@@ -254,7 +254,8 @@ export function estrellas(): Acto {
       vec.points.visible = p > P('a4', -1);
       vec.u.uBubR.value = 50 * tl.get('a4.bub', p) * ease(P('a4.muro', 0.5), P('a4.muro', 2.5), p);
       // At the wall the neighbours are the subject: brighter, joined to the Sun by routes.
-      const barrio = ease(P('a4.muro', 0.3), P('a4.muro', 1.4), p) * (1 - ease(P('a4.muro', 3.6), P('a4.muro', 4.6), p));
+      // They stay until the galaxy takes over the frame, so the pull back never passes through black.
+      const barrio = ease(P('a4.muro', 0.3), P('a4.muro', 1.4), p) * (1 - ease(P('a4.muro', 5.2), P('a4.muro', 6.4), p));
       vec.u.uPiso.value = lerp(0.006, 0.5, barrio);
       rutas.mat.opacity = 0.55 * barrio * ease(P('a4.muro', 1.0), P('a4.muro', 2.2), p);
       rutas.lines.visible = rutas.mat.opacity > 0.001;

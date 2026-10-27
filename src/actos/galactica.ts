@@ -237,10 +237,10 @@ export function galactica(): Acto {
       lug.nube.u.uOn.value = Math.max(zooOn, callOn);
       lug.nube.u.uScale.value = f.k * LY_AU;
       lug.zoo.group.visible = zooOn > 0.001;
-      lug.zoo.nube.u.uGain.value = zooOn * 0.6;
+      lug.zoo.nube.u.uGain.value = zooOn * 1.3;
       for (const c of lug.calladas) {
         c.group.visible = callOn > 0.001;
-        c.nube.u.uGain.value = callOn * 0.5;
+        c.nube.u.uGain.value = callOn * 0.9;
       }
       const atRuins = v.pos.distanceTo(ly(RUINAS)) < 2000;
       ru.nube.u.uOn.value = atRuins ? 1 : 0;
