@@ -152,7 +152,7 @@ export function estrellas(): Acto {
   /** Mid-cruise the camera swings round the sail to look back: the Sun, a red star behind. */
   const vuelta = (p: number) => {
     const kV = (p - P('a4.viaje')) / (P('a4.frenar') - P('a4.viaje'));
-    return ease(0.2, 0.36, kV) * (1 - ease(0.56, 0.72, kV));
+    return ease(0.27, 0.41, kV) * (1 - ease(0.58, 0.72, kV));
   };
   function montura(p: number): { off: THREE.Vector3; mira: THREE.Vector3; fov: number } {
     const kL = (p - P('a4')) / (P('a4.viaje') - P('a4'));
@@ -467,6 +467,41 @@ export function estrellas(): Acto {
           texto(g, u, W / 2, H * 0.12, 'adelante: las estrellas se juntan y se ven más azules', '#9fc4ff', vy * (1 - 0.6 * at), 10.5, 'center');
           texto(g, u, W / 2, H * 0.12 + 18 * u, 'atrás: más rojas y débiles', '#ffab8a', vy * (0.4 + 0.6 * at), 10.5, 'center');
           add(V(), 'el Sol', 30, -30, vy * ease(0.7, 0.95, at));
+        }
+      }
+      // The aberration cone: what would be 12° from ahead is seen at 10° (cos θ' = (cos θ + β) / (1 + β cos θ)).
+      const co = ease(0.1, 0.15, kV) * (1 - ease(0.23, 0.28, kV));
+      if (f.lamina && co > 0.01) {
+        const c = f.proj(f.vista.pos.clone().addScaledVector(RUMBO, 1e4));
+        if (c) {
+          const b = vuelo(p).beta;
+          const th = (12 * Math.PI) / 180;
+          const th2 = Math.acos((Math.cos(th) + b) / (1 + b * Math.cos(th)));
+          const r1 = f.focal * Math.tan(th);
+          const r2 = f.focal * Math.tan(th2);
+          g.save();
+          g.lineWidth = 1.2 * u;
+          g.globalAlpha = co * 0.55;
+          g.strokeStyle = '#ffab8a';
+          g.setLineDash([4 * u, 5 * u]);
+          g.beginPath();
+          g.arc(c.x, c.y, r1, 0, Math.PI * 2);
+          g.stroke();
+          g.globalAlpha = co * 0.9;
+          g.strokeStyle = '#9fc4ff';
+          g.setLineDash([]);
+          g.beginPath();
+          g.arc(c.x, c.y, r2, 0, Math.PI * 2);
+          g.stroke();
+          g.restore();
+          for (let k = 0; k < 8; k++) {
+            const a = (k / 8) * Math.PI * 2 + 0.3;
+            const dx = Math.cos(a);
+            const dy = Math.sin(a);
+            flecha(g, u, { x: c.x + dx * (r1 - 2 * u), y: c.y + dy * (r1 - 2 * u) }, { x: c.x + dx * (r2 + 3 * u), y: c.y + dy * (r2 + 3 * u) }, '#9fc4ff', co * 0.8, 1.2);
+          }
+          texto(g, u, c.x + r1 * 0.72 + 8 * u, c.y - r1 * 0.72, 'quieto, a 12° de adelante', '#ffab8a', co, 10);
+          texto(g, u, c.x - r2 * 0.72 - 8 * u, c.y + r2 * 0.72 + 12 * u, 'a 0,2 c se ve a 10°', '#9fc4ff', co, 10, 'right');
         }
       }
       // Faster ways that stay on paper: what physics does not allow (or nobody knows how to do).

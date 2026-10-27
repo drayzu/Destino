@@ -181,6 +181,8 @@ const EN: Record<string, string> = {
   'de la velocidad de la luz': 'of the speed of light',
   'haz de láser · infrarrojo, invisible': 'laser beam · infrared, invisible',
   'años de viaje': 'years of travel',
+  'quieto, a 12° de adelante': 'at rest, 12° from ahead',
+  'a 0,2 c se ve a 10°': 'at 0.2 c it is seen at 10°',
   'adelante: las estrellas se juntan y se ven más azules': 'ahead: the stars bunch up and turn bluer',
   'atrás: más rojas y débiles': 'behind: redder and fainter',
   'Alfa Centauri A': 'Alpha Centauri A',
