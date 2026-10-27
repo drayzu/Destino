@@ -73,7 +73,10 @@ export function ruinas() {
       const a = (k / n) * Math.PI * 2 + gauss(b.r) * 0.01;
       // Torn: whole stretches gone.
       if (Math.sin(a * 3 + ring) + Math.sin(a * 7 + ring * 2.3) > 0.9) continue;
-      const p = V(Math.cos(a) * r, gauss(b.r) * 0.004, Math.sin(a) * r).applyQuaternion(q);
+      // Each wreck a little off its ring's plane (orbits loosened over the ages): a torn cloud, not wire.
+      const p = V(Math.cos(a) * r, gauss(b.r) * 0.004, Math.sin(a) * r)
+        .applyAxisAngle(V(gauss(b.r), gauss(b.r), gauss(b.r)).normalize(), gauss(b.r) * 0.12)
+        .applyQuaternion(q);
       // Debris drifting off the ring.
       if (b.r() < 0.25) p.add(V(gauss(b.r), gauss(b.r), gauss(b.r)).multiplyScalar(0.02));
       const lit = b.r() < 0.004;
