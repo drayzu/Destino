@@ -182,6 +182,16 @@ export function cifra(g: CanvasRenderingContext2D, u: number, x: number, y: numb
   g.globalAlpha = alpha;
   g.shadowColor = 'rgba(0,0,0,0.85)';
   g.shadowBlur = 14 * u;
+  // Kept on the screen: its line under it is the widest part (narrow screens push it in).
+  if (under) {
+    g.font = FONT.mono(10.5 * u);
+    g.letterSpacing = `${1.2 * u}px`;
+    const half = g.measureText(tr(under).toUpperCase()).width / 2;
+    const W = g.canvas.width;
+    const m = 20 * u;
+    x = half * 2 > W - 2 * m ? W / 2 : Math.min(Math.max(x, m + half), W - m - half);
+    g.letterSpacing = '0px';
+  }
   g.font = FONT.serif(px * u);
   const wb = g.measureText(base).width;
   g.font = FONT.serif(px * 0.52 * u);
@@ -219,7 +229,8 @@ export function medida(m: number) {
  * («la vista mide 12 000 km»). Only where the world is drawn to scale.
  */
 export function regla(g: CanvasRenderingContext2D, u: number, W: number, H: number, metros: number, alpha = 1) {
-  if (!(metros > 0) || alpha < 0.01) return;
+  // On a narrow (portrait) screen there is no room for it beside the clock.
+  if (!(metros > 0) || alpha < 0.01 || W / H < 0.9) return;
   // Bottom right, under the ladder, away from the clock's line.
   const w = 90 * u;
   const x0 = W - 110 * u - w;
@@ -276,7 +287,8 @@ function rotuloMomento(g: CanvasRenderingContext2D, u: number, H: number, cap: R
   g.save();
   g.globalAlpha *= alpha;
   g.font = FONT.sans(14.5 * u);
-  const lines = wrap(g, cap.fact, 500 * u);
+  // On a narrow screen the sentence keeps clear of the ladder at the right.
+  const lines = wrap(g, cap.fact, Math.min(500 * u, g.canvas.width - 150 * u));
   const fuente = cap.fuente ? tr(cap.fuente) : '';
   const bottom = H - 174 * u - (fuente ? 20 * u : 0);
   const top = bottom - (lines.length - 1) * 21 * u;
@@ -327,7 +339,13 @@ export function hud(g: CanvasRenderingContext2D, u: number, W: number, H: number
   g.letterSpacing = `${0.9 * u}px`;
   g.fillStyle = ink(0.78);
   const when = l.anio !== undefined ? (l.anio >= 2026 ? cuando(-1) : `${EN ? 'year' : 'año'} ${Math.round(l.anio)}`) : cuando(l.ly);
-  g.fillText(`${vatios(lp)} ${EN ? 'in use' : 'en uso'}  ·  ${when}  ·  ${EN ? 'reaching' : 'llega a'} ${alcance(l.lr)}`.toUpperCase(), x, H - 52 * u);
+  const a = `${vatios(lp)} ${EN ? 'in use' : 'en uso'}  ·  ${when}`.toUpperCase();
+  const b = `${EN ? 'reaching' : 'llega a'} ${alcance(l.lr)}`.toUpperCase();
+  // On a narrow screen, in two lines.
+  if (g.measureText(`${a}  ·  ${b}`).width > W - x - 90 * u) {
+    g.fillText(a, x, H - 58 * u);
+    g.fillText(b, x, H - 40 * u);
+  } else g.fillText(`${a}  ·  ${b}`, x, H - 52 * u);
   g.restore();
 }
 

@@ -164,7 +164,7 @@ function step(now: number) {
   const H = renderer.domElement.height;
   const focal = H / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
   mundo.update(camera, v.pos, k, time, focal, post.dpr);
-  const f: Cuadro = { time, dt, p, W, H, u: H / 860, dpr: post.dpr, focal, camera, vista: v, k, lamina: plateOn, proj: (w) => proyectarMundo(w, v, k, camera, W, H, { x: 0, y: 0 }) };
+  const f: Cuadro = { time, dt, p, W, H, u: Math.min(H / 860, W / 540), dpr: post.dpr, focal, camera, vista: v, k, lamina: plateOn, proj: (w) => proyectarMundo(w, v, k, camera, W, H, { x: 0, y: 0 }) };
   for (const t of tramos) t.a.update?.(f, mundo);
   for (const s of FONDOS) {
     s.seguir(camera);
