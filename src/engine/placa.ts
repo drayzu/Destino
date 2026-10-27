@@ -204,6 +204,44 @@ export function cifra(g: CanvasRenderingContext2D, u: number, x: number, y: numb
   g.restore();
 }
 
+// ---------------------------------------------------------------- the view's width
+
+/** A length in words, from micrometres to light years: «12 000 km», «3,4 UA», «100 000 años luz». */
+export function medida(m: number) {
+  if (m < 1e-3) return `${Math.round(m * 1e6)} µm`;
+  if (m < 1) return m < 0.01 ? `${coma(m * 1e3, 1)} mm` : `${Math.round(m * 100)} cm`;
+  if (m < 1e3) return `${Math.round(m)} m`;
+  return alcance(Math.log10(m));
+}
+
+/**
+ * How wide the view is, bottom right: a short rule with its length, so the jumps of scale read
+ * («la vista mide 12 000 km»). Only where the world is drawn to scale.
+ */
+export function regla(g: CanvasRenderingContext2D, u: number, W: number, H: number, metros: number, alpha = 1) {
+  if (!(metros > 0) || alpha < 0.01) return;
+  // Bottom right, under the ladder, away from the clock's line.
+  const w = 90 * u;
+  const x0 = W - 110 * u - w;
+  const y = H - 46 * u;
+  g.save();
+  g.globalAlpha *= alpha;
+  g.strokeStyle = ink(0.5);
+  g.lineWidth = Math.max(1, u);
+  g.beginPath();
+  g.moveTo(x0, y - 4 * u);
+  g.lineTo(x0, y);
+  g.lineTo(x0 + w, y);
+  g.lineTo(x0 + w, y - 4 * u);
+  g.stroke();
+  g.font = FONT.mono(10 * u);
+  g.letterSpacing = `${1.2 * u}px`;
+  g.fillStyle = ink(0.62);
+  g.textAlign = 'right';
+  g.fillText(`${EN ? 'the view is' : 'la vista mide'} ${medida(metros)}`.toUpperCase(), x0 + w, y - 10 * u);
+  g.restore();
+}
+
 // ---------------------------------------------------------------- the reading
 
 export interface Lectura {
@@ -289,7 +327,7 @@ export function hud(g: CanvasRenderingContext2D, u: number, W: number, H: number
   g.letterSpacing = `${0.9 * u}px`;
   g.fillStyle = ink(0.78);
   const when = l.anio !== undefined ? (l.anio >= 2026 ? cuando(-1) : `${EN ? 'year' : 'año'} ${Math.round(l.anio)}`) : cuando(l.ly);
-  g.fillText(`${vatios(lp)}  ·  ${when}  ·  ${EN ? 'reach' : 'alcance'} ${alcance(l.lr)}`.toUpperCase(), x, H - 52 * u);
+  g.fillText(`${vatios(lp)} ${EN ? 'in use' : 'en uso'}  ·  ${when}  ·  ${EN ? 'reaching' : 'llega a'} ${alcance(l.lr)}`.toUpperCase(), x, H - 52 * u);
   g.restore();
 }
 

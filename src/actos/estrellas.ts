@@ -200,6 +200,8 @@ export function estrellas(): Acto {
     id: 'a4',
     numero: 'IV',
     nombre: 'Estrellas vecinas',
+    // The sails are drawn with the camera, in metres: only the neighbourhood is to scale.
+    regla: (p) => p > P('a4.muro', 0.5),
     coreografia(t) {
       tl = t;
       P = (l, d = 0) => tl.at(l) + d * tl.escala;

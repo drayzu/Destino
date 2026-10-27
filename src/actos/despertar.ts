@@ -116,6 +116,7 @@ export function despertar(): Acto {
     id: 'a1',
     numero: 'I',
     nombre: 'La materia despierta',
+    regla: false,
     coreografia(t) {
       tl = t;
       P = (l, d = 0) => tl.at(l) + d * tl.escala;

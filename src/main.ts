@@ -9,7 +9,7 @@ import { Timeline } from './engine/timeline';
 import { createPost } from './engine/post';
 import { createScroll } from './engine/scroll';
 import { FONDOS } from './engine/pantalla';
-import { escalera, hud, hudLibre, idioma } from './engine/placa';
+import { escalera, hud, hudLibre, idioma, regla } from './engine/placa';
 import { aplicar, mezcla, proyectarMundo, type Vista } from './engine/vista';
 import { contactos } from './engine/contactos';
 import { crearSonido } from './engine/sonido';
@@ -200,6 +200,12 @@ function step(now: number) {
       escalera(g, u, W, H, lb.lp, null, 1);
       g.globalAlpha = 1;
     }
+  }
+  // How wide the view is, where the world is drawn to scale (fading in with the journey).
+  if (typeof acto.regla === 'function' ? acto.regla(p) : acto.regla !== false) {
+    const dAU = v.pos.distanceTo(v.target);
+    const ancho = 2 * dAU * 1.495978707e11 * Math.tan(THREE.MathUtils.degToRad(v.fov / 2)) * (W / H);
+    regla(g, u, W, H, ancho, introOut);
   }
   if (cap && cap.name !== lastCap && p > 0.3) {
     if (!cap.viaje) sound.campana();

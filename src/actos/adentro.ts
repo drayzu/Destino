@@ -83,6 +83,7 @@ export function adentro(): Acto {
     id: 'a6',
     numero: 'VI',
     nombre: 'Hacia adentro',
+    regla: false,
     coreografia(t) {
       tl = t;
       P = (l, d = 0) => tl.at(l) + d * tl.escala;

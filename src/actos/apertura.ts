@@ -80,6 +80,8 @@ export function apertura(): Acto {
     id: 'a0',
     numero: '0',
     nombre: 'Escuchar',
+    // It draws its own scale (100 000 light years).
+    regla: false,
     coreografia(t) {
       tl = t;
       P = (l, d = 0) => tl.at(l) + d * tl.escala;

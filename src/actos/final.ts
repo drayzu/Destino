@@ -187,6 +187,7 @@ export function final(): Acto {
     id: 'a8',
     numero: 'VIII',
     nombre: 'El final',
+    regla: false,
     coreografia(t) {
       tl = t;
       P = (l, d = 0) => tl.at(l) + d * tl.escala;

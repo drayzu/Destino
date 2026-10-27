@@ -50,6 +50,11 @@ export interface Acto {
   nombre: string;
   /** Still a sketch of what it will be (the page says so). */
   provisional?: boolean;
+  /**
+   * Whether the view's width can be shown (false where the world is not drawn to scale: small
+   * worlds, compressed distances, things drawn with the camera). A function decides moment by moment.
+   */
+  regla?: boolean | ((p: number) => boolean);
   /** Writes the act's moments (captions, labels, tracks) at the timeline's cursor. */
   coreografia(tl: Timeline): void;
   /** Builds what only this act needs into the world (once). */

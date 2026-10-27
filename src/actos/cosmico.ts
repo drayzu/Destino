@@ -79,6 +79,7 @@ export function cosmico(): Acto {
     id: 'a7',
     numero: 'VII',
     nombre: 'El cosmos',
+    regla: false,
     coreografia(t) {
       tl = t;
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
