@@ -576,17 +576,17 @@ export function sistema(): Acto {
       mars.group.visible = cam.distanceTo(MARS) < 400 * R_MARS;
       if (mars.group.visible) {
         const camL = cam.clone().sub(MARS).divideScalar(R_MARS);
-        mars.update(SUN_MARS, camL, time, ease(0.6, 0.95, km), ease(0.66, 1.0, km), ease(0.56, 0.84, km), ease(0.58, 0.68, km));
+        mars.update(SUN_MARS, camL, time, ease(0.6, 0.95, km), ease(0.66, 1.0, km), ease(0.56, 0.84, km), ease(0.58, 0.68, km), f);
       }
       const kv = (p - P('a3.venus')) / (P('a3.mercurio') - P('a3.venus'));
       ven.group.visible = cam.distanceTo(VENUS) < 400 * R_VEN;
       if (ven.group.visible) {
         const camL = cam.clone().sub(VENUS).divideScalar(R_VEN);
-        ven.update(SUN_VEN, camL, time, ease(0.24, 0.42, kv), ease(0.3, 0.56, kv), ease(-0.1, 0.12, kv));
+        ven.update(SUN_VEN, camL, time, ease(0.24, 0.42, kv), ease(0.3, 0.56, kv), ease(-0.1, 0.12, kv), f);
       }
       // Mercury: its pit grows. Only drawn near it (a beacon stands in from afar).
       merc.group.visible = cam.distanceTo(M) < 400 * R_MER;
-      if (merc.group.visible) merc.update(mercSunL, tl.get('a3.eat', p));
+      if (merc.group.visible) merc.update(mercSunL, tl.get('a3.eat', p), f);
       // The star, engineered: lifting from the poles; the mirror and the engine's jets.
       lift.set(ease(P('a3.lift'), P('a3.lift') + 0.8, p), f.lamina ? 1 : 0);
       const mot = ease(P('a3.motor') + 0.3, P('a3.motor') + 1.2, p);

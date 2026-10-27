@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { materia, materiaBuilder, type Nube } from '../engine/materia';
 import { gauss, smoothstep } from '../engine/math';
 import { HORIZONTE, SPHERE_PRE, esfera, textura } from './tierra';
-import { planetaPuntos } from './planeta-puntos';
+import { luna as lunaEnPuntos, mercurio as mercurioEnPuntos, type Vista } from '../horizontes';
 
 /**
  * The works of a civilization between Type I and Type II, spread over the Solar System and all
@@ -310,19 +310,12 @@ export function mercurio() {
   const group = new THREE.Group();
   group.scale.setScalar(R_MER);
   const uni = { uSun: { value: new THREE.Vector3(1, 0, 0) }, uCamL: { value: new THREE.Vector3(0, 0, 5) }, uEat: { value: 0.3 } };
-  // The ground: the real Mercury in points (planeta-puntos.ts), lit hard by a Sun three times closer
+  // The ground: the real Mercury in points (src/horizontes), lit hard by a Sun three times closer
   // than ours. Where the machines have been: a terraced pit, a grid of factories and the glowing
   // front where they cut, drawn on every point (and on the dim photograph under them).
   const tA = new THREE.Vector3(0, 1, 0).cross(MINA).normalize();
   const tB = MINA.clone().cross(tA).normalize();
-  const suelo = planetaPuntos({
-    mapa: textura('2k_mercury.jpg'),
-    aire: 0,
-    relieve: true,
-    puntos: 420000,
-    semilla: 5,
-    tinte: new THREE.Color(1.15, 1.115, 1.058),
-    fondoR: 0.994,
+  const suelo = mercurioEnPuntos(textura(''), {
     superficie: {
       uniforms: { uEat: uni.uEat, uMina: { value: MINA }, uTA: { value: tA }, uTB: { value: tB } },
       pre: /* glsl */ `
@@ -405,20 +398,19 @@ export function mercurio() {
   rail.u.uAxis.value.copy(riel.axis);
   rail.u.uSpan.value = riel.span;
   group.add(rail.points);
-  const nubes: Nube[] = [rail];
   return {
     group,
-    /** Its points (the ground's join once built). */
-    nubes,
-    listo: suelo.listo.then(() => void nubes.push(...suelo.nubes)),
+    /** Its own points (the rail); the ground draws itself. */
+    nubes: [rail] as Nube[],
+    listo: suelo.listo,
     uni,
     riel,
     /** Per frame, after the world's matrices: the Sun's direction (local); how far the pit has gone. */
-    update(sunL: THREE.Vector3, eat: number) {
+    update(sunL: THREE.Vector3, eat: number, vista: Vista) {
       uni.uSun.value.copy(sunL);
       group.worldToLocal(uni.uCamL.value.set(0, 0, 0));
       uni.uEat.value = eat;
-      suelo.update(sunL, uni.uCamL.value);
+      suelo.update({ sol: sunL, camara: uni.uCamL.value, focal: vista.focal, dpr: vista.dpr });
     },
   };
 }
@@ -448,14 +440,14 @@ export function rielMercurio() {
 // ---------------------------------------------------------------- the Moon
 
 /**
- * The Moon: the real one in points (planeta-puntos.ts), its near side (longitude 0) turned to the
+ * The Moon: the real one in points (src/horizontes), its near side (longitude 0) turned to the
  * Earth. On it, a base and its catapult. `dirTierra` is the direction from the Moon to the Earth (world).
  */
 export function luna(dirTierra: THREE.Vector3) {
   const group = new THREE.Group();
   group.scale.setScalar(R_MOON / R_E);
   group.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dirTierra.clone().normalize());
-  const suelo = planetaPuntos({ mapa: textura('2k_moon.jpg'), aire: 0, relieve: true, puntos: 320000, semilla: 51, tinte: new THREE.Color(1.0, 0.98, 0.95), fondoR: 0.995 });
+  const suelo = lunaEnPuntos(textura(''));
   group.add(suelo.group);
   const uni = { uSun: { value: new THREE.Vector3(1, 0, 0) }, uCamL: { value: new THREE.Vector3(0, 0, 5) } };
   // A base and its catapult on the near side.
@@ -468,20 +460,19 @@ export function luna(dirTierra: THREE.Vector3) {
   const base = materia(b.data(), { pre: SPHERE_PRE, move: HORIZONTE, uniforms: uni });
   base.u.uSpread.value = 0;
   group.add(base.points);
-  const nubes = [base];
   const sunL = new THREE.Vector3();
   const q = new THREE.Quaternion();
   return {
     group,
-    /** Its points (the ground's join once built). */
-    nubes,
-    listo: suelo.listo.then(() => void nubes.push(...suelo.nubes)),
+    /** Its own points (the base); the ground draws itself. */
+    nubes: [base],
+    listo: suelo.listo,
     /** Per frame, after the world's matrices: the Sun's direction (world); how present it is (0..1). */
-    update(sunW: THREE.Vector3, gain: number) {
+    update(sunW: THREE.Vector3, gain: number, vista: Vista) {
       sunL.copy(sunW).applyQuaternion(q.copy(group.quaternion).invert());
       group.worldToLocal(uni.uCamL.value.set(0, 0, 0));
       uni.uSun.value.copy(sunL);
-      suelo.update(sunL, uni.uCamL.value, gain);
+      suelo.update({ sol: sunL, camara: uni.uCamL.value, focal: vista.focal, dpr: vista.dpr, presencia: gain });
       base.u.uGain.value = gain;
     },
   };

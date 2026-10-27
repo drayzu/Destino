@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { materia, materiaBuilder, type Nube } from '../engine/materia';
 import { gauss } from '../engine/math';
-import { planetaPuntos } from './planeta-puntos';
+import { marte as marteEnPuntos, venus as venusEnPuntos, type Vista } from '../horizontes';
 import { HORIZONTE, SPHERE_PRE, textura } from './tierra';
 
 /**
@@ -14,7 +14,7 @@ import { HORIZONTE, SPHERE_PRE, textura } from './tierra';
  *   float there (Landis 2003); a parasol at the L1 point, ~1 million km towards the Sun, shades it to
  *   cool it (Birch 1991). To cover the whole disc from L1 it must be about twice as wide as Venus.
  *
- * Both are the real planets in points (planeta-puntos.ts), as the Earth, the Moon and Mercury are;
+ * Both are the real planets in points (src/horizontes, the series' shared bodies), as the Earth, the Moon and Mercury are;
  * what the civilization does to them is drawn on the same points.
  */
 
@@ -53,12 +53,7 @@ export function marte() {
   const giro = new THREE.Group();
   group.add(giro);
   const uni = { uSun: { value: V(1, 0, 0) }, uCamL: { value: V(0, 0, 5) }, uCalor: { value: 0 }, uVerde: { value: 0 } };
-  const suelo = planetaPuntos({
-    mapa: textura('2k_mars.jpg'),
-    aire: 0.3,
-    halo: { color: new THREE.Color(0.85, 0.5, 0.35), r: 1.02 },
-    puntos: 360000,
-    semilla: 16,
+  const suelo = marteEnPuntos(textura(''), {
     superficie: {
       uniforms: { uCalor: uni.uCalor, uVerde: uni.uVerde },
       pre: /* glsl */ `uniform float uCalor, uVerde;`,
@@ -148,22 +143,20 @@ export function marte() {
     group,
     giro,
     uni,
-    /** Its points (the ground's join once built). */
+    /** Its own points (domes, mirrors); the ground draws itself. */
     nubes,
-    listo: suelo.listo.then(() => void nubes.push(...suelo.nubes)),
+    listo: suelo.listo,
     espejos,
     /** Per frame: the Sun and the camera in the planet's (not turning) frame; how warm, how green, how many domes, the mirrors. */
-    update(sunL: THREE.Vector3, camL: THREE.Vector3, time: number, calor: number, verde: number, cupulas: number, espejo: number) {
+    update(sunL: THREE.Vector3, camL: THREE.Vector3, time: number, calor: number, verde: number, cupulas: number, espejo: number, vista: Vista) {
       giro.rotation.y = time * 0.01;
       const q = giro.quaternion.clone().invert();
       uni.uSun.value.copy(sunL).applyQuaternion(q);
       uni.uCamL.value.copy(camL).applyQuaternion(q);
-      suelo.update(uni.uSun.value, uni.uCamL.value);
       // Its thin pink haze, thicker and bluer as it warms.
-      if (suelo.halo) {
-        suelo.halo.uColor.value.copy(rosa).lerp(azul, calor * 0.6);
-        suelo.halo.uOn.value = 0.35 + 0.65 * calor;
-      }
+      if (suelo.halo) suelo.halo.uColor.value.copy(rosa).lerp(azul, calor * 0.6);
+      suelo.brilloHalo = 0.35 + 0.65 * calor;
+      suelo.update({ sol: uni.uSun.value, camara: uni.uCamL.value, focal: vista.focal, dpr: vista.dpr });
       uni.uCalor.value = calor;
       uni.uVerde.value = verde;
       domes.u.uCupulas.value = cupulas;
@@ -189,14 +182,7 @@ export function venus() {
   // parasol shades it, the sunlight is gone.
   const giro = new THREE.Group();
   group.add(giro);
-  const suelo = planetaPuntos({
-    mapa: textura('2k_venus_atmosphere.jpg'),
-    aire: 1,
-    halo: { color: new THREE.Color(1.0, 0.85, 0.62), r: 1.025 },
-    puntos: 300000,
-    semilla: 22,
-    // Its clouds reflect most of the light: dimmed to sit with the other planets.
-    tinte: new THREE.Color(0.5, 0.48, 0.46),
+  const suelo = venusEnPuntos(textura(''), {
     superficie: {
       uniforms: { uSombra: uni.uSombra, uBarrido: uni.uBarrido },
       pre: /* glsl */ `uniform vec3 uBarrido; uniform float uSombra;`,
@@ -266,12 +252,12 @@ export function venus() {
   return {
     group,
     uni,
-    /** Its points (the ground's join once built). */
+    /** Its own points (the cities); the clouds draw themselves. */
     nubes,
-    listo: suelo.listo.then(() => void nubes.push(...suelo.nubes)),
+    listo: suelo.listo,
     parasol,
     /** Per frame: the Sun and the camera in the planet's frame; the time; how far the parasol has opened (0..1) and its shade has swept (0..1); the cities. */
-    update(sunL: THREE.Vector3, camL: THREE.Vector3, time: number, abre: number, sombra: number, ciudades: number) {
+    update(sunL: THREE.Vector3, camL: THREE.Vector3, time: number, abre: number, sombra: number, ciudades: number, vista: Vista) {
       // The clouds turn; everything on them is lit and seen in their turning frame.
       giro.rotation.y = time * 0.03;
       const q = giro.quaternion.clone().invert();
@@ -289,8 +275,8 @@ export function venus() {
       // The shadow sweeps across the disc, from one side, as the shade slides into place.
       uni.uBarrido.value.copy(sunL).cross(V(0, 1, 0)).normalize().negate().applyQuaternion(q);
       uni.uSombra.value = sombra;
-      suelo.update(uni.uSun.value, uni.uCamL.value);
-      if (suelo.halo) suelo.halo.uOn.value = 0.45 * (1 - 0.85 * sombra);
+      suelo.brilloHalo = 0.45 * (1 - 0.85 * sombra);
+      suelo.update({ sol: uni.uSun.value, camara: uni.uCamL.value, focal: vista.focal, dpr: vista.dpr });
     },
   };
 }

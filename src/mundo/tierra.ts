@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 import { materia, materiaBuilder, type Nube } from '../engine/materia';
 import { gauss, smoothstep } from '../engine/math';
-import { planetaPuntos } from './planeta-puntos';
+import { tierra as tierraEnPuntos, type Vista } from '../horizontes';
 
 /**
  * The Earth at night, lit by a civilization: Natural Earth land (world-atlas), real cities by their
  * size, the roads between neighbours, and (as power grows) the rest of the land and the sea lit
  * too. Local units are Earth radii; the group sits wherever the Earth is.
  *
- * The ground is the real Earth in points (planeta-puntos.ts). Points on a sphere are hidden on its
+ * The ground is the real Earth in points (src/horizontes, the series' shared bodies). Points on a sphere are hidden on its
  * far side by a horizon test (`uCamL`, the camera in local units), so nothing shows through the
  * planet; the dim photograph under the points hides the sky behind it.
  */
@@ -139,12 +139,10 @@ export interface Tierra {
   group: THREE.Group;
   /** The civilization's lights. */
   nubes: Nube[];
-  /** The ground and the clouds, in points (once built). */
-  superficie: Nube[];
   /** Resolves once the land, the maps, the ground and the lights are built. */
   listo: Promise<void>;
   /** Per frame: the Sun's direction and the camera, both in the Earth's local frame; how lit the planet is (0..1). */
-  update(sunL: THREE.Vector3, camL: THREE.Vector3, lights: number): void;
+  update(sunL: THREE.Vector3, camL: THREE.Vector3, lights: number, vista: Vista): void;
 }
 
 /** A map in public/texturas (Solar System Scope, CC BY 4.0), wherever the site is served from. */
@@ -155,18 +153,9 @@ export function tierra(): Tierra {
   const nubes: Nube[] = [];
   const uni = { uSun: { value: new THREE.Vector3(1, 0, 0) }, uCamL: { value: new THREE.Vector3(0, 0, 5) }, uLights: { value: 1 }, uNuevas: { value: 0 }, uMentes: { value: 0 } };
 
-  // The ground and the clouds: the real Earth in points (planeta-puntos.ts), its air at the limb,
-  // the Sun's glint on the sea. The civilization's lights are points above it.
-  const suelo = planetaPuntos({
-    mapa: textura('2k_earth_daymap.jpg'),
-    nubes: textura('2k_earth_clouds.jpg'),
-    aire: 1,
-    mar: true,
-    halo: { color: new THREE.Color(0.35, 0.58, 1.0) },
-    puntos: 520000,
-    semilla: 4,
-    fondoR: 0.997,
-  });
+  // The ground and the clouds: the real Earth in points, its air at the limb, the Sun's glint on
+  // the sea. The civilization's lights are points above it.
+  const suelo = tierraEnPuntos(textura(''));
   group.add(suelo.group);
 
   const luces = (async () => {
@@ -256,10 +245,9 @@ export function tierra(): Tierra {
   return {
     group,
     nubes,
-    superficie: suelo.nubes,
     listo: Promise.all([suelo.listo, luces]).then(() => undefined),
-    update(sunL, camL, lit) {
-      suelo.update(sunL, camL);
+    update(sunL, camL, lit, vista) {
+      suelo.update({ sol: sunL, camara: camL, focal: vista.focal, dpr: vista.dpr });
       uni.uSun.value.copy(sunL);
       uni.uCamL.value.copy(camL);
       uni.uLights.value = lit;
