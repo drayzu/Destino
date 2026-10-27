@@ -145,27 +145,79 @@ export function neuronas() {
   return nube;
 }
 
-/** A brain (micro units, ~90 across): two hemispheres of folded cortex and the cerebellum, waves of activity. */
+/**
+ * A brain (micro units, ~65 long): two hemispheres split by the deep midline, their cortex folded into
+ * gyri (bright ridges) and sulci (dark grooves, a little deeper); the lateral fissure setting the
+ * temporal lobe apart and the central sulcus across the top; under the back, the striped cerebellum
+ * and the brain stem. Waves of activity cross it. Front is +Z, up is +Y.
+ */
 export function cerebro() {
   const b = materiaBuilder(86);
-  const fold = (x: number, y: number, z: number) => 0.06 * Math.sin(x * 0.9 + 2.0 * Math.sin(z * 0.7)) * Math.cos(y * 1.1 + z * 0.4) + 0.04 * Math.sin(z * 1.7 + y * 0.8);
+  // Value noise and its fBm, to fold the cortex.
+  const h = (x: number, y: number, z: number) => {
+    const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453;
+    return s - Math.floor(s);
+  };
+  const n3 = (x: number, y: number, z: number) => {
+    const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
+    const fx = x - ix, fy = y - iy, fz = z - iz;
+    const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy), uz = fz * fz * (3 - 2 * fz);
+    const l = (a: number, c: number, t: number) => a + (c - a) * t;
+    return l(
+      l(l(h(ix, iy, iz), h(ix + 1, iy, iz), ux), l(h(ix, iy + 1, iz), h(ix + 1, iy + 1, iz), ux), uy),
+      l(l(h(ix, iy, iz + 1), h(ix + 1, iy, iz + 1), ux), l(h(ix, iy + 1, iz + 1), h(ix + 1, iy + 1, iz + 1), ux), uy),
+      uz,
+    );
+  };
+  const warm = new THREE.Color(1.0, 0.62, 0.55);
+  const deep = new THREE.Color(0.55, 0.22, 0.2);
+  const col = new THREE.Color();
   for (const side of [-1, 1]) {
-    for (let i = 0; i < 26000; i++) {
+    for (let i = 0; i < 80000; i++) {
       const [x, y, z] = b.onSphere();
-      if (x * side < -0.15) continue;
-      const r = 1 + fold(x * 9, y * 9, z * 9);
-      const px = (x * 18 + side * 1.2) * r;
-      const py = y * 22 * r;
-      const pz = z * 32 * r;
-      if (py < -14 && pz < -10) continue;
-      b.push(px, py, pz, new THREE.Color(1.0, 0.62, 0.55), 0.18, 0.45);
+      // One hemisphere: the half facing out, its flat inner face set back from the midline.
+      if (x * side < -0.05) continue;
+      const lado = Math.abs(x);
+      // The shape: longer than tall, rounder on top, flatter beneath the front, the temporal lobe
+      // bulging low on the side.
+      let rx = 17;
+      let ry = y > 0 ? 21 : 15;
+      const rz = 31;
+      const temporal = Math.exp(-(((y + 0.45) / 0.25) ** 2) - (((z - 0.1) / 0.4) ** 2));
+      rx *= 1 + 0.14 * temporal;
+      if (y < -0.25 && z > 0.35) ry *= 0.75;
+      // The folds: gyri and sulci from the zero lines of a warped noise.
+      const w = n3(x * 2.2 + 3, y * 2.2, z * 2.2) * 1.4;
+      const f = n3(x * 4.2 + w + side * 9, y * 4.2 + w, z * 4.2 + w) - 0.5;
+      let surco = 1 - Math.min(1, Math.abs(f) / 0.06);
+      // The lateral fissure (temporal lobe below it) and the central sulcus over the top.
+      const sylvio = lado > 0.4 && z > -0.5 && z < 0.6 ? 1 - Math.min(1, Math.abs(y - (-0.22 - 0.28 * z)) / 0.035) : 0;
+      const central = y > -0.15 ? 1 - Math.min(1, Math.abs(z - (0.02 + 0.16 * y)) / 0.025) : 0;
+      surco = Math.max(surco, sylvio * 1.0, central * 0.9);
+      const r = 1 - 0.1 * surco;
+      const px = (x * rx + side * 1.8) * r;
+      const py = y * ry * r;
+      const pz = z * rz * r;
+      // The medial face is dim (seen through the midline gap); the sulci are dark.
+      const med = lado < 0.25 ? 0.4 : 1;
+      col.copy(warm).lerp(deep, surco);
+      b.push(px, py, pz, col, 0.2, (0.58 - 0.54 * surco) * med);
     }
   }
-  // The cerebellum, behind and below.
-  for (let i = 0; i < 7000; i++) {
+  // The cerebellum, under the back: two lobes in fine horizontal folia.
+  for (let i = 0; i < 12000; i++) {
     const [x, y, z] = b.onSphere();
-    const r = 1 + 0.04 * Math.sin(y * 40);
-    b.push(x * 18 * r, y * 9 * r - 16, z * 11 * r - 24, new THREE.Color(1.0, 0.55, 0.5), 0.16, 0.4);
+    const folia = Math.abs(Math.sin(y * 34 + z * 6));
+    const r = 1 - 0.05 * (1 - folia);
+    const lobe = Math.sign(x) * 1.5;
+    b.push((x * 12 + lobe) * r, y * 6 * r - 12, z * 8 * r - 19, new THREE.Color(1.0, 0.55, 0.5), 0.15, 0.2 + 0.35 * folia);
+  }
+  // The brain stem.
+  for (let i = 0; i < 2500; i++) {
+    const a = b.r() * Math.PI * 2;
+    const t = b.r();
+    const rr = 3.4 - 0.8 * t;
+    b.push(Math.cos(a) * rr, -9 - t * 14, Math.sin(a) * rr * 0.9 - 9 - t * 3, new THREE.Color(0.9, 0.5, 0.45), 0.14, 0.25);
   }
   const nube = materia(b.data(), {
     pre: /* glsl */ `uniform float uOn;`,
