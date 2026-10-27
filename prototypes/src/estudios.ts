@@ -14,6 +14,7 @@ import { ascensor } from './estudios/ascensor';
 import { apertura } from './estudios/apertura';
 import { mente } from './estudios/mente';
 import { planetas } from './estudios/planetas';
+import { estructuras } from './estudios/estructuras';
 
 /**
  * Destino's phase-0 studies: what defines the rest, each in two or three ways so Diego can choose.
@@ -21,12 +22,12 @@ import { planetas } from './estudios/planetas';
  * opening («¿Hay alguien más?») and the turn away from matter («Dejar de ser materia»). The page
  * scroll is time; nothing else moves the camera.
  *
- * URL: ?m=muro|ascensor|apertura|mente|planetas &s=1..3 (the way) &p=beat (start there) &ver=beat (freeze)
+ * URL: ?m=muro|ascensor|apertura|mente|planetas|estructuras &s=1..3 (the way) &p=beat (start there) &ver=beat (freeze)
  * &cap=1600x900 (render at that size, for captures) &clean. `?debug` leaves `estudio` in the
  * console: `estudio.hoja('docs/estudios/x.jpg', [beats], cols, width)` saves a contact sheet.
  */
 
-const ESCENAS: Escena[] = [muro, ascensor, apertura, mente, planetas];
+const ESCENAS: Escena[] = [muro, ascensor, apertura, mente, planetas, estructuras];
 const PX_PER_BEAT = 520;
 
 const params = new URLSearchParams(location.search);
