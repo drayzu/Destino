@@ -65,6 +65,11 @@
   - Lo que conserva su brillo bajo un píxel (`fuente`) se suma: a escala galáctica, las obras del sistema solar y las luces de la Tierra hacían una mancha donde está el Sol. Lejos se ocultan (`estado.faros` apaga también los faros del Sol y la Tierra).
   - Para encontrar qué dibuja un NaN: ocultar grupos con un parche a `update` del acto desde `tools/hoja.mjs` y medir el brillo medio de la foto.
 
+## Pulido general (27 de octubre, a pedido de Diego)
+- **Textos:** los 53 momentos reescritos en lenguaje llano y encadenados (cada uno parte de lo que dejó el anterior: «Pero…», «Y…», «Entonces…»). Las citas salieron del texto y van como fuente, visible solo con la lámina (`tl.caption(…, { fuente })`). Inglés al día.
+- **Interfaz:** cada rótulo lleva encima su capítulo («III · El sistema solar trabaja»), aparece y se va con un fundido, y crece hacia arriba sin tocar el reloj. Mientras la cámara viaja hacia el tema de un momento, se ve solo «→ Hacia Marte» (`{ desde, viaje }`); el rótulo del momento llega con su tema. La línea del reloj dice qué cuenta («19 TW en uso · 2026 · llega a 400 km»). Abajo a la derecha, «la vista mide 21 000 km» donde el mundo está a escala (`Acto.regla`).
+- **Visual:** la Tierra en infrarrojo como la ven los satélites (nubes frías, desiertos tibios) con la paleta del Sol; la materia de Penrose se enrojece y apaga cerca del horizonte; el vecindario de estrellas no se apaga al alejarse; el zoológico y los que callan, más visibles; el borde de la vela brilla.
+
 ## Pendiente del viaje completo (fase 5 y pulido)
 - Duración: ~10 minutos desde el 27 de octubre. Los actos se escriben a su ritmo y la línea de tiempo los estira (`tl.escala = 1.38` en `main.ts`). Los desfases fijos dentro de un momento se escriben `P('etiqueta', d)` para que se estiren igual. Capturas: `docs/fase5/`.
 - Estilo de las estructuras: Diego eligió **puntitos con espejos en silueta**, los espejos como pétalos (abiertos a 45° desde el extremo opuesto al Sol, como en O'Neill). Ya está en el cilindro de O'Neill (`src/mundo/cilindro.ts`; estudio `?m=estructuras&espejos=silueta`), en los demás hábitats (`habitats.ts`: cada superficie es un trozo de GLSL que colorea los puntos y, más tenue, la malla de debajo) y en el espejo de Shkadov (silueta). El enjambre, las velas y el motor de Caplan ya eran puntos.
