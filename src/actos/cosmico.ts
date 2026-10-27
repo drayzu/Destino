@@ -64,12 +64,12 @@ export function cosmico(): Acto {
     const k0 = (p - P('a7')) / (P('a7.prisa') - P('a7'));
     // From the Matrioshka brain (where act VI leaves us), out to the web, the Sun's point the target all along.
     const desde: Vista = { pos: V(0.55, 0.4, 0.73).normalize().multiplyScalar(42), target: V(), up: UP.clone(), fov: 36 };
-    if (p < P('a7.prisa')) return mezcla(desde, orbitar(C1, 0.05 * k0), ease(0.02, 0.45, k0));
+    if (p < P('a7.prisa')) return mezcla(desde, orbitar(C1, 0.4 * k0), ease(0.02, 0.45, k0));
     const k1 = (p - P('a7.prisa')) / (P('a7.expansivas') - P('a7.prisa'));
-    if (p < P('a7.expansivas')) return mezcla(orbitar(C1, 0.05), orbitar(C2, 0.05 * k1), ease(0, 0.5, k1));
+    if (p < P('a7.expansivas')) return mezcla(orbitar(C1, 0.4), orbitar(C2, 0.35 * k1), ease(0, 0.5, k1));
     const k2 = (p - P('a7.expansivas')) / (P('a7.fin') - P('a7.expansivas'));
     // (turning slowly all the while, so the last moments never stand still)
-    return mezcla(orbitar(C2, 0.05), orbitar(C3, 0.4 * k2), ease(0, 0.3, k2));
+    return mezcla(orbitar(C2, 0.35), orbitar(C3, 0.4 * k2), ease(0, 0.3, k2));
   }
 
   /** Our probes' front and the universe's scale factor, by beat. */
