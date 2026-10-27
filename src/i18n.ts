@@ -247,6 +247,7 @@ const EN: Record<string, string> = {
   'naves con los espejos': 'ships with the mirrors',
   'un agujero negro': 'a black hole',
   'una estrella muerta': 'a dead star',
+  'la Estación Espacial · 400 km': 'the Space Station · 400 km',
   'cómo buscamos': 'how we look',
   'radio: señales angostas, desde 1960': 'radio: narrow signals, since 1960',
   'láser: destellos de mil millonésimas de segundo': 'laser: flashes a billionth of a second long',

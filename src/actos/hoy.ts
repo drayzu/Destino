@@ -176,6 +176,33 @@ export function hoy(): Acto {
       } else if (inWall && wipe < 0) {
         texto(g, u, W / 2, 112 * u, 'infrarrojo · falso color · el calor de nuestras máquinas, realzado', '#ff9a6a', ease(P('a2.muro', 0.6), P('a2.muro', 1.1), p), 10, 'center');
       }
+      // Today, the farthest anyone lives: the Space Station, 400 km up on its tilted orbit (51.6°),
+      // a moving point of light with a short trail (sped up, like the years), hidden behind the planet.
+      const iss = ease(P('a2.hoy', 0.1), P('a2.hoy', 0.5), p) * (1 - ease(P('a2.crece', -0.2), P('a2.crece', 0.3), p));
+      if (Ep && iss > 0.01) {
+        const inc = (51.6 * Math.PI) / 180;
+        const cam = f.vista.pos.clone().sub(E);
+        const enIss = (th: number) => {
+          const w = m.tierraAMundo(V(Math.cos(th), Math.sin(th) * Math.sin(inc), Math.sin(th) * Math.cos(inc)).multiplyScalar(1 + 400 / 6371));
+          const q = f.proj(w);
+          const detras = w.clone().sub(E).dot(cam) < 0 && q !== null && Math.hypot(q.x - Ep.x, q.y - Ep.y) < rPx;
+          return detras ? null : q;
+        };
+        const th0 = 2.2 + 0.9 * (p - P('a2.hoy'));
+        g.save();
+        for (let k = 14; k >= 0; k--) {
+          const q = enIss(th0 - k * 0.012);
+          if (!q) continue;
+          g.globalAlpha = iss * (k === 0 ? 1 : 0.5 * (1 - k / 15));
+          g.fillStyle = k === 0 ? '#ffffff' : TEAL;
+          g.beginPath();
+          g.arc(q.x, q.y, (k === 0 ? 2.8 : 1.5) * u, 0, Math.PI * 2);
+          g.fill();
+        }
+        g.restore();
+        const q = enIss(th0);
+        if (q && lamina) nota(g, u, q.x, q.y, 'la Estación Espacial · 400 km', q.x > W * 0.5 ? -34 : 30, -30, iss);
+      }
       // The planet's warming, as a big number by it (while we look at it from the night side).
       const showT = ease(P('a2.hoy', 0.3), P('a2.hoy', 0.9), p) * (1 - ease(P('a2.asc', 0.2), P('a2.asc', 0.8), p));
       if (Ep && showT > 0.01) cifra(g, u, Ep.x + rPx * 0.98 + 70 * u, Ep.y - rPx * 0.62, grados(dt), '', 58, showT, dt > 3 ? '#ff8a5a' : dt > 0.4 ? '#ffb08a' : ink(0.9), 'calor de nuestra energía');

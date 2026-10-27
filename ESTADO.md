@@ -101,7 +101,7 @@
 - Lámina: los rótulos todavía no enlazan a sus fichas del Atlas; sonido propio del acto (fase 5).
 
 ## Pendiente del primer tramo (para pulir)
-- «Hoy»: pasa la Estación Espacial (enlace con Espacio).
+- «Hoy»: pasa la Estación Espacial, un punto con estela en su órbita inclinada a 400 km (acelerada como los años), oculta detrás del planeta; rotulada en la lámina (27 oct).
 - La escalera salta al tocar sus peldaños mayores (I, II, III): lleva a donde la civilización llega a esa potencia por primera vez (27 oct). Los enlaces cruzados están al final (Espacio, Tiempo, el Atlas, Horizontes).
 - En las hojas de contactos, el salto entre cuadros deja un poco del barrido de velocidad.
 - Modo liviano (pantallas táctiles o chicas, `LIVIANO` en `engine/post.ts`): menos píxeles, sin multimuestreo y cuerpos con menos de la mitad de puntos (Tierra 240 000, Sol 230 000 + corona 100 000, Mercurio 190 000, Marte 170 000, Luna 150 000, Venus 140 000). Probado en emulación de móvil (27 oct); falta un teléfono real.
