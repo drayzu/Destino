@@ -89,9 +89,18 @@ export function despertar(): Acto {
   const hacia = (p: number): Vista => noche(4.6, deriva(p));
   /** Down into the sea: the world camera dives to the ocean while the small space opens. */
   const mar = (): Vista => ({ pos: E.clone().addScaledVector(E.clone().normalize(), 1.03 * R_E), target: E.clone(), up: UP.clone(), fov: 40 });
+  /** The machines: in towards the data centres as they light, and back out for «Hoy». */
+  function maquinas(p: number): Vista {
+    const base = hacia(p);
+    const dc = m.tierraAMundo(V(...esfera(50.1, 8.7, 1.0)));
+    const dir = base.pos.clone().sub(E).normalize().lerp(dc.clone().sub(E).normalize(), 0.42).normalize();
+    return { pos: E.clone().addScaledVector(dir, 2.9 * R_E), target: E.clone().lerp(dc, 0.5), up: UP.clone(), fov: 38 };
+  }
   function vista(p: number): Vista {
     if (p < P('a1.todos')) return mezcla(desde(), mar(), ease(P('a1'), P('a1', 1.6), p));
-    return mezcla(mar(), hacia(p), ease(P('a1.todos'), P('a1.todos', 1.6), p));
+    const v = mezcla(mar(), hacia(p), ease(P('a1.todos'), P('a1.todos', 1.6), p));
+    const k = ease(P('a1.maquinas', 0.2), P('a1.maquinas', 1.9), p) * (1 - ease(P('a1.fin', -1.0), P('a1.fin'), p));
+    return k > 0 ? mezcla(v, maquinas(p), k) : v;
   }
   /** The camera in the small space (micro units): the cell, out to the nerves, out to the brain, away. */
   function micro0(p: number): { pos: THREE.Vector3; target: THREE.Vector3 } {
@@ -215,7 +224,7 @@ export function despertar(): Acto {
       const t2 = ease(P('a1.nervios', 1.4), P('a1.nervios', 1.8), p) * (1 - ease(P('a1.cerebro'), P('a1.cerebro', 0.4), p));
       texto(g, u, W / 2, H * 0.2, 'una señal corre por el axón', '#d8b8ff', t2, 11, 'center');
       const t3 = ease(P('a1.maquinas', 1.2), P('a1.maquinas', 1.6), p) * (1 - ease(P('a1.fin', -0.3), P('a1.fin'), p));
-      const q = f.proj(m.tierraAMundo(V(...esfera(39, -77.5, 1.0))));
+      const q = f.proj(m.tierraAMundo(V(...esfera(50.1, 8.7, 1.0))));
       if (q) nota(g, u, q.x, q.y, 'centros de datos', 34, -30, t3);
     },
   };
