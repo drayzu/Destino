@@ -154,6 +154,21 @@ export function final(): Acto {
   const burbuja = frente(new THREE.Color(0.8, 0.95, 1.0));
   const nuevo = comienzo();
   const nuevoG = new THREE.Group();
+  // Dyson's last mind: a shell of computers beside the hole, thinking in ever rarer bursts (each sleep
+  // longer than the last, each waking dimmer), until the counter stops.
+  const MENTE = V(0.9, 0.16, 0.42).normalize().cross(UP).normalize().multiplyScalar(-92).add(V(0, 16, 0));
+  const uPulso = { value: 0 };
+  const mente = (() => {
+    const b = materiaBuilder(808);
+    for (let i = 0; i < 2600; i++) {
+      const [x, y, z] = b.onSphere();
+      const r = 8 * (0.9 + 0.1 * b.r());
+      b.push(x * r, y * r, z * r, new THREE.Color(0.45, 1.0, 0.84), 0.45, 1);
+    }
+    return materia(b.data(), { pre: 'uniform float uPulso;', move: 'em *= 0.06 + uPulso * (0.6 + 0.4 * fract(seed * 7.13)); fuente = 1.0;', uniforms: { uPulso } });
+  })();
+  mente.u.uSpread.value = 0;
+  mente.points.position.copy(MENTE);
   nuevoG.position.copy(SEMILLA);
   nuevoG.add(burbuja.mesh, nuevo.nube.points, nuevo.fill);
 
@@ -216,8 +231,8 @@ export function final(): Acto {
     montar(mundo) {
       m = mundo;
       m.root.parent!.add(bh.mesh);
-      m.root.add(penG, nuevoG);
-      m.nubes.push(pen, nuevo.nube);
+      m.root.add(penG, nuevoG, mente.points);
+      m.nubes.push(pen, nuevo.nube, mente);
     },
     vista: (p) => vista(p),
     lectura: (p) => ({ lp: tl.get('a8.lp', p), ly: tl.get('a8.ly', p), lr: 26.1 }),
@@ -241,6 +256,22 @@ export function final(): Acto {
       const { p, time, camera, vista: v, k } = f;
       const here = p > P('a8', -0.5) && p < P('a8.fin', 2);
       penG.visible = here;
+      // The last mind: bursts at s_k = (1.55^k − 1) / (1.55^8 − 1) of the count, crowded at first
+      // (it still thinks fast), then rarer and dimmer; the last one is where the counter stops.
+      // (in beats, like the counter: from P(contados, 1.0) to P(contados, 3.6))
+      const t0 = P('a8.contados', 1.0);
+      const span = P('a8.contados', 3.6) - t0;
+      const vis = ease(P('a8.contados', 0.2), P('a8.contados', 0.8), p) * (1 - ease(P('a8.crear', -0.4), P('a8.crear', 0.4), p));
+      let pulso = 0;
+      for (let k = 0; k < 9; k++) {
+        const s = (Math.pow(1.55, k) - 1) / (Math.pow(1.55, 8) - 1);
+        const d = (p - (t0 + s * span)) / 0.09;
+        if (d > -0.3 && d < 4) pulso = Math.max(pulso, Math.exp(-Math.max(d, 0) * 1.6) * smoothstep(-0.3, 0, d) * (1 - 0.085 * k));
+      }
+      uPulso.value = p < t0 - 0.3 ? 0.6 : pulso * 2.2;
+      // After the last burst it goes dark: no more thoughts.
+      mente.u.uGain.value = here ? vis * (1 - 0.8 * ease(t0 + span + 0.3, t0 + span + 1.4, p)) : 0;
+      mente.points.visible = here && vis > 0.001;
       nuevoG.visible = here;
       bh.mesh.visible = here;
       if (!here) return;
@@ -292,6 +323,11 @@ export function final(): Acto {
         const e = Math.round(lerp(30, 70, Math.sqrt(run)));
         const stop = run > 0.995;
         cifra(g, u, W * 0.76, H * 0.24, '10', sup(e), 58, co, stop ? '#ff9a6a' : TEAL, stop ? 'pensamientos posibles, y no más · ilustrativo' : 'pensamientos posibles · ilustrativo');
+      }
+      // The last mind.
+      if (f.lamina && co > 0.01) {
+        const q = f.proj(MENTE);
+        if (q) nota(g, u, q.x, q.y, 'la última mente: piensa a ratos, cada vez más lento', -40, -48, co);
       }
       // The relay.
       const re = ease(P('a8.relevo', 2.0), P('a8.relevo', 3.0), p);

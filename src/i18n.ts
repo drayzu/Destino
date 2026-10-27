@@ -123,6 +123,7 @@ const EN: Record<string, string> = {
   'muro · la muerte térmica': 'wall · the heat death',
   'de su masa, como mucho, de un agujero que gira al máximo': 'of its mass, at most, from a hole spinning as fast as it can',
   'ergosfera: la materia entra y sale con más energía': 'ergosphere: matter goes in and comes out with more energy',
+  'la última mente: piensa a ratos, cada vez más lento': 'the last mind: it thinks in bursts, ever more slowly',
   'pensamientos posibles, y no más · ilustrativo': 'possible thoughts, and no more · illustrative',
   'pensamientos posibles · ilustrativo': 'possible thoughts · illustrative',
   'continúa en': 'continues in',
