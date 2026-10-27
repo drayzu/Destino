@@ -1,9 +1,9 @@
-// Copia de horizontes-cuerpos (a749bab) hecha por tools/copiar.mjs. Se edita allá, no aquí.
+// Copia de horizontes-cuerpos (d8c2cda) hecha por tools/copiar.mjs. Se edita allá, no aquí.
 import * as THREE from 'three';
 import { planeta, type Marco, type PlanetaOpts } from './planeta';
 import { negro } from './mapas';
 import { anillos, sombraDeAnillos } from './anillos';
-import { sol, type SolOpts } from './sol';
+import { sol, type SolOpts, type EstiloSol } from './sol';
 
 /**
  * The bodies of the Solar System, ready to use: each one's map, air, relief and haze, as the
@@ -100,4 +100,4 @@ export function saturno(base: string, o: Extra & { puntosAnillos?: number } = {}
   });
 }
 
-export { sol, type SolOpts };
+export { sol, type SolOpts, type EstiloSol };

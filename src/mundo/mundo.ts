@@ -187,8 +187,8 @@ export function crearMundo(scene: THREE.Scene) {
   return {
     root,
     nubes,
-    /** Resolves once the Earth and the Moon are built. */
-    listo: Promise.all([listoTierra, listoLuna]),
+    /** Resolves once the Sun, the Earth and the Moon are built. */
+    listo: Promise.all([listoTierra, listoLuna, sun.listo]),
     estado,
     G,
     gal,
@@ -234,7 +234,7 @@ export function crearMundo(scene: THREE.Scene) {
       const velV = estado.vel.clone().normalize().transformDirection(camera.matrixWorldInverse);
 
       // The Sun.
-      sun.update(camera, time, estado.solDim);
+      sun.update(camera, time, estado.solDim, camW, { focal, dpr });
       sun.group.visible = estado.sol > 0.001;
       // Light years away the Earth and its works are inside the Sun's pixel: their lights (which keep
       // their brightness below a pixel) would only blur it.

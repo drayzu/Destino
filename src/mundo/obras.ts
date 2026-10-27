@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { materia, materiaBuilder, type Nube } from '../engine/materia';
 import { gauss, smoothstep } from '../engine/math';
 import { HORIZONTE, SPHERE_PRE, esfera, textura } from './tierra';
-import { luna as lunaEnPuntos, mercurio as mercurioEnPuntos, type Vista } from '../horizontes';
+import { luna as lunaEnPuntos, mercurio as mercurioEnPuntos, sol as solEnPuntos, type Vista } from '../horizontes';
 
 /**
  * The works of a civilization between Type I and Type II, spread over the Solar System and all
@@ -27,10 +27,16 @@ const LOG_F = /* glsl */ `#include <logdepthbuf_pars_fragment>`;
 
 // ---------------------------------------------------------------- the Sun
 
+/**
+ * The Sun: the series' Sun in points (src/horizontes: the Atlas's star in visible light) once it is
+ * a few pixels across; below that, a small bright disk (a dot is a dot, and half a million points
+ * for one would be waste). Around it, a glow; in infrared, the disk turns a dull red past the curtain.
+ */
 export function sol() {
   const group = new THREE.Group();
   group.scale.setScalar(R_SUN);
-  const uni = { uTime: { value: 0 }, uDim: { value: 0 }, uIR: { value: 0 }, uWipePx: { value: 1e9 } };
+  const uni = { uTime: { value: 0 }, uDim: { value: 0 }, uIR: { value: 0 }, uWipePx: { value: 1e9 }, uLejos: { value: 1 } };
+  const estrella = solEnPuntos();
   const disk = new THREE.Mesh(
     new THREE.SphereGeometry(1, 96, 64),
     new THREE.ShaderMaterial({
@@ -45,7 +51,7 @@ export function sol() {
           #include <logdepthbuf_vertex>
         }`,
       fragmentShader: /* glsl */ `${LOG_F}
-        uniform float uTime, uDim, uIR, uWipePx; varying vec3 vP; varying float vMu;
+        uniform float uTime, uDim, uIR, uWipePx, uLejos; varying vec3 vP; varying float vMu;
         float h(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
         float n3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
           return mix(mix(mix(h(i), h(i + vec3(1,0,0)), f.x), mix(h(i + vec3(0,1,0)), h(i + vec3(1,1,0)), f.x), f.y),
@@ -55,13 +61,16 @@ export function sol() {
           float g = n3(vP * 14.0 + uTime * 0.05) * 0.6 + n3(vP * 40.0 - uTime * 0.08) * 0.4;
           float limb = 0.35 + 0.65 * sqrt(max(vMu, 0.0));
           vec3 c = vec3(1.0, 0.86, 0.66) * (0.85 + 0.3 * g) * limb;
-          c *= 18.0 * (1.0 - 0.75 * uDim);
+          c *= 18.0 * (1.0 - 0.75 * uDim) * uLejos;
           if (uIR > 0.5 && gl_FragCoord.x > uWipePx) c = vec3(1.0, 0.4, 0.12) * 0.6;
+          // Close, the points draw the star; this disk only hides what is behind it.
           gl_FragColor = vec4(c, 1.0);
         }`,
     }),
   );
   disk.renderOrder = -90;
+  // The points draw over it (they test depth: the disk sits just under their surface).
+  disk.scale.setScalar(0.99);
   group.add(disk);
   // The glow around it: a billboard that always faces the camera.
   const glow = new THREE.Mesh(
@@ -93,13 +102,28 @@ export function sol() {
   glow.scale.setScalar(40);
   glow.renderOrder = -89;
   group.add(glow);
+  // Children 0 and 1 stay the disk and the glow (acts reach for the glow); the points come after.
+  group.add(estrella.group);
+  const camL = new THREE.Vector3();
   return {
     group,
     uni,
-    update(camera: THREE.Camera, time: number, dim: number) {
+    listo: estrella.listo,
+    /** Per frame: the camera (its orientation, and where it is in AU), the time, how dimmed, the focal length and pixel ratio. */
+    update(camera: THREE.Camera, time: number, dim: number, camW: THREE.Vector3, vista: Vista) {
       uni.uTime.value = time;
       uni.uDim.value = dim;
       glow.quaternion.copy(camera.quaternion);
+      // How many pixels its radius spans: the points take over from the disk between 6 and 14.
+      camL.copy(camW).divideScalar(R_SUN);
+      const px = vista.focal / Math.max(camL.length(), 1e-9);
+      const cerca = smoothstep(6, 14, px);
+      uni.uLejos.value = 1 - cerca;
+      estrella.group.visible = cerca > 0.001;
+      if (estrella.group.visible) {
+        estrella.u.uBrillo.value = 2.2 * (1 - 0.5 * dim);
+        estrella.update({ sol: camL, camara: camL, focal: vista.focal, dpr: vista.dpr, tiempo: time, presencia: cerca });
+      }
     },
   };
 }
