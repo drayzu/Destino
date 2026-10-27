@@ -3,6 +3,7 @@ import { materia, materiaBuilder, type Nube } from '../engine/materia';
 import { gauss, smoothstep } from '../engine/math';
 import { HORIZONTE, SPHERE_PRE, esfera, textura } from './tierra';
 import { luna as lunaEnPuntos, mercurio as mercurioEnPuntos, sol as solEnPuntos, type Vista } from '../horizontes';
+import { LIVIANO } from '../engine/post';
 
 /**
  * The works of a civilization between Type I and Type II, spread over the Solar System and all
@@ -36,7 +37,7 @@ export function sol() {
   const group = new THREE.Group();
   group.scale.setScalar(R_SUN);
   const uni = { uTime: { value: 0 }, uDim: { value: 0 }, uIR: { value: 0 }, uWipePx: { value: 1e9 }, uLejos: { value: 1 } };
-  const estrella = solEnPuntos();
+  const estrella = solEnPuntos(LIVIANO ? { puntos: 230000, corona: 100000 } : {});
   const disk = new THREE.Mesh(
     new THREE.SphereGeometry(1, 96, 64),
     new THREE.ShaderMaterial({
@@ -344,6 +345,7 @@ export function mercurio() {
   const tA = new THREE.Vector3(0, 1, 0).cross(MINA).normalize();
   const tB = MINA.clone().cross(tA).normalize();
   const suelo = mercurioEnPuntos(textura(''), {
+    ...(LIVIANO ? { puntos: 190000 } : {}),
     superficie: {
       uniforms: { uEat: uni.uEat, uMina: { value: MINA }, uTA: { value: tA }, uTB: { value: tB } },
       pre: /* glsl */ `
@@ -475,7 +477,7 @@ export function luna(dirTierra: THREE.Vector3) {
   const group = new THREE.Group();
   group.scale.setScalar(R_MOON / R_E);
   group.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dirTierra.clone().normalize());
-  const suelo = lunaEnPuntos(textura(''));
+  const suelo = lunaEnPuntos(textura(''), LIVIANO ? { puntos: 150000 } : {});
   group.add(suelo.group);
   const uni = { uSun: { value: new THREE.Vector3(1, 0, 0) }, uCamL: { value: new THREE.Vector3(0, 0, 5) } };
   // A base and its catapult on the near side.

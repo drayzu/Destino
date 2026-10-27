@@ -63,11 +63,14 @@ const FinishShader = {
   `,
 };
 
+/** Phones and small touch screens: a lighter frame (fewer pixels, no multisampling, fewer points in the bodies). */
+export const LIVIANO = matchMedia('(pointer: coarse)').matches || Math.min(innerWidth, innerHeight) < 600;
+
 export function createPost(canvas: HTMLCanvasElement) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', logarithmicDepthBuffer: true });
   // Phones and small touch screens: fewer pixels and no multisampling (the soft points do not need
   // it; the fill rate does). The look is the same, the frame much cheaper.
-  const light = matchMedia('(pointer: coarse)').matches || Math.min(innerWidth, innerHeight) < 600;
+  const light = LIVIANO;
   const fullDpr = Math.min(window.devicePixelRatio, light ? 1.25 : 1.75);
   // Adaptive quality scales this down when frames run slow (see setQuality).
   let dpr = fullDpr;

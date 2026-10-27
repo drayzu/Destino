@@ -104,7 +104,7 @@
 - «Hoy»: pasa la Estación Espacial (enlace con Espacio).
 - La escalera salta al tocar sus peldaños mayores (I, II, III): lleva a donde la civilización llega a esa potencia por primera vez (27 oct). Los enlaces cruzados están al final (Espacio, Tiempo, el Atlas, Horizontes).
 - En las hojas de contactos, el salto entre cuadros deja un poco del barrido de velocidad.
-- Móvil y modo liviano sin probar. Los planetas suman unos 2,5 millones de puntos (los lejanos se ocultan); en móvil convendría bajar sus cantidades.
+- Modo liviano (pantallas táctiles o chicas, `LIVIANO` en `engine/post.ts`): menos píxeles, sin multimuestreo y cuerpos con menos de la mitad de puntos (Tierra 240 000, Sol 230 000 + corona 100 000, Mercurio 190 000, Marte 170 000, Luna 150 000, Venus 140 000). Probado en emulación de móvil (27 oct); falta un teléfono real.
 
 ## Los estudios de la fase 0
 `npm run dev` (puerto 5197) → `prototypes/estudios.html?m=<momento>&s=<manera>`. Capturas en `docs/estudios/`.

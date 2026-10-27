@@ -3,6 +3,7 @@ import { materia, materiaBuilder, type Nube } from '../engine/materia';
 import { gauss } from '../engine/math';
 import { marte as marteEnPuntos, venus as venusEnPuntos, type Vista } from '../horizontes';
 import { HORIZONTE, SPHERE_PRE, textura } from './tierra';
+import { LIVIANO } from '../engine/post';
 
 /**
  * The other planets at work (act III), each a group in its own radii:
@@ -54,6 +55,7 @@ export function marte() {
   group.add(giro);
   const uni = { uSun: { value: V(1, 0, 0) }, uCamL: { value: V(0, 0, 5) }, uCalor: { value: 0 }, uVerde: { value: 0 } };
   const suelo = marteEnPuntos(textura(''), {
+    ...(LIVIANO ? { puntos: 170000 } : {}),
     superficie: {
       uniforms: { uCalor: uni.uCalor, uVerde: uni.uVerde },
       pre: /* glsl */ `uniform float uCalor, uVerde;`,
@@ -186,6 +188,7 @@ export function venus() {
   const giro = new THREE.Group();
   group.add(giro);
   const suelo = venusEnPuntos(textura(''), {
+    ...(LIVIANO ? { puntos: 140000 } : {}),
     superficie: {
       uniforms: { uSombra: uni.uSombra, uBarrido: uni.uBarrido },
       pre: /* glsl */ `uniform vec3 uBarrido; uniform float uSombra;`,

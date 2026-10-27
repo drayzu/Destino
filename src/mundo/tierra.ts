@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { materia, materiaBuilder, type Nube } from '../engine/materia';
 import { gauss, smoothstep } from '../engine/math';
 import { tierra as tierraEnPuntos, type Vista } from '../horizontes';
+import { LIVIANO } from '../engine/post';
 
 /**
  * The Earth at night, lit by a civilization: Natural Earth land (world-atlas), real cities by their
@@ -155,7 +156,7 @@ export function tierra(): Tierra {
 
   // The ground and the clouds: the real Earth in points, its air at the limb, the Sun's glint on
   // the sea. The civilization's lights are points above it.
-  const suelo = tierraEnPuntos(textura(''));
+  const suelo = tierraEnPuntos(textura(''), LIVIANO ? { puntos: 240000 } : {});
   group.add(suelo.group);
 
   const luces = (async () => {
