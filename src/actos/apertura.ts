@@ -183,7 +183,8 @@ export function apertura(): Acto {
         g.arc(sq.x, sq.y, 5 * u, 0, Math.PI * 2);
         g.stroke();
         g.restore();
-        nota(g, u, sq.x, sq.y, 'nuestra voz · todo cabe en este punto', 40, 36, b2);
+        // (it gives way to «lo que hemos escuchado», on the same point)
+        nota(g, u, sq.x, sq.y, 'nuestra voz · todo cabe en este punto', 40, 36, b2 * (1 - ease(P('a0.escuchado', -0.1), P('a0.escuchado', 0.3), p)));
         const e1 = proj(CENTRO.clone().add(V(-50000, 0, 0)));
         const e2 = proj(CENTRO.clone().add(V(50000, 0, 0)));
         if (e1 && e2) {
@@ -245,6 +246,26 @@ export function apertura(): Acto {
         g.stroke();
         g.restore();
         nota(g, u, sq.x, sq.y, 'lo que hemos escuchado: casi nada', 40, 36, esc);
+      }
+      // How we look: the three ways (plate).
+      if (f.lamina && esc > 0.01) {
+        const x = W * 0.72;
+        let y = H * 0.12;
+        g.save();
+        g.globalAlpha = esc * 0.6;
+        g.strokeStyle = ink(0.7);
+        g.lineWidth = Math.max(1, u);
+        g.setLineDash([3 * u, 4 * u]);
+        g.beginPath();
+        g.moveTo(x - 130 * u, y - 15 * u);
+        g.lineTo(x + 130 * u, y - 15 * u);
+        g.stroke();
+        g.restore();
+        texto(g, u, x, y, 'cómo buscamos', ink(0.85), esc, 10.5, 'center');
+        for (const t of ['radio: señales angostas, desde 1960', 'láser: destellos de mil millonésimas de segundo', 'infrarrojo: el calor de obras enormes']) {
+          y += 19 * u;
+          texto(g, u, x, y, t, ink(0.62), esc, 10, 'center', false);
+        }
       }
       // The silence: a timer, and then nothing.
       const bk = tl.get('a0.bub', p);

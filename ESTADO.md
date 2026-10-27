@@ -92,7 +92,7 @@
 - Algunas transiciones largas dejan un cuadro vacío (la caída hacia la vela; de las ruinas al borde de la galaxia; el paso por dentro de la membrana del frente).
 - Las esferas de la lámina (la burbuja de radio, la reserva del zoológico, los que callan, el horizonte) eran paralelos y meridianos y parecían pilas de anillos; ahora son una cáscara pareja de puntos, tenue de frente y brillante en el borde, como una burbuja (27 oct).
 - Acto IV: ya está «Naves que son mundos» (27 oct): el cilindro de O'Neill como nave generacional que llega a Alfa Centauri frenando con un chorro de fusión. Faltan las sondas que se copian (están en el acto V como la burbuja) y un motor estelar llevándose una estrella; en el V, radiotelescopios que escuchan.
-- Lámina: lo que la física no permite ya está en «A un quinto de la luz» («más rápido, solo en papel»: Bussard, Alcubierre, agujeros de gusano; 27 oct). Faltan el cono de aberración y cómo buscamos a otros (radio, láser, infrarrojo).
+- Lámina: lo que la física no permite ya está en «A un quinto de la luz» («más rápido, solo en papel»: Bussard, Alcubierre, agujeros de gusano; 27 oct). «Cómo buscamos» (radio, láser, infrarrojo) está en la lámina de «Lo que hemos escuchado». Falta el cono de aberración.
 
 ## Pendiente del acto III (para pulir)
 - Algunos traslados largos tienen cuadros casi vacíos (de la Tierra a los hábitats; de Marte a la vista general).
