@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { materia, materiaBuilder, type Nube } from '../engine/materia';
 import { gauss, smoothstep } from '../engine/math';
-import { HORIZONTE, SPHERE_PRE, esfera } from './tierra';
+import { HORIZONTE, SPHERE_PRE, esfera, textura } from './tierra';
+import { planetaPuntos } from './planeta-puntos';
 
 /**
  * The works of a civilization between Type I and Type II, spread over the Solar System and all
@@ -309,87 +310,65 @@ export function mercurio() {
   const group = new THREE.Group();
   group.scale.setScalar(R_MER);
   const uni = { uSun: { value: new THREE.Vector3(1, 0, 0) }, uCamL: { value: new THREE.Vector3(0, 0, 5) }, uEat: { value: 0.3 } };
-  // The ground: craters at three sizes (spheres of a 3D cell field cut by the planet's surface),
-  // lit hard by a Sun three times closer than ours. Where the machines have been: a terraced pit,
-  // a grid of factories and the glowing front where they cut.
+  // The ground: the real Mercury in points (planeta-puntos.ts), lit hard by a Sun three times closer
+  // than ours. Where the machines have been: a terraced pit, a grid of factories and the glowing
+  // front where they cut, drawn on every point (and on the dim photograph under them).
   const tA = new THREE.Vector3(0, 1, 0).cross(MINA).normalize();
   const tB = MINA.clone().cross(tA).normalize();
-  const ground = new THREE.Mesh(
-    new THREE.SphereGeometry(1, 256, 160),
-    new THREE.ShaderMaterial({
-      uniforms: { ...uni, uMina: { value: MINA }, uTA: { value: tA }, uTB: { value: tB } },
-      vertexShader: /* glsl */ `${LOG_V}
-        varying vec3 vN;
-        void main() { vN = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          #include <logdepthbuf_vertex>
-        }`,
-      fragmentShader: /* glsl */ `${LOG_F}
-        uniform vec3 uSun, uMina, uTA, uTB; uniform float uEat;
-        varying vec3 vN;
-        vec3 hash3(vec3 p) {
+  const suelo = planetaPuntos({
+    mapa: textura('2k_mercury.jpg'),
+    aire: 0,
+    relieve: true,
+    puntos: 420000,
+    semilla: 5,
+    tinte: new THREE.Color(1.15, 1.115, 1.058),
+    fondoR: 0.994,
+    superficie: {
+      uniforms: { uEat: uni.uEat, uMina: { value: MINA }, uTA: { value: tA }, uTB: { value: tB } },
+      pre: /* glsl */ `
+        uniform vec3 uMina, uTA, uTB; uniform float uEat;
+        vec3 hashM(vec3 p) {
           p = vec3(dot(p, vec3(127.1, 311.7, 74.7)), dot(p, vec3(269.5, 183.3, 246.1)), dot(p, vec3(113.5, 271.9, 124.6)));
           return fract(sin(p) * 43758.5453);
-        }
-        float crater(vec3 p) {
-          vec3 i = floor(p), f = fract(p);
-          float h = 0.0;
-          for (int x = -1; x <= 1; x++) for (int y = -1; y <= 1; y++) for (int z = -1; z <= 1; z++) {
-            vec3 g = vec3(float(x), float(y), float(z));
-            vec3 o = hash3(i + g);
-            if (o.y < 0.4) continue;
-            float r = 0.16 + 0.32 * o.x * o.x;
-            float d = length(g + o * 0.6 + 0.2 - f) / r;
-            h += d < 1.0 ? (d * d - 1.0) * 0.7 : 0.3 * exp(-(d - 1.0) * (d - 1.0) * 10.0);
-          }
-          return h;
-        }
-        float relief(vec3 n) { return crater(n * 5.0) * 0.5 + crater(n * 14.0 + 3.1) * 0.22 + crater(n * 40.0 + 7.7) * 0.09; }
-        void main() {
-          #include <logdepthbuf_fragment>
-          vec3 n = normalize(vN);
-          vec3 t1 = normalize(cross(n, vec3(0.31, 0.92, 0.23)));
-          vec3 t2 = cross(n, t1);
-          float e0 = 0.0015;
-          float h0 = relief(n);
-          float hx = relief(normalize(n + t1 * e0));
-          float hy = relief(normalize(n + t2 * e0));
-          vec3 nn = normalize(n - ((hx - h0) * t1 + (hy - h0) * t2) / e0 * 0.012);
-          // How long ago the machines were here, and the terraces they leave.
-          float e = (1.0 - dot(n, uMina)) * 0.5 + 0.006 * sin(dot(n, uTA) * 40.0) * cos(dot(n, uTB) * 33.0);
-          float mined = 1.0 - smoothstep(uEat - 0.0015, uEat + 0.0015, e);
+        }`,
+      glsl: /* glsl */ `{
+        // How long ago the machines were here, and the terraces they leave.
+        float e = (1.0 - dot(n, uMina)) * 0.5 + 0.006 * sin(dot(n, uTA) * 40.0) * cos(dot(n, uTB) * 33.0);
+        float mined = 1.0 - smoothstep(uEat - 0.0015, uEat + 0.0015, e);
+        if (mined > 0.001) {
           float terr = fract(e * 160.0);
           vec3 nm = normalize(n + (uMina - n * dot(n, uMina)) * (smoothstep(0.0, 0.15, terr) - 0.5) * 0.6);
-          vec3 N = normalize(mix(nn, nm, mined));
-          float sun = max(dot(N, uSun), 0.0);
-          float alb = mix(0.3 + 0.12 * h0, 0.035 + 0.03 * step(0.5, terr), mined);
-          vec3 c = vec3(alb) * vec3(1.0, 0.96, 0.9) * sun * 1.5 + vec3(alb) * 0.004;
-          // Factories: districts of grids, each turned its own way and bent by the ground; some
-          // roads unfinished; knots of light where the lines cross.
+          nn = normalize(mix(nn, nm, mined));
+          alb = mix(alb, alb * (0.12 + 0.1 * step(0.5, terr)), mined);
+          // Factories: districts of grids, each turned its own way and bent by the ground; some roads
+          // unfinished; knots of light where the lines cross; sparks up close.
           vec2 q0 = vec2(dot(n, uTA), dot(n, uTB)) * 26.0;
-          vec3 dist = hash3(floor(vec3(q0 * 0.22, 1.0)));
+          vec3 dist = hashM(floor(vec3(q0 * 0.22, 1.0)));
           float ang = (dist.x - 0.5) * 1.2;
-          vec2 q = mat2(cos(ang), -sin(ang), sin(ang), cos(ang)) * q0 * (0.8 + 0.5 * dist.y);
+          float esc = 0.8 + 0.5 * dist.y;
+          vec2 q = mat2(cos(ang), -sin(ang), sin(ang), cos(ang)) * q0 * esc;
           q += vec2(sin(q0.y * 0.37 + dist.z * 6.0), cos(q0.x * 0.31 + dist.x * 6.0)) * 0.35;
           vec2 gq = abs(fract(q) - 0.5);
-          vec2 w = fwidth(q) * 1.2;
-          vec3 cell = hash3(floor(q.xyx) + 3.0);
-          float line = max(smoothstep(0.485 - w.x, 0.485, gq.x) * step(0.25, cell.y), smoothstep(0.485 - w.y, 0.485, gq.y) * step(0.25, cell.z));
-          float fine = 1.0 - smoothstep(0.08, 0.35, max(w.x, w.y));
-          line *= fine;
-          float knot = (1.0 - smoothstep(0.0, 0.06, length(gq - 0.5))) * step(0.6, hash3(floor(q.xyx)).x) * fine;
+          vec3 cell = hashM(floor(q.xyx) + 3.0);
+          // A thin line in points: as wide as the points are apart, dimmed by how much thinner it is.
+          float wq = paso * 26.0 * esc;
+          float hw = max(0.015, wq * 0.5);
+          float line = max(step(0.5 - hw, gq.x) * step(0.25, cell.y), step(0.5 - hw, gq.y) * step(0.25, cell.z)) * 0.03 / max(0.03, wq);
+          float kr = max(0.06, wq * 0.5);
+          float knot = step(length(gq - 0.5), kr) * step(0.6, hashM(vec3(floor(q + 0.5), 7.0)).x) * (0.06 / kr) * (0.06 / kr);
           vec2 q2 = vec2(dot(n, uTA), dot(n, uTB)) * 400.0;
-          vec2 w2 = fwidth(q2);
-          float spark = (1.0 - smoothstep(0.0, 0.18, length(fract(q2) - 0.5))) * step(0.93, hash3(floor(q2.xyx) + 5.0).x) * (1.0 - smoothstep(0.1, 0.4, max(w2.x, w2.y)));
-          c += mined * vec3(0.35, 1.0, 0.82) * (line * 0.08 + knot * 1.2 + spark * 1.4);
-          // The front where they cut: a ragged line of light.
-          float fr = (e - uEat) / 0.0025;
-          c += vec3(0.6, 1.0, 0.9) * exp(-fr * fr) * 2.2;
-          gl_FragColor = vec4(c, 1.0);
-        }`,
-    }),
-  );
-  ground.renderOrder = -50;
-  group.add(ground);
+          float w2 = paso * 400.0;
+          float spark = step(length(fract(q2) - 0.5), max(0.18, w2 * 0.5)) * step(0.93, hashM(floor(q2.xyx) + 5.0).x) * (1.0 - smoothstep(0.1, 0.4, w2));
+          extra += mined * vec3(0.35, 1.0, 0.82) * (line * 0.08 + knot * 1.2 + spark * 1.4);
+        }
+        // The front where they cut: a ragged line of light.
+        float fw = max(0.0025, paso * 0.35);
+        float fr = (e - uEat) / fw;
+        extra += vec3(0.6, 1.0, 0.9) * exp(-fr * fr) * 2.2 * (0.0025 / fw);
+      }`,
+    },
+  });
+  group.add(suelo.group);
 
   // The mass driver: a rail across the pit, lights along it, payloads that run and leave.
   const riel = rielMercurio();
@@ -426,7 +405,22 @@ export function mercurio() {
   rail.u.uAxis.value.copy(riel.axis);
   rail.u.uSpan.value = riel.span;
   group.add(rail.points);
-  return { group, nubes: [rail], uni, riel };
+  const nubes: Nube[] = [rail];
+  return {
+    group,
+    /** Its points (the ground's join once built). */
+    nubes,
+    listo: suelo.listo.then(() => void nubes.push(...suelo.nubes)),
+    uni,
+    riel,
+    /** Per frame, after the world's matrices: the Sun's direction (local); how far the pit has gone. */
+    update(sunL: THREE.Vector3, eat: number) {
+      uni.uSun.value.copy(sunL);
+      group.worldToLocal(uni.uCamL.value.set(0, 0, 0));
+      uni.uEat.value = eat;
+      suelo.update(sunL, uni.uCamL.value);
+    },
+  };
 }
 
 /** The rail: a great-circle arc over Mercury, slightly above the pit floor (local units). */
@@ -453,39 +447,44 @@ export function rielMercurio() {
 
 // ---------------------------------------------------------------- the Moon
 
-export function luna() {
+/**
+ * The Moon: the real one in points (planeta-puntos.ts), its near side (longitude 0) turned to the
+ * Earth. On it, a base and its catapult. `dirTierra` is the direction from the Moon to the Earth (world).
+ */
+export function luna(dirTierra: THREE.Vector3) {
   const group = new THREE.Group();
   group.scale.setScalar(R_MOON / R_E);
-  const core = new THREE.Mesh(new THREE.SphereGeometry(0.99, 48, 32), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-  core.renderOrder = -50;
-  group.add(core);
+  group.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dirTierra.clone().normalize());
+  const suelo = planetaPuntos({ mapa: textura('2k_moon.jpg'), aire: 0, relieve: true, puntos: 320000, semilla: 51, tinte: new THREE.Color(1.0, 0.98, 0.95), fondoR: 0.995 });
+  group.add(suelo.group);
   const uni = { uSun: { value: new THREE.Vector3(1, 0, 0) }, uCamL: { value: new THREE.Vector3(0, 0, 5) } };
-  const b = materiaBuilder(51);
-  const N = 40000;
-  const golden = Math.PI * (3 - Math.sqrt(5));
-  for (let i = 0; i < N; i++) {
-    const yv = 1 - (2 * (i + 0.5)) / N;
-    const rr = Math.sqrt(1 - yv * yv);
-    const th = i * golden;
-    const mare = Math.sin(th * 3.1) * Math.cos(yv * 4.0) > 0.35 ? 0.55 : 1;
-    b.push(Math.cos(th) * rr, yv, Math.sin(th) * rr, new THREE.Color(0.75, 0.74, 0.72).multiplyScalar(mare * (0.8 + 0.2 * b.r())), 0.02, 1);
-  }
   // A base and its catapult on the near side.
+  const b = materiaBuilder(51);
   for (let k = 0; k < 600; k++) {
     const s = k / 600;
     const [x, y, z] = esfera(5 + (s - 0.5) * 30, -20, 1.004);
-    b.push(x, y, z, new THREE.Color(0.7, 1.0, 0.9), 0.012, k % 25 === 0 ? 5 : 1.6);
+    b.push(x, y, z, new THREE.Color(0.7, 1.0, 0.9), 0.006, k % 25 === 0 ? 5 : 1.6);
   }
-  const surf = materia(b.data(), {
-    pre: SPHERE_PRE,
-    move: /* glsl */ `
-      float d = dot(normalize(p), uSun);
-      if (color.g < color.r * 1.2) em *= 0.004 + smoothstep(-0.05, 0.2, d) * 1.2;
-      ${HORIZONTE}`,
-    uniforms: uni,
-  });
-  group.add(surf.points);
-  return { group, nubes: [surf], uni };
+  const base = materia(b.data(), { pre: SPHERE_PRE, move: HORIZONTE, uniforms: uni });
+  base.u.uSpread.value = 0;
+  group.add(base.points);
+  const nubes = [base];
+  const sunL = new THREE.Vector3();
+  const q = new THREE.Quaternion();
+  return {
+    group,
+    /** Its points (the ground's join once built). */
+    nubes,
+    listo: suelo.listo.then(() => void nubes.push(...suelo.nubes)),
+    /** Per frame, after the world's matrices: the Sun's direction (world); how present it is (0..1). */
+    update(sunW: THREE.Vector3, gain: number) {
+      sunL.copy(sunW).applyQuaternion(q.copy(group.quaternion).invert());
+      group.worldToLocal(uni.uCamL.value.set(0, 0, 0));
+      uni.uSun.value.copy(sunL);
+      suelo.update(sunL, uni.uCamL.value, gain);
+      base.u.uGain.value = gain;
+    },
+  };
 }
 
 // ---------------------------------------------------------------- around the Earth (Earth radii)

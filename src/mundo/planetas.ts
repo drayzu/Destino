@@ -1,7 +1,8 @@
 import * as THREE from 'three';
-import { materia, materiaBuilder } from '../engine/materia';
+import { materia, materiaBuilder, type Nube } from '../engine/materia';
 import { gauss } from '../engine/math';
-import { HORIZONTE, SPHERE_PRE } from './tierra';
+import { planetaPuntos } from './planeta-puntos';
+import { HORIZONTE, SPHERE_PRE, textura } from './tierra';
 
 /**
  * The other planets at work (act III), each a group in its own radii:
@@ -12,6 +13,9 @@ import { HORIZONTE, SPHERE_PRE } from './tierra';
  * - Venus, in the shade. At ~50 km over the surface the air is at ~1 bar and 0–50 °C, and cities
  *   float there (Landis 2003); a parasol at the L1 point, ~1 million km towards the Sun, shades it to
  *   cool it (Birch 1991). To cover the whole disc from L1 it must be about twice as wide as Venus.
+ *
+ * Both are the real planets in points (planeta-puntos.ts), as the Earth, the Moon and Mercury are;
+ * what the civilization does to them is drawn on the same points.
  */
 
 export const R_MARS = 3389.5 / 1.495978707e8;
@@ -25,22 +29,16 @@ const LOG_V = /* glsl */ `
   #include <common>
   #include <logdepthbuf_pars_vertex>`;
 const LOG_F = /* glsl */ `#include <logdepthbuf_pars_fragment>`;
-const NOISE3 = /* glsl */ `
-  float h3(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
-  float n3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(mix(h3(i), h3(i + vec3(1,0,0)), f.x), mix(h3(i + vec3(0,1,0)), h3(i + vec3(1,1,0)), f.x), f.y),
-               mix(mix(h3(i + vec3(0,0,1)), h3(i + vec3(1,0,1)), f.x), mix(h3(i + vec3(0,1,1)), h3(i + vec3(1,1,1)), f.x), f.y), f.z); }
-  float fbm(vec3 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++) { s += a * n3(p); p = p * 2.03 + 1.7; a *= 0.5; } return s; }`;
-
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
-const toXYZ = (la: number, lo: number, r = 1) => V(Math.cos(la) * Math.cos(lo) * r, Math.sin(la) * r, Math.cos(la) * Math.sin(lo) * r);
+/** Latitude and longitude (radians, east positive) to the planet's frame, as the maps have them. */
+const toXYZ = (la: number, lo: number, r = 1) => V(Math.cos(la) * Math.cos(lo) * r, Math.sin(la) * r, -Math.cos(la) * Math.sin(lo) * r);
 
 // ---------------------------------------------------------------- Mars
 
 /** Where the domes are (latitude, longitude in radians): basins and canyons first. */
 const CUPULAS: [number, number, number][] = [
-  [-0.75, 1.2, 1.4], // Hellas
-  [-0.2, -1.2, 1.2], // Valles Marineris
+  [-0.74, 1.23, 1.4], // Hellas
+  [-0.24, -1.03, 1.2], // Valles Marineris
   [0.08, 1.35, 0.8],
   [0.35, -0.4, 0.7],
   [-0.4, 2.6, 0.6],
@@ -55,59 +53,38 @@ export function marte() {
   const giro = new THREE.Group();
   group.add(giro);
   const uni = { uSun: { value: V(1, 0, 0) }, uCamL: { value: V(0, 0, 5) }, uCalor: { value: 0 }, uVerde: { value: 0 } };
-  const ground = new THREE.Mesh(
-    new THREE.SphereGeometry(1, 160, 96),
-    new THREE.ShaderMaterial({
-      uniforms: uni,
-      vertexShader: /* glsl */ `${LOG_V}
-        uniform vec3 uCamL;
-        varying vec3 vN; varying vec3 vW; varying float vMu;
-        void main() { vN = position; vW = (modelMatrix * vec4(position, 1.0)).xyz;
-          vec4 mv = modelViewMatrix * vec4(position, 1.0);
-          vMu = max(dot(normalize(normalMatrix * normal), normalize(-mv.xyz)), 0.0);
-          gl_Position = projectionMatrix * mv;
-          #include <logdepthbuf_vertex>
-        }`,
-      fragmentShader: /* glsl */ `${LOG_F}
-        uniform vec3 uSun; uniform float uCalor, uVerde;
-        varying vec3 vN; varying float vMu;
-        ${NOISE3}
-        void main() {
-          #include <logdepthbuf_fragment>
-          vec3 n = normalize(vN);
-          // The ground: rust and ochre, dark plains, craters.
-          float a = fbm(n * 3.0);
-          float dark = smoothstep(0.52, 0.66, fbm(n * 1.6 + 4.0));
-          vec3 col = mix(vec3(0.58, 0.29, 0.14), vec3(0.74, 0.48, 0.28), a);
-          col = mix(col, vec3(0.3, 0.17, 0.1), dark * 0.7);
+  const suelo = planetaPuntos({
+    mapa: textura('2k_mars.jpg'),
+    aire: 0.3,
+    halo: { color: new THREE.Color(0.85, 0.5, 0.35), r: 1.02 },
+    puntos: 360000,
+    semilla: 16,
+    superficie: {
+      uniforms: { uCalor: uni.uCalor, uVerde: uni.uVerde },
+      pre: /* glsl */ `uniform float uCalor, uVerde;`,
+      glsl: /* glsl */ `
+        if (uVerde > 0.001 || uCalor > 0.001) {
           // How low the ground is: the north is lower, and so is Hellas, deep in the south.
-          vec3 hellas = normalize(vec3(cos(-0.75) * cos(1.2), sin(-0.75), cos(-0.75) * sin(1.2)));
-          float low = (1.0 - fbm(n * 2.2 + 9.0)) * 0.7 + 0.35 * n.y + 0.5 * smoothstep(0.88, 0.97, dot(n, hellas));
+          float a = fbm(n * 3.0);
+          float low = (1.0 - fbm(n * 2.2 + 9.0)) * 0.7 + 0.35 * n.y + 0.5 * smoothstep(0.88, 0.97, dot(n, dirDe(-0.74, 1.23)));
+          float on = step(0.001, uVerde);
           // What the warming brings: water in the deepest ground, a green that spreads from it.
-          float sea = smoothstep(0.9 - 0.1 * uVerde, 0.91 - 0.1 * uVerde, low) * step(0.001, uVerde);
-          float green = smoothstep(0.86 - 0.34 * uVerde, 0.89 - 0.34 * uVerde, low) * step(0.001, uVerde);
-          col = mix(col, mix(vec3(0.1, 0.2, 0.08), vec3(0.2, 0.28, 0.1), a), green * 0.85);
-          col = mix(col, vec3(0.04, 0.1, 0.16), sea);
+          float sea = smoothstep(0.9 - 0.1 * uVerde, 0.91 - 0.1 * uVerde, low) * on;
+          float green = smoothstep(0.86 - 0.34 * uVerde, 0.89 - 0.34 * uVerde, low) * on;
+          float l = dot(alb, vec3(0.3, 0.5, 0.2));
+          alb = mix(alb, mix(vec3(0.04, 0.09, 0.02), vec3(0.08, 0.14, 0.03), a) * clamp(l / 0.2, 0.5, 1.5), green * 0.85);
+          alb = mix(alb, vec3(0.005, 0.02, 0.05), sea);
           // Where it is advancing: a faint seam of light.
           float edge = 0.86 - 0.34 * uVerde;
-          col += vec3(0.4, 1.0, 0.8) * exp(-((low - edge) / 0.008) * ((low - edge) / 0.008)) * 0.12 * step(0.001, uVerde) * (1.0 - sea);
-          // The caps: the south one shrinks as the mirrors warm it.
-          float south = smoothstep(0.86 + 0.08 * uCalor, 0.88 + 0.08 * uCalor, -n.y + 0.03 * fbm(n * 8.0));
-          float north = smoothstep(0.9, 0.92, n.y + 0.03 * fbm(n * 8.0 + 2.0));
-          col = mix(col, vec3(0.92, 0.92, 0.9), max(south, north));
-          // Light: the Sun, a thin pink haze at the edge (thicker as it warms).
-          float sun = dot(n, uSun);
-          float lit = smoothstep(-0.05, 0.25, sun);
-          vec3 c = col * lit * 0.6;
-          // The night side: barely there, so its outline (and its lights) can be read.
-          c += col * 0.02 * (1.0 - lit);
-          float rim = pow(max(1.0 - vMu, 0.0), 3.0) * smoothstep(-0.2, 0.3, sun);
-          c += mix(vec3(0.85, 0.5, 0.35), vec3(0.55, 0.7, 0.95), uCalor * 0.6) * rim * (0.15 + 0.25 * uCalor);
-          gl_FragColor = vec4(c, 1.0);
+          extra += vec3(0.4, 1.0, 0.8) * exp(-((low - edge) / 0.008) * ((low - edge) / 0.008)) * 0.12 * on * (1.0 - sea);
+          // The south cap shrinks as the mirrors warm it.
+          float blanco = smoothstep(0.12, 0.35, alb.b) * step(n.y, 0.0);
+          float lim = mix(0.975, 1.001, uCalor);
+          alb = mix(alb, vec3(0.36, 0.1, 0.03), blanco * (1.0 - smoothstep(lim - 0.006, lim, -n.y)) * step(0.001, uCalor));
         }`,
-    }),
-  );
-  giro.add(ground);
+    },
+  });
+  giro.add(suelo.group);
 
   // The domes: clusters of light, faint glints by day, warm by night.
   const b = materiaBuilder(1606);
@@ -164,11 +141,16 @@ export function marte() {
   mirrors.u.uSpread.value = 0;
   group.add(mirrors.points);
 
+  const nubes: Nube[] = [domes, mirrors];
+  const rosa = new THREE.Color(0.85, 0.5, 0.35);
+  const azul = new THREE.Color(0.55, 0.7, 0.95);
   return {
     group,
     giro,
     uni,
-    nubes: [domes, mirrors],
+    /** Its points (the ground's join once built). */
+    nubes,
+    listo: suelo.listo.then(() => void nubes.push(...suelo.nubes)),
     espejos,
     /** Per frame: the Sun and the camera in the planet's (not turning) frame; how warm, how green, how many domes, the mirrors. */
     update(sunL: THREE.Vector3, camL: THREE.Vector3, time: number, calor: number, verde: number, cupulas: number, espejo: number) {
@@ -176,6 +158,12 @@ export function marte() {
       const q = giro.quaternion.clone().invert();
       uni.uSun.value.copy(sunL).applyQuaternion(q);
       uni.uCamL.value.copy(camL).applyQuaternion(q);
+      suelo.update(uni.uSun.value, uni.uCamL.value);
+      // Its thin pink haze, thicker and bluer as it warms.
+      if (suelo.halo) {
+        suelo.halo.uColor.value.copy(rosa).lerp(azul, calor * 0.6);
+        suelo.halo.uOn.value = 0.35 + 0.65 * calor;
+      }
       uni.uCalor.value = calor;
       uni.uVerde.value = verde;
       domes.u.uCupulas.value = cupulas;
@@ -197,47 +185,25 @@ export function venus() {
     uSombra: { value: 0 },
     uBarrido: { value: V(0, 0, 1) },
   };
-  const clouds = new THREE.Mesh(
-    new THREE.SphereGeometry(1, 160, 96),
-    new THREE.ShaderMaterial({
-      uniforms: uni,
-      vertexShader: /* glsl */ `${LOG_V}
-        varying vec3 vN; varying float vMu;
-        void main() { vN = position;
-          vec4 mv = modelViewMatrix * vec4(position, 1.0);
-          vMu = max(dot(normalize(normalMatrix * normal), normalize(-mv.xyz)), 0.0);
-          gl_Position = projectionMatrix * mv;
-          #include <logdepthbuf_vertex>
-        }`,
-      fragmentShader: /* glsl */ `${LOG_F}
-        uniform vec3 uSun, uBarrido; uniform float uTime, uSombra;
-        varying vec3 vN; varying float vMu;
-        ${NOISE3}
-        void main() {
-          #include <logdepthbuf_fragment>
-          vec3 n = normalize(vN);
-          float lat = asin(clamp(n.y, -1.0, 1.0));
-          float lon = atan(n.z, n.x);
-          // The clouds race round the planet (four days a lap), in chevrons that open towards the poles.
-          float l2 = lon + uTime * 0.03 + 0.9 * abs(lat);
-          vec3 q = vec3(cos(l2) * cos(lat), sin(lat) * 3.0, sin(l2) * cos(lat));
-          float f = fbm(q * vec3(2.0, 1.2, 2.0) + fbm(q * 3.0) * 0.8);
-          vec3 col = mix(vec3(0.78, 0.66, 0.46), vec3(0.96, 0.92, 0.8), smoothstep(0.3, 0.75, f));
-          // Lit by the Sun, softly (the light goes deep into the haze) and less where the parasol shades it.
-          float sun = dot(n, uSun);
-          float lit = smoothstep(-0.2, 0.6, sun);
-          float shade = smoothstep(-0.12, 0.12, dot(n, uBarrido) - 1.15 + 2.3 * uSombra);
-          float light = mix(1.0, 0.04, shade);
-          vec3 c = col * lit * light * 0.5;
-          c += col * 0.018 * (1.0 - lit * light);
-          // The bright haze at the edge.
-          float rim = pow(max(1.0 - vMu, 0.0), 2.5) * smoothstep(-0.3, 0.4, sun);
-          c += vec3(1.0, 0.92, 0.78) * rim * 0.2 * light;
-          gl_FragColor = vec4(c, 1.0);
-        }`,
-    }),
-  );
-  group.add(clouds);
+  // The cloud deck: the real one in points, racing round the planet (four days a lap); where the
+  // parasol shades it, the sunlight is gone.
+  const giro = new THREE.Group();
+  group.add(giro);
+  const suelo = planetaPuntos({
+    mapa: textura('2k_venus_atmosphere.jpg'),
+    aire: 1,
+    halo: { color: new THREE.Color(1.0, 0.85, 0.62), r: 1.025 },
+    puntos: 300000,
+    semilla: 22,
+    // Its clouds reflect most of the light: dimmed to sit with the other planets.
+    tinte: new THREE.Color(0.5, 0.48, 0.46),
+    superficie: {
+      uniforms: { uSombra: uni.uSombra, uBarrido: uni.uBarrido },
+      pre: /* glsl */ `uniform vec3 uBarrido; uniform float uSombra;`,
+      glsl: /* glsl */ `sombra *= mix(1.0, 0.04, smoothstep(-0.12, 0.12, dot(n, uBarrido) - 1.15 + 2.3 * uSombra));`,
+    },
+  });
+  giro.add(suelo.group);
 
   // The cities, ~50 km up, in the cloud deck (riding its wind): glints by day, lights in the shade.
   const b = materiaBuilder(2203);
@@ -254,9 +220,6 @@ export function venus() {
   const cities = materia(b.data(), {
     pre: `${SPHERE_PRE}\nuniform vec3 uBarrido; uniform float uSombra, uOn;`,
     move: /* glsl */ `
-      // They ride the clouds' wind.
-      float a = uTime * 0.03;
-      p = vec3(p.x * cos(a) + p.z * sin(a), p.y, -p.x * sin(a) + p.z * cos(a));
       vec3 n = normalize(p);
       float dark = max(1.0 - smoothstep(-0.2, 0.1, dot(n, uSun)), smoothstep(-0.12, 0.12, dot(n, uBarrido) - 1.15 + 2.3 * uSombra));
       em *= mix(0.25, 1.3, dark) * uOn;
@@ -265,7 +228,8 @@ export function venus() {
     uniforms: { ...uni, uOn: { value: 0 } },
   });
   cities.u.uSpread.value = 0;
-  group.add(cities.points);
+  // They ride the clouds' wind.
+  giro.add(cities.points);
 
   // The parasol at L1: a dark disc facing the Sun (built in Venus radii, along local +X; turned in update).
   const parasol = new THREE.Group();
@@ -298,15 +262,21 @@ export function venus() {
   parasol.add(disc);
   group.add(parasol);
 
+  const nubes: Nube[] = [cities];
   return {
     group,
     uni,
-    nubes: [cities],
+    /** Its points (the ground's join once built). */
+    nubes,
+    listo: suelo.listo.then(() => void nubes.push(...suelo.nubes)),
     parasol,
     /** Per frame: the Sun and the camera in the planet's frame; the time; how far the parasol has opened (0..1) and its shade has swept (0..1); the cities. */
     update(sunL: THREE.Vector3, camL: THREE.Vector3, time: number, abre: number, sombra: number, ciudades: number) {
-      uni.uSun.value.copy(sunL);
-      uni.uCamL.value.copy(camL);
+      // The clouds turn; everything on them is lit and seen in their turning frame.
+      giro.rotation.y = time * 0.03;
+      const q = giro.quaternion.clone().invert();
+      uni.uSun.value.copy(sunL).applyQuaternion(q);
+      uni.uCamL.value.copy(camL).applyQuaternion(q);
       uni.uTime.value = time;
       cities.u.uTime.value = time;
       cities.u.uOn.value = ciudades;
@@ -317,8 +287,10 @@ export function venus() {
       (disc.material as THREE.ShaderMaterial).uniforms.uOn.value = abre;
       parasol.visible = abre > 0.001;
       // The shadow sweeps across the disc, from one side, as the shade slides into place.
-      uni.uBarrido.value.copy(sunL).cross(V(0, 1, 0)).normalize().negate();
+      uni.uBarrido.value.copy(sunL).cross(V(0, 1, 0)).normalize().negate().applyQuaternion(q);
       uni.uSombra.value = sombra;
+      suelo.update(uni.uSun.value, uni.uCamL.value);
+      if (suelo.halo) suelo.halo.uOn.value = 0.45 * (1 - 0.85 * sombra);
     },
   };
 }

@@ -31,6 +31,7 @@
   - Acto VI: el estudio elegido («la mezcla», manera 4) llevado al motor alrededor del Sol, que pasa de enjambre a cerebro Matrioshka; radios comprimidos y así rotulados.
   - Acto VII: una red cósmica propia (nudos y filamentos difusos), las sondas a todas las galaxias alcanzables, el horizonte que enrojece lo que se lleva la energía oscura, y otras burbujas expansivas de colores que tocan la nuestra; distancias comprimidas y así rotuladas.
   - Acto VIII: el agujero negro trazado con rayos de Tiempo (con disco dorado y la materia de Penrose), el contador de pensamientos que se detiene (ilustrativo, así rotulado) y el muro de la muerte térmica, la burbuja de falso vacío que se infla y, adentro, un universo que empieza: «continúa en Infinito · pronto». El outro de la página dice lo mismo.
+- **27 de octubre · los planetas (Diego):** la Tierra, la Luna y Mercurio se veían «baratos» y cada planeta no puede tener su estilo. Tras el estudio `?m=planetas`, eligió los **puntitos** coloreados con mapas reales, con una foto tenue debajo y puntos más finos cerca de la cámara: «Me mola mucho. Confirmado». Ahora los cinco planetas usan `src/mundo/planeta-puntos.ts`. La receta, sus números y cómo llevarla a otro proyecto están en `docs/planeta-puntos.md`. Mapas 2K de Solar System Scope (CC BY 4.0), bajados con su permiso.
 - **26 de octubre · el repo:** Diego creó `drayzu/Destino` (público) y pidió subir el código sin publicar el sitio todavía: GitHub Pages sigue apagado. BRIEF.md y `.claude/` se sacaron de todo el historial antes del primer push y quedan en `.gitignore`. La URL del sitio será drayzu.github.io/Destino cuando Diego diga que se publique.
 
 ## Cómo está hecho
@@ -49,6 +50,7 @@
   - El mundo sabe de **la velocidad del observador** (`estado.beta`, `estado.vel`): las partículas y el cielo de fondo se ven con aberración y Doppler.
   - `despertar.ts` (acto I, `src/mundo/vida.ts`), `adentro.ts` (acto VI, `src/mundo/matrioshka.ts`), `cosmico.ts` (acto VII, `src/mundo/cosmos.ts`), `final.ts` (acto VIII, `src/engine/agujero.ts` de Tiempo, que ahora recibe su lugar en espacio de vista porque en Destino la cámara gira).
   - El `estado` del mundo también apaga la Tierra (`tierra`), el Sol (`sol`) y pinta las luces como mentes (`mentes`) cuando un acto lo pide.
+- **Los planetas** (`src/mundo/planeta-puntos.ts`, receta en `docs/planeta-puntos.md`): puntos globales con el color del mapa, la foto tratada y tenue debajo, un parche de puntos más finos bajo la cámara. Lo que la civilización hace en cada planeta (el foso de Mercurio, el verde de Marte, la sombra del parasol en Venus) es un trozo de GLSL que corre sobre todas las capas. Capturas: `docs/planetas/`.
 - **El reloj y la escalera** (`src/engine/placa.ts`): potencia, tipo, cuándo (o un año del pasado) y alcance; la escalera vacía con un anillo hueco para la potencia que nadie usa; los muros la cruzan.
 - **Lecciones nuevas** (evitan horas):
   - Las partículas no prueban profundidad: un planeta tapa lo que tiene detrás con `uOcc` (su centro en espacio de vista y su radio), que el mundo pone a todas las nubes salvo las del propio planeta.
@@ -86,7 +88,7 @@
 - El sonido es básico (fase 5).
 - La escalera todavía no salta al tocar sus peldaños; no hay enlaces cruzados (Espacio, Tiempo, el Atlas).
 - En las hojas de contactos, el salto entre cuadros deja un poco del barrido de velocidad.
-- Móvil y modo liviano sin probar.
+- Móvil y modo liviano sin probar. Los planetas suman unos 2,5 millones de puntos (los lejanos se ocultan); en móvil convendría bajar sus cantidades.
 
 ## Los estudios de la fase 0
 `npm run dev` (puerto 5197) → `prototypes/estudios.html?m=<momento>&s=<manera>`. Capturas en `docs/estudios/`.
@@ -106,6 +108,7 @@
 - **26 de octubre · fase 1:** el motor y el primer tramo del viaje (actos 0, I provisional y II).
 - **26 de octubre · fase 4:** actos I (real), VI, VII y VIII; el viaje entero existe, del acto 0 al relevo a Infinito.
 - **26 de octubre · fase 3:** limpieza del acto III según Diego (un protagonista, rótulos a la lámina, color propio); acto IV (velas de luz, el viaje a un quinto de la luz con aberración real, frenar con la luz de Alfa Centauri A, el muro de la velocidad de la luz) y acto V (la burbuja, tipo III, la reserva, los que callan, el Gran Filtro, el borde y el silencio). Capturas sin ventana con `tools/hoja.mjs`.
+- **27 de octubre · planetas en puntitos:** estudio de tres maneras, elegida la de puntos; llevada a la Tierra, la Luna, Mercurio, Marte y Venus.
 - **26 de octubre · fase 2:** el acto III completo: el cilindro de O'Neill por dentro, los otros hábitats, Marte, Venus, Mercurio y su catapulta, el enjambre, visto desde lejos, alargar la vida del Sol, moverlo y el tipo II con su muro. Arreglos de shaders (NaN y `smoothstep`) que también afectaban al acto II.
 
 ## Siguiente paso

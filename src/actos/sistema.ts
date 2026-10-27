@@ -507,9 +507,11 @@ export function sistema(): Acto {
       mck.group.quaternion.setFromUnitVectors(UP, h.mckAxis);
       m.root.add(ring.group, mck.group, torus.group, bernal.group);
       m.root.add(mars.group, ven.group, lift.group, espejo.mesh, caplan.group, cil.group, swarm.points, plates.mesh, merc.group, belt.points, orbits, B.points);
-      m.nubes.push(cil.casas, lift.nube, caplan.nube, ...mars.nubes, ...ven.nubes);
+      m.nubes.push(cil.casas, lift.nube, caplan.nube);
       for (const r of rutas) m.root.add(r.group);
-      m.nubes.push(swarm, ...merc.nubes, belt, ...rutas.map((r) => r.nube));
+      m.nubes.push(swarm, belt, ...rutas.map((r) => r.nube));
+      // The planets join once their maps are loaded and their points built.
+      return Promise.all([mars.listo, ven.listo, merc.listo]).then(() => void m.nubes.push(...mars.nubes, ...ven.nubes, ...merc.nubes));
     },
     vista: (p) => ruta0(p),
     lectura: (p) => ({ lp: tl.get('a3.lp', p), ly: tl.get('a3.ly', p), lr: tl.get('a3.lr', p) }),
@@ -582,10 +584,9 @@ export function sistema(): Acto {
         const camL = cam.clone().sub(VENUS).divideScalar(R_VEN);
         ven.update(SUN_VEN, camL, time, ease(0.24, 0.42, kv), ease(0.3, 0.56, kv), ease(-0.1, 0.12, kv));
       }
-      // Mercury: its pit grows.
-      merc.uni.uSun.value.copy(mercSunL);
-      merc.group.worldToLocal(merc.uni.uCamL.value.set(0, 0, 0));
-      merc.uni.uEat.value = tl.get('a3.eat', p);
+      // Mercury: its pit grows. Only drawn near it (a beacon stands in from afar).
+      merc.group.visible = cam.distanceTo(M) < 400 * R_MER;
+      if (merc.group.visible) merc.update(mercSunL, tl.get('a3.eat', p));
       // The star, engineered: lifting from the poles; the mirror and the engine's jets.
       lift.set(ease(P('a3.lift'), P('a3.lift') + 0.8, p), f.lamina ? 1 : 0);
       const mot = ease(P('a3.motor') + 0.3, P('a3.motor') + 1.2, p);

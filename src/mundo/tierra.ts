@@ -1,14 +1,16 @@
 import * as THREE from 'three';
 import { materia, materiaBuilder, type Nube } from '../engine/materia';
-import { clamp, gauss, smoothstep } from '../engine/math';
+import { gauss, smoothstep } from '../engine/math';
+import { planetaPuntos } from './planeta-puntos';
 
 /**
  * The Earth at night, lit by a civilization: Natural Earth land (world-atlas), real cities by their
  * size, the roads between neighbours, and (as power grows) the rest of the land and the sea lit
  * too. Local units are Earth radii; the group sits wherever the Earth is.
  *
- * Points on a sphere are hidden on its far side by a horizon test (`uCamL`, the camera in local
- * units), so nothing shows through the planet; a black core hides the sky behind it.
+ * The ground is the real Earth in points (planeta-puntos.ts). Points on a sphere are hidden on its
+ * far side by a horizon test (`uCamL`, the camera in local units), so nothing shows through the
+ * planet; the dim photograph under the points hides the sky behind it.
  */
 
 const D2R = Math.PI / 180;
@@ -135,141 +137,40 @@ export const HORIZONTE = /* glsl */ `if (dot(normalize(p), uCamL - p) < 0.0) { e
 
 export interface Tierra {
   group: THREE.Group;
+  /** The civilization's lights. */
   nubes: Nube[];
-  /** Resolves once the land, its map and the lights are built. */
+  /** The ground and the clouds, in points (once built). */
+  superficie: Nube[];
+  /** Resolves once the land, the maps, the ground and the lights are built. */
   listo: Promise<void>;
   /** Per frame: the Sun's direction and the camera, both in the Earth's local frame; how lit the planet is (0..1). */
   update(sunL: THREE.Vector3, camL: THREE.Vector3, lights: number): void;
 }
+
+/** A map in public/texturas (Solar System Scope, CC BY 4.0), wherever the site is served from. */
+export const textura = (nombre: string) => `${import.meta.env.BASE_URL}texturas/${nombre}`;
 
 export function tierra(): Tierra {
   const group = new THREE.Group();
   const nubes: Nube[] = [];
   const uni = { uSun: { value: new THREE.Vector3(1, 0, 0) }, uCamL: { value: new THREE.Vector3(0, 0, 5) }, uLights: { value: 1 }, uNuevas: { value: 0 }, uMentes: { value: 0 } };
 
-  // A black core: hides the sky (and anything) behind the planet.
-  const core = new THREE.Mesh<THREE.BufferGeometry, THREE.Material>(new THREE.SphereGeometry(0.992, 64, 48), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-  core.renderOrder = -50;
-  group.add(core);
+  // The ground and the clouds: the real Earth in points (planeta-puntos.ts), its air at the limb,
+  // the Sun's glint on the sea. The civilization's lights are points above it.
+  const suelo = planetaPuntos({
+    mapa: textura('2k_earth_daymap.jpg'),
+    nubes: textura('2k_earth_clouds.jpg'),
+    aire: 1,
+    mar: true,
+    halo: { color: new THREE.Color(0.35, 0.58, 1.0) },
+    puntos: 520000,
+    semilla: 4,
+    fondoR: 0.997,
+  });
+  group.add(suelo.group);
 
-  // The thin atmosphere: blue on the day side, the green airglow line on the night side.
-  const atmo = new THREE.Mesh(
-    new THREE.SphereGeometry(1.022, 96, 64),
-    new THREE.ShaderMaterial({
-      uniforms: { uSun: uni.uSun },
-      vertexShader: /* glsl */ `
-        #include <common>
-        #include <logdepthbuf_pars_vertex>
-        varying vec3 vN; varying vec3 vV;
-        void main() {
-          vN = normalize(normal);
-          vec4 w = modelMatrix * vec4(position, 1.0);
-          vV = normalize((inverse(modelMatrix) * vec4(cameraPosition, 1.0)).xyz - position);
-          gl_Position = projectionMatrix * viewMatrix * w;
-          #include <logdepthbuf_vertex>
-        }`,
-      fragmentShader: /* glsl */ `
-        #include <logdepthbuf_pars_fragment>
-        uniform vec3 uSun; varying vec3 vN; varying vec3 vV;
-        void main() {
-          #include <logdepthbuf_fragment>
-          float mu = max(dot(vN, vV), 0.0);
-          float rim = pow(max(1.0 - mu, 0.0), 4.0);
-          float d = dot(vN, uSun);
-          float day = smoothstep(-0.3, 0.35, d);
-          vec3 c = vec3(0.3, 0.55, 1.0) * rim * day * 1.6;
-          c += vec3(1.0, 0.55, 0.25) * rim * exp(-(d / 0.12) * (d / 0.12)) * 0.9;
-          c += vec3(0.35, 1.0, 0.55) * pow(max(1.0 - mu, 0.0), 9.0) * (1.0 - day) * 0.22;
-          gl_FragColor = vec4(c, 1.0);
-        }`,
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    }),
-  );
-  atmo.renderOrder = 2;
-  group.add(atmo);
-
-  const listo = (async () => {
+  const luces = (async () => {
     const isLand = await mascaraTierra();
-    // The surface: an equirectangular map painted from the land mask (forests, deserts, ice, sea),
-    // lit by the Sun, with the Sun's glint on the oceans. Up close, a smooth surface reads better
-    // than points; the civilization's lights stay points above it.
-    const TW = 2048;
-    const TH = 1024;
-    const tc = document.createElement('canvas');
-    tc.width = TW;
-    tc.height = TH;
-    const tx = tc.getContext('2d')!;
-    const img = tx.createImageData(TW, TH);
-    const col = new THREE.Color();
-    const forest = new THREE.Color(0.16, 0.24, 0.1);
-    const sand = new THREE.Color(0.62, 0.5, 0.34);
-    const tundra = new THREE.Color(0.4, 0.38, 0.32);
-    const ice = new THREE.Color(0.82, 0.85, 0.9);
-    const sea = new THREE.Color(0.015, 0.05, 0.13);
-    for (let j = 0; j < TH; j++) {
-      const la = 90 - ((j + 0.5) / TH) * 180;
-      const al = Math.abs(la);
-      for (let i = 0; i < TW; i++) {
-        const lo = ((i + 0.5) / TW) * 360 - 180;
-        const L = isLand(la, lo);
-        const wob = Math.sin(lo * 0.21 + la * 0.13) * Math.cos(lo * 0.07 - la * 0.31);
-        if (L > 0.5) {
-          const desert = smoothstep(12, 21, al + wob * 4) * (1 - smoothstep(30, 38, al - wob * 3));
-          col.copy(forest).lerp(sand, desert * 0.9);
-          if (al > 55) col.lerp(tundra, smoothstep(55, 68, al));
-          if (la < -62 || (la > 60 && lo > -75 && lo < -10) || al > 78) col.copy(ice);
-        } else {
-          col.copy(sea);
-          if (al > 70) col.lerp(ice, smoothstep(70, 78, al) * 0.8);
-        }
-        const k = (j * TW + i) * 4;
-        img.data[k] = Math.round(Math.sqrt(col.r) * 255);
-        img.data[k + 1] = Math.round(Math.sqrt(col.g) * 255);
-        img.data[k + 2] = Math.round(Math.sqrt(col.b) * 255);
-        img.data[k + 3] = L > 0.5 ? 255 : 0;
-      }
-    }
-    tx.putImageData(img, 0, 0);
-    const tex = new THREE.CanvasTexture(tc);
-    tex.anisotropy = 8;
-    tex.colorSpace = THREE.NoColorSpace;
-    core.scale.setScalar(1 / 0.992);
-    core.geometry = new THREE.SphereGeometry(0.992, 192, 128);
-    core.material = new THREE.ShaderMaterial({
-      uniforms: { uSun: uni.uSun, uMap: { value: tex } },
-      vertexShader: /* glsl */ `
-        #include <common>
-        #include <logdepthbuf_pars_vertex>
-        varying vec3 vN; varying vec3 vV; varying vec2 vUv;
-        void main() {
-          vN = normalize(position);
-          vUv = uv;
-          vV = normalize((inverse(modelMatrix) * vec4(cameraPosition, 1.0)).xyz - position);
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          #include <logdepthbuf_vertex>
-        }`,
-      fragmentShader: /* glsl */ `
-        #include <logdepthbuf_pars_fragment>
-        uniform vec3 uSun; uniform sampler2D uMap; varying vec3 vN; varying vec3 vV; varying vec2 vUv;
-        void main() {
-          #include <logdepthbuf_fragment>
-          vec4 m = texture2D(uMap, vUv);
-          vec3 alb = m.rgb * m.rgb;
-          vec3 n = normalize(vN);
-          float d = dot(n, uSun);
-          float lit = smoothstep(-0.04, 0.25, d) * max(d, 0.0) * 0.8 + smoothstep(-0.04, 0.1, d) * 0.12;
-          vec3 c = alb * lit * 1.6;
-          // The oceans mirror the Sun.
-          vec3 h = normalize(uSun + vV);
-          c += (1.0 - m.a) * vec3(1.0, 0.9, 0.75) * pow(max(dot(n, h), 0.0), 120.0) * 2.2 * step(0.0, d);
-          // Haze towards the limb on the day side.
-          float mu = max(dot(n, vV), 0.0);
-          c = mix(c, vec3(0.25, 0.45, 0.9) * smoothstep(-0.1, 0.4, d) * 0.5, pow(max(1.0 - mu, 0.0), 3.0) * 0.6);
-          gl_FragColor = vec4(c, 1.0);
-        }`,
-    });
 
     // City lights: real cities by size, roads between neighbours, towns where people live; then
     // (aOrder > 0.5) the rest of the land and lights on the sea as the planet fills up.
@@ -355,8 +256,10 @@ export function tierra(): Tierra {
   return {
     group,
     nubes,
-    listo,
+    superficie: suelo.nubes,
+    listo: Promise.all([suelo.listo, luces]).then(() => undefined),
     update(sunL, camL, lit) {
+      suelo.update(sunL, camL);
       uni.uSun.value.copy(sunL);
       uni.uCamL.value.copy(camL);
       uni.uLights.value = lit;

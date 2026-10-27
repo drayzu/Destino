@@ -50,7 +50,7 @@ const tramos = actos.map((a) => {
 });
 // A last breath on the final act, for the closing line.
 tl.wait(1.2);
-const listo = Promise.all([mundo.earth.listo, ...actos.map((a) => a.montar(mundo))]);
+const listo = Promise.all([mundo.listo, ...actos.map((a) => a.montar(mundo))]);
 
 const scroll = createScroll(document.querySelector<HTMLElement>('#spacer')!, tl.length);
 const sound = crearSonido();

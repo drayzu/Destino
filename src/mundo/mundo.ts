@@ -121,15 +121,15 @@ export function crearMundo(scene: THREE.Scene) {
   const near = cercanias();
   body.add(near.group);
   nubes.push(...near.nubes);
-  // The lights arrive with the land (after the map loads): only then they join the clouds kept in focus.
-  void earth.listo.then(() => nubes.push(...earth.nubes));
+  // The ground and the lights arrive with their maps: only then they join the clouds kept in focus.
+  const listoTierra = earth.listo.then(() => void nubes.push(...earth.superficie, ...earth.nubes));
   const tilt = new THREE.Quaternion().setFromAxisAngle(V(1, 0, 0), 23.44 * D2R);
   const giroQ = (phi: number, out = new THREE.Quaternion()) => out.copy(tilt).multiply(new THREE.Quaternion().setFromAxisAngle(V(0, 1, 0), phi));
 
-  const moon = luna();
+  const moon = luna(LUNA_DIR.clone().negate());
   moon.group.position.copy(LUNA_DIR).multiplyScalar(MOON_D);
   earthSys.add(moon.group);
-  nubes.push(...moon.nubes);
+  const listoLuna = moon.listo.then(() => void nubes.push(...moon.nubes));
 
   // Beacons: what is too small to see still shows as a light.
   const B = faros([
@@ -187,6 +187,8 @@ export function crearMundo(scene: THREE.Scene) {
   return {
     root,
     nubes,
+    /** Resolves once the Earth and the Moon are built. */
+    listo: Promise.all([listoTierra, listoLuna]),
     estado,
     G,
     gal,
@@ -252,10 +254,8 @@ export function crearMundo(scene: THREE.Scene) {
       near.uni.uTime.value = time;
       for (const n of near.nubes) n.u.uGain.value = estado.cercanias;
       near.group.visible = estado.cercanias > 0.001;
-      moon.uni.uSun.value.copy(SOL_DESDE_E);
-      moon.group.worldToLocal(moon.uni.uCamL.value.set(0, 0, 0));
       moon.group.visible = cerca && estado.luna > 0.001;
-      for (const n of moon.nubes) n.u.uGain.value = estado.luna;
+      if (moon.group.visible) moon.update(SOL_DESDE_E, estado.luna);
 
       // Beacons, while the bodies are smaller than a few pixels.
       const px = (c: THREE.Vector3, r: number) => (r / Math.max(c.distanceTo(camW), 1e-300)) * focal;
@@ -268,7 +268,7 @@ export function crearMundo(scene: THREE.Scene) {
       // Or another planet, when it looks bigger.
       const oc = estado.oclusor;
       const otro = oc !== null && oc.r / Math.max(oc.c.distanceTo(camW), 1e-300) > R_E / Math.max(E.distanceTo(camW), 1e-300);
-      const own = new Set<Nube>(otro ? oc.propias : [...earth.nubes, ...near.nubes]);
+      const own = new Set<Nube>(otro ? oc.propias : [...earth.superficie, ...earth.nubes, ...near.nubes]);
       const ec = otro ? oc.c.clone().sub(camW).multiplyScalar(k).applyMatrix4(camera.matrixWorldInverse) : earthSys.getWorldPosition(V()).applyMatrix4(camera.matrixWorldInverse);
       const er = k * (otro ? oc.r : R_E) * 0.995;
       for (const n of nubes) {
