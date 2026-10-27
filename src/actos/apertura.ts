@@ -51,7 +51,17 @@ export function apertura(): Acto {
     const d = Math.exp(lerp(Math.log(d0), Math.log(155000), k));
     // Pull straight back from the Sun first; only near the end turn to frame the whole galaxy.
     const target = V(0, 0, 0).lerp(CENTRO.clone().multiplyScalar(0.62), ease(0.55, 1, k));
-    return { pos: sph(target, d, lerp(0.18, 1.0, ease(0.0, 0.6, k)), az), target, up: UP.clone(), fov: 46 };
+    const pos = sph(target, d, lerp(0.18, 1.0, ease(0.0, 0.6, k)), az);
+    // At first we look away from the Sun, along the disc to the galaxy's core (all those stars, and
+    // the glow of the bulge); then the gaze turns to the Sun, a point among them.
+    const gira = ease(P('a0', 1.0), P('a0.voz', 0.5), p);
+    if (gira >= 1) return { pos, target, up: UP.clone(), fov: 46 };
+    const a = CENTRO.clone().sub(pos).normalize();
+    const b = target.clone().sub(pos);
+    const lb = b.length();
+    const q = new THREE.Quaternion().setFromUnitVectors(a, b.divideScalar(lb));
+    const dir = a.applyQuaternion(new THREE.Quaternion().slerp(q, gira));
+    return { pos, target: pos.clone().addScaledVector(dir, lb), up: UP.clone(), fov: lerp(64, 46, gira) };
   }
   // The fall: wherever we are, to the Sun, then to the Earth's night side.
   const approach = E_LY.clone().normalize();
@@ -126,6 +136,11 @@ export function apertura(): Acto {
       // The Earth's lights are not there yet: the next act turns them on.
       m.estado.luces = 0;
       m.estado.luna = ease(0.7, 0.95, k);
+      // The first look, along the disc to the core: the Milky Way as from a dark site, brighter than
+      // the galaxy is drawn elsewhere (from inside, its light is otherwise held back).
+      const via = 1 - ease(P('a0', 1.4), P('a0.voz', 0.6), p);
+      m.estado.galaxia = 1 + 1.3 * via;
+      m.estado.cielo = 0.8 + 0.3 * via;
     },
     update(f) {
       const { p } = f;
