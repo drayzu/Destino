@@ -3,7 +3,7 @@ import type { Timeline } from '../engine/timeline';
 import { clamp, lerp, smoothstep } from '../engine/math';
 import { TEAL, cifra, ink, nota, type Muro } from '../engine/placa';
 import { flecha, texto } from '../engine/lamina';
-import { mezcla, type Vista } from '../engine/vista';
+import { mezcla, mirar, type Vista } from '../engine/vista';
 import { LY_AU, type Mundo } from '../mundo/mundo';
 import { R_SUN } from '../mundo/obras';
 import { VECINAS, dondeVecina, estrella, rutasVecinas, vecinas, vela } from '../mundo/vecinas';
@@ -171,7 +171,10 @@ export function estrellas(): Acto {
     // From the Solar System seen whole (where act III leaves us), a dive to the sail by the Sun.
     const top = V(Math.cos(1.25 - 0.6), 0.85, Math.sin(1.25 - 0.6)).normalize().multiplyScalar(6.2);
     const far: Vista = { pos: top, target: L0.clone().multiplyScalar(0.5), up: UP.clone(), fov: 50 };
-    return mezcla(far, near, ease(0.04, 0.4, kL));
+    // Falling towards the sail with the Sun (where it is) ahead, then turning to the sail itself.
+    const v = mezcla(far, near, ease(0.04, 0.28, kL));
+    const haciaSol = mirar(v.pos, far.target, sail, ease(0.02, 0.12, kL));
+    return { ...v, target: mirar(v.pos, haciaSol, near.target, ease(0.2, 0.3, kL)) };
   }
   function camViaje(p: number): Vista {
     const mt = montura(p);
@@ -207,7 +210,7 @@ export function estrellas(): Acto {
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a4');
       tl.set({ 'a4.lp': 26.58, 'a4.ly': 3.13, 'a4.lr': 12.6, 'a4.bub': 0 });
-      tl.caption(5.4, 'Velas de luz', 'Para ir a otra estrella, un láser enorme empuja una vela de pocos gramos: en minutos va a un quinto de la velocidad de la luz.', { fuente: 'Breakthrough Starshot, 2016', desde: 1.6, viaje: 'Hacia la vela' });
+      tl.caption(5.4, 'Velas de luz', 'Para ir a otra estrella, un láser enorme empuja una vela de pocos gramos: en minutos va a un quinto de la velocidad de la luz.', { fuente: 'Breakthrough Starshot, 2016', desde: 1.2, viaje: 'Hacia la vela' });
       tl.to(5.4, { 'a4.lp': 26.62, 'a4.ly': 3.132 });
       tl.label('a4.viaje');
       tl.caption(8.0, 'A un quinto de la luz', 'Son veinte años hasta Alfa Centauri. A esta velocidad el cielo se deforma: las estrellas se juntan hacia adelante y se ven más azules; las de atrás, más rojas.');

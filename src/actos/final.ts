@@ -171,7 +171,7 @@ export function final(): Acto {
     // From the cosmos (where act VII leaves us), down to a black hole: the stars have gone out.
     const desde: Vista = { pos: V(-0.3, 0.62, 0.72).normalize().multiplyScalar(90000 * MLY_AU), target: V(), up: UP.clone(), fov: 46 };
     const k0 = (p - P('a8')) / (P('a8.contados') - P('a8'));
-    if (p < P('a8.contados')) return mezcla(desde, orbitaBH(p, 270), ease(0.02, 0.45, k0));
+    if (p < P('a8.contados')) return mezcla(desde, orbitaBH(p, 270), ease(0.02, 0.3, k0));
     if (p < P('a8.crear')) return orbitaBH(p, 270);
     // Turn to the seed beside the hole, and as it inflates, go in.
     const kc = (p - P('a8.crear')) / (P('a8.fin') - P('a8.crear'));
@@ -193,7 +193,7 @@ export function final(): Acto {
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a8');
       tl.set({ 'a8.lp': 46.0, 'a8.ly': 10.7 });
-      tl.caption(6.6, 'Las últimas centrales', 'Cuando las estrellas se apagan, quedan los agujeros negros. De uno que gira al máximo se puede sacar hasta el 29 % de su masa; después, solo su débil radiación de Hawking.', { fuente: 'Penrose, 1969', desde: 3.0, viaje: 'Billones de años después' });
+      tl.caption(6.6, 'Las últimas centrales', 'Cuando las estrellas se apagan, quedan los agujeros negros. De uno que gira al máximo se puede sacar hasta el 29 % de su masa; después, solo su débil radiación de Hawking.', { fuente: 'Penrose, 1969', desde: 2.0, viaje: 'Billones de años después' });
       tl.to(6.6, { 'a8.lp': 38.0, 'a8.ly': 14.0 });
       tl.label('a8.contados');
       tl.caption(5.6, 'Pensamientos contados', 'Si el universo se expandiera sin acelerar, la vida podría pensar para siempre. Pero se acelera: los pensamientos posibles son un número finito.', { fuente: 'Dyson, 1979; Krauss y Starkman, 2000' });

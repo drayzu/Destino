@@ -361,7 +361,7 @@ export function sistema(): Acto {
     const railD = merc.riel.dir(s, V());
     const nrm = railP.clone().normalize();
     // From afar (≈ 70 radii, the planet small with its scar) down to 0.07 radii over the rail.
-    const alt = Math.exp(lerp(Math.log(30), Math.log(0.07), a));
+    const alt = Math.exp(lerp(Math.log(8), Math.log(0.07), a));
     const start = merc.riel.at(0.05, V());
     const approach = start.clone().normalize().multiplyScalar(1 + alt).addScaledVector(merc.riel.dir(0.05, V()), -alt * 0.9).add(V(0, alt * 0.4, 0));
     const along = railP.clone().addScaledVector(nrm, 0.07).addScaledVector(railD, -0.08).addScaledVector(merc.riel.axis, 0.035);
