@@ -93,9 +93,10 @@ export function hoy(): Acto {
       tl.label('a2.crece').to(3.0, { 'a2.lp': 15.0, 'a2.ly': 2.35, 'a2.luces': 0.62 });
       tl.caption(2.8, 'El calor nos echa', 'Un planeta solo puede soltar calor irradiándolo al espacio. Con 10¹⁶ W usados en su superficie, la Tierra se calentaría al menos 6 grados: hay que salir.', { fuente: 'Balbi y Lingam, 2025' });
       tl.label('a2.muro').with(1.3, { 'a2.wipe': -1.25 }).to(2.8, { 'a2.lp': 16.0, 'a2.ly': 2.54 });
-      tl.caption(3.6, 'Subir sin cohetes', 'Para salir sin quemar cohetes, un cable desde el ecuador hasta más allá de la órbita geoestacionaria, tenso por el giro de la Tierra. Falta un material el doble de fuerte que el mejor de hoy.', { desde: 0.6, viaje: 'Al ecuador' });
-      tl.label('a2.asc').with(1.0, { 'a2.wipe': 1.25 }).with(1.6, { 'a2.giro': 1 }).to(3.6, { 'a2.lr': 7.6 });
-      tl.caption(3.8, 'La industria sale al espacio', 'En órbita, el calor se va directo al vacío sin calentar el planeta. Con la industria allá arriba se puede seguir creciendo: tipo I hacia el año 2370.');
+      // The elevator is the way up, not a moment of its own: the ride is a journey, and the moment
+      // begins at the top, where the point is (the heat goes to the void). Its physics is on the plate.
+      tl.caption(6.4, 'La industria sale al espacio', 'Arriba, en órbita, el calor se va directo al vacío sin calentar el planeta. Con la industria allá se puede seguir creciendo: tipo I hacia el año 2370.', { desde: 2.2, viaje: 'Por el ascensor espacial, hasta 36 000 km' });
+      tl.label('a2.asc').with(1.0, { 'a2.wipe': 1.25 }).with(1.6, { 'a2.giro': 1 }).to(2.6, { 'a2.lr': 7.6 });
       tl.label('a2.sale').to(3.8, { 'a2.sube': 1, 'a2.lp': 16.25, 'a2.ly': 2.54 });
       tl.label('a2.fin');
     },
@@ -209,7 +210,10 @@ export function hoy(): Acto {
           const low = at(2.6);
           if (low) texto(g, u, low.x + 14 * u, low.y, 'la gravedad gana', '#ff8a6a', asc, 9, 'left');
           const high = at(12.5);
-          if (high) texto(g, u, high.x + 14 * u, high.y, 'el giro gana', TEAL, asc, 9, 'left');
+          if (high) {
+            texto(g, u, high.x + 14 * u, high.y, 'el giro gana', TEAL, asc, 9, 'left');
+            texto(g, u, high.x + 14 * u, high.y + 16 * u, 'un cable así necesita un material el doble de fuerte que el mejor de hoy', ink(0.6), asc, 9, 'left');
+          }
         }
       }
       // The band in orbit, once it fills.

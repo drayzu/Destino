@@ -275,7 +275,6 @@ const EN: Record<string, string> = {
   'Hoy': 'Today',
   'Más energía, más calor': 'More energy, more heat',
   'El calor nos echa': 'The heat drives us out',
-  'Subir sin cohetes': 'Up without rockets',
   'La industria sale al espacio': 'Industry moves into space',
   // ---- The moments, rewritten (27 Oct 2026): their sentences and sources.
   'Nuestra galaxia tiene cientos de miles de millones de estrellas. Juntas brillan con unos 10³⁷ vatios y, hasta donde sabemos, nadie usa esa energía.': 'Our galaxy has hundreds of billions of stars. Together they shine with about 10³⁷ watts and, as far as we know, nobody uses that energy.',
@@ -296,8 +295,6 @@ const EN: Record<string, string> = {
   'Si seguimos creciendo, las luces llenan la Tierra y el calor de nuestras máquinas crece con ellas. A la derecha, el planeta como lo vería una cámara infrarroja.': 'If we keep growing, the lights fill the Earth and the heat of our machines grows with them. On the right, the planet as an infrared camera would see it.',
   'Un planeta solo puede soltar calor irradiándolo al espacio. Con 10¹⁶ W usados en su superficie, la Tierra se calentaría al menos 6 grados: hay que salir.': 'A planet can only shed heat by radiating it into space. With 10¹⁶ W used on its surface, the Earth would warm by at least 6 degrees: we have to leave.',
   'Balbi y Lingam, 2025': 'Balbi & Lingam, 2025',
-  'Para salir sin quemar cohetes, un cable desde el ecuador hasta más allá de la órbita geoestacionaria, tenso por el giro de la Tierra. Falta un material el doble de fuerte que el mejor de hoy.': 'To leave without burning rockets, a cable from the equator to beyond geostationary orbit, held taut by the Earth’s spin. It needs a material twice as strong as the best we have.',
-  'En órbita, el calor se va directo al vacío sin calentar el planeta. Con la industria allá arriba se puede seguir creciendo: tipo I hacia el año 2370.': 'In orbit, the heat goes straight into the void without warming the planet. With industry up there we can keep growing: type I around the year 2370.',
   'Para vivir fuera de la Tierra hacen falta mundos que giren: su giro hace de gravedad. Hay esferas, ruedas, cilindros y anillos; los más grandes piden materiales que aún no sabemos fabricar.': 'To live off the Earth we need worlds that spin: their spin stands in for gravity. There are spheres, wheels, cylinders and rings; the biggest need materials we cannot make yet.',
   'Un cilindro de 8 km de ancho y 32 de largo que gira una vez cada dos minutos. Adentro, el paisaje sube por los lados y pasa por encima; por sus tres ventanas entra el sol que reflejan sus espejos.': 'A cylinder 8 km wide and 32 long that turns once every two minutes. Inside, the land climbs up the sides and passes overhead; through its three windows comes the sunlight its mirrors throw in.',
   'Marte es frío y casi no tiene aire. Espejos en órbita pueden calentar su polo sur y liberar su hielo, pero su CO₂ no alcanza para un aire como el nuestro: se viviría bajo cúpulas.': 'Mars is cold and has almost no air. Mirrors in orbit can warm its south pole and free its ice, but its CO₂ is not enough for air like ours: people would live under domes.',
@@ -350,7 +347,6 @@ const EN: Record<string, string> = {
   '3 000 millones de años después': '3 billion years later',
   'Hasta nosotros': 'Up to us',
   'De vuelta a la Tierra': 'Back to the Earth',
-  'Al ecuador': 'To the equator',
   'Más allá de la Luna': 'Beyond the Moon',
   'Hacia el cilindro': 'Towards the cylinder',
   'Hacia Marte': 'Towards Mars',
@@ -364,4 +360,7 @@ const EN: Record<string, string> = {
   'Hacia una estrella muerta': 'Towards a dead star',
   'Hacia una sola estrella': 'Towards a single star',
   'Billones de años después': 'Trillions of years later',
+  'Arriba, en órbita, el calor se va directo al vacío sin calentar el planeta. Con la industria allá se puede seguir creciendo: tipo I hacia el año 2370.': 'Up in orbit, the heat goes straight into the void without warming the planet. With industry up there we can keep growing: type I around the year 2370.',
+  'Por el ascensor espacial, hasta 36 000 km': 'Up the space elevator, to 36,000 km',
+  'un cable así necesita un material el doble de fuerte que el mejor de hoy': 'a cable like this needs a material twice as strong as the best we have',
 };
