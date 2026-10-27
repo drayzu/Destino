@@ -58,6 +58,8 @@ const COLORES: Record<string, [number, number, number]> = {
   'Velas de luz': [1.0, 0.6, 0.4],
   'A un quinto de la luz': [0.3, 0.5, 1.0],
   'Frenar con su luz': [1.0, 0.78, 0.45],
+  'Hacia una nave que llega': [0.4, 0.55, 0.85],
+  'Naves que son mundos': [0.45, 0.6, 1.0],
   Alejándonos: [0.6, 0.35, 0.3],
   'La luz pone el freno': [1.0, 0.35, 0.25],
   // V · The galaxy

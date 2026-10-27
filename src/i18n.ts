@@ -364,4 +364,8 @@ const EN: Record<string, string> = {
   'Por el ascensor espacial, hasta 36 000 km': 'Up the space elevator, to 36,000 km',
   'un cable así necesita un material el doble de fuerte que el mejor de hoy': 'a cable like this needs a material twice as strong as the best we have',
   'El Atlas': 'The Atlas',
+  'Naves que son mundos': 'Ships that are worlds',
+  'Con personas a bordo no hay atajos: a un 1 % de la luz, el viaje dura siglos. La nave es un mundo, como el cilindro, y quienes llegan son los nietos de los nietos de los que salieron.': 'With people on board there are no shortcuts: at 1% of the speed of light, the journey takes centuries. The ship is a world, like the cylinder, and those who arrive are the great-grandchildren of those who left.',
+  'Hein y otros, 2012 (proyecto Hyperion)': 'Hein et al., 2012 (Project Hyperion)',
+  'Hacia una nave que llega': 'Towards a ship arriving',
 };

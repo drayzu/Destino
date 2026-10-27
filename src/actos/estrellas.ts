@@ -7,6 +7,9 @@ import { mezcla, mirar, type Vista } from '../engine/vista';
 import { LY_AU, type Mundo } from '../mundo/mundo';
 import { R_SUN, faros } from '../mundo/obras';
 import { VECINAS, dondeVecina, estrella, rutasVecinas, vecinas, vela } from '../mundo/vecinas';
+import { cilindroPuntos } from '../mundo/cilindro';
+import { OMEGA } from '../mundo/habitat';
+import { enfocar, geometria, puntos } from '../horizontes';
 import type { Acto, Cuadro } from './tipos';
 
 /**
@@ -79,6 +82,42 @@ export function estrellas(): Acto {
   const velaS = vela(12);
   const velaG = vela(24);
   cabina.add(velaS.group, velaG.group);
+  // A ship that is a world: the O'Neill cylinder (in points, km), its axis along its way, braking
+  // into Alpha Centauri on a fusion jet. Drawn in the cabin, like the sails.
+  const nave = new THREE.Group();
+  nave.scale.setScalar(1000 * SIGMA);
+  const naveGiro = new THREE.Group();
+  nave.add(naveGiro);
+  const naveCil = cilindroPuntos(naveGiro);
+  const NJ = 26000;
+  const jp = new Float32Array(NJ * 3);
+  const jc = new Float32Array(NJ * 3);
+  const js = new Float32Array(NJ);
+  const jseed = new Float32Array(NJ);
+  for (let i = 0; i < NJ; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = Math.sqrt(Math.random());
+    jp.set([Math.cos(a) * r, 0, Math.sin(a) * r], i * 3);
+    const hot = Math.random();
+    jc.set(hot < 0.75 ? [0.4, 0.62, 1.0] : [0.85, 0.75, 1.0], i * 3);
+    js[i] = 0.25 + Math.random() * 0.35;
+    jseed[i] = Math.random();
+  }
+  const chorro = puntos(geometria({ position: jp, color: jc, size: js, seed: jseed, aKind: new Float32Array(NJ) }), {
+    pre: 'uniform float uT, uOn;',
+    cuerpo: /* glsl */ `
+      // Thrown ahead of the ship (it brakes): a narrow jet that widens and fades, flowing.
+      float f = fract(seed + uT * 0.35);
+      float w = 0.35 + f * 3.5;
+      p = vec3(position.x * w, 16.5 + f * 140.0, position.z * w);
+      em = color * pow(1.0 - f, 2.6) * 0.09 * uOn;
+      sz *= 1.0 + f * 2.5;`,
+    uniforms: { uT: { value: 0 }, uOn: { value: 0 } },
+  });
+  chorro.u.uMinPx.value = 1.3;
+  naveGiro.parent!.add(chorro.points);
+  cabina.add(nave);
+
   // While the sail is too small to see (metres across, kilometres away), a light marks it.
   const faro = faros([{ color: new THREE.Color(1.4, 2.6, 2.2), px: 4.5 }]);
   cabina.add(faro.points);
@@ -149,7 +188,7 @@ export function estrellas(): Acto {
     const w = U1.clone().cross(U2).normalize().cross(per).normalize();
     return per.multiplyScalar(r * Math.cos(f)).addScaledVector(w, r * Math.sin(f));
   }
-  const kFreno = (p: number) => (p - P('a4.frenar')) / (P('a4.muro') - P('a4.frenar'));
+  const kFreno = (p: number) => (p - P('a4.frenar')) / (P('a4.nave') - P('a4.frenar'));
   /** Behind the braking sail (metres): its face towards A, we see it against the star. */
   function camFreno(p: number): Vista {
     const k = kFreno(p);
@@ -184,11 +223,26 @@ export function estrellas(): Acto {
     const sail = velaW(vuelo(p).s);
     return { pos: sail.clone().addScaledVector(mt.off, M), target: mt.mira, up: UP.clone(), fov: mt.fov };
   }
+  /** The ship that is a world: just short of Alpha Centauri, braking (AU; the camera rides beside it). */
+  const NAVE = AC.clone().addScaledVector(DIR, -0.05 * LY_AU);
+  const naveLado = DIR.clone().cross(UP).normalize();
+  const naveArriba = naveLado.clone().cross(DIR).normalize();
+  function vNave(p: number): Vista {
+    const k = (p - P('a4.nave')) / (P('a4.muro') - P('a4.nave'));
+    // Round it slowly from behind and beside: its hull, its petals, its jet thrown ahead.
+    const a = lerp(-0.9, 0.5, k);
+    const off = naveLado.clone().multiplyScalar(Math.cos(a) * 62e3).addScaledVector(naveArriba, 16e3).addScaledVector(DIR, -30e3 + Math.sin(a) * 40e3);
+    return { pos: NAVE.clone().addScaledVector(off, M), target: NAVE.clone().addScaledVector(DIR, 22e3 * M), up: naveArriba.clone(), fov: 50 };
+  }
+  function camNave(p: number): Vista {
+    const k = (p - P('a4.nave')) / (P('a4.muro') - P('a4.nave'));
+    return k < 0.14 ? mezcla(camFreno(P('a4.nave')), vNave(p), ease(0, 0.14, k)) : vNave(p);
+  }
   /** Pulling back: the neighbourhood, then the whole galaxy, where our bubble is a point. */
   const GAL = V(0, 0, -26000).multiplyScalar(LY_AU);
   function camMuro(p: number): Vista {
     const k = (p - P('a4.muro')) / (P('a4.fin') - P('a4.muro'));
-    const from = camFreno(P('a4.muro'));
+    const from = vNave(P('a4.muro'));
     const barrio: Vista = { pos: DIR.clone().multiplyScalar(-30 * LY_AU).addScaledVector(UP, 26 * LY_AU), target: DIR.clone().multiplyScalar(4 * LY_AU), up: UP.clone(), fov: 50 };
     const galaxia: Vista = { pos: GAL.clone().add(V(30000, 62000, 60000).multiplyScalar(LY_AU)), target: GAL.clone().multiplyScalar(0.55), up: UP.clone(), fov: 46 };
     if (k < 0.45) return mezcla(from, barrio, ease(0.0, 0.4, k));
@@ -198,7 +252,8 @@ export function estrellas(): Acto {
     if (p < P('a4.viaje')) return camVelas(p);
     if (p < P('a4.frenar', -0.6)) return camViaje(p);
     if (p < P('a4.frenar', 0.6)) return mezcla(camViaje(p), camFreno(p), ease(P('a4.frenar', -0.6), P('a4.frenar', 0.6), p));
-    if (p < P('a4.muro')) return camFreno(p);
+    if (p < P('a4.nave')) return camFreno(p);
+    if (p < P('a4.muro')) return camNave(p);
     return camMuro(p);
   }
 
@@ -221,6 +276,9 @@ export function estrellas(): Acto {
       tl.label('a4.frenar');
       tl.caption(6.4, 'Frenar con su luz', 'Al llegar no hay con qué frenar. Una vela más grande y más lenta sí puede usar la luz de Alfa Centauri A y B como freno, y quedarse en Próxima.', { fuente: 'Heller y Hippke, 2017' });
       tl.to(6.4, { 'a4.lp': 27.4, 'a4.ly': 3.163 });
+      tl.label('a4.nave');
+      tl.caption(6.4, 'Naves que son mundos', 'Con personas a bordo no hay atajos: a un 1 % de la luz, el viaje dura siglos. La nave es un mundo, como el cilindro, y quienes llegan son los nietos de los nietos de los que salieron.', { fuente: 'Hein y otros, 2012 (proyecto Hyperion)', desde: 1.0, viaje: 'Hacia una nave que llega' });
+      tl.to(6.4, { 'a4.lp': 27.5, 'a4.ly': 3.17 });
       tl.label('a4.muro');
       tl.caption(7.0, 'La luz pone el freno', 'Al ritmo de hoy querríamos toda la galaxia en unos 2 500 años, pero la luz tarda 100 000 en cruzarla. Desde aquí, el tiempo se mide en millones de años.', { fuente: 'Murphy, 2011', desde: 1.05, viaje: 'Alejándonos' });
       tl.to(7.0, { 'a4.lp': 29.0, 'a4.ly': 3.4, 'a4.lr': 17.7, 'a4.bub': 1 });
@@ -285,7 +343,28 @@ export function estrellas(): Acto {
       velaS.group.visible = false;
       velaG.group.visible = false;
       faro.points.visible = false;
+      nave.visible = false;
+      chorro.points.visible = false;
       if (!here) return;
+      // The ship that is a world, while we ride beside it.
+      if (p > P('a4.nave', -0.3) && p < P('a4.muro', 1.2)) {
+        const rel = NAVE.clone().sub(v.pos).divideScalar(M);
+        if (rel.length() < 4e7) {
+          cabina.visible = true;
+          nave.visible = true;
+          chorro.points.visible = true;
+          nave.position.copy(rel).multiplyScalar(SIGMA);
+          nave.quaternion.setFromUnitVectors(UP, DIR);
+          naveGiro.rotation.y = time * OMEGA;
+          naveGiro.updateMatrixWorld(true);
+          // The camera in the turning cylinder's frame (km).
+          const camL = rel.clone().negate().divideScalar(1000).applyQuaternion(nave.quaternion.clone().invert()).applyQuaternion(naveGiro.quaternion.clone().invert());
+          naveCil.update(camL, { focal: f.focal, dpr: f.dpr });
+          chorro.u.uT.value = time;
+          chorro.u.uOn.value = ease(P('a4.nave', -0.3), P('a4.nave', 0.6), p);
+          enfocar(chorro, { focal: f.focal, dpr: f.dpr }, chorro.u.uGain.value);
+        }
+      }
       const toView = (w: THREE.Vector3) => w.clone().transformDirection(camera.matrixWorldInverse);
       if (p < P('a4.frenar', 0.3)) {
         // Starshot's sail: where it is from the camera (metres), facing ahead.
@@ -321,13 +400,13 @@ export function estrellas(): Acto {
           velaS.uni.uLuz.value = useA ? Math.min(3, 4 / (aD * aD)) : Math.min(2, 0.3 / sail.lengthSq());
           velaS.uni.uLuzCol.value.set(useA ? 0xffd9a0 : 0xffe8c8);
         }
-      } else if (p < P('a4.muro', 1.5)) {
+      } else if (p < P('a4.nave', 0.4)) {
         // The braking sail: its face to A, metres from the camera.
-        const k = kFreno(Math.min(p, P('a4.muro')));
+        const k = kFreno(Math.min(p, P('a4.nave')));
         const rel = frenoRel(ease(0, 1, k));
-        const cv = camFreno(Math.min(p, P('a4.muro')));
+        const cv = camFreno(Math.min(p, P('a4.nave')));
         const offM = cv.pos.clone().sub(A.clone().add(rel)).divideScalar(M);
-        const relCam = p < P('a4.muro') ? offM.negate() : A.clone().add(rel).sub(v.pos).divideScalar(M);
+        const relCam = p < P('a4.nave') ? offM.negate() : A.clone().add(rel).sub(v.pos).divideScalar(M);
         if (relCam.length() < 2e5) {
           cabina.visible = true;
           velaG.group.visible = true;

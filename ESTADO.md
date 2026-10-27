@@ -88,7 +88,7 @@
 ## Pendiente de los actos IV y V (para pulir)
 - Algunas transiciones largas dejan un cuadro vacío (la caída hacia la vela; de las ruinas al borde de la galaxia; el paso por dentro de la membrana del frente).
 - La reserva del zoológico se lee poco: su esfera punteada parece una pila de anillos.
-- Faltan los «a la vez» del acto IV (naves generacionales, sondas que se copian, un motor estelar llevándose una estrella) y del V (radiotelescopios que escuchan, estrellas que se mueven y mezclan los asentamientos).
+- Acto IV: ya está «Naves que son mundos» (27 oct): el cilindro de O'Neill como nave generacional que llega a Alfa Centauri frenando con un chorro de fusión. Faltan las sondas que se copian (están en el acto V como la burbuja) y un motor estelar llevándose una estrella; en el V, radiotelescopios que escuchan.
 - Lámina: el cono de aberración y lo que la física no permite (Bussard, Alcubierre, agujeros de gusano) en punteado; cómo buscamos a otros (radio, láser, infrarrojo).
 
 ## Pendiente del acto III (para pulir)
