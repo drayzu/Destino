@@ -174,12 +174,15 @@ export function final(): Acto {
 
   // ------------------------------------------------------------ the camera
   const lado = V(0.9, 0.16, 0.42).normalize();
-  const orbitaBH = (p: number, d: number): Vista => ({
-    pos: lado.clone().applyAxisAngle(UP, 0.03 * (p - P('a8'))).multiplyScalar(d),
-    target: V(),
-    up: UP.clone(),
-    fov: 46,
-  });
+  const orbitaBH = (p: number, d: number): Vista => {
+    // While the last power plants are told: in closer, down towards the disc and round it, then
+    // back out to where the count of thoughts begins.
+    const cerca = ease(P('a8', 1.0), P('a8', 4.2), p) * (1 - ease(P('a8.contados', -2.2), P('a8.contados', 0.2), p));
+    const giro = 0.03 * (p - P('a8')) + 0.55 * ease(P('a8', 1.0), P('a8.contados', 0.2), p);
+    const eje = lado.clone().cross(UP).normalize();
+    const dir = lado.clone().applyAxisAngle(eje, 0.1 * cerca).applyAxisAngle(UP, giro);
+    return { pos: dir.multiplyScalar(d * (1 - 0.32 * cerca)), target: V(), up: UP.clone(), fov: 46 };
+  };
   /** The bubble's radius (AU) by beat: a seed, then inflating past everything. */
   const radio = (p: number) => Math.exp(lerp(Math.log(0.02), Math.log(4000), ease(P('a8.crear', 1.2), P('a8.relevo', 2.4), p) ** 1.4));
   function vista(p: number): Vista {
