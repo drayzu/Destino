@@ -274,7 +274,7 @@ export function cilindroPuntos(root: THREE.Group) {
       float port = step(0.9, color.g / max(color.r, 1e-3));
       if (uDentro < 0.5) {
         if (dot(nCap, uCamL - p) < 0.0) em *= 0.0;
-        else em = mix(color * (smoothstep(-0.1, 0.4, dot(nCap, uSun)) * 0.9 + 0.35), color, port);
+        else em = mix(color * (smoothstep(-0.1, 0.4, dot(nCap, uSun)) * 0.9 + 0.16), color, port);
       } else {
         // Inside, the far end: terraced land climbing to the port, lit by day, under the haze.
         float r = length(p.xz);
@@ -365,10 +365,10 @@ function espejosSilueta(root: THREE.Group, u: { uCamL: { value: THREE.Vector3 };
           void main() {
             #include <logdepthbuf_fragment>
             vec3 nn = dot(uN, uSun) > 0.0 ? uN : -uN;
-            float glint = pow(max(dot(reflect(-uSun, nn), normalize(uCamL - vW)), 0.0), 30.0);
+            float glint = pow(max(dot(reflect(-uSun, nn), normalize(uCamL - vW)), 0.0), 400.0);
             vec2 e = min(vUv, 1.0 - vUv);
             float edge = 1.0 - smoothstep(0.0, 0.006, min(e.x, e.y));
-            vec3 c = vec3(0.006) + vec3(1.0, 0.95, 0.88) * glint * 0.9 + vec3(0.6, 0.65, 0.7) * edge * 0.25;
+            vec3 c = vec3(0.006) + vec3(1.0, 0.95, 0.88) * glint * 1.6 + vec3(0.6, 0.65, 0.7) * edge * 0.25;
             gl_FragColor = vec4(c, 1.0);
           }`,
       }),

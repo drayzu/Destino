@@ -40,6 +40,8 @@ export interface Caption {
   fact: string;
   /** Where the fact comes from (shown with the plate). */
   fuente?: string;
+  /** A journey between moments: only a name («Hacia Marte»), while the camera travels. */
+  viaje?: boolean;
 }
 
 export class Timeline {
@@ -94,8 +96,10 @@ export class Timeline {
    * Names the moment starting at the cursor and lasting `dur` beats (the cursor stays). `desde`
    * starts it that many beats later (a moment that opens with a journey names the journey first).
    */
-  caption(dur: number, name: string, fact: string, o: { fuente?: string; desde?: number } = {}) {
+  caption(dur: number, name: string, fact: string, o: { fuente?: string; desde?: number; viaje?: string } = {}) {
     const from = this.cursor + (o.desde ?? 0) * this.escala;
+    // While the camera travels to what the moment is about, the journey has its own name.
+    if (o.viaje && o.desde) this.captions.push({ from: this.cursor, to: from, name: o.viaje, fact: '', viaje: true });
     this.captions.push({ from, to: this.cursor + dur * this.escala, name, fact, fuente: o.fuente });
     return this;
   }

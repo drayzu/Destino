@@ -156,13 +156,13 @@ export function galactica(): Acto {
       tl.caption(6.0, 'Tipo III', 'Usar toda la luz de una galaxia, unos 10³⁷ W, es ser tipo III. Se vería apagada en luz visible y brillante en infrarrojo. De unas 100 000 galaxias revisadas, ninguna es así.', { fuente: 'Griffith y otros, 2015' });
       tl.to(6.0, { 'a5.lp': 37.0, 'a5.ly': 8.5 });
       tl.label('a5.zoo');
-      tl.caption(4.8, 'El zoológico', 'Entonces, ¿por qué no vemos a nadie? Quizás alguien nos vio y nos dejó en paz, como a una reserva. Al pasar, nosotros también dejamos intacta una estrella con un mundo vivo.', { fuente: 'Ball, 1973' });
+      tl.caption(4.8, 'El zoológico', 'Entonces, ¿por qué no vemos a nadie? Quizás alguien nos vio y nos dejó en paz, como a una reserva. Al pasar, nosotros también dejamos intacta una estrella con un mundo vivo.', { fuente: 'Ball, 1973', desde: 1.45, viaje: 'Hacia una estrella joven' });
       tl.to(4.8, { 'a5.ly': 8.52 });
       tl.label('a5.callan');
-      tl.caption(4.4, 'Los que callan', 'O hay otros que callan a propósito, porque hacerse oír podría ser peligroso.', { fuente: 'Brin, 1983' });
+      tl.caption(4.4, 'Los que callan', 'O hay otros que callan a propósito, porque hacerse oír podría ser peligroso.', { fuente: 'Brin, 1983', desde: 1.3, viaje: 'Más lejos en la galaxia' });
       tl.to(4.4, { 'a5.ly': 8.54 });
       tl.label('a5.filtro');
-      tl.caption(5.4, 'El Gran Filtro', 'O casi todas se apagan antes de llegar tan lejos, como este enjambre muerto alrededor de una estrella muerta. ¿Ese filtro ya quedó atrás, o nos espera?', { fuente: 'Hanson, 1996' });
+      tl.caption(5.4, 'El Gran Filtro', 'O casi todas se apagan antes de llegar tan lejos, como este enjambre muerto alrededor de una estrella muerta. ¿Ese filtro ya quedó atrás, o nos espera?', { fuente: 'Hanson, 1996', desde: 2.4, viaje: 'Hacia una estrella muerta' });
       tl.to(5.4, { 'a5.ly': 8.56 });
       tl.label('a5.muro');
       tl.caption(6.4, 'El borde y el silencio', 'Nuestra burbuja llega al borde de la galaxia y la pregunta del principio vuelve: ¿dónde están todos? Quizás duermen esperando un universo más frío, o se fueron hacia adentro.', { fuente: 'Sandberg y otros, 2017; Smart, 2012' });

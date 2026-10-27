@@ -96,7 +96,7 @@ export function apertura(): Acto {
       tl.label('a0.escuchado').to(2.6, {});
       tl.caption(3.0, 'El silencio', 'Aun así, el silencio es raro: a una décima de la velocidad de la luz, una sola civilización llenaría la galaxia en 650 000 años, y ha habido 13 000 millones. ¿Dónde están todos?', { fuente: 'Fermi, 1950; Hart, 1975' });
       tl.label('a0.silencio').to(3.0, { 'a0.bub': 1 });
-      tl.caption(3.4, 'Una estrella amarilla', 'No lo sabemos. Pero podemos imaginar cómo crecería una, empezando por la única que conocemos: la nuestra, junto a una estrella amarilla.');
+      tl.caption(3.4, 'Una estrella amarilla', 'No lo sabemos. Pero podemos imaginar cómo crecería una, empezando por la única que conocemos: la nuestra, junto a una estrella amarilla.', { desde: 1.9, viaje: 'Hacia el Sol' });
       tl.label('a0.caida').to(3.4, { 'a0.caida': 1, 'a0.plan': 0 });
       tl.label('a0.fin');
     },

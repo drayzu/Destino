@@ -186,7 +186,7 @@ function step(now: number) {
   const c = tl.captionAt(p);
   // The moment's caption under its chapter; its source only with the plate. Each caption fades in
   // and out at its edges, so one gives way to the next instead of jumping.
-  const cap = c ? { name: tx(c.name), fact: tx(c.fact), fuente: plateOn ? c.fuente : undefined, capitulo: `${acto.numero} · ${tx(acto.nombre)}` } : null;
+  const cap = c ? { name: tx(c.name), fact: c.fact ? tx(c.fact) : '', fuente: plateOn ? c.fuente : undefined, capitulo: `${acto.numero} · ${tx(acto.nombre)}`, viaje: c.viaje } : null;
   const capFade = c ? Math.min(1, (p - c.from) / 0.45, (c.to - p) / 0.45) : 0;
   const l = acto.lectura(p);
   if (l) {
@@ -202,7 +202,7 @@ function step(now: number) {
     }
   }
   if (cap && cap.name !== lastCap && p > 0.3) {
-    sound.campana();
+    if (!cap.viaje) sound.campana();
     leer.textContent = `${cap.name}. ${cap.fact}`;
   }
   lastCap = cap?.name ?? '';

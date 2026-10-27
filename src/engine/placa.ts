@@ -224,6 +224,8 @@ export interface Rotulo {
   fuente?: string;
   /** The chapter it belongs to, above the name: «III · El sistema solar trabaja». */
   capitulo?: string;
+  /** A journey between moments: an arrow and a name, nothing else. */
+  viaje?: boolean;
 }
 
 /**
@@ -251,7 +253,12 @@ function rotuloMomento(g: CanvasRenderingContext2D, u: number, H: number, cap: R
   }
   g.font = FONT.italic(32 * u);
   g.fillStyle = ink();
-  g.fillText(cap.name, x, top - 30 * u);
+  if (cap.viaje) {
+    // On the way: «→ Hacia Marte», where the sentence will be.
+    g.font = FONT.italic(27 * u);
+    g.fillStyle = ink(0.82);
+    g.fillText(`→  ${cap.name}`, x, top - 30 * u);
+  } else g.fillText(cap.name, x, top - 30 * u);
   if (cap.capitulo) {
     g.font = FONT.mono(10.5 * u);
     g.letterSpacing = `${1.6 * u}px`;

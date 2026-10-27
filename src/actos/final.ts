@@ -192,7 +192,7 @@ export function final(): Acto {
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a8');
       tl.set({ 'a8.lp': 46.0, 'a8.ly': 10.7 });
-      tl.caption(6.6, 'Las últimas centrales', 'Cuando las estrellas se apagan, quedan los agujeros negros. De uno que gira al máximo se puede sacar hasta el 29 % de su masa; después, solo su débil radiación de Hawking.', { fuente: 'Penrose, 1969' });
+      tl.caption(6.6, 'Las últimas centrales', 'Cuando las estrellas se apagan, quedan los agujeros negros. De uno que gira al máximo se puede sacar hasta el 29 % de su masa; después, solo su débil radiación de Hawking.', { fuente: 'Penrose, 1969', desde: 3.0, viaje: 'Billones de años después' });
       tl.to(6.6, { 'a8.lp': 38.0, 'a8.ly': 14.0 });
       tl.label('a8.contados');
       tl.caption(5.6, 'Pensamientos contados', 'Si el universo se expandiera sin acelerar, la vida podría pensar para siempre. Pero se acelera: los pensamientos posibles son un número finito.', { fuente: 'Dyson, 1979; Krauss y Starkman, 2000' });

@@ -88,7 +88,7 @@ export function adentro(): Acto {
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a6');
       tl.set({ 'a6.cam': 0, 'a6.frio': 0, 'a6.lam': 0, 'a6.flow': 0, 'a6.muro': 0, 'a6.ly': 8.6 });
-      tl.caption(5.6, 'Pensar con una estrella', 'Hacia adentro: en vez de seguir expandiéndose, una civilización madura podría envolver su estrella en capas de computadoras, cada una alimentada con el calor de la anterior.', { fuente: 'Bradbury, 1999 (cerebro Matrioshka)' });
+      tl.caption(5.6, 'Pensar con una estrella', 'Hacia adentro: en vez de seguir expandiéndose, una civilización madura podría envolver su estrella en capas de computadoras, cada una alimentada con el calor de la anterior.', { fuente: 'Bradbury, 1999 (cerebro Matrioshka)', desde: 2.5, viaje: 'Hacia una sola estrella' });
       tl.to(3.0, {}).to(2.6, { 'a6.cam': 1, 'a6.ly': 8.62 });
       tl.label('a6.frio');
       tl.caption(3.8, 'El frío piensa más', 'Cuanto más frío, más barato es pensar: borrar un bit a 3 K cuesta 110 veces menos que a 300 K. Con la luz de un sol, de 10⁴⁷ a 10⁴⁹ operaciones por segundo.', { fuente: 'Landauer, 1961' });
