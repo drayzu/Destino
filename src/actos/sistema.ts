@@ -543,7 +543,7 @@ export function sistema(): Acto {
       // The cylinder turns (its gravity); inside, the camera's place in its turning frame for the haze.
       const near = cam.distanceTo(CIL) < 2000 * KM;
       cil.group.visible = p > P('a3', -1) && near;
-      if (cil.group.visible) cil.update(cil.giro.worldToLocal(V(0, 0, 0)), time, 0.15);
+      if (cil.group.visible) cil.update(cil.giro.worldToLocal(V(0, 0, 0)), time, 0.15, f);
       // The swarm.
       const spin = time * 0.0006;
       swarm.points.visible = on;
