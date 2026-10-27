@@ -7,3 +7,5 @@ tools/src/
 # the brief and local tooling stay out of the repository
 BRIEF.md
 .claude/
+
+tools/clip/
