@@ -72,6 +72,11 @@ function penrose() {
         }
       }
       p = (e1 * cos(ang) + e2 * sin(ang)) * r + uN * position.y * r;
+      // Near the horizon (r in Schwarzschild radii) its light is pulled redder and dimmer: what
+      // reaches us from the ergosphere is faint, and nothing from the horizon itself.
+      float g = sqrt(max(1.0 - 1.0 / max(r, 1.0), 0.0));
+      em *= g * g;
+      em = mix(em * vec3(1.0, 0.3, 0.12), em, g);
       em *= uOn;
       fuente = 1.0;`,
     uniforms: { uOn: { value: 0 }, uN: { value: NORMAL.clone() } },
