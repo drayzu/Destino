@@ -48,10 +48,13 @@ export function apertura(): Acto {
     const az = 0.35 + 0.05 * (p - P('a0'));
     const d0 = lerp(420, 300, ease(P('a0.voz'), P('a0.lejos'), p));
     const k = ease(P('a0.lejos'), P('a0.planetas', -0.2), p);
-    const d = Math.exp(lerp(Math.log(d0), Math.log(155000), k));
+    // With the whole galaxy in view, a slow turn round it and down towards its plane, so the
+    // arms wheel past while the planets and the silence are told.
+    const deriva = ease(P('a0.planetas', -0.2), P('a0.caida'), p);
+    const d = Math.exp(lerp(Math.log(d0), Math.log(155000), k)) * (1 - 0.12 * deriva);
     // Pull straight back from the Sun first; only near the end turn to frame the whole galaxy.
     const target = V(0, 0, 0).lerp(CENTRO.clone().multiplyScalar(0.62), ease(0.55, 1, k));
-    const pos = sph(target, d, lerp(0.18, 1.0, ease(0.0, 0.6, k)), az);
+    const pos = sph(target, d, lerp(0.18, 1.0, ease(0.0, 0.6, k)) - 0.28 * deriva, az + 0.75 * deriva);
     // At first we look away from the Sun, along the disc to the galaxy's core (all those stars, and
     // the glow of the bulge); then the gaze turns to the Sun, a point among them.
     const gira = ease(P('a0', 1.0), P('a0.voz', 0.5), p);
@@ -185,10 +188,20 @@ export function apertura(): Acto {
         g.restore();
         // (it gives way to «lo que hemos escuchado», on the same point)
         nota(g, u, sq.x, sq.y, 'nuestra voz · todo cabe en este punto', 40, 36, b2 * (1 - ease(P('a0.escuchado', -0.1), P('a0.escuchado', 0.3), p)));
-        const e1 = proj(CENTRO.clone().add(V(-50000, 0, 0)));
-        const e2 = proj(CENTRO.clone().add(V(50000, 0, 0)));
+        // The diameter across the line of sight, so it keeps its length while the camera turns.
+        const ancho = camaraLy(p).pos.sub(CENTRO).cross(UP).normalize().multiplyScalar(50000);
+        const e1 = proj(CENTRO.clone().sub(ancho));
+        const e2 = proj(CENTRO.clone().add(ancho));
+        if (e1 && e2 && e1.x > e2.x) [e1.x, e2.x] = [e2.x, e1.x];
         if (e1 && e2) {
-          const y = Math.max(e1.y, e2.y) + 40 * u;
+          // Under the disc as it is seen (its rim's lowest point on screen).
+          let y = Math.max(e1.y, e2.y);
+          for (let i = 0; i < 24; i++) {
+            const a = (i / 24) * Math.PI * 2;
+            const r = proj(CENTRO.clone().add(V(Math.cos(a) * 50000, 0, Math.sin(a) * 50000)));
+            if (r) y = Math.max(y, r.y);
+          }
+          y = Math.min(y + 18 * u, H - 80 * u);
           linea(g, u, [{ x: e1.x, y }, { x: e2.x, y }], ink(0.5), b2, [], 1);
           linea(g, u, [{ x: e1.x, y: y - 5 * u }, { x: e1.x, y: y + 5 * u }], ink(0.5), b2, [], 1);
           linea(g, u, [{ x: e2.x, y: y - 5 * u }, { x: e2.x, y: y + 5 * u }], ink(0.5), b2, [], 1);
