@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { CIUDADES, esfera } from './tierra';
+import { CIUDADES, esfera, textura } from './tierra';
+import { GLSL_SIMPLEX } from '../horizontes';
 import { materia, materiaBuilder } from '../engine/materia';
 import { gauss } from '../engine/math';
 
@@ -58,9 +59,18 @@ export function mapaCalor() {
   return tex;
 }
 
-/** The planet in infrared (false colour): its own warmth, plus our heat; only right of the curtain. */
+/**
+ * The planet in infrared (false colour), as weather satellites see it: high cloud tops cold and dark,
+ * the tropics and the deserts warm, the poles cold; on top, our heat. Its palette and its fine
+ * mottling are the Sun's (horizontes · sol), so the two hot bodies of the journey read alike. Only
+ * right of the curtain.
+ */
 export function infrarrojo() {
+  const negro = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
+  negro.needsUpdate = true;
   const uni = {
+    uNubes: { value: negro as THREE.Texture },
+    uDia: { value: negro as THREE.Texture },
     uHeat: { value: mapaCalor() },
     uLocal: { value: 0 },
     uGlobal: { value: 0 },
@@ -85,19 +95,33 @@ export function infrarrojo() {
         }`,
       fragmentShader: /* glsl */ `
         #include <logdepthbuf_pars_fragment>
-        uniform sampler2D uHeat; uniform float uLocal, uGlobal, uWipePx;
+        uniform sampler2D uHeat, uNubes, uDia; uniform float uLocal, uGlobal, uWipePx;
         varying vec3 vN; varying vec3 vV; varying vec2 vUv;
+        ${GLSL_SIMPLEX}
+        // The Sun's palette: deep red, ember, orange, hot white.
         vec3 ramp(float t) {
-          vec3 a = vec3(0.08, 0.01, 0.01), b = vec3(0.38, 0.045, 0.025), c = vec3(0.95, 0.3, 0.07), d = vec3(1.15, 0.78, 0.32), e = vec3(1.4, 1.3, 1.0);
-          return t < 0.3 ? mix(a, b, t / 0.3) : t < 0.6 ? mix(b, c, (t - 0.3) / 0.3) : t < 0.95 ? mix(c, d, (t - 0.6) / 0.35) : mix(d, e, clamp((t - 0.95) / 0.5, 0.0, 1.0));
+          vec3 c = mix(vec3(0.12, 0.012, 0.004), vec3(0.62, 0.11, 0.02), smoothstep(0.05, 0.32, t));
+          c = mix(c, vec3(1.0, 0.42, 0.1), smoothstep(0.32, 0.6, t));
+          c = mix(c, vec3(1.05, 0.78, 0.45), smoothstep(0.62, 0.95, t));
+          return mix(c, vec3(1.3, 1.2, 1.0), clamp((t - 0.95) / 0.5, 0.0, 1.0));
         }
         void main() {
           #include <logdepthbuf_fragment>
           if (gl_FragCoord.x < uWipePx) discard;
           vec3 n = normalize(vN);
           float mu = max(dot(n, normalize(vV)), 0.0);
-          // The planet's own warmth (288 K): the tropics warmer than the poles.
-          float own = 0.16 + 0.1 * (1.0 - n.y * n.y);
+          // Map coordinates as the Earth's maps have them (east towards −Z).
+          vec2 uv = vec2(atan(-n.z, n.x) / 6.2831853 + 0.5, 0.5 + asin(clamp(n.y, -1.0, 1.0)) / 3.14159265);
+          // The planet's own warmth (288 K): the tropics warmer than the poles; land warmer than
+          // sea by day (the bright deserts most); high clouds cold.
+          float own = 0.06 + 0.2 * (1.0 - n.y * n.y);
+          vec3 d = texture2D(uDia, uv).rgb;
+          float desierto = smoothstep(0.25, 0.5, d.r) * (1.0 - smoothstep(0.55, 0.8, d.b)) * (1.0 - smoothstep(0.55, 0.75, abs(n.y)));
+          own += 0.1 * desierto;
+          float nube = smoothstep(0.25, 0.85, texture2D(uNubes, uv).r);
+          own -= 0.22 * nube;
+          // The Sun's fine mottling, so it is not a flat paint.
+          own += 0.035 * snoise(n * 30.0) + 0.02 * snoise(n * 80.0);
           float h = texture2D(uHeat, vUv).r;
           float t = own + uGlobal + uLocal * h;
           vec3 col = ramp(t) * (0.45 + 0.55 * sqrt(max(mu, 0.0))) * 0.85;
@@ -106,6 +130,17 @@ export function infrarrojo() {
     }),
   );
   mesh.renderOrder = 6;
+  // The real Earth's clouds and land (the same maps as its points).
+  new THREE.TextureLoader().load(textura('2k_earth_clouds.jpg'), (t) => {
+    t.colorSpace = THREE.NoColorSpace;
+    t.wrapS = THREE.RepeatWrapping;
+    uni.uNubes.value = t;
+  });
+  new THREE.TextureLoader().load(textura('2k_earth_daymap.jpg'), (t) => {
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = THREE.RepeatWrapping;
+    uni.uDia.value = t;
+  });
   return { mesh, uni };
 }
 
