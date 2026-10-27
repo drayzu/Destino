@@ -68,12 +68,14 @@ export function cosmico(): Acto {
     const k1 = (p - P('a7.prisa')) / (P('a7.expansivas') - P('a7.prisa'));
     if (p < P('a7.expansivas')) return mezcla(orbitar(C1, 0.05), orbitar(C2, 0.05 * k1), ease(0, 0.5, k1));
     const k2 = (p - P('a7.expansivas')) / (P('a7.fin') - P('a7.expansivas'));
-    return mezcla(orbitar(C2, 0.05), orbitar(C3, 0.06 * k2), ease(0, 0.3, k2));
+    // (turning slowly all the while, so the last moments never stand still)
+    return mezcla(orbitar(C2, 0.05), orbitar(C3, 0.4 * k2), ease(0, 0.3, k2));
   }
 
   /** Our probes' front and the universe's scale factor, by beat. */
   const frenteK = (p: number) => R_NUESTRA * ease(P('a7', 2.6), P('a7.expansivas', 1.0), p) ** 0.7;
-  const escala = (p: number) => lerp(1, 2.4, ease(P('a7.prisa', 0.6), P('a7.muro', 2), p));
+  // After the wall the expansion goes on (to ×4.3): the web streams out through the horizon, which stays put.
+  const escala = (p: number) => lerp(1, 2.4, ease(P('a7.prisa', 0.6), P('a7.muro', 2), p)) * lerp(1, 1.8, ease(P('a7.muro', 0.4), P('a7.fin', 0.4), p));
 
   return {
     id: 'a7',
@@ -124,7 +126,9 @@ export function cosmico(): Acto {
       group.visible = here;
       if (!here) return;
       const on = ease(P('a7', 1.2), P('a7', 2.6), p);
-      uni.nube.u.uOn.value = on;
+      // Type IV: everything in use, every bubble lit.
+      const t4 = ease(P('a7.tipo4', 0), P('a7.tipo4', 0.6), p) * (1 - ease(P('a7.muro', -0.2), P('a7.muro', 0.8), p));
+      uni.nube.u.uOn.value = on * (1 + 0.5 * t4);
       uni.nube.u.uScale.value = f.k * MLY_AU;
       const a = escala(p);
       uni.nube.u.uA.value = a;
@@ -140,12 +144,13 @@ export function cosmico(): Acto {
         const o = otras[i];
         o.mesh.position.copy(c).multiplyScalar(a);
         o.mesh.scale.setScalar(Math.max(r * a, 1e-6));
-        o.u.uOn.value = 0.6 * ease(0, 0.15, kx);
+        // Carried past the horizon, they go dark: out of reach.
+        o.u.uOn.value = 0.6 * ease(0, 0.15, kx) * (1 + 0.6 * t4) * (1 - 0.85 * smoothstep(HOR * 0.9, HOR * 1.4, c.length() * a));
         o.u.uTime.value = time;
         o.mesh.visible = r > 1;
       });
       nuestra.mesh.scale.setScalar(Math.max(R * a, 1e-6));
-      nuestra.u.uOn.value = 0.5 * ease(P('a7', 3.0), P('a7', 4.0), p);
+      nuestra.u.uOn.value = 0.5 * ease(P('a7', 3.0), P('a7', 4.0), p) * (1 + 0.7 * t4);
       nuestra.u.uTime.value = time;
       nuestra.mesh.visible = R > 1;
       pr.u.uProg.value = R;
@@ -156,7 +161,7 @@ export function cosmico(): Acto {
       uni.nube.u.uHor.value = hor > 0.001 ? HOR : 0;
       horizonte.group.visible = hor > 0.001;
       horizonte.group.scale.setScalar(HOR);
-      horizonte.nube.u.uGain.value = 0.5 * hor;
+      horizonte.nube.u.uGain.value = 0.5 * hor + 1.1 * ease(P('a7.muro', 0), P('a7.muro', 1.0), p);
     },
     placa(g, f: Cuadro) {
       const { p, W, H, u } = f;
