@@ -209,7 +209,7 @@ function cargar(url: string) {
 // ---------------------------------------------------------------- way 1 · the photograph, treated
 
 function tierraFoto(day: THREE.Texture, clouds: THREE.Texture, land: THREE.Texture) {
-  const u = { uDay: { value: day }, uClouds: { value: clouds }, uLand: { value: land }, uSun: { value: V(1, 0, 0) } };
+  const u = { uDay: { value: day }, uClouds: { value: clouds }, uLand: { value: land }, uSun: { value: V(1, 0, 0) }, uBrillo: { value: 1 } };
   return new THREE.Mesh(
     new THREE.SphereGeometry(1, 256, 128),
     new THREE.ShaderMaterial({
@@ -221,7 +221,7 @@ function tierraFoto(day: THREE.Texture, clouds: THREE.Texture, land: THREE.Textu
           #include <logdepthbuf_vertex>
         }`,
       fragmentShader: /* glsl */ `${LOG_F}
-        uniform sampler2D uDay, uClouds, uLand; uniform vec3 uSun;
+        uniform sampler2D uDay, uClouds, uLand; uniform vec3 uSun; uniform float uBrillo;
         varying vec3 vN; varying vec3 vV;
         ${NOISE}
         ${TRATO}
@@ -238,14 +238,14 @@ function tierraFoto(day: THREE.Texture, clouds: THREE.Texture, land: THREE.Textu
           // The Sun's glint on open sea.
           float spec = pow(max(dot(reflect(-uSun, n), V), 0.0), 70.0) * sea * (1.0 - cl) * smoothstep(0.0, 0.2, dot(n, uSun));
           c += vec3(1.0, 0.85, 0.65) * spec * 0.5;
-          gl_FragColor = vec4(c, 1.0);
+          gl_FragColor = vec4(c * uBrillo, 1.0);
         }`,
     }),
   );
 }
 
 function mercurioFoto(tex: THREE.Texture) {
-  const u = { uTex: { value: tex }, uSun: { value: V(1, 0, 0) } };
+  const u = { uTex: { value: tex }, uSun: { value: V(1, 0, 0) }, uBrillo: { value: 1 } };
   return new THREE.Mesh(
     new THREE.SphereGeometry(1, 256, 128),
     new THREE.ShaderMaterial({
@@ -257,7 +257,7 @@ function mercurioFoto(tex: THREE.Texture) {
           #include <logdepthbuf_vertex>
         }`,
       fragmentShader: /* glsl */ `${LOG_F}
-        uniform sampler2D uTex; uniform vec3 uSun;
+        uniform sampler2D uTex; uniform vec3 uSun; uniform float uBrillo;
         varying vec3 vN; varying vec3 vV;
         ${NOISE}
         ${TRATO}
@@ -274,7 +274,7 @@ function mercurioFoto(tex: THREE.Texture) {
           vec3 t2 = cross(n, t1);
           vec3 nn = normalize(n - (t1 * (hx - h0) + t2 * (hy - h0)) * 2.5);
           vec3 alb = texture2D(uTex, uv).rgb * vec3(1.0, 0.97, 0.92);
-          gl_FragColor = vec4(luz(alb * 1.15, nn, uSun, normalize(vV), 0.0), 1.0);
+          gl_FragColor = vec4(luz(alb * 1.15, nn, uSun, normalize(vV), 0.0) * uBrillo, 1.0);
         }`,
     }),
   );
@@ -431,7 +431,7 @@ function tierraPuntos(day: THREE.Texture, clouds: THREE.Texture) {
     kind.push(2);
   }
   const nube = materia(b.data(), {
-    pre: /* glsl */ `attribute float aSea; uniform vec3 uSun, uCamL;`,
+    pre: /* glsl */ `attribute float aSea; uniform vec3 uSun, uCamL, uFoco; uniform float uNivel;`,
     move: /* glsl */ `
       vec3 n = normalize(p);
       float d = dot(n, uSun);
@@ -440,8 +440,9 @@ function tierraPuntos(day: THREE.Texture, clouds: THREE.Texture) {
       em = g0 * (lit * 0.9 + 0.003);
       // The sea's glint.
       if (aSea > 0.5 && aSea < 1.5) em += vec3(1.0, 0.85, 0.65) * pow(max(dot(reflect(-uSun, n), normalize(uCamL - p)), 0.0), 60.0) * 0.5 * lit;
+      ${HUECO}
       if (dot(n, uCamL - p) < 0.0) em *= 0.0;`,
-    uniforms: { uSun: { value: V(1, 0, 0) }, uCamL: { value: V(0, 0, 5) } },
+    uniforms: { uSun: { value: V(1, 0, 0) }, uCamL: { value: V(0, 0, 5) }, uFoco: { value: V(0, 0, 1) }, uNivel: { value: 0 } },
     extra: { aSea: [new Float32Array(kind), 1] },
   });
   nube.u.uSpread.value = 0;
@@ -477,18 +478,122 @@ function mercurioPuntos(tex: THREE.Texture) {
     nrm.push(nn.x, nn.y, nn.z);
   }
   const nube = materia(b.data(), {
-    pre: /* glsl */ `attribute vec3 aNrm; uniform vec3 uSun, uCamL;`,
+    pre: /* glsl */ `attribute vec3 aNrm; uniform vec3 uSun, uCamL, uFoco; uniform float uNivel;`,
     move: /* glsl */ `
       float lit = smoothstep(-0.02, 0.22, dot(aNrm, uSun)) * smoothstep(-0.05, 0.05, dot(normalize(p), uSun));
       ${TRATO_PUNTOS}
       em = g0 * (lit * 0.9 + 0.003);
+      ${HUECO}
       if (dot(normalize(p), uCamL - p) < 0.0) em *= 0.0;`,
-    uniforms: { uSun: { value: V(1, 0, 0) }, uCamL: { value: V(0, 0, 5) } },
+    uniforms: { uSun: { value: V(1, 0, 0) }, uCamL: { value: V(0, 0, 5) }, uFoco: { value: V(0, 0, 1) }, uNivel: { value: 0 } },
     extra: { aNrm: [new Float32Array(nrm), 3] },
   });
   nube.u.uSpread.value = 0;
   return nube;
 }
+
+/**
+ * Points ever finer near the camera (clipmaps for points): level L has a spacing of S0 / 2^L
+ * (radians of arc) and a window of 2·NV × 2·NV cells round the ground under the camera. Every point
+ * sits in a fixed cell of a latitude–longitude lattice of its level (its row's longitude step kept
+ * as even as the latitude allows), so moving the camera never makes them slide; the window only moves
+ * by whole cells, fading at its edge, and each level leaves a hole where the next, finer one is on.
+ * Colour from the same map, read in the shader.
+ */
+const S0 = 0.0049;
+const NIVELES = 9;
+const NV = 80;
+function parche(map: THREE.Texture, opts: { nubes?: THREE.Texture; relieve?: boolean; aire: number }) {
+  const b = materiaBuilder(9);
+  for (let L = 1; L <= NIVELES; L++) for (let j = -NV; j < NV; j++) for (let i = -NV; i < NV; i++) b.push(i, j, L, new THREE.Color(1, 1, 1), 1, 1);
+  const nube = materia(b.data(), {
+    pre: /* glsl */ `
+      uniform sampler2D uMap, uNubes;
+      uniform float uFocoLat, uFocoLon, uNivel, uConNubes, uRelieve, uAire;
+      uniform vec3 uSun, uCamL;
+      float hh(vec3 q) { return fract(sin(dot(q, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+      vec3 dirDe(float la, float lo) { return vec3(cos(la) * cos(lo), sin(la), -cos(la) * sin(lo)); }
+      vec2 uvLL(float la, float lo) { return vec2(fract(lo / 6.2831853 + 0.5), 0.5 + la / 3.14159265); }`,
+    move: /* glsl */ `
+      float L = position.z;
+      float sp = SPACING0 / exp2(L);
+      float row = floor(uFocoLat / sp) + position.y;
+      float lat = (row + 0.5) * sp;
+      float nLon = max(1.0, floor(6.2831853 * cos(lat) / sp));
+      float dl = 6.2831853 / nLon;
+      float col = floor(uFocoLon / dl) + position.x;
+      vec3 cell = vec3(row, mod(col, nLon), L);
+      float la = lat + (hh(cell) - 0.5) * sp * 0.8;
+      float lo = (col + 0.5 + (hh(cell + 1.7) - 0.5) * 0.8) * dl;
+      vec3 n = dirDe(la, lo);
+      p = n;
+      // Its colour: the map, the clouds, a little grain of its own (the map's pixels are larger than the finest points).
+      vec2 uv = uvLL(la, lo);
+      vec3 c = texture2D(uMap, uv).rgb;
+      if (uConNubes > 0.5) c = mix(c, vec3(0.62, 0.64, 0.66), smoothstep(0.2, 0.9, texture2D(uNubes, uv).r) * 0.8);
+      c *= 0.82 + 0.36 * hh(cell + 3.1);
+      // Its light: relief from the map's own shading (rock), or the round planet.
+      vec3 nn = n;
+      if (uRelieve > 0.5) {
+        float e = 0.0015;
+        float h0 = dot(texture2D(uMap, uv).rgb, vec3(0.33));
+        float hx = dot(texture2D(uMap, uv + vec2(e, 0.0)).rgb, vec3(0.33));
+        float hy = dot(texture2D(uMap, uv + vec2(0.0, e)).rgb, vec3(0.33));
+        vec3 t1 = normalize(cross(vec3(0.0, 1.0, 0.0), n) + 1e-5);
+        vec3 t2 = cross(n, t1);
+        nn = normalize(n - (t1 * (hx - h0) + t2 * (hy - h0)) * 2.5);
+      }
+      float d = dot(nn, uSun);
+      float lit = mix(smoothstep(-0.02, 0.22, d) * smoothstep(-0.05, 0.05, dot(n, uSun)), smoothstep(-0.14, 0.42, d), uAire);
+      float l0 = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      vec3 g0 = pow(max(mix(vec3(l0), c, 0.6), vec3(0.0)), vec3(1.3)) * vec3(0.9, 0.96, 1.04);
+      em = g0 * (lit * 0.9 + 0.003);
+      // Which levels are on: the finest the camera's height asks for; fading at the window's edge;
+      // a hole where the next, finer level takes over.
+      float on = clamp(uNivel - L + 1.0, 0.0, 1.0);
+      float dc = max(abs(position.x + 0.5), abs(position.y + 0.5)) / HALF;
+      on *= 1.0 - smoothstep(0.7, 1.0, dc);
+      vec3 foco = dirDe(uFocoLat, uFocoLon);
+      float ang = acos(clamp(dot(n, foco), -1.0, 1.0));
+      float rNext = HALF * sp * 0.5;
+      float aNext = clamp(uNivel - L, 0.0, 1.0);
+      on *= mix(1.0, smoothstep(0.7, 0.95, ang / rNext), aNext);
+      em *= on;
+      sz = sp * 0.8;
+      if (dot(n, uCamL - n) < 0.0 || on < 0.002) em *= 0.0;`.replace(/SPACING0/g, S0.toFixed(5)).replace(/HALF/g, NV.toFixed(1)),
+    uniforms: {
+      uMap: { value: map },
+      uNubes: { value: opts.nubes ?? map },
+      uConNubes: { value: opts.nubes ? 1 : 0 },
+      uRelieve: { value: opts.relieve ? 1 : 0 },
+      uAire: { value: opts.aire },
+      uFocoLat: { value: 0 },
+      uFocoLon: { value: 0 },
+      uNivel: { value: 0 },
+      uSun: { value: V(1, 0, 0) },
+      uCamL: { value: V(0, 0, 5) },
+    },
+  });
+  nube.u.uSpread.value = 0;
+  return {
+    nube,
+    /** Per frame: where the camera is (planet radii, the planet at the origin). */
+    seguir(cam: THREE.Vector3) {
+      const c = cam.clone().normalize();
+      nube.u.uFocoLat.value = Math.asin(Math.max(-1, Math.min(1, c.y)));
+      nube.u.uFocoLon.value = Math.atan2(-c.z, c.x);
+      // Spacing on the ground of about 0.45 % of the height: the level that gives it.
+      const h = Math.max(cam.length() - 1, 1e-6);
+      nube.u.uNivel.value = Math.max(0, Math.min(NIVELES, Math.log2(S0 / (h * 0.0045))));
+      nube.points.visible = nube.u.uNivel.value > 0.001;
+    },
+  };
+}
+
+/** The global points step aside where the patch's first level is on. */
+const HUECO = `
+      float angF = acos(clamp(dot(normalize(p), uFoco), -1.0, 1.0));
+      em *= mix(1.0, smoothstep(0.7, 0.95, angF / (HALF * SPACING0 * 0.5)), clamp(uNivel, 0.0, 1.0));`.replace(/SPACING0/g, S0.toFixed(5)).replace(/HALF/g, NV.toFixed(1));
 
 // ---------------------------------------------------------------- the study
 
@@ -519,6 +624,7 @@ export const planetas: Escena = {
     const uniSun: { value: THREE.Vector3 }[] = [haloT.u.uSun];
     const camLs: { value: THREE.Vector3 }[] = [];
     let luces: Nube | null = null;
+    let seguir: ((cam: THREE.Vector3) => void) | null = null;
 
     const listo = (async () => {
       const isLand = await mascaraTierra();
@@ -546,11 +652,30 @@ export const planetas: Escena = {
         const [day, clouds, merc] = await Promise.all([cargar('/texturas/2k_earth_daymap.jpg'), cargar('/texturas/2k_earth_clouds.jpg'), cargar('/texturas/2k_mercury.jpg')]);
         const t = tierraPuntos(day, clouds);
         const mm = mercurioPuntos(merc);
-        tierraG.add(nucleo(), t.points);
-        mercG.add(nucleo(0.99), mm.points);
-        nubes.push(t, mm);
-        uniSun.push(t.u.uSun, mm.u.uSun);
-        camLs.push(t.u.uCamL, mm.u.uCamL);
+        // Underneath, the same photograph, treated and dim: the gaps between points read as ground.
+        const cloudsLin = clouds.clone();
+        cloudsLin.colorSpace = THREE.NoColorSpace;
+        cloudsLin.needsUpdate = true;
+        const fondoT = tierraFoto(day, cloudsLin, land);
+        const fondoM = mercurioFoto(merc);
+        fondoT.scale.setScalar(0.997);
+        fondoM.scale.setScalar(0.994);
+        (fondoT.material as THREE.ShaderMaterial).uniforms.uBrillo.value = 0.2;
+        (fondoM.material as THREE.ShaderMaterial).uniforms.uBrillo.value = 0.22;
+        const pt = parche(day, { nubes: cloudsLin, aire: 1 });
+        const pm = parche(merc, { relieve: true, aire: 0 });
+        tierraG.add(fondoT, t.points, pt.nube.points);
+        mercG.add(fondoM, mm.points, pm.nube.points);
+        nubes.push(t, mm, pt.nube, pm.nube);
+        uniSun.push(t.u.uSun, mm.u.uSun, pt.nube.u.uSun, pm.nube.u.uSun, (fondoT.material as THREE.ShaderMaterial).uniforms.uSun, (fondoM.material as THREE.ShaderMaterial).uniforms.uSun);
+        camLs.push(t.u.uCamL, mm.u.uCamL, pt.nube.u.uCamL, pm.nube.u.uCamL);
+        seguir = (cam) => {
+          for (const [pa, glob] of [[pt, t], [pm, mm]] as const) {
+            pa.seguir(cam);
+            glob.u.uFoco.value.copy(cam).normalize();
+            glob.u.uNivel.value = pa.nube.u.uNivel.value;
+          }
+        };
       }
     })();
 
@@ -571,10 +696,10 @@ export const planetas: Escena = {
     const wheel = (ev: WheelEvent) => {
       if (!ev.shiftKey) return;
       ev.preventDefault();
-      libre.zoom = Math.max(-4, Math.min(2.5, libre.zoom + Math.sign(ev.deltaY || ev.deltaX) * 0.12));
+      libre.zoom = Math.max(-6, Math.min(2.5, libre.zoom + Math.sign(ev.deltaY || ev.deltaX) * 0.12));
     };
     const key = (ev: KeyboardEvent) => {
-      if (ev.key === '+' || ev.key === '=') libre.zoom = Math.max(-4, libre.zoom - 0.15);
+      if (ev.key === '+' || ev.key === '=') libre.zoom = Math.max(-6, libre.zoom - 0.15);
       if (ev.key === '-' || ev.key === '_') libre.zoom = Math.min(2.5, libre.zoom + 0.15);
     };
     const reset = () => Object.assign(libre, { yaw: 0, pitch: 0, zoom: 0 });
@@ -618,7 +743,7 @@ export const planetas: Escena = {
         tgt.applyQuaternion(q);
         upv.applyQuaternion(q);
         const alt = Math.max(pos.length() - 1, 1e-4) * Math.exp(libre.zoom);
-        const nuevo = pos.clone().normalize().multiplyScalar(1 + Math.max(alt, 0.004));
+        const nuevo = pos.clone().normalize().multiplyScalar(1 + Math.max(alt, 0.0006));
         tgt.add(nuevo.clone().sub(pos).multiplyScalar(tgt.length() < 1e-6 ? 0 : 1));
         pos.copy(nuevo);
         camera.position.copy(pos);
@@ -633,6 +758,7 @@ export const planetas: Escena = {
         mercG.visible = tm.planeta === 1;
         for (const u of uniSun) u.value.copy(tm.sun);
         for (const u of camLs) u.value.copy(camera.position);
+        seguir?.(camera.position);
         const focal = f.H / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
         for (const n of nubes) {
           enfocar(n, focal, f.dpr, time);
