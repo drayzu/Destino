@@ -81,13 +81,13 @@
 ## Pendiente del viaje completo (fase 5 y pulido)
 - Duración: ~10 minutos desde el 27 de octubre. Los actos se escriben a su ritmo y la línea de tiempo los estira (`tl.escala = 1.38` en `main.ts`). Los desfases fijos dentro de un momento se escriben `P('etiqueta', d)` para que se estiren igual. Capturas: `docs/fase5/`.
 - Estilo de las estructuras: Diego eligió **puntitos con espejos en silueta**, los espejos como pétalos (abiertos a 45° desde el extremo opuesto al Sol, como en O'Neill). Ya está en el cilindro de O'Neill (`src/mundo/cilindro.ts`; estudio `?m=estructuras&espejos=silueta`), en los demás hábitats (`habitats.ts`: cada superficie es un trozo de GLSL que colorea los puntos y, más tenue, la malla de debajo) y en el espejo de Shkadov (silueta). El enjambre, las velas y el motor de Caplan ya eran puntos.
-- Transiciones con cuadros vacíos (sobre todo los traslados largos entre escalas).
+- Cuadros vacíos (27 oct): `node tools/vacios.mjs` recorre todo el viaje y mide cuánto de cada cuadro está encendido. Los tramos más oscuros eran el vuelo a Marte, la vista desde lejos y la caída hacia el agujero negro. Ahora los viajes largos marcan su **rumbo** (corchetes y nombre sobre el destino, con o sin lámina: «Marte», «el Sol y su enjambre», «un agujero negro»); hacia Marte corre la ruta de las naves que llevan los espejos, y al final la galaxia se apaga mientras el disco del agujero ya brilla.
 - El cerebro del acto I ya tiene forma de cerebro (27 oct): dos hemisferios con la cisura media, circunvoluciones y surcos, la cisura lateral, el surco central, el cerebelo con sus láminas y el tronco.
 - Sonido propio por acto (fase 5), enlaces de la lámina a sus fichas del Atlas y el enlace final al Atlas, la escalera que salta al tocar sus peldaños, modo móvil y liviano, el README con media (receta de `readme-visual`).
 
 ## Pendiente de los actos IV y V (para pulir)
 - Algunas transiciones largas dejan un cuadro vacío (la caída hacia la vela; de las ruinas al borde de la galaxia; el paso por dentro de la membrana del frente).
-- La reserva del zoológico se lee poco: su esfera punteada parece una pila de anillos.
+- Las esferas de la lámina (la burbuja de radio, la reserva del zoológico, los que callan, el horizonte) eran paralelos y meridianos y parecían pilas de anillos; ahora son una cáscara pareja de puntos, tenue de frente y brillante en el borde, como una burbuja (27 oct).
 - Acto IV: ya está «Naves que son mundos» (27 oct): el cilindro de O'Neill como nave generacional que llega a Alfa Centauri frenando con un chorro de fusión. Faltan las sondas que se copian (están en el acto V como la burbuja) y un motor estelar llevándose una estrella; en el V, radiotelescopios que escuchan.
 - Lámina: el cono de aberración y lo que la física no permite (Bussard, Alcubierre, agujeros de gusano) en punteado; cómo buscamos a otros (radio, láser, infrarrojo).
 

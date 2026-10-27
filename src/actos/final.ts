@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { Timeline } from '../engine/timeline';
 import { gauss, lerp, smoothstep } from '../engine/math';
-import { TEAL, cifra, nota, sup, type Muro } from '../engine/placa';
+import { TEAL, cifra, nota, rumbo, sup, type Muro } from '../engine/placa';
 import { texto } from '../engine/lamina';
 import { mezcla, mirar, type Vista } from '../engine/vista';
 import { crearAgujero } from '../engine/agujero';
@@ -228,10 +228,10 @@ export function final(): Acto {
     estado(mundo, p) {
       const e = mundo.estado;
       // The stars have gone out: no sky, no galaxy, no Sun.
-      const apaga = ease(P('a8', 0.6), P('a8', 2.6), p);
+      const apaga = ease(P('a8', 1.4), P('a8', 3.2), p);
       e.tierra = 0;
       e.faros = 0;
-      e.cielo = 0.25 * (1 - apaga);
+      e.cielo = 0.5 * (1 - apaga);
       e.galaxia = 1 - apaga;
       e.sol = 1 - apaga;
       // The hole hides what is behind its shadow.
@@ -245,7 +245,7 @@ export function final(): Acto {
       bh.mesh.visible = here;
       if (!here) return;
       // The hole: its disk while there is matter; its Hawking glow at the end.
-      const disco = ease(P('a8', 1.6), P('a8', 2.8), p) * (1 - ease(P('a8.contados', 0.6), P('a8.contados', 3.4), p));
+      const disco = ease(P('a8', 0.7), P('a8', 2.2), p) * (1 - ease(P('a8.contados', 0.6), P('a8.contados', 3.4), p));
       bh.u.uDiskL.value = disco;
       bh.u.uHawk.value = 0.07 * ease(P('a8.contados', 2.0), P('a8.contados', 4.4), p) * (1 - ease(P('a8.relevo'), P('a8.relevo', 1), p));
       const center = V().sub(v.pos).multiplyScalar(k);
@@ -272,6 +272,12 @@ export function final(): Acto {
     placa(g, f: Cuadro) {
       const { p, W, H, u } = f;
       if (p < P('a8', -0.5) || p > P('a8.fin', 1.5)) return;
+      // On the way down from the cosmos: where we are going.
+      const rb = ease(P('a8', 0.4), P('a8', 0.7), p) * (1 - ease(P('a8', 1.4), P('a8', 1.65), p));
+      if (rb > 0.01) {
+        const q = f.proj(V());
+        if (q && q.x > 0 && q.x < W && q.y > 0 && q.y < H) rumbo(g, u, q.x, q.y, 'un agujero negro', rb);
+      }
       // 29 %.
       const ce = ease(P('a8', 3.6), P('a8', 4.2), p) * (1 - ease(P('a8.contados', -0.4), P('a8.contados', 0.2), p));
       cifra(g, u, W * 0.76, H * 0.24, '29 %', '', 58, ce, TEAL, 'de su masa, como mucho, de un agujero que gira al máximo');

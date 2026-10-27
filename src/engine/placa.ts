@@ -159,6 +159,37 @@ export function nota(g: CanvasRenderingContext2D, u: number, x: number, y: numbe
   g.restore();
 }
 
+/**
+ * Where a journey is heading: brackets around a point far away and its name. Shown with or without
+ * the plate, so a long flight through the dark always has somewhere to go.
+ */
+export function rumbo(g: CanvasRenderingContext2D, u: number, x: number, y: number, text: string, alpha = 1, accent = TEAL) {
+  if (alpha <= 0.01) return;
+  g.save();
+  g.globalAlpha = alpha;
+  const r = 12 * u;
+  const l = 5 * u;
+  g.strokeStyle = accent;
+  g.lineWidth = Math.max(1, u * 1.1);
+  g.beginPath();
+  for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+    g.moveTo(x + sx * r, y + sy * (r - l));
+    g.lineTo(x + sx * r, y + sy * r);
+    g.lineTo(x + sx * (r - l), y + sy * r);
+  }
+  g.stroke();
+  g.font = FONT.mono(10.5 * u);
+  g.letterSpacing = `${1.1 * u}px`;
+  const label = tr(text).toUpperCase();
+  const w = g.measureText(label).width;
+  g.fillStyle = 'rgba(4,4,8,0.5)';
+  g.fillRect(x + r + 4 * u, y - 9 * u, w + 10 * u, 17 * u);
+  g.fillStyle = ink(0.92);
+  g.textBaseline = 'middle';
+  g.fillText(label, x + r + 9 * u, y + 0.5 * u);
+  g.restore();
+}
+
 /** A label alone (no leader), centred on (x, y). */
 export function rotulo(g: CanvasRenderingContext2D, u: number, x: number, y: number, text: string, px = 10.5, alpha = 1, color = ink(0.85), upper = true) {
   if (alpha <= 0.01) return;

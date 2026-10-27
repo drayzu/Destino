@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { Timeline } from '../engine/timeline';
 import { clamp, lerp, smoothstep } from '../engine/math';
-import { TEAL, cifra, ink, nota, sup, type Muro } from '../engine/placa';
+import { cifra, ink, nota, rumbo, sup, TEAL, type Muro } from '../engine/placa';
 import { flecha, linea, texto } from '../engine/lamina';
 import { espectro } from '../engine/espectro';
 import { mezcla, type Vista } from '../engine/vista';
@@ -155,7 +155,15 @@ export function sistema(): Acto {
   });
   const seedRoute = camino(2600, 0.015, teal, 1.4e-5, 10);
   seedRoute.trazar(transferencia(1, TH_E, 0.387, TH_E - 0.34 + Math.PI * 2, 0.0005, 0.0002));
-  const rutas = [mercRoute, moonRoute, ...beltRoutes, seedRoute];
+  // The cylinder's ships to Mars, with the mirrors that will warm it: the line we fly along to get there.
+  // It swings out beside the camera's path and back in, so it sweeps across the view to Mars.
+  const marsRoute = camino(3200, 0.016, teal, 4e-5, 16);
+  {
+    const d = MARS.clone().sub(CIL);
+    const lado = d.clone().cross(UP).normalize();
+    marsRoute.trazar(bezier(CIL.clone(), CIL.clone().addScaledVector(d, 0.2).addScaledVector(lado, 0.09).add(V(0, -0.05, 0)), CIL.clone().addScaledVector(d, 0.7).addScaledVector(lado, 0.05).add(V(0, -0.01, 0)), MARS.clone().add(V(0, -2 * R_MARS, 0))));
+  }
+  const rutas = [mercRoute, moonRoute, ...beltRoutes, seedRoute, marsRoute];
 
   // Beacons for what is too small to see.
   const B = faros([
@@ -599,6 +607,7 @@ export function sistema(): Acto {
       // Routes and the belt, once the work has begun.
       // Each route only while it is what the moment is about (one subject per frame).
       const todoW = ease(P('a3.todo', -0.4), P('a3.todo', 0.6), p);
+      const kMarte = (p - P('a3.marte')) / (P('a3.viaje') - P('a3.marte'));
       const overW = ease(P('a3.viaje', 0.4), P('a3.viaje', 1.0), p) * (1 - ease(P('a3.venus', -1.0), P('a3.venus', -0.3), p));
       const rutaW = [
         Math.max(ease(P('a3.mercurio', 1.6), P('a3.riel'), p) * (1 - ease(P('a3.enjambre', 0.4), P('a3.enjambre', 1.0), p)), overW, todoW),
@@ -607,6 +616,7 @@ export function sistema(): Acto {
         Math.max(overW, todoW),
         Math.max(overW, todoW),
         Math.max(overW, todoW),
+        ease(0.12, 0.24, kMarte) * (1 - ease(0.5, 0.62, kMarte)),
       ];
       rutas.forEach((r, i) => {
         const w = on ? rutaW[i] : 0;
@@ -707,6 +717,19 @@ export function sistema(): Acto {
             if (a0 && pole) flecha(g, u, a0, pole, '#ffe0a0', ma1 * 0.8, 1.2, [4, 4], f.time * 30);
           }
         }
+      }
+      // Far from the Sun: what we are looking back at.
+      const rumboL = ease(P('a3.lejos', 0.25), P('a3.lejos', 0.45), p) * (1 - ease(P('a3.lejos', 1.2), P('a3.lejos', 1.5), p));
+      if (rumboL > 0.01) {
+        const q = f.proj(V());
+        if (q && q.x > 0 && q.x < W && q.y > 0 && q.y < H) rumbo(g, u, q.x, q.y, 'el Sol y su enjambre', rumboL);
+      }
+      // On the way: where we are going, and what the ships carry.
+      const rumboM = ease(0.2, 0.26, km) * (1 - ease(0.5, 0.56, km));
+      if (rumboM > 0.01) {
+        const q = f.proj(MARS);
+        if (q && q.x > 0 && q.x < W && q.y > 0 && q.y < H) rumbo(g, u, q.x, q.y, 'Marte', rumboM);
+        add(marsRoute.at(0.3, V()), 'naves con los espejos', -30, 26, rumboM);
       }
       const viajeA = ease(P('a3.viaje', 1.0), P('a3.viaje', 1.3), p) * (1 - ease(P('a3.viaje', 2.5), P('a3.viaje', 2.8), p));
       add(E, 'Tierra', 26, -24, viajeA);

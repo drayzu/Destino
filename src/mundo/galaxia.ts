@@ -284,26 +284,26 @@ export function galaxia(ruta: [THREE.Vector3, THREE.Vector3] = [new THREE.Vector
 
 /** A sphere drawn in the plate's language: dotted rings of light (local radius 1; scale the group). */
 export function esferaLamina(color = new THREE.Color(0.45, 1.0, 0.84)) {
+  // An even shell of points (a Fibonacci sphere), faint across its face and bright at its rim, so it
+  // reads as a bubble seen from outside (lines of latitude read as a stack of rings).
   const b = materiaBuilder(77);
-  for (let la = -75; la <= 75; la += 15) {
-    const y = Math.sin((la * Math.PI) / 180);
-    const rr = Math.cos((la * Math.PI) / 180);
-    const n = Math.round(320 * rr) + 20;
-    for (let k = 0; k < n; k++) {
-      if (k % 4 === 3) continue; // dotted
-      const a = (k / n) * Math.PI * 2;
-      b.push(Math.cos(a) * rr, y, Math.sin(a) * rr, color, 0.002, 1);
-    }
+  const N = 7000;
+  const oro = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < N; i++) {
+    const y = 1 - (2 * (i + 0.5)) / N;
+    const r = Math.sqrt(1 - y * y);
+    b.push(Math.cos(i * oro) * r, y, Math.sin(i * oro) * r, color, 0.0018, 1);
   }
-  for (let m = 0; m < 12; m++) {
-    const a = (m / 12) * Math.PI;
-    for (let k = 0; k < 160; k++) {
-      if (k % 4 === 3) continue;
-      const t = (k / 160) * Math.PI * 2;
-      b.push(Math.cos(a) * Math.cos(t), Math.sin(t), Math.sin(a) * Math.cos(t), color, 0.002, 1);
-    }
-  }
-  const n = materia(b.data(), { move: 'fuente = 1.0;' });
+  const n = materia(b.data(), {
+    move: /* glsl */ `
+      vec3 cv = (modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+      vec3 pv = (modelViewMatrix * vec4(p, 1.0)).xyz;
+      float borde = 1.0 - abs(dot(normalize(pv - cv), normalize(-pv)));
+      // A slow shimmer running over it, so it is not a still drawing.
+      float brillo = 0.5 + 0.5 * sin(dot(p, vec3(5.0, 7.0, 3.0)) - uTime * 0.9);
+      em *= 0.14 + 1.25 * borde * borde * borde + 0.12 * brillo;
+      fuente = 1.0;`,
+  });
   n.u.uSpread.value = 0;
   const group = new THREE.Group();
   group.add(n.points);

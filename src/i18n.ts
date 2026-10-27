@@ -243,6 +243,8 @@ const EN: Record<string, string> = {
   'calor del enjambre · 300 K': 'heat of the swarm · 300 K',
   'Mercurio': 'Mercury',
   'Marte': 'Mars',
+  'naves con los espejos': 'ships with the mirrors',
+  'un agujero negro': 'a black hole',
   'Júpiter': 'Jupiter',
   'cinturón · minas': 'belt · mines',
   'el Sol, casi cubierto': 'the Sun, almost covered',
