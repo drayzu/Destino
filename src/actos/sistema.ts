@@ -395,7 +395,16 @@ export function sistema(): Acto {
     const ahead = mercRoute.at(Math.min(1, t + 0.05), V());
     const lag = here.clone().sub(back);
     const lift = UP.clone().multiplyScalar(lag.length() * 0.35 + 3 * R_MER);
-    return { pos: here.clone().sub(lag.multiplyScalar(0.6)).add(lift), target: ahead, up: UP.clone(), fov: 58 };
+    const tras = here.clone().addScaledVector(lag, -0.6).add(lift);
+    // Just launched: first a look back over the payload at Mercury falling away, then a sweep past
+    // the Sun to ring A ahead (turning through the Sun, not across the whole sky at once).
+    const k = clamp((p - P('a3.carga')) / (P('a3.enjambre') - P('a3.carga')), 0, 1);
+    if (k >= 0.36) return { pos: tras, target: ahead, up: UP.clone(), fov: 58 };
+    // A few radii ahead of it, so Mercury starts big behind it and falls away as it speeds up.
+    const delante = here.clone().addScaledVector(lag.clone().normalize(), 6 * R_MER).add(V(0, 2.5 * R_MER, 0));
+    const pos = delante.lerp(tras, ease(0.04, 0.3, k));
+    const target = k < 0.2 ? mirar(pos, M, V(), ease(0.04, 0.13, k)) : mirar(pos, V(), ahead, ease(0.22, 0.36, k));
+    return { pos, target, up: UP.clone(), fov: lerp(50, 58, ease(0.06, 0.36, k)) };
   }
   // Along ring A: outside first (silhouettes against the Sun), in through the slot, then along the lit faces.
   const A0 = aArr - 0.004;
