@@ -429,10 +429,13 @@ export function escalera(g: CanvasRenderingContext2D, u: number, W: number, H: n
   g.letterSpacing = `${1 * u}px`;
   g.textAlign = 'right';
   g.textBaseline = 'middle';
+  // A wall's label is the subject where it crosses: the rungs right by it step aside.
+  const yMuro = muro && muro.a > 0.01 ? yOf(muro.lp) : null;
   for (const r of PELDANOS) {
     const yy = yOf(r.lp);
     const near = 1 - smoothstep(1.2, 3.2, Math.abs(r.lp - lp));
-    const a = r.major ? 0.38 + 0.5 * near : 0.7 * near;
+    let a = r.major ? 0.38 + 0.5 * near : 0.7 * near;
+    if (yMuro !== null && muro && Math.abs(yy - yMuro) < 24 * u) a *= 1 - muro.a;
     if (a < 0.02) continue;
     g.fillStyle = r.lp <= lp && vacia < 0.5 ? `rgba(111,227,193,${a})` : ink(a);
     g.fillText(tr(r.label).toUpperCase(), x - 14 * u, yy);
