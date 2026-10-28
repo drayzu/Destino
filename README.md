@@ -1,5 +1,5 @@
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" type="image/avif" srcset="media/cover-dark.avif"><source media="(prefers-color-scheme: dark)" srcset="media/cover-dark.webp"><source type="image/avif" srcset="media/cover-light.avif"><img src="media/cover-light.webp" width="100%" alt="Destino — From the first thought to the last power plant. One scroll, a civilization's power on the Kardashev scale: a cell, a brain, the Earth's lights, an O'Neill cylinder, the swarm around the Sun, ships to the stars, a galaxy at work, and the last black hole."></picture>
+  <picture><source media="(prefers-color-scheme: dark)" type="image/avif" srcset="media/cover-dark.avif"><source media="(prefers-color-scheme: dark)" srcset="media/cover-dark.webp"><source type="image/avif" srcset="media/cover-light.avif"><img src="media/cover-light.webp" width="100%" alt="Destino — From the first thought to the last power plant. One flight: up the space elevator with industry, between the collectors that cover the Sun, across the front of a bubble that fills the galaxy, into the bits of a mind around a star, and down to the last black hole."></picture>
 </p>
 
 <p align="center">

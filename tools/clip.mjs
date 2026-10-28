@@ -1,7 +1,8 @@
 // Frames of the journey for the README: headless Chrome (with the GPU) against the dev server, the
 // film only (no page, no plate), at 1840 × 1035. Each segment glides from beat `b` over `d` beats in
-// `n` frames; the frames land in <out>/<segment>/0000.jpg (quality 0.95: PNG is several times slower), and the power at its middle is printed (the
-// exponent of its row). Segments already captured are kept (pass --fresh <name> to redo one).
+// `n` frames, or follows its `claves`, [seconds, beat] pairs that set the tempo (eased between them,
+// never backwards, so it can linger on a moment and rush through the next flight); the frames land in <out>/<segment>/0000.jpg (quality 0.95: PNG is several times slower), and the power at its middle is printed (the
+// exponent of its row). Segments already captured are kept (pass --fresh <name>[,<name>…] to redo some).
 //
 //   npm run dev   (in another terminal)
 //   node tools/clip.mjs [list = tools/readme.json] [out = tools/readme]
@@ -18,8 +19,32 @@ const FPS = 30;
 const posicionales = process.argv.slice(2).filter((a, i, all) => !a.startsWith('--') && all[i - 1] !== '--fresh');
 const lista = posicionales[0] ?? new URL('./readme.json', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1');
 const segmentos = JSON.parse(readFileSync(lista, 'utf8'));
-const fresh = process.argv.includes('--fresh') ? process.argv[process.argv.indexOf('--fresh') + 1] : null;
+const fresh = process.argv.includes('--fresh') ? process.argv[process.argv.indexOf('--fresh') + 1].split(',') : [];
 const raiz = posicionales[1] ?? new URL('./readme/', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1');
+
+/** The beat at frame i from [seconds, beat] keys: a monotone cubic (Fritsch–Carlson), so the speed
+ *  changes smoothly between keys and the journey never runs backwards. */
+function tempo(claves) {
+  const t = claves.map((c) => c[0] * FPS);
+  const b = claves.map((c) => c[1]);
+  const m = t.length;
+  const s = t.slice(0, -1).map((_, k) => (b[k + 1] - b[k]) / (t[k + 1] - t[k]));
+  const v = t.map((_, k) => (k === 0 ? s[0] : k === m - 1 ? s[m - 2] : s[k - 1] * s[k] <= 0 ? 0 : (s[k - 1] + s[k]) / 2));
+  for (let k = 0; k < m - 1; k++) {
+    if (s[k] === 0) { v[k] = v[k + 1] = 0; continue; }
+    const a = v[k] / s[k], c = v[k + 1] / s[k];
+    const r = Math.hypot(a, c);
+    if (r > 3) { v[k] = (3 * a * s[k]) / r; v[k + 1] = (3 * c * s[k]) / r; }
+  }
+  return (i) => {
+    let k = 0;
+    while (k < m - 2 && i > t[k + 1]) k++;
+    const h = t[k + 1] - t[k];
+    const u = Math.min(Math.max((i - t[k]) / h, 0), 1);
+    const u2 = u * u, u3 = u2 * u;
+    return (2 * u3 - 3 * u2 + 1) * b[k] + (u3 - 2 * u2 + u) * h * v[k] + (-2 * u3 + 3 * u2) * b[k + 1] + (u3 - u2) * h * v[k + 1];
+  };
+}
 
 const port = 9335;
 const chrome = spawn(process.env.CHROME ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe', [
@@ -63,30 +88,53 @@ const ev = (expression) => send('Runtime.evaluate', { expression, awaitPromise: 
 await send('Runtime.enable');
 await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
 await send('Page.navigate', { url: 'http://localhost:5197/?debug&lang=en' });
-await sleep(9000);
-// Full quality, nothing else drawing: frames come only from our steps.
-await ev('destino.grabar(), 1');
-// The film only.
-await ev(`(() => { const s = document.createElement('style'); s.textContent = 'body > *:not(#scene) { display: none !important; }'; document.head.append(s); return 1; })()`);
+// Full quality, nothing else drawing: frames come only from our steps; and the film only. A mark on the
+// page tells us when the dev server reloads it (an edit elsewhere): then this is done again and the
+// segment in progress starts over.
+async function preparar() {
+  for (let i = 0; i < 120; i++) {
+    await sleep(i ? 500 : 9000);
+    const r = await ev(`typeof destino === 'object' && document.readyState === 'complete'`);
+    if (r.result?.result?.value) break;
+  }
+  await sleep(3000);
+  await ev('destino.grabar(), 1');
+  await ev(`(() => { const s = document.createElement('style'); s.textContent = 'body > *:not(#scene) { display: none !important; }'; document.head.append(s); window.__clip = 1; return 1; })()`);
+}
+await preparar();
 
 for (const seg of segmentos) {
   const dir = join(raiz, seg.nombre);
-  if (seg.nombre === fresh) rmSync(dir, { recursive: true, force: true });
+  if (seg.claves) {
+    seg.n = Math.round(seg.claves.at(-1)[0] * FPS) + 1;
+    seg.b = seg.claves[0][1];
+    seg.d = seg.claves.at(-1)[1] - seg.b;
+  }
+  const beatAt = seg.claves ? tempo(seg.claves) : (i) => seg.b + (seg.d * i) / (seg.n - 1);
+  if (fresh.includes(seg.nombre)) rmSync(dir, { recursive: true, force: true });
   if (existsSync(join(dir, `${String(seg.n - 1).padStart(4, '0')}.jpg`))) {
     console.log('kept', seg.nombre);
     continue;
   }
   mkdirSync(dir, { recursive: true });
-  // Settle at the start (a few frames, so damped values arrive), then glide.
-  const t0 = seg.b * 1000;
-  for (let k = 0; k < 12; k++) await ev(`(() => { destino.seek(${seg.b}); destino.step(${t0 - (12 - k) * (1000 / FPS)}); return 1; })()`);
-  for (let i = 0; i < seg.n; i++) {
-    const b = seg.b + (seg.d * i) / (seg.n - 1);
-    // The film's canvas, read in the same task as its frame is drawn (its buffer is not preserved).
-    const r = await ev(`(() => { destino.seek(${b}); destino.step(${t0 + i * (1000 / FPS)}); return document.querySelector('#scene').toDataURL('image/jpeg', 0.95); })()`);
-    const url = r.result?.result?.value;
-    if (typeof url !== 'string') throw new Error(`no frame at ${b}: ${JSON.stringify(r.result).slice(0, 300)}`);
-    writeFileSync(join(dir, `${String(i).padStart(4, '0')}.jpg`), Buffer.from(url.split(',')[1], 'base64'));
+  for (let intento = 0; ; intento++) {
+    // Settle at the start (a few frames, so damped values arrive), then glide.
+    const t0 = seg.b * 1000;
+    for (let k = 0; k < 12; k++) await ev(`(() => { destino.seek(${seg.b}); destino.step(${t0 - (12 - k) * (1000 / FPS)}); return 1; })()`);
+    let recargada = false;
+    for (let i = 0; i < seg.n && !recargada; i++) {
+      const b = beatAt(i);
+      // The film's canvas, read in the same task as its frame is drawn (its buffer is not preserved).
+      const r = await ev(`(() => { if (!window.__clip) return 'reload'; destino.seek(${b}); destino.step(${t0 + i * (1000 / FPS)}); return document.querySelector('#scene').toDataURL('image/jpeg', 0.95); })()`);
+      const url = r.result?.result?.value;
+      if (url === 'reload' || /is not defined/.test(r.result?.result?.description ?? '')) recargada = true;
+      else if (typeof url !== 'string') throw new Error(`no frame at ${b}: ${JSON.stringify(r.result).slice(0, 300)}`);
+      else writeFileSync(join(dir, `${String(i).padStart(4, '0')}.jpg`), Buffer.from(url.split(',')[1], 'base64'));
+    }
+    if (!recargada) break;
+    if (intento > 5) throw new Error(`the page keeps reloading (${seg.nombre})`);
+    console.log('reloaded, again', seg.nombre);
+    await preparar();
   }
   // The power at the middle of the segment, as the plate reads it (log10 of the watts in use).
   const lp = (await ev(`(() => { const b = ${seg.b + seg.d / 2}; const a = destino.actos.filter((x) => destino.at(x.id) <= b + 0.5).pop(); const l = a && a.lectura(b); return l ? l.lp : null; })()`)).result?.result?.value;

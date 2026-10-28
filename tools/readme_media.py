@@ -53,7 +53,9 @@ MOMENTS = [
     ('star', 'star', 0, 120, (420, 60, 1420, 799), '37', 'Thinking with a star',
      'Shells of computers around a star, each one fed by the heat of the last.', 'pingpong'),
 ]
-HERO = dict(clip='hero', count=300, crop=(0, 0, 1840, 1035), crf=34)
+# The hero, as in Espacio and Tiempo: one flight through the piece, its tempo set in tools/readme.json
+# (lingering on each place, rushing through the flights), the places joined by short crossfades.
+HERO = dict(clips=['hero1', 'hero2', 'hero3', 'hero4', 'hero5'], crop=(0, 0, 1840, 1035), crf=36, join=10)
 
 
 def px(v):
@@ -192,12 +194,28 @@ def band(th):
     return np.asarray(im, dtype=np.float32) / 255
 
 
+def hero_sequence():
+    """(clip, frame) pairs and blends: each clip whole, the next fading in over its last `join` frames,
+    and the last fading into the first, so the loop has no seam."""
+    j = HERO['join']
+    clips = [(c, len([f for f in os.listdir(os.path.join(FR, c)) if f.endswith('.jpg')])) for c in HERO['clips']]
+    seq = []
+    for k, (c, n) in enumerate(clips):
+        nc, nn = clips[(k + 1) % len(clips)]
+        for i in range(j, n - j):           # its first j frames live in the previous blend
+            seq.append(((c, i), None, 0))
+        for i in range(j):
+            seq.append(((c, n - j + i), (nc, i), (i + 1) / (j + 1)))
+    return seq
+
+
 def cover():
-    """The title over the hero, the most striking moment, blended into the page and looping forwards."""
+    """The title over the hero, blended into the page and looping forwards."""
     x, y, w, h = HERO['crop']
     vh = round(PW * h / w)
-    frame = loader(HERO['clip'], HERO['crop'], (PW, vh))
-    seq = sequence(0, HERO['count'], 'forward')
+    loaders = {c: loader(c, HERO['crop'], (PW, vh)) for c in HERO['clips']}
+    frame = lambda ci: loaders[ci[0]](ci[1])
+    seq = hero_sequence()
     mask, rounded = feather(PW, vh, inner=0.72), card(PW, vh, r=21)
     for theme, th in THEMES.items():
         page = np.array(th['page'], np.float32) / 255
