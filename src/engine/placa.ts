@@ -129,13 +129,35 @@ function potencia(g: CanvasRenderingContext2D, x: number, y: number, exp: string
   return cx + g.measureText(unit).width - x;
 }
 
-function wrap(g: CanvasRenderingContext2D, text: string, maxW: number) {
+/** Text with its exponents (superscript characters) drawn as raised digits, smaller: the fonts' own
+ * superscripts are tiny at the plate's sizes. `sub` is the exponents' font, raised by `alza`. */
+const tramosSup = (t: string) =>
+  [...t.matchAll(/([⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+)|([^⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+)/g)].map((m) => (m[1] ? { t: [...m[1]].map((ch) => BAJA[ch]).join(''), sup: true } : { t: m[2], sup: false }));
+function anchoSup(g: CanvasRenderingContext2D, t: string, font: string, sub: string) {
+  let w = 0;
+  for (const r of tramosSup(t)) {
+    g.font = r.sup ? sub : font;
+    w += g.measureText(r.t).width;
+  }
+  g.font = font;
+  return w;
+}
+function textoSup(g: CanvasRenderingContext2D, t: string, x: number, y: number, font: string, sub: string, alza: number) {
+  for (const r of tramosSup(t)) {
+    g.font = r.sup ? sub : font;
+    g.fillText(r.t, x, r.sup ? y - alza : y);
+    x += g.measureText(r.t).width;
+  }
+  g.font = font;
+}
+
+function wrap(g: CanvasRenderingContext2D, text: string, maxW: number, ancho = (t: string) => g.measureText(t).width) {
   const words = text.split(' ');
   const lines: string[] = [];
   let line = '';
   for (const w of words) {
     const test = line ? `${line} ${w}` : w;
-    if (g.measureText(test).width > maxW && line) {
+    if (ancho(test) > maxW && line) {
       lines.push(line);
       line = w;
     } else line = test;
@@ -337,14 +359,16 @@ function rotuloMomento(g: CanvasRenderingContext2D, u: number, H: number, cap: R
   const x = 44 * u;
   g.save();
   g.globalAlpha *= alpha;
-  g.font = FONT.sans(14.5 * u);
+  const FACT = FONT.sans(14.5 * u);
+  const EXP = FONT.sans(10.5 * u);
+  g.font = FACT;
   // On a narrow screen the sentence keeps clear of the ladder at the right.
-  const lines = wrap(g, cap.fact, Math.min(500 * u, g.canvas.width - 150 * u));
+  const lines = wrap(g, cap.fact, Math.min(500 * u, g.canvas.width - 150 * u), (t) => anchoSup(g, t, FACT, EXP));
   const fuente = cap.fuente ? tr(cap.fuente) : '';
   const bottom = H - 174 * u - (fuente ? 20 * u : 0);
   const top = bottom - (lines.length - 1) * 21 * u;
   g.fillStyle = ink(0.7);
-  lines.forEach((line, i) => g.fillText(line, x, top + i * 21 * u));
+  lines.forEach((line, i) => textoSup(g, line, x, top + i * 21 * u, FACT, EXP, 5.5 * u));
   if (fuente) {
     g.font = FONT.mono(10 * u);
     g.letterSpacing = `${0.6 * u}px`;
@@ -404,15 +428,8 @@ export function hud(g: CanvasRenderingContext2D, u: number, W: number, H: number
   const ancho = (t: string, f: string) => ((g.font = f), g.measureText(t).width);
   // A value with its exponents drawn as raised digits (the font's superscript characters were tiny).
   const SUB = FONT.mono(8.5 * u);
-  const tramos = (t: string) => [...t.matchAll(/([⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+)|([^⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+)/g)].map((m) => (m[1] ? { t: [...m[1]].map((ch) => BAJA[ch]).join(''), sup: true } : { t: m[2], sup: false }));
-  const anchoV = (t: string) => tramos(t).reduce((w, r) => w + ancho(r.t, r.sup ? SUB : VAL), 0);
-  const valor = (t: string, vx: number, vy: number) => {
-    for (const r of tramos(t)) {
-      g.font = r.sup ? SUB : VAL;
-      g.fillText(r.t, vx, r.sup ? vy - 5 * u : vy);
-      vx += g.measureText(r.t).width;
-    }
-  };
+  const anchoV = (t: string) => anchoSup(g, t, VAL, SUB);
+  const valor = (t: string, vx: number, vy: number) => textoSup(g, t, vx, vy, VAL, SUB, 5 * u);
   const cols = campos.map(([k, v]) => Math.max(ancho(k, KEY), anchoV(v)));
   const gap = 34 * u;
   if (cols.reduce((a, b) => a + b, 0) + gap * 2 <= W - x - 90 * u) {
@@ -627,9 +644,8 @@ export function escalera(g: CanvasRenderingContext2D, u: number, W: number, H: n
   }
   g.globalAlpha = A0;
   g.textAlign = 'left';
-  g.font = FONT.serif(15 * u);
   g.fillStyle = ink(0.9);
-  g.fillText(`10${sup(Math.floor(lp))}`, x + 9 * u, yp);
+  textoSup(g, `10${sup(Math.floor(lp))}`, x + 9 * u, yp, FONT.serif(15 * u), FONT.serif(10.5 * u), 5 * u);
   g.restore();
 }
 
