@@ -376,7 +376,7 @@ export function hud(g: CanvasRenderingContext2D, u: number, W: number, H: number
   g.fillStyle = ink(0.78);
   const when = l.anio !== undefined ? (l.anio >= 2026 ? cuando(-1) : `${EN ? 'year' : 'año'} ${Math.round(l.anio)}`) : cuando(l.ly);
   const a = `${vatios(lp)} ${EN ? 'in use' : 'en uso'}  ·  ${when}`.toUpperCase();
-  const b = `${EN ? 'reaching' : 'llega a'} ${alcance(l.lr)}`.toUpperCase();
+  const b = `${EN ? 'reach' : 'alcance'} ${alcance(l.lr)}`.toUpperCase();
   // On a narrow screen, in two lines.
   if (g.measureText(`${a}  ·  ${b}`).width > W - x - 90 * u) {
     g.fillText(a, x, H - 58 * u);
