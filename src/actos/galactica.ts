@@ -126,7 +126,11 @@ export function galactica(): Acto {
     // (and round the galaxy while the question comes back)
     const c = ly(CENTRO.clone());
     const borde = { ...BORDE, pos: c.clone().add(BORDE.pos.clone().sub(c).applyAxisAngle(UP, -0.35 * ease(0.2, 1.4, k))) };
-    return mezcla(vRuinas(P('a5.muro')), borde, ease(0.0, 0.6, k));
+    // Away from the ruins in powers of ten, so they shrink to a point instead of vanishing.
+    const a = vRuinas(P('a5.muro'));
+    const t = ease(0.0, 0.6, k);
+    const pos = vuelo(a.pos, borde.pos, t, 2, borde.pos.distanceTo(borde.target));
+    return { pos, target: mirar(pos, a.target, borde.target, ease(0.05, 0.5, t)), up: UP.clone(), fov: lerp(a.fov, borde.fov, t) };
   }
   const SEGS: [string, (p: number) => Vista][] = [
     ['a5', camBurbuja],
@@ -245,8 +249,9 @@ export function galactica(): Acto {
         c.group.visible = callOn > 0.001;
         c.nube.u.uGain.value = callOn * 0.9;
       }
-      const atRuins = v.pos.distanceTo(ly(RUINAS)) < 2000;
-      ru.nube.u.uOn.value = atRuins ? 1 : 0;
+      const dRu = v.pos.distanceTo(ly(RUINAS));
+      const atRuins = dRu < 4000;
+      ru.nube.u.uOn.value = 1 - smoothstep(600, 4000, dRu);
       enana.update(camera, time, atRuins ? 1 : 0, v.pos.distanceTo(ly(RUINAS)) / (0.0125 * R_SUN));
     },
     placa(g, f: Cuadro) {

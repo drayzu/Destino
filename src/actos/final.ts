@@ -156,7 +156,8 @@ export function final(): Acto {
   const nuevoG = new THREE.Group();
   // Dyson's last mind: a shell of computers beside the hole, thinking in ever rarer bursts (each sleep
   // longer than the last, each waking dimmer), until the counter stops.
-  const MENTE = V(0.9, 0.16, 0.42).normalize().cross(UP).normalize().multiplyScalar(-92).add(V(0, 16, 0));
+  // (off the disc, above its plane to the right of the hole: on its edge it read as a lump on the disc)
+  const MENTE = V(0.9, 0.16, 0.42).normalize().cross(UP).normalize().multiplyScalar(-130).add(V(0, 30, 0));
   const uPulso = { value: 0 };
   const mente = (() => {
     const b = materiaBuilder(808);
@@ -281,7 +282,7 @@ export function final(): Acto {
       // The hole: its disk while there is matter; its Hawking glow at the end.
       const disco = ease(P('a8', 0.7), P('a8', 2.2), p) * (1 - ease(P('a8.contados', 0.6), P('a8.contados', 3.4), p));
       bh.u.uDiskL.value = disco;
-      bh.u.uHawk.value = 0.07 * ease(P('a8.contados', 2.0), P('a8.contados', 4.4), p) * (1 - ease(P('a8.relevo'), P('a8.relevo', 1), p));
+      bh.u.uHawk.value = 0.02 * ease(P('a8.contados', 2.0), P('a8.contados', 4.4), p) * (1 - ease(P('a8.relevo'), P('a8.relevo', 1), p));
       const center = V().sub(v.pos).multiplyScalar(k);
       bh.update({ camera, center, normal: NORMAL, rs: RS * k, sky: new THREE.Matrix3(), time, alpha: 1 - ease(P('a8.relevo', 0.6), P('a8.relevo', 1.6), p) });
       // Penrose: the civilization's matter, in and out.
@@ -334,7 +335,8 @@ export function final(): Acto {
         if (q && q.x > 0 && q.x < W && q.y > 0 && q.y < H) rumbo(g, u, q.x, q.y, 'una semilla de falso vacío', rs);
       }
       // The last mind.
-      if (f.lamina && co > 0.01) {
+      // (always, with or without the plate: without its words it was a mystery)
+      if (co > 0.01) {
         const q = f.proj(MENTE);
         if (q) nota(g, u, q.x, q.y, 'la última mente: piensa a ratos, cada vez más lento', -40, -48, co);
       }

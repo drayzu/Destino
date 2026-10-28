@@ -186,9 +186,10 @@ export function estrella(color: THREE.Color, brillo = 18) {
           #include <logdepthbuf_fragment>
           float r = length(vUv) * 40.0;
           if (r < 1.0) discard;
-          float a = 0.9 / (r * r) + 0.06 * exp(-r * 0.12);
-          a *= 1.0 - smoothstep(30.0, 40.0, r);
-          gl_FragColor = vec4(uColor * a * 6.0 * uOn * uGlow, 1.0);
+          // A tight glow and only a faint wide one (wider, it fogged half the frame).
+          float a = 0.9 / (r * r) + 0.022 * exp(-r * 0.2);
+          a *= 1.0 - smoothstep(24.0, 40.0, r);
+          gl_FragColor = vec4(uColor * a * 4.5 * uOn * uGlow, 1.0);
         }`,
       transparent: true,
       depthWrite: false,
@@ -205,7 +206,10 @@ export function estrella(color: THREE.Color, brillo = 18) {
       uni.uTime.value = time;
       uni.uOn.value = on;
       const lejos = Math.min(1, Math.max(0, (cerca - 8) / 90));
-      uni.uGlow.value = 0.12 + 0.88 * lejos;
+      // From afar its glow keeps a few pixels' size and a star's brightness (it takes over from the
+      // starfield's point, which gives way at a few hundred AU; dimmer, it left a gap with no star).
+      uni.uGlow.value = (0.12 + 0.88 * lejos) * (1 + Math.min(cerca / 1500, 30));
+      glow.scale.setScalar(Math.max(40, cerca * 0.012));
       // Up close, a golden disc you can look at (its grain and its darker rim), not a white blur.
       uni.uBrillo.value = lerp(0.75, brillo, lejos * lejos);
       group.visible = on > 0.001;
@@ -221,7 +225,7 @@ export function estrella(color: THREE.Color, brillo = 18) {
  */
 export function vela(rejilla = 10) {
   const group = new THREE.Group();
-  const uni = { uCalor: { value: 0 }, uLuz: { value: 0 }, uLuzDir: { value: V(0, 0, 1) }, uLuzCol: { value: new THREE.Color(1, 0.9, 0.7) } };
+  const uni = { uCalor: { value: 0 }, uLuz: { value: 0 }, uLuzDir: { value: V(0, 0, 1) }, uLuzCol: { value: new THREE.Color(1, 0.9, 0.7) }, uOn: { value: 1 } };
   const geo = new THREE.CircleGeometry(1, 96, 0, Math.PI * 2);
   // The billow: the edge lies a little behind the centre.
   const pos = geo.attributes.position as THREE.BufferAttribute;
@@ -235,6 +239,7 @@ export function vela(rejilla = 10) {
     new THREE.ShaderMaterial({
       uniforms: uni,
       side: THREE.DoubleSide,
+      transparent: true,
       vertexShader: /* glsl */ `${LOG_V}
         varying vec3 vP; varying vec3 vN; varying vec3 vV;
         void main() { vP = position; vN = normalMatrix * normal;
@@ -244,7 +249,7 @@ export function vela(rejilla = 10) {
           #include <logdepthbuf_vertex>
         }`,
       fragmentShader: /* glsl */ `${LOG_F}
-        uniform float uCalor, uLuz; uniform vec3 uLuzDir, uLuzCol;
+        uniform float uCalor, uLuz, uOn; uniform vec3 uLuzDir, uLuzCol;
         varying vec3 vP; varying vec3 vN; varying vec3 vV;
         void main() {
           #include <logdepthbuf_fragment>
@@ -269,7 +274,7 @@ export function vela(rejilla = 10) {
           col += uLuzCol * uLuz * back * 0.28 * (0.55 + 0.45 * (1.0 - r * r)) * (1.0 - 0.6 * max(rib, ring));
           // The beam's heat: a dull red glow, hottest at the middle.
           col += vec3(1.0, 0.28, 0.08) * uCalor * (0.35 + 0.65 * (1.0 - r * r));
-          gl_FragColor = vec4(col, 1.0);
+          gl_FragColor = vec4(col, uOn);
         }`,
     }),
   );

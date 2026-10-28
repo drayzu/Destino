@@ -3,7 +3,7 @@ import type { Timeline } from '../engine/timeline';
 import { clamp, lerp, smoothstep } from '../engine/math';
 import { TEAL, cifra, ink, nota, type Muro } from '../engine/placa';
 import { flecha, panel, texto } from '../engine/lamina';
-import { mezcla, mirar, type Vista } from '../engine/vista';
+import { mezcla, mirar, vuelo as volar, type Vista } from '../engine/vista';
 import { LY_AU, type Mundo } from '../mundo/mundo';
 import { R_SUN, faros } from '../mundo/obras';
 import { VECINAS, dondeVecina, estrella, rutasVecinas, vecinas, vela } from '../mundo/vecinas';
@@ -58,6 +58,24 @@ const RUMBO = FB.clone().sub(L0).normalize();
 const TRAMO = FB.distanceTo(L0);
 const LADO = RUMBO.clone().cross(UP).normalize();
 const ARRIBA = LADO.clone().cross(RUMBO).normalize();
+
+/**
+ * Where a point is seen from `cam` moving at `beta` (c) along `vel`: aberration, the same the sky and
+ * the starfield get (cos θ' = (cos θ + β) / (1 + β cos θ)). The near stars are drawn at their seen
+ * place, or they and their far points were two stars in two places.
+ */
+function aberrar(w: THREE.Vector3, cam: THREE.Vector3, vel: THREE.Vector3, beta: number) {
+  if (beta <= 0) return w.clone();
+  const d = w.clone().sub(cam);
+  const L = d.length();
+  d.divideScalar(L);
+  const c = d.dot(vel);
+  const c2 = (c + beta) / (1 + beta * c);
+  const perp = d.clone().addScaledVector(vel, -c);
+  const pl = perp.length();
+  if (pl < 1e-9) return w.clone();
+  return cam.clone().addScaledVector(vel.clone().multiplyScalar(c2).addScaledVector(perp, Math.sqrt(Math.max(0, 1 - c2 * c2)) / pl), L);
+}
 
 export function estrellas(): Acto {
   let tl: Timeline;
@@ -149,21 +167,15 @@ export function estrellas(): Acto {
   const offW = (o: THREE.Vector3) => LADO.clone().multiplyScalar(o.x).addScaledVector(ARRIBA, o.y).addScaledVector(RUMBO, o.z);
 
   /** The camera's offset from the sail (metres, world axes) and where it looks. */
-  /** Mid-cruise the camera swings round the sail to look back: the Sun, a red star behind. */
-  const vuelta = (p: number) => {
-    const kV = (p - P('a4.viaje')) / (P('a4.frenar') - P('a4.viaje'));
-    return ease(0.27, 0.41, kV) * (1 - ease(0.58, 0.72, kV));
-  };
   function montura(p: number): { off: THREE.Vector3; mira: THREE.Vector3; fov: number } {
     const kL = (p - P('a4')) / (P('a4.viaje') - P('a4'));
     const sw = ease(0.5, 0.85, kL);
-    const th = vuelta(p) * 2.75;
-    const off = offW(LADO_ANTES.clone().lerp(DETRAS, sw)).applyAxisAngle(ARRIBA, th);
+    const off = offW(LADO_ANTES.clone().lerp(DETRAS, sw));
     const { s } = vuelo(p);
     const sail = velaW(s);
     // Before it leaves: looking at the sail (the Sun and its swarm behind it). Then further and
     // further ahead of it, so the sail stays in view while the camera swings behind.
-    const ahead = sail.clone().addScaledVector(RUMBO.clone().applyAxisAngle(ARRIBA, th), 1).addScaledVector(ARRIBA, 0.03);
+    const ahead = sail.clone().addScaledVector(RUMBO, 1).addScaledVector(ARRIBA, 0.03);
     let mira = ahead.clone();
     if (p < P('a4.viaje')) {
       const t = ease(0.5, 0.9, kL);
@@ -173,7 +185,8 @@ export function estrellas(): Acto {
     // Passing α Centauri: the head turns to A as it rushes by.
     const kV = (p - P('a4.viaje')) / (P('a4.frenar') - P('a4.viaje'));
     if (p >= P('a4.viaje')) {
-      const look = ease(0.89, 0.93, kV) * (1 - ease(0.965, 0.995, kV));
+      // (and stays on it: the braking that follows looks at A too; swinging back between read as a jolt)
+      const look = ease(0.89, 0.93, kV);
       if (look > 0) mira = ahead.lerp(A, look);
     }
     return { off, mira, fov: p < P('a4.viaje') ? lerp(52, 60, sw) : 60 };
@@ -219,8 +232,10 @@ export function estrellas(): Acto {
     // From the Solar System seen whole (where act III leaves us), a dive to the sail by the Sun.
     const top = V(Math.cos(1.25 - 0.6), 0.85, Math.sin(1.25 - 0.6)).normalize().multiplyScalar(6.2);
     const far: Vista = { pos: top, target: L0.clone().multiplyScalar(0.5), up: UP.clone(), fov: 50 };
-    // Falling towards the sail with the Sun (where it is) ahead, then turning to the sail itself.
-    const v = mezcla(far, near, ease(0.04, 0.28, kL));
+    // Falling towards the sail with the Sun (where it is) ahead, then turning to the sail itself; in
+    // powers of ten, so it grows from its light to the sail without a jump.
+    const t = ease(0.04, 0.3, kL);
+    const v: Vista = { pos: volar(far.pos, near.pos, t, 1, near.pos.distanceTo(sail)), target: near.target, up: UP.clone(), fov: lerp(far.fov, near.fov, t) };
     const haciaSol = mirar(v.pos, far.target, sail, ease(0.02, 0.12, kL));
     return { ...v, target: mirar(v.pos, haciaSol, near.target, ease(0.2, 0.3, kL)) };
   }
@@ -242,16 +257,32 @@ export function estrellas(): Acto {
   }
   function camNave(p: number): Vista {
     const k = (p - P('a4.nave')) / (P('a4.muro') - P('a4.nave'));
-    return k < 0.14 ? mezcla(camFreno(P('a4.nave')), vNave(p), ease(0, 0.14, k)) : vNave(p);
+    if (k >= 0.14) return vNave(p);
+    // From the braking sail to the ship, in powers of ten: the sail shrinks behind, the ship grows
+    // from a point ahead (a straight mix crossed 0.05 light years in a frame: both just popped).
+    const a = camFreno(P('a4.nave'));
+    const b = vNave(p);
+    const t = ease(0, 0.14, k);
+    const pos = volar(a.pos, b.pos, t, 800 * M, 70e3 * M);
+    return { pos, target: mirar(pos, a.target, b.target, ease(0, 0.45, t)), up: a.up.clone().lerp(b.up, ease(0.3, 1, t)).normalize(), fov: lerp(a.fov, b.fov, t) };
   }
   /** Pulling back: the neighbourhood, then the whole galaxy, where our bubble is a point. */
   const GAL = V(0, 0, -26000).multiplyScalar(LY_AU);
   function camMuro(p: number): Vista {
     const k = (p - P('a4.muro')) / (P('a4.fin') - P('a4.muro'));
     const from = vNave(P('a4.muro'));
-    const barrio: Vista = { pos: DIR.clone().multiplyScalar(-30 * LY_AU).addScaledVector(UP, 26 * LY_AU), target: DIR.clone().multiplyScalar(4 * LY_AU), up: UP.clone(), fov: 50 };
+    // (its up is square to the way to Alpha Centauri, not the world's: the gaze down at the
+    // neighbourhood is nearly vertical, and the world's up there rolled the picture over)
+    const barrio: Vista = { pos: DIR.clone().multiplyScalar(-30 * LY_AU).addScaledVector(UP, 26 * LY_AU), target: DIR.clone().multiplyScalar(4 * LY_AU), up: naveArriba.clone().normalize(), fov: 50 };
     const galaxia: Vista = { pos: GAL.clone().add(V(30000, 62000, 60000).multiplyScalar(LY_AU)), target: GAL.clone().multiplyScalar(0.55), up: UP.clone(), fov: 46 };
-    if (k < 0.45) return mezcla(from, barrio, ease(0.0, 0.4, k));
+    if (k < 0.45) {
+      // Away from the ship in powers of ten, so it shrinks to a point instead of vanishing.
+      const t = ease(0.0, 0.4, k);
+      const pos = volar(from.pos, barrio.pos, t, 70e3 * M, 30 * LY_AU);
+      // Looking back at the ship all the way out (the neighbourhood's centre lies between the ship and
+      // where we go: turning to it early swung the gaze under us and flipped it as we passed it).
+      return { pos, target: mirar(pos, from.target, barrio.target, ease(0.75, 1, t)), up: from.up.clone().lerp(barrio.up, ease(0, 0.6, t)).normalize(), fov: lerp(from.fov, barrio.fov, t) };
+    }
     return mezcla(barrio, galaxia, ease(0.5, 0.95, k));
   }
   function vista(p: number): Vista {
@@ -309,8 +340,6 @@ export function estrellas(): Acto {
       // Light years away the Sun is one star among many: its beacon fades.
       const lejos = vista(p).pos.length() / LY_AU;
       e.faros = 1 - smoothstep(0.5, 6, lejos);
-      // Looking back mid-cruise: the Sun, the brightest star behind, reddened.
-      e.faroSol = 1 + 2.5 * vuelta(p);
       e.solDim = 0.9;
       e.cercanias = 0;
       e.luna = 0;
@@ -341,6 +370,9 @@ export function estrellas(): Acto {
       }
       // α Centauri up close.
       const nearAC = v.pos.distanceTo(AC) < 0.05 * LY_AU && here;
+      const vel = m.estado.vel.clone().normalize();
+      starA.group.position.copy(aberrar(A, v.pos, vel, m.estado.beta));
+      starB.group.position.copy(aberrar(B, v.pos, vel, m.estado.beta));
       starA.update(camera, time, nearAC ? 1 : 0, v.pos.distanceTo(A) / R_A);
       starB.update(camera, time, nearAC ? 1 : 0, v.pos.distanceTo(B) / R_B);
       starP.update(camera, time, v.pos.distanceTo(PROX) < 0.02 * LY_AU && here ? 1 : 0);
@@ -357,7 +389,7 @@ export function estrellas(): Acto {
       // The ship that is a world, while we ride beside it.
       if (p > P('a4.nave', -0.3) && p < P('a4.muro', 1.2)) {
         const rel = NAVE.clone().sub(v.pos).divideScalar(M);
-        if (rel.length() < 4e7) {
+        if (rel.length() < 3e9) {
           cabina.visible = true;
           nave.visible = true;
           chorro.points.visible = true;
@@ -382,17 +414,19 @@ export function estrellas(): Acto {
         if (near) rel = mt.off.clone().negate();
         else rel = velaW(vuelo(p).s).sub(v.pos).divideScalar(M);
         const lejos = rel.length();
-        if (lejos > 1500 && p < P('a4.viaje')) {
+        if (lejos > 600 && p < P('a4.viaje')) {
           // Its light, in its direction (the cabin keeps it near; only the direction matters).
           cabina.visible = true;
           faro.points.visible = true;
-          faro.set(0, rel.clone().normalize().multiplyScalar(1000 * SIGMA), smoothstep(1500, 4000, lejos) * smoothstep(3e12, 3e11, lejos));
+          faro.set(0, rel.clone().normalize().multiplyScalar(1000 * SIGMA), smoothstep(600, 2600, lejos) * smoothstep(3e12, 3e11, lejos));
           faro.commit();
           faro.mat.uniforms.uDpr.value = f.dpr;
         }
         if (lejos < 3000) {
           cabina.visible = true;
           velaS.group.visible = true;
+          // (it fades in as its light fades out)
+          velaS.uni.uOn.value = smoothstep(3000, 900, lejos);
           velaS.group.position.copy(rel).multiplyScalar(SIGMA);
           velaS.group.scale.setScalar(2 * SIGMA);
           velaS.group.quaternion.setFromUnitVectors(V(0, 0, 1), RUMBO);
@@ -418,6 +452,7 @@ export function estrellas(): Acto {
         if (relCam.length() < 2e5) {
           cabina.visible = true;
           velaG.group.visible = true;
+          velaG.uni.uOn.value = ease(P('a4.frenar', -0.3), P('a4.frenar', 0.5), p) * (1 - ease(P('a4.nave', -0.7), P('a4.nave', -0.05), p));
           velaG.group.position.copy(relCam).multiplyScalar(SIGMA);
           velaG.group.scale.setScalar(160 * SIGMA);
           const toA = rel.clone().negate().normalize();
@@ -463,10 +498,8 @@ export function estrellas(): Acto {
         const anos = Math.max(0, Math.min(21.8, (s / TRAMO) * 21.8));
         cifra(g, u, W * 0.76, H * 0.24, String(Math.round(anos)), '', 58, vy, TEAL, 'años de viaje');
         if (f.lamina) {
-          const at = vuelta(p);
-          texto(g, u, W / 2, H * 0.12, 'adelante: las estrellas se juntan y se ven más azules', '#9fc4ff', vy * (1 - 0.6 * at), 10.5, 'center');
-          texto(g, u, W / 2, H * 0.12 + 18 * u, 'atrás: más rojas y débiles', '#ffab8a', vy * (0.4 + 0.6 * at), 10.5, 'center');
-          add(V(), 'el Sol', 30, -30, vy * ease(0.7, 0.95, at));
+          texto(g, u, W / 2, H * 0.12, 'adelante: las estrellas se juntan y se ven más azules', '#9fc4ff', vy, 10.5, 'center');
+          texto(g, u, W / 2, H * 0.12 + 18 * u, 'atrás: más rojas y débiles', '#ffab8a', vy * 0.7, 10.5, 'center');
         }
       }
       // The aberration cone: what would be 12° from ahead is seen at 10° (cos θ' = (cos θ + β) / (1 + β cos θ)).
@@ -507,8 +540,9 @@ export function estrellas(): Acto {
       // Faster ways that stay on paper: what physics does not allow (or nobody knows how to do).
       const nf = ease(0.4, 0.48, kV) * (1 - ease(0.86, 0.93, kV));
       if (f.lamina) panel(g, u, W, H, 0.73, 0.37, 'más rápido, solo en papel', ['Bussard: el gas que recoge frena más de lo que empuja', 'Alcubierre: pide energía negativa', 'agujeros de gusano: no se conoce ninguno'], nf);
-      add(A, 'Alfa Centauri A', 34, -30, ease(0.8, 0.84, kV) * (1 - ease(0.97, 1.0, kV)));
-      add(B, 'Alfa Centauri B', 34, -30, ease(0.8, 0.84, kV) * (1 - ease(0.97, 1.0, kV)));
+      const visto = (w: THREE.Vector3) => aberrar(w, f.vista.pos, m.estado.vel.clone().normalize(), m.estado.beta);
+      add(visto(A), 'Alfa Centauri A', 34, -30, ease(0.8, 0.84, kV) * (1 - ease(0.97, 1.0, kV)));
+      add(visto(B), 'Alfa Centauri B', 34, -30, ease(0.8, 0.84, kV) * (1 - ease(0.97, 1.0, kV)));
       // Braking.
       const fr = ease(0.12, 0.2, kF) * (1 - ease(0.9, 0.98, kF));
       if (fr > 0.01) {
