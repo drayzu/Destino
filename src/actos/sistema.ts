@@ -108,11 +108,7 @@ export function sistema(): Acto {
   for (const h of [ring, torus, bernal]) h.group.scale.setScalar(KM);
   const habSun = CIL.clone().negate().normalize();
   // The small ones float beside the cylinder (cylinder frame, km), turned like it, towards the Sun.
-  const TORO = cil2w(V(-26, 12, -18));
-  const BERNAL = cil2w(V(-14, 26, 22));
-  torus.group.position.copy(TORO);
   torus.group.quaternion.copy(qC);
-  bernal.group.position.copy(BERNAL);
   bernal.group.quaternion.copy(qC);
   // The other planets at work.
   const mars = marte();
@@ -206,21 +202,30 @@ export function sistema(): Acto {
    * world is there) from the side we come from: the ring ahead and to one side, the McKendree
    * cylinder beyond it on the other, the O'Neill cylinder a point far behind them.
    */
-  let HAB: { ring: THREE.Vector3; ringAxis: THREE.Vector3; mck: THREE.Vector3; mckAxis: THREE.Vector3; cam0: THREE.Vector3; cam1: THREE.Vector3; tgt: THREE.Vector3 } | null = null;
+  let HAB: { ring: THREE.Vector3; ringAxis: THREE.Vector3; cam0: THREE.Vector3; cam1: THREE.Vector3; tgt: THREE.Vector3; toro: THREE.Vector3; toroEje: THREE.Vector3; bernal: THREE.Vector3 } | null = null;
   function hab() {
     if (HAB) return HAB;
     const dirIn = camSalida(P('a3.habitats')).pos.sub(CIL).normalize();
     const side = dirIn.clone().cross(UP).normalize();
     const up = side.clone().cross(dirIn).normalize();
     const at = (f: number, sd: number, u: number) => CIL.clone().addScaledVector(dirIn, f * KM).addScaledVector(side, sd * KM).addScaledVector(up, u * KM);
+    const cam0 = at(42000, 500, 900);
+    const tgt = at(22000, -500, -150);
+    // The small ones close to the camera, in front of the ring (perspective lines them up: the
+    // sphere near, the torus beyond, the 2 000 km ring far behind); the camera drifts towards them.
+    const fwd = tgt.clone().sub(cam0).normalize();
+    const der = fwd.clone().cross(UP).normalize();
+    const arr = der.clone().cross(fwd).normalize();
+    const delante = (f: number, x: number, y: number) => cam0.clone().addScaledVector(fwd, f * KM).addScaledVector(der, x * KM).addScaledVector(arr, y * KM);
     HAB = {
       ring: at(34000, 3200, 1400),
       ringAxis: dirIn.clone().multiplyScalar(0.75).addScaledVector(side, 0.45).addScaledVector(up, 0.5).normalize(),
-      mck: at(26000, -3800, -1300),
-      mckAxis: side.clone().addScaledVector(up, 0.3).addScaledVector(dirIn, 0.25).normalize(),
-      cam0: at(42000, 500, 900),
-      cam1: at(39500, 400, 700),
-      tgt: at(22000, -500, -150),
+      cam0,
+      cam1: delante(2.2, 0, 0),
+      tgt,
+      bernal: delante(7.2, -0.35, -0.55),
+      toro: delante(14, 3.6, 0.5),
+      toroEje: arr.clone().multiplyScalar(0.6).addScaledVector(fwd, -0.55).addScaledVector(der, -0.35).normalize(),
     };
     return HAB;
   }
@@ -536,6 +541,9 @@ export function sistema(): Acto {
       const h = hab();
       ring.group.position.copy(h.ring);
       ring.group.quaternion.setFromUnitVectors(UP, h.ringAxis);
+      torus.group.position.copy(h.toro);
+      torus.group.quaternion.setFromUnitVectors(UP, h.toroEje);
+      bernal.group.position.copy(h.bernal);
       // (no McKendree cylinder: with O'Neill's and the ship of act IV, it made three cylinders; the
       // Bishop ring stands for the giants that need materials we cannot make yet)
       m.root.add(ring.group, torus.group, bernal.group);
@@ -707,12 +715,10 @@ export function sistema(): Acto {
       if (ha > 0.01) {
         const h = hab();
         add(h.ring.clone().addScaledVector(UP, 1000 * KM), 'anillo de Bishop · 2 000 km', 34, -30, ha);
-        add(CIL, 'el de O’Neill: 32 km, aquí un punto', 34, 30, ha);
+        add(CIL, 'el de O’Neill: 32 km, aquí un punto', -40, 34, ha);
+        add(h.toro, 'toro de Stanford · 1,8 km', 34, -34, ha);
+        add(h.bernal, 'esfera de Bernal · 0,5 km', 40, 30, ha);
       }
-      const kc = (p - P('a3.oneill')) / (P('a3.marte') - P('a3.oneill'));
-      const hc = ease(0.24, 0.3, kc) * (1 - ease(0.44, 0.5, kc));
-      add(TORO, 'toro de Stanford · 1,8 km', 30, -26, hc);
-      add(BERNAL, 'esfera de Bernal · 0,5 km', -36, -26, hc);
       // The cylinder: what it is, from outside; inside (plate), why the ground holds.
       const ko = (p - P('a3.oneill')) / (P('a3.marte') - P('a3.oneill'));
       const fuera = ease(0.18, 0.28, ko) * (1 - ease(0.42, 0.5, ko));
