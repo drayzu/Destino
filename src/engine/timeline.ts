@@ -108,6 +108,19 @@ export class Timeline {
     return this.captions.find((c) => p >= c.from && p <= c.to) ?? null;
   }
 
+  /** Every moment and journey, in the order they were written. */
+  get momentos(): readonly Caption[] {
+    return this.captions;
+  }
+
+  /** Stretches (beats) where things change that the camera does not show it moving through (objects
+   * growing as we come to them, things built): the pace weighs them as this many views a beat. */
+  readonly pesos: { from: number; to: number; flujo: number }[] = [];
+  peso(from: number, to: number, flujo: number) {
+    this.pesos.push({ from, to, flujo });
+    return this;
+  }
+
   label(name: string) {
     this.labels.set(name, this.cursor);
     return this;

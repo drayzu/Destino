@@ -8,6 +8,7 @@ import { damp, smoothstep } from './engine/math';
 import { Timeline } from './engine/timeline';
 import { createPost } from './engine/post';
 import { createScroll } from './engine/scroll';
+import { AJUSTE, medirRitmo } from './engine/ritmo';
 import { FONDOS } from './engine/pantalla';
 import { ambiente } from './engine/ambiente';
 import { escalera, hud, hudLibre, idioma, peldanoEn, regla } from './engine/placa';
@@ -152,6 +153,21 @@ const tramoEn = (p: number) => {
   return i;
 };
 
+/** Where the camera is at beat p: the act's view, gliding in its first beats from where the last act left it. */
+function vistaEn(p: number, time: number): Vista {
+  const i = tramoEn(p);
+  const { a: acto, desde } = tramos[i];
+  const v = acto.vista(p, time);
+  if (i === 0 || p >= desde + 0.8) return v;
+  const prev = tramos[i - 1];
+  return mezcla(prev.a.vista(prev.hasta, time), v, smoothstep(desde, desde + 0.8, p));
+}
+
+// The journey's pace, read from the camera once the world is in place: flights take more page and
+// keep their brisk pace with autoplay; still moments take less, and last about as long as their words.
+// (`?ritmo=plano` keeps the old even pace, to compare.)
+if (params.get('ritmo') !== 'plano') listo.then(() => scroll.ritmo(medirRitmo(tl.length, (p) => vistaEn(p, 0), tl.momentos, AJUSTE, tl.pesos)));
+
 let last = performance.now();
 let prevP = 0;
 let pace = 0;
@@ -179,11 +195,7 @@ function step(now: number) {
   const { a: acto, desde } = tramos[i];
   mundo.reset();
   acto.estado?.(mundo, p);
-  let v: Vista = acto.vista(p, time);
-  if (i > 0 && p < desde + 0.8) {
-    const prev = tramos[i - 1];
-    v = mezcla(prev.a.vista(prev.hasta, time), v, smoothstep(desde, desde + 0.8, p));
-  }
+  let v = vistaEn(p, time);
   v = { ...v, fov: v.fov * (1 + 0.14 * lean) };
   const k = aplicar(mundo.root, camera, v);
   // A little of the pointer.
@@ -325,6 +337,11 @@ if (params.has('debug')) {
       post,
       step,
       at: (l: string) => tl.at(l),
+      /** Where the journey is (beats), and where the camera is at a beat. */
+      p: () => scroll.progress,
+      vista: (b: number) => vistaEn(b, 0),
+      /** The pace (with knobs, the pace measured again with them: `destino.ritmo({ pxVista: 300 })`). */
+      ritmo: (k?: Partial<typeof AJUSTE>) => (k ? scroll.ritmo(medirRitmo(tl.length, (p) => vistaEn(p, 0), tl.momentos, { ...AJUSTE, ...k }, tl.pesos)) : scroll.ritmoActual),
       seek: (b: number | null) => scroll.freeze(b),
       /** For recordings (tools/clip.mjs): full quality, and the page's own loop paused, so frames come only from `step`. */
       grabar: () => {
