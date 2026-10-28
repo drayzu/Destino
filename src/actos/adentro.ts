@@ -72,8 +72,20 @@ export function adentro(): Acto {
     const llega = camEstudio(0, time);
     const k = (p - P('a6')) / (P('a6.frio') - P('a6'));
     if (k < 0.5) {
-      const s = ease(0.05, 0.5, k);
-      const pos = vuelo(BORDE.pos, llega.pos, s, 20000 * LY_AU, 6);
+      // At a steady pace in powers of ten (most of them, from the galaxy down to the star, were crowded
+      // into the flight's second half: we dived into the galaxy at once and the shells sprang up).
+      const D = BORDE.pos.distanceTo(llega.pos);
+      const e1 = Math.max(Math.log(D / 2 / (20000 * LY_AU)), 0.1);
+      const e2 = Math.log(D / 2 / 6);
+      const e = ease(0.04, 0.5, k) * (e1 + e2);
+      const s = e < e1 ? (0.5 * e) / e1 : 0.5 + (0.5 * (e - e1)) / e2;
+      const recta = vuelo(BORDE.pos, llega.pos, s, 20000 * LY_AU, 6);
+      // The last of it from behind the place it arrives at, along its gaze, turning by angle (straight
+      // in, it came from the side and the view swung at the end).
+      const r = recta.distanceTo(llega.pos);
+      const desde = recta.clone().sub(llega.pos).divideScalar(r || 1);
+      const q = new THREE.Quaternion().setFromUnitVectors(desde, llega.pos.clone().sub(llega.target).normalize());
+      const pos = llega.pos.clone().addScaledVector(desde.applyQuaternion(new THREE.Quaternion().slerp(q, ease(Math.log(5e6), Math.log(60), Math.log(r || 1e-30)))), r);
       return { pos, target: mirar(pos, BORDE.target, llega.target, ease(0, 0.2, k)), up: UP.clone(), fov: lerp(44, 40, s) };
     }
     return camEstudio(tl.get('a6.cam', p), time);

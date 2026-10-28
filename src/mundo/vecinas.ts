@@ -282,11 +282,13 @@ export function vela(rejilla = 10) {
     }),
   );
   group.add(sail);
-  // The chip: a wafer at the centre, a teal light.
-  const chip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.01), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.06, 0.07, 0.08) }));
-  chip.position.z = 0.005;
+  // The chip: a small round wafer at the centre, of a grey metal near the sail's own tone, with a faint
+  // warm glint (a black square with a bright teal light stood out as a sticker).
+  const chip = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.006, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.34, 0.32, 0.3) }));
+  chip.rotation.x = Math.PI / 2;
+  chip.position.z = 0.004;
   group.add(chip);
-  const led = new THREE.Mesh(new THREE.SphereGeometry(0.012, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.9, 2.4, 2.0) }));
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.006, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.1, 0.95, 0.75) }));
   led.position.z = 0.015;
   group.add(led);
   // The chip and its light fade with the film (left opaque, a dark square outlived the sail).

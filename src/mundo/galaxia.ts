@@ -29,12 +29,15 @@ const ARM_K = 4.7; // 1 / tan(12°): a pitch of 12°
  */
 const arms = (R: number, phi: number) => {
   const L = Math.log(Math.max(R, 500) / 8000);
-  const th = phi - ARM_K * L + 0.3 * Math.sin(2.3 * L + phi + 0.7) + 0.16 * Math.sin(5.3 * L - 2 * phi + 2.3);
-  const major = Math.pow(0.5 + 0.5 * Math.cos(2 * th), 7);
-  const minor = 0.6 * Math.pow(0.5 - 0.5 * Math.cos(2 * th), 9);
-  const spur = 0.25 * Math.pow(0.5 + 0.5 * Math.cos(6 * th + 2.5 * L), 6) * (0.5 + 0.5 * Math.cos(2 * th));
+  const th = phi - ARM_K * L + 0.5 * Math.sin(2.3 * L + phi + 0.7) + 0.28 * Math.sin(5.3 * L - 2 * phi + 2.3) + 0.12 * Math.sin(11 * L + 3 * phi + 1.1);
+  // (one major arm stronger than the other, by turns along them: a perfect pair read as a diagram)
+  const major = Math.pow(0.5 + 0.5 * Math.cos(2 * th), 7) * (0.72 + 0.28 * Math.cos(th + 0.9 * L + 0.4));
+  const minor = 0.55 * Math.pow(0.5 - 0.5 * Math.cos(2 * th), 9) * (0.6 + 0.4 * Math.sin(3.7 * L - th + 0.3));
+  const spur = 0.38 * Math.pow(0.5 + 0.5 * Math.cos(6 * th + 2.5 * L), 6) * (0.5 + 0.5 * Math.cos(2 * th));
   const k = Math.sin(4.1 * L + th);
-  return Math.min(1, (major + minor + spur) * (0.5 + 0.5 * k * k));
+  // Knots, and gaps where an arm breaks.
+  const brk = 0.5 + 0.5 * Math.sin(7.3 * L + 3 * th + 1.9) * Math.sin(2.9 * L - th + 0.4);
+  return Math.min(1, (major + minor + spur) * (0.35 + 0.65 * k * k) * (0.45 + 0.55 * brk));
 };
 
 export interface Galaxia {
@@ -74,7 +77,7 @@ export function galaxia(ruta: [THREE.Vector3, THREE.Vector3] = [new THREE.Vector
     const R = -RD * Math.log(b.r() * b.r() + 1e-9);
     if (R > 52000 || R < 1200) continue;
     const phi = b.r() * Math.PI * 2;
-    if (b.r() > 0.45 + 0.55 * arms(R, phi)) continue;
+    if (b.r() > 0.4 + 0.6 * arms(R, phi)) continue;
     const y = gauss(b.r) * 900;
     col.setRGB(1.0, 0.88 + 0.06 * b.r(), 0.72 + 0.1 * b.r());
     put(...toWorld(Math.cos(phi) * R, y, Math.sin(phi) * R), col, 0.5 + 0.6 * b.r() * b.r(), b.r() < 0.75 ? 1 : 0);
@@ -224,12 +227,13 @@ export function galaxia(ruta: [THREE.Vector3, THREE.Vector3] = [new THREE.Vector
     }
     float armsG(float R, float phi) {
       float L = log(max(R, 0.06));
-      float th = phi - ${ARM_K.toFixed(2)} * L + 0.3 * sin(2.3 * L + phi + 0.7) + 0.16 * sin(5.3 * L - 2.0 * phi + 2.3);
-      float major = pow(0.5 + 0.5 * cos(2.0 * th), 7.0);
-      float minor = 0.6 * pow(0.5 - 0.5 * cos(2.0 * th), 9.0);
-      float spur = 0.25 * pow(0.5 + 0.5 * cos(6.0 * th + 2.5 * L), 6.0) * (0.5 + 0.5 * cos(2.0 * th));
+      float th = phi - ${ARM_K.toFixed(2)} * L + 0.5 * sin(2.3 * L + phi + 0.7) + 0.28 * sin(5.3 * L - 2.0 * phi + 2.3) + 0.12 * sin(11.0 * L + 3.0 * phi + 1.1);
+      float major = pow(0.5 + 0.5 * cos(2.0 * th), 7.0) * (0.72 + 0.28 * cos(th + 0.9 * L + 0.4));
+      float minor = 0.55 * pow(0.5 - 0.5 * cos(2.0 * th), 9.0) * (0.6 + 0.4 * sin(3.7 * L - th + 0.3));
+      float spur = 0.38 * pow(0.5 + 0.5 * cos(6.0 * th + 2.5 * L), 6.0) * (0.5 + 0.5 * cos(2.0 * th));
       float k = sin(4.1 * L + th);
-      return min(1.0, (major + minor + spur) * (0.5 + 0.5 * k * k));
+      float brk = 0.5 + 0.5 * sin(7.3 * L + 3.0 * th + 1.9) * sin(2.9 * L - th + 0.4);
+      return min(1.0, (major + minor + spur) * (0.35 + 0.65 * k * k) * (0.45 + 0.55 * brk));
     }
     // Units inside: scale lengths of 8 500 ly, measured from the centre.
     void main() {

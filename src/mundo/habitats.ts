@@ -62,8 +62,16 @@ function superficie(mesh: THREE.Mesh, uni: Record<string, THREE.IUniform>, sup: 
       varying vec3 vP; varying vec3 vNW;
       void main() {
         #include <logdepthbuf_fragment>
+        // A hair behind its own points (a fraction of the distance): exactly under them, it hid them
+        // from afar, where depth is coarse, and a habitat sprang out of nothing as we came close.
+        #ifdef USE_LOGARITHMIC_DEPTH_BUFFER
+          gl_FragDepth += 3e-6;
+        #endif
         gl_FragColor = vec4(sup(vP, normalize(vNW), gl_FrontFacing) * ${FONDO.toFixed(2)}, 1.0);
       }`,
+    polygonOffset: true,
+    polygonOffsetFactor: 2,
+    polygonOffsetUnits: 2,
   });
   // Points over its triangles, by area.
   const g = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry;
@@ -454,7 +462,7 @@ export function cilindroMcKendree() {
 
 // ---------------------------------------------------------------- Stanford torus
 
-const METAL = (R: number, bandas: boolean) => /* glsl */ `
+const METAL = (R: number, bandas: boolean, luz = 1) => /* glsl */ `
   uniform vec3 uSun;
   vec3 sup(vec3 vP, vec3 vNW, bool fuera) {
     float sun = max(dot(vNW, uSun), 0.0);
@@ -469,7 +477,7 @@ const METAL = (R: number, bandas: boolean) => /* glsl */ `
     float inner = smoothstep(${(R - 0.03).toFixed(3)}, ${(R - 0.05).toFixed(3)}, length(vP.xy)) * step(abs(vP.z), 0.03);
     col = mix(col, vec3(0.6, 0.8, 0.9) * 0.6, inner);`
     }
-    return grado(col);
+    return grado(col * ${luz.toFixed(2)});
   }`;
 
 export function toroStanford() {
@@ -516,7 +524,9 @@ export function esferaBernal() {
   const capas: Puntos[] = [];
   const esfera = new THREE.Mesh(new THREE.SphereGeometry(R, 64, 32));
   giro.add(esfera);
-  superficie(esfera, uni, METAL(R, true), 40000, capas);
+  // (as dense for its size as the ring and the torus: sparser, it sparkled like a cloud of points)
+  // (the light metal of the torus and the ring's outside; window bands all over it outshone them)
+  superficie(esfera, uni, METAL(R, false), 90000, capas);
   // The farms: rings at both ends.
   for (const s of [-1, 1])
     for (let k = 0; k < 3; k++) {
@@ -524,7 +534,8 @@ export function esferaBernal() {
       ring.rotation.x = Math.PI / 2;
       ring.position.y = s * (R + 0.06 + k * 0.06);
       giro.add(ring);
-      superficie(ring, uni, METAL(R, true), 6000, capas);
+      // (thin tubes seen edge-on pile their points up: dimmer, or they outshine the sphere)
+      superficie(ring, uni, METAL(R, false, 0.3), 6000, capas);
     }
   return {
     group,

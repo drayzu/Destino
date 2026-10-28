@@ -202,7 +202,9 @@ export function sistema(): Acto {
    * world is there) from the side we come from: the ring ahead and to one side, the McKendree
    * cylinder beyond it on the other, the O'Neill cylinder a point far behind them.
    */
-  let HAB: { ring: THREE.Vector3; ringAxis: THREE.Vector3; cam0: THREE.Vector3; cam1: THREE.Vector3; tgt: THREE.Vector3; toro: THREE.Vector3; toroEje: THREE.Vector3; bernal: THREE.Vector3 } | null = null;
+  let HAB: { ring: THREE.Vector3; ringAxis: THREE.Vector3; cam: THREE.Vector3; tgt: THREE.Vector3; toro: THREE.Vector3; toroEje: THREE.Vector3; bernal: THREE.Vector3 } | null = null;
+  /** How far above the way in the habitats are (degrees from where we look as we fly). */
+  const LEVANTA = 60;
   function hab() {
     if (HAB) return HAB;
     const dirIn = camSalida(P('a3.habitats')).pos.sub(CIL).normalize();
@@ -212,32 +214,50 @@ export function sistema(): Acto {
     const cam0 = at(42000, 500, 900);
     const tgt = at(22000, -500, -150);
     // The small ones close to the camera, in front of the ring (perspective lines them up: the
-    // sphere near, the torus beyond, the 2 000 km ring far behind); the camera drifts towards them.
+    // sphere near, the torus beyond, the 2 000 km ring far behind), their lower edges level.
     const fwd = tgt.clone().sub(cam0).normalize();
     const der = fwd.clone().cross(UP).normalize();
     const arr = der.clone().cross(fwd).normalize();
     const delante = (f: number, x: number, y: number) => cam0.clone().addScaledVector(fwd, f * KM).addScaledVector(der, x * KM).addScaledVector(arr, y * KM);
+    // Where the camera stops; and all of it turned up about there, above the way in, so that flying in
+    // (looking ahead) they are out of the frame and only come into it when the gaze lifts.
+    const cam = delante(2.2, 0, 0);
+    const q = new THREE.Quaternion().setFromAxisAngle(der, THREE.MathUtils.degToRad(LEVANTA));
+    const giro = (w: THREE.Vector3) => w.clone().sub(cam).applyQuaternion(q).add(cam);
     HAB = {
-      ring: at(34000, 3200, 1400),
-      ringAxis: dirIn.clone().multiplyScalar(0.75).addScaledVector(side, 0.45).addScaledVector(up, 0.5).normalize(),
-      cam0,
-      cam1: delante(2.2, 0, 0),
-      tgt,
-      bernal: delante(7.2, -0.35, -0.55),
-      toro: delante(14, 3.6, 0.5),
-      toroEje: arr.clone().multiplyScalar(0.6).addScaledVector(fwd, -0.55).addScaledVector(der, -0.35).normalize(),
+      ring: giro(at(34000, 3200, 1400)),
+      ringAxis: dirIn.clone().multiplyScalar(0.75).addScaledVector(side, 0.45).addScaledVector(up, 0.5).normalize().applyQuaternion(q),
+      cam,
+      tgt: giro(tgt),
+      bernal: giro(delante(10, -0.49, 0.29)),
+      toro: giro(delante(14, 3.6, 0.5)),
+      toroEje: arr.clone().multiplyScalar(0.6).addScaledVector(fwd, -0.55).addScaledVector(der, -0.35).normalize().applyQuaternion(q),
     };
     return HAB;
   }
+  /**
+   * Worlds that turn. Out of the Earth's view, the gaze turns calmly ahead, to where the cylinder is (a
+   * point, the Sun above it), and the camera flies there straight, in powers of ten at a steady pace,
+   * and stops. Only then, still, it lifts its gaze: the three habitats come down into the frame
+   * together, and stay, turning. (Rebuilt: the gaze dipped, then turned right round while flying, and
+   * the habitats came in, and went, at different speeds while the camera was still moving.)
+   */
   function camHabitats(p: number): Vista {
     const k = (p - P('a3.habitats')) / (P('a3.oneill') - P('a3.habitats'));
     const h = hab();
     const desde = camSalida(P('a3.habitats'));
-    const hold: Vista = { pos: h.cam0.clone().lerp(h.cam1, ease(0.5, 1, k)), target: h.tgt.clone(), up: UP.clone(), fov: 50 };
-    if (k >= 0.55) return hold;
-    const s = ease(0.12, 0.55, k);
-    const pos = vuelo(desde.pos, h.cam0, s, 3 * R_E, 2000 * KM);
-    return { pos, target: mirar(pos, desde.target, h.tgt, ease(0, 0.2, k)), up: desde.up.clone().lerp(UP, ease(0, 0.2, k)).normalize(), fov: lerp(desde.fov, 50, ease(0.1, 0.5, k)) };
+    const u = ease(0.04, 0.5, k);
+    let pos = h.cam.clone();
+    if (u < 1) {
+      const D = desde.pos.distanceTo(h.cam);
+      const e1 = Math.log(D / 2 / (3 * R_E));
+      const e2 = Math.log(D / 2 / (1000 * KM));
+      const e = u * (e1 + e2);
+      pos = vuelo(desde.pos, h.cam, e < e1 ? (0.5 * e) / e1 : 0.5 + (0.5 * (e - e1)) / e2, 3 * R_E, 1000 * KM);
+    }
+    const g = ease(0, 0.34, k);
+    const adelante = mirar(pos, desde.target, CIL, g);
+    return { pos, target: mirar(pos, adelante, h.tgt, ease(0.52, 0.8, k)), up: desde.up.clone().lerp(UP, g).normalize(), fov: lerp(desde.fov, 50, ease(0.1, 0.5, k)) };
   }
   /** A world from the inside: outside the cylinder, in through the port at its axis, along it. */
   // Inside, 1 km over one valley (at +z), «up» towards the axis: the other two valleys climb overhead.
@@ -255,19 +275,23 @@ export function sistema(): Acto {
     const t0 = P('a3.oneill');
     const k = (p - t0) / (P('a3.marte') - t0);
     const [a, b, c, d] = CIL_TOMAS.map(cilW);
-    // From where the last view leaves us (the Earth, its ring and the Moon) to the cylinder.
+    // From where the habitats leave us to the cylinder.
     const desde = camHabitats(P('a3.oneill'));
     // First turn to it (a point of light far away), then close in.
     const a0: Vista = { pos: desde.pos.clone(), target: CIL.clone(), up: desde.up.clone(), fov: 40 };
-    if (k < 0.12) return { pos: desde.pos, target: mirar(desde.pos, desde.target, CIL, ease(0, 0.12, k)), up: desde.up, fov: lerp(desde.fov, 40, ease(0, 0.12, k)) };
-    if (k < 0.3) return mezcla(a0, a, ease(0.12, 0.3, k));
-    if (k < 0.5) return mezcla(a, b, ease(0.3, 0.5, k));
+    // (the gaze comes down to it, still: the habitats rise out of the frame together; only then we fly)
+    if (k < 0.18) return { pos: desde.pos, target: mirar(desde.pos, desde.target, CIL, ease(0, 0.18, k)), up: desde.up, fov: lerp(desde.fov, 40, ease(0, 0.18, k)) };
+    if (k < 0.34) return mezcla(a0, a, ease(0.18, 0.34, k));
+    if (k < 0.5) return mezcla(a, b, ease(0.34, 0.5, k));
     // (through the port on its axis, then out to the valley: straight from the hub to the valley the
     // camera crossed the end wall beside the port)
     const b2 = cilW(CIL_PUERTO);
-    if (k < 0.58) return mezcla(b, b2, ease(0.5, 0.58, k));
-    if (k < 0.72) return mezcla(b2, c, ease(0.58, 0.72, k));
-    return mezcla(c, d, ease(0.72, 1, k));
+    // Inside, «up» turns from along the end wall to towards the axis: one long, gentle roll from the
+    // port to the valley (with the move to the valley it was a quarter turn in under a beat).
+    const rodar = (v: Vista) => ({ ...v, up: b.up.clone().lerp(c.up, ease(0.46, 0.86, k)).normalize() });
+    if (k < 0.6) return rodar(mezcla(b, b2, ease(0.5, 0.6, k)));
+    if (k < 0.8) return rodar(mezcla(b2, c, ease(0.6, 0.8, k)));
+    return rodar(mezcla(c, d, ease(0.8, 1, k)));
   }
   /**
    * From one place to another far away, across scales: the distance from the start grows in
@@ -303,19 +327,41 @@ export function sistema(): Acto {
     up: UP.clone(),
     fov: 44,
   });
+  /** A camera's turn (where it looks and its up) as a rotation, to turn from one to another in one go. */
+  const giroDe = (pos: THREE.Vector3, target: THREE.Vector3, up: THREE.Vector3) => new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(pos, target, up));
+  /**
+   * From the cylinder to Mars, one thing at a time: out of the valley to the end and through the port,
+   * back along the axis; then, still, one smooth turn from the cylinder to Mars (a point of light),
+   * upright; then the flight, looking at Mars all the way, so it stays in the middle and grows, the
+   * sky turning slowly round it as we come round to the side we see it from. (Rebuilt: the roll, the
+   * turn to Mars and the flight overlapped, and quick: the view jumped, rocked, and Mars crossed the
+   * frame.)
+   */
   function camMarte(p: number): Vista {
     const k = (p - P('a3.marte')) / (P('a3.viaje') - P('a3.marte'));
     const d = cilW(CIL_TOMAS[3]);
     const [e, f] = CIL_FUERA.map(cilW);
-    if (k < 0.1) return mezcla(d, e, ease(0, 0.1, k));
-    if (k < 0.18) return mezcla(e, f, ease(0.1, 0.18, k));
+    if (k < 0.12) return mezcla(d, e, ease(0, 0.12, k));
+    if (k < 0.24) return mezcla(e, f, ease(0.12, 0.24, k));
     const llegada = vMarte(p);
-    const s = ease(0.18, 0.56, k);
-    const pos = vuelo(f.pos, llegada.pos, s, 60 * KM, 0.5 * R_MARS);
-    // Turn from the cylinder to Mars (a point of light), then fly to it.
-    const target = mirar(pos, f.target, MARS, ease(0.2, 0.32, k));
-    const v: Vista = { pos, target, up: f.up.clone().lerp(UP, ease(0.18, 0.3, k)).normalize(), fov: lerp(46, 44, ease(0.18, 0.4, k)) };
-    return k < 0.56 ? v : llegada;
+    if (k < 0.4) {
+      const q0 = giroDe(f.pos, f.target, f.up);
+      const q1 = giroDe(f.pos, llegada.target, UP);
+      const q = q0.clone().slerp(q1, ease(0.24, 0.4, k));
+      const dist = Math.exp(lerp(Math.log(f.pos.distanceTo(f.target)), Math.log(f.pos.distanceTo(llegada.target)), ease(0.24, 0.4, k)));
+      return { pos: f.pos.clone(), target: f.pos.clone().addScaledVector(V(0, 0, -1).applyQuaternion(q), dist), up: V(0, 1, 0).applyQuaternion(q), fov: lerp(f.fov, 44, ease(0.24, 0.4, k)) };
+    }
+    if (k >= 0.64) return llegada;
+    // Leaving takes less of the way than coming in (out there only the stars are to be seen).
+    const u = ease(0.4, 0.64, k);
+    const s = u < 0.25 ? (0.5 * u) / 0.25 : 0.5 + (0.5 * (u - 0.25)) / 0.75;
+    const recta = vuelo(f.pos, llegada.pos, s, 60 * KM, 0.5 * R_MARS);
+    // Coming round to the side we see Mars from, slowly, over the whole way in (by angle round Mars).
+    const r = recta.distanceTo(llegada.pos);
+    const desde = recta.clone().sub(llegada.pos).divideScalar(r || 1);
+    const q = new THREE.Quaternion().setFromUnitVectors(desde, llegada.pos.clone().sub(MARS).normalize());
+    const pos = llegada.pos.clone().addScaledVector(desde.applyQuaternion(new THREE.Quaternion().slerp(q, ease(Math.log(2e4 * R_MARS), Math.log(3 * R_MARS), Math.log(r || 1e-30)))), r);
+    return { pos, target: llegada.target.clone(), up: UP.clone(), fov: 44 };
   }
   /** Up over the inner system (everything at once), then down to Venus. */
   const VISTA_TODO: Vista = { pos: polar(0.5, TH_E - 0.3, 2.1), target: polar(0.25, TH_E - 0.2), up: UP.clone(), fov: 52 };
@@ -401,9 +447,14 @@ export function sistema(): Acto {
     return { pos: merc2w(posL), target: merc2w(tgtL), up: upL, fov: lerp(50, 58, a) };
   }
   // On a payload, from the end of the rail to ring A.
+  // It leaves in powers of ten, from a couple of Mercury's radii to the whole way (along the route
+  // evenly, Mercury went from filling the view to a dot in a twentieth of a beat).
+  let t0: number | null = null;
   const rideT = (p: number) => {
     const k = clamp((p - P('a3.carga')) / (P('a3.enjambre') - P('a3.carga')), 0, 1);
-    return k * k * (3 - 2 * k);
+    const u = k * k * (3 - 2 * k);
+    t0 ??= (2 * R_MER) / mercRoute.at(0, V()).distanceTo(mercRoute.at(1, V()));
+    return Math.exp(lerp(Math.log(t0), 0, u)) - t0 * (1 - u);
   };
   function camCarga(p: number): Vista {
     const t = rideT(p);
@@ -416,12 +467,24 @@ export function sistema(): Acto {
     // Just launched: first a look back over the payload at Mercury falling away, then a sweep past
     // the Sun to ring A ahead (turning through the Sun, not across the whole sky at once).
     const k = clamp((p - P('a3.carga')) / (P('a3.enjambre') - P('a3.carga')), 0, 1);
-    if (k >= 0.36) return { pos: tras, target: ahead, up: UP.clone(), fov: 58 };
+    if (k >= 0.5) return { pos: tras, target: ahead, up: UP.clone(), fov: 58 };
     // A few radii ahead of it, so Mercury starts big behind it and falls away as it speeds up.
     const delante = here.clone().addScaledVector(lag.clone().normalize(), 6 * R_MER).add(V(0, 2.5 * R_MER, 0));
-    const pos = delante.lerp(tras, ease(0.04, 0.3, k));
-    const target = k < 0.2 ? mirar(pos, M, V(), ease(0.04, 0.13, k)) : mirar(pos, V(), ahead, ease(0.22, 0.36, k));
-    return { pos, target, up: UP.clone(), fov: lerp(50, 58, ease(0.06, 0.36, k)) };
+    const vp = delante.lerp(tras, ease(0.2, 0.42, k));
+    const v: Vista = { pos: vp, target: k < 0.28 ? mirar(vp, M, V(), ease(0.17, 0.27, k)) : mirar(vp, V(), ahead, ease(0.3, 0.5, k)), up: UP.clone(), fov: lerp(50, 58, ease(0.2, 0.5, k)) };
+    // Off the rail: from where the ride along it leaves us, round the payload to its front (by angle,
+    // the distance in logarithm), turning to look back at Mercury (a quick mix of the two flipped the
+    // view and jumped six radii in a fraction of a beat).
+    const g = ease(0, 0.16, k);
+    if (g >= 1) return v;
+    const s0 = camMercurio(P('a3.carga'));
+    const oa = s0.pos.clone().sub(here);
+    const ob = v.pos.clone().sub(here);
+    const la = oa.length();
+    const lb = ob.length();
+    const q = new THREE.Quaternion().setFromUnitVectors(oa.divideScalar(la), ob.divideScalar(lb));
+    const pos = here.clone().addScaledVector(oa.applyQuaternion(new THREE.Quaternion().slerp(q, g)), Math.exp(lerp(Math.log(la), Math.log(lb), g)));
+    return { pos, target: mirar(pos, s0.target, v.target, g), up: s0.up.clone().lerp(UP, g).normalize(), fov: lerp(s0.fov, v.fov, g) };
   }
   // Along ring A: outside first (silhouettes against the Sun), in through the slot, then along the lit faces.
   const A0 = aArr - 0.004;
@@ -484,8 +547,8 @@ export function sistema(): Acto {
     ['a3.viaje', 0, camViaje],
     ['a3.venus', 0, camVenus],
     ['a3.mercurio', 0.2, camMercurio],
-    ['a3.carga', 0.12, camCarga],
-    ['a3.enjambre', 0.18, camAnillo],
+    ['a3.carga', 0, camCarga],
+    ['a3.enjambre', 0.4, camAnillo],
     ['a3.lejos', 0, camLejos],
     ['a3.lift', 0, camLift],
     ['a3.motor', 0, camMotor],

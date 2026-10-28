@@ -68,22 +68,30 @@ export function apertura(): Acto {
   }
   // The fall: wherever we are, to the Sun, then to the Earth, from the side where the next act
   // looks at it (its night side, the Sun just behind its limb: a lit crescent).
-  const approach = E_LY.clone().normalize();
   function llegada(k: number, kp: number, from: { pos: THREE.Vector3; target: THREE.Vector3; fov: number }) {
     const d0 = from.pos.length();
-    const dir = from.pos.clone().normalize().lerp(approach, ease(0.0, 0.42, k)).normalize();
-    const dSun = Math.exp(lerp(Math.log(d0), Math.log(AU_LY), ease(0, 0.78, k)));
-    const onEarth = ease(0.62, 1, k);
-    const center = V(0, 0, 0).lerp(E_LY, onEarth);
-    const dist = Math.exp(lerp(Math.log(dSun), Math.log(4.2 * R_E_LY), onEarth));
-    const recta = center.clone().addScaledVector(dir, dist);
+    // Down to where the last leg starts, half an AU off the Earth on its night side: round the Sun by
+    // angle and in powers of ten, never nearer it than that (falling to the Sun, then sliding over to
+    // the Earth, the camera dipped inside its orbit and crossed to the night side: the Sun grew and
+    // shrank, and the sky slid one way and back).
+    const W = E_LY.clone().addScaledVector(llegaDir(), 0.5 * AU_LY);
+    const a = from.pos.clone().normalize();
+    const q = new THREE.Quaternion().setFromUnitVectors(a, W.clone().normalize());
+    const caida = a.applyQuaternion(new THREE.Quaternion().slerp(q, ease(0, 0.42, k))).multiplyScalar(Math.exp(lerp(Math.log(d0), Math.log(W.length()), ease(0, 0.78, k))));
     // The last leg, in beats (not in the eased fall, which crowds its end): from half an AU off the
     // Earth down to 4.2 of its radii, in powers of ten, the planet growing, never passing through it.
     const dE = Math.exp(lerp(Math.log(0.5 * AU_LY), Math.log(4.2 * R_E_LY), ease(0.7, 1, kp)));
-    const pos = recta.lerp(E_LY.clone().addScaledVector(llegaDir(), dE), ease(0.68, 0.82, kp));
+    const pos = caida.lerp(E_LY.clone().addScaledVector(llegaDir(), dE), ease(0.68, 0.82, kp));
+    // The gaze comes onto the Sun by angle, from the few degrees off it where the galaxy's view left
+    // it (sliding the target across space, still thousands of light years off the Sun while we fell,
+    // swung the Sun out of view and back in a fraction of a beat); its distance follows the fall.
+    const s = ease(0, 0.3, k);
+    const mira = from.target.clone().sub(from.pos);
+    const sol = pos.clone().negate();
+    const giro = new THREE.Quaternion().setFromUnitVectors(from.pos.clone().normalize().negate(), mira.clone().normalize());
+    const alSol = pos.clone().addScaledVector(sol.clone().normalize().applyQuaternion(new THREE.Quaternion().slerp(giro, 1 - s)), sol.length() * Math.pow(mira.length() / d0, 1 - s));
     // The gaze stays on the Sun while the Earth grows beside it, and turns to the Earth (by angle) once it shows.
-    const alSol = from.target.clone().lerp(V(0, 0, 0), ease(0, 0.3, k));
-    const target = mirar(pos, alSol, E_LY, ease(0.76, 0.93, kp));
+    const target = mirar(pos, alSol, E_LY, ease(0.68, 0.93, kp));
     return { pos, target, up: UP.clone(), fov: lerp(from.fov, 40, ease(0, 0.6, k)) };
   }
   /** Where the next act takes the Earth from (world direction, from the Earth). */

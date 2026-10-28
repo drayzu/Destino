@@ -202,8 +202,15 @@ export function final(): Acto {
     // never crosses the hole, and the seed stays in the middle of the view.
     if (kc < 0.55) {
       const tgt = mirar(fuera.pos, fuera.target, SEMILLA, ease(0.0, 0.12, kc));
-      const s = ease(0.1, 0.35, kc);
-      const pos = fuera.pos.clone().lerp(enSemilla.pos, s);
+      // Closing in round the seed by angle and in powers of ten (a straight line shrank the distance
+      // evenly: the last of it rushed, and the hole swept into the frame as the seed jumped aside).
+      const s = ease(0.1, 0.4, kc);
+      const da = fuera.pos.clone().sub(SEMILLA);
+      const db = enSemilla.pos.clone().sub(SEMILLA);
+      const la = da.length();
+      const lb = db.length();
+      const q = new THREE.Quaternion().setFromUnitVectors(da.divideScalar(la), db.divideScalar(lb));
+      const pos = SEMILLA.clone().addScaledVector(da.applyQuaternion(new THREE.Quaternion().slerp(q, s)), Math.exp(lerp(Math.log(la), Math.log(lb), s)));
       return { pos, target: mirar(pos, tgt, SEMILLA, ease(0.08, 0.14, kc)), up: UP.clone(), fov: lerp(fuera.fov, enSemilla.fov, s) };
     }
     return mezcla(enSemilla, dentro, ease(0.55, 0.85, kc));

@@ -73,7 +73,22 @@ export function galactica(): Acto {
     // From the galaxy seen whole (where act IV leaves us) down to the front.
     const desde: Vista = { pos: ly(CENTRO.clone().add(V(30000, 62000, 60000))), target: ly(CENTRO.clone().multiplyScalar(0.55)), up: UP.clone(), fov: 46 };
     const front = enFrente(radio(p));
-    return mezcla(desde, front, ease(0, 0.35, k));
+    const u = ease(0, 0.55, k);
+    if (u >= 1) return front;
+    // Down to it in powers of ten at a steady pace, looking at the bubble whole as it grows (its middle,
+    // the Sun), and only at the end along its front (a straight mix slid the gaze across the galaxy:
+    // the picture changed at once, then the front burst in huge at the side).
+    const D = desde.pos.distanceTo(front.pos);
+    const d0 = desde.pos.distanceTo(desde.target);
+    const d1 = front.pos.distanceTo(front.target);
+    const e1 = Math.max(Math.log(D / 2 / d0), 0.2);
+    const e2 = Math.log(D / 2 / d1);
+    // (slower at first, while the galaxy still fills the frame)
+    const e = u ** 1.5 * (e1 + e2);
+    const s = e < e1 ? (0.5 * e) / e1 : 0.5 + (0.5 * (e - e1)) / e2;
+    const pos = vuelo(desde.pos, front.pos, s, d0, d1);
+    const alSol = mirar(pos, desde.target, V(0, 0, 0), ease(0.05, 0.4, u));
+    return { pos, target: mirar(pos, alSol, front.target, ease(0.72, 1, u)), up: UP.clone(), fov: lerp(desde.fov, front.fov, ease(0.5, 1, u)) };
   }
   function camOla(p: number): Vista {
     const k = (p - P('a5.ola')) / (P('a5.tipo3') - P('a5.ola'));
@@ -102,9 +117,18 @@ export function galactica(): Acto {
   };
   /** From one place to the next: turn the gaze, then fly (powers of ten). */
   function ir(a: Vista, b: Vista, k: number, d0: number, d1: number): Vista {
-    const t = ease(0.15, 1, k);
+    // At a steady pace in powers of ten; the gaze turns in the middle of the way, with both places small
+    // (turned at the start, it swung off the place we were leaving at once, which vanished).
+    const D = a.pos.distanceTo(b.pos);
+    const e1 = Math.max(Math.log(D / 2 / d0), 0.1);
+    const e2 = Math.max(Math.log(D / 2 / d1), 0.1);
+    // (leaving gets at least a third of the time: by powers of ten alone, a near place left in a few of
+    // them was gone in a rush, and the long way in that followed felt slow)
+    const u = ease(0.1, 1, k);
+    const parte = Math.max(e1 / (e1 + e2), 0.35);
+    const t = u < parte ? (0.5 * u) / parte : 0.5 + (0.5 * (u - parte)) / (1 - parte);
     const pos = vuelo(a.pos, b.pos, t, d0, d1);
-    const target = mirar(pos, a.target, b.target, ease(0, 0.45, k));
+    const target = mirar(pos, a.target, b.target, ease(0.25, 0.75, t));
     return { pos, target, up: UP.clone(), fov: lerp(a.fov, b.fov, t) };
   }
   function camZoo(p: number): Vista {
@@ -113,7 +137,18 @@ export function galactica(): Acto {
   }
   function camCallan(p: number): Vista {
     const k = (p - P('a5.callan')) / (P('a5.filtro') - P('a5.callan'));
-    return k < 0.45 ? ir(vZoo(P('a5.callan')), vCallan(p), k / 0.45, 60 * LY_AU, 60 * LY_AU) : vCallan(p);
+    const b = vCallan(p);
+    if (k >= 0.45) return b;
+    // The silent ones lie beyond the zoo, a little to one side: the gaze goes to them as we leave (a small
+    // turn: they show as points and grow), and the way bows out past the zoo instead of through it.
+    const a = vZoo(P('a5.callan'));
+    const v = ir(a, b, k / 0.45, 60 * LY_AU, 60 * LY_AU);
+    const t = ease(0.1, 1, k / 0.45);
+    const dir = b.pos.clone().sub(a.pos).normalize();
+    const w = a.target.clone().sub(a.pos);
+    const lado = w.addScaledVector(dir, -w.dot(dir)).normalize().negate();
+    const pos = v.pos.addScaledVector(lado, 100 * LY_AU * ease(0, 0.06, t) * (1 - ease(0.3, 0.6, t)));
+    return { ...v, pos, target: mirar(pos, a.target, b.target, ease(0, 0.3, t)) };
   }
   function camFiltro(p: number): Vista {
     const k = (p - P('a5.filtro')) / (P('a5.muro') - P('a5.filtro'));
@@ -128,9 +163,14 @@ export function galactica(): Acto {
     const borde = { ...BORDE, pos: c.clone().add(BORDE.pos.clone().sub(c).applyAxisAngle(UP, -0.35 * ease(0.2, 1.4, k))) };
     // Away from the ruins in powers of ten, so they shrink to a point instead of vanishing.
     const a = vRuinas(P('a5.muro'));
-    const t = ease(0.0, 0.6, k);
-    const pos = vuelo(a.pos, borde.pos, t, 2, borde.pos.distanceTo(borde.target));
-    return { pos, target: mirar(pos, a.target, borde.target, ease(0.05, 0.5, t)), up: UP.clone(), fov: lerp(a.fov, borde.fov, t) };
+    // Straight out, the distance growing in powers of ten at a steady pace, never past where it goes
+    // (a flight there overshot it, the far view being further off than half the way: the galaxy swept
+    // across the frame and back); the gaze turns to the galaxy's middle once it is a galaxy we see.
+    const w = ease(0.0, 0.75, k);
+    const ab = borde.pos.clone().sub(a.pos);
+    const D = ab.length();
+    const pos = a.pos.clone().addScaledVector(ab.divideScalar(D), Math.exp(lerp(Math.log(2), Math.log(D), w)) - 2 * (1 - w));
+    return { pos, target: mirar(pos, a.target, borde.target, ease(0.5, 0.92, w)), up: UP.clone(), fov: lerp(a.fov, borde.fov, ease(0.5, 1, w)) };
   }
   const SEGS: [string, (p: number) => Vista][] = [
     ['a5', camBurbuja],
@@ -202,7 +242,8 @@ export function galactica(): Acto {
       lug.nube.points.visible = here;
       ru.nube.points.visible = here;
       // The front itself, while we ride it and while it spreads.
-      const mOn = here ? ease(P('a5', 1.2), P('a5', 2.4), p) * (1 - ease(P('a5.tipo3', -1.6), P('a5.tipo3', -0.4), p)) : 0;
+      // (on from afar, so it grows from a point as we come to it: lit late, it showed up already big)
+      const mOn = here ? ease(P('a5', 0.1), P('a5', 0.9), p) * (1 - ease(P('a5.tipo3', -1.6), P('a5.tipo3', -0.4), p)) : 0;
       membrana.mesh.visible = mOn > 0.001;
       membrana.u.uOn.value = mOn;
       membrana.u.uTime.value = time;
@@ -249,10 +290,11 @@ export function galactica(): Acto {
         c.group.visible = callOn > 0.001;
         c.nube.u.uGain.value = callOn * 0.9;
       }
+      // The ruins fade as they shrink to a point, over several powers of ten, the dead star after them
+      // (cut at 600–4 000 AU, they vanished in a fraction of a beat as we pulled away; the star at once).
       const dRu = v.pos.distanceTo(ly(RUINAS));
-      const atRuins = dRu < 4000;
-      ru.nube.u.uOn.value = 1 - smoothstep(600, 4000, dRu);
-      enana.update(camera, time, atRuins ? 1 : 0, v.pos.distanceTo(ly(RUINAS)) / (0.0125 * R_SUN));
+      ru.nube.u.uOn.value = 1 - smoothstep(Math.log(150), Math.log(4000), Math.log(dRu));
+      enana.update(camera, time, 1 - smoothstep(Math.log(3000), Math.log(60000), Math.log(dRu)), dRu / (0.0125 * R_SUN));
     },
     placa(g, f: Cuadro) {
       const { p, W, H, u } = f;
