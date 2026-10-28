@@ -6,7 +6,7 @@ import { texto } from '../engine/lamina';
 import { mezcla, type Vista } from '../engine/vista';
 import { materia, materiaBuilder } from '../engine/materia';
 import { pantalla } from '../engine/pantalla';
-import { E, deriva, noche, type Mundo } from '../mundo/mundo';
+import { E, NOCHE, deriva, noche, type Mundo } from '../mundo/mundo';
 import { R_E } from '../mundo/obras';
 import { HORIZONTE, SPHERE_PRE, esfera } from '../mundo/tierra';
 import { DATOS, celula, cerebro, neuronas } from '../mundo/vida';
@@ -85,10 +85,11 @@ export function despertar(): Acto {
 
   // ------------------------------------------------------------ the camera
   // Where the opening left the camera (the Earth's night side, the Sun behind it), and where «Hoy» wants it.
-  const desde = (): Vista => ({ pos: E.clone().addScaledVector(E.clone().normalize(), 4.2 * R_E), target: E.clone(), up: UP.clone(), fov: 40 });
+  const llega = () => NOCHE.clone().applyAxisAngle(UP, deriva(P('a1'))).normalize();
+  const desde = (): Vista => ({ pos: E.clone().addScaledVector(llega(), 4.2 * R_E), target: E.clone(), up: UP.clone(), fov: 40 });
   const hacia = (p: number): Vista => noche(4.6, deriva(p));
   /** Down into the sea: the world camera dives to the ocean while the small space opens. */
-  const mar = (): Vista => ({ pos: E.clone().addScaledVector(E.clone().normalize(), 1.03 * R_E), target: E.clone(), up: UP.clone(), fov: 40 });
+  const mar = (): Vista => ({ pos: E.clone().addScaledVector(llega(), 1.03 * R_E), target: E.clone(), up: UP.clone(), fov: 40 });
   /** The machines: in towards the data centres as they light, and back out for «Hoy». */
   function maquinas(p: number): Vista {
     const base = hacia(p);
@@ -106,12 +107,12 @@ export function despertar(): Acto {
   function micro0(p: number): { pos: THREE.Vector3; target: THREE.Vector3 } {
     const t = time0;
     const a = 0.6 + 0.05 * Math.sin(t * 0.1);
-    // Distance from the centre, in logarithm: 3 (a cell) → 30 (the nerves) → 140 (the brain) → 4000 (a point).
+    // Distance from the centre, in logarithm: 4.4 (a cell) → 30 (the nerves) → 140 (the brain) → 4000 (a point).
     const d1 = ease(P('a1', 0.2), P('a1', 1.8), p);
     const d2 = ease(P('a1.nervios', -0.2), P('a1.nervios', 1.6), p);
     const d3 = ease(P('a1.cerebro', -0.2), P('a1.cerebro', 1.8), p);
     const d4 = ease(P('a1.todos', -0.4), P('a1.todos', 1.4), p);
-    const L = lerp(lerp(lerp(lerp(Math.log(60), Math.log(3.1), d1), Math.log(26), d2), Math.log(150), d3), Math.log(6000), d4);
+    const L = lerp(lerp(lerp(lerp(Math.log(60), Math.log(4.4), d1), Math.log(26), d2), Math.log(150), d3), Math.log(6000), d4);
     const d = Math.exp(L);
     const az = a + 0.25 * (p - P('a1')) * 0.1 + 0.8 * d2 + 0.6 * d3;
     const el = 0.18 + 0.15 * d3;

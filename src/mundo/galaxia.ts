@@ -22,9 +22,19 @@ export const CENTRO = new THREE.Vector3(0, 0, -26000);
 const RD = 8500; // disk scale length (2.6 kpc)
 const ARM_K = 4.7; // 1 / tan(12°): a pitch of 12°
 
+/**
+ * The arms, not a perfect spiral: two major arms and two fainter minor ones (as the Milky Way's
+ * Scutum–Centaurus and Perseus, Norma and Sagittarius), their line wavering, spurs feathering off
+ * them, and knots and gaps along them. The same in GLSL (`armsG`) for the diffuse light.
+ */
 const arms = (R: number, phi: number) => {
-  const a = 0.5 + 0.5 * Math.cos(4 * (phi - ARM_K * Math.log(Math.max(R, 500) / 8000)));
-  return a * a * a;
+  const L = Math.log(Math.max(R, 500) / 8000);
+  const th = phi - ARM_K * L + 0.3 * Math.sin(2.3 * L + phi + 0.7) + 0.16 * Math.sin(5.3 * L - 2 * phi + 2.3);
+  const major = Math.pow(0.5 + 0.5 * Math.cos(2 * th), 7);
+  const minor = 0.6 * Math.pow(0.5 - 0.5 * Math.cos(2 * th), 9);
+  const spur = 0.25 * Math.pow(0.5 + 0.5 * Math.cos(6 * th + 2.5 * L), 6) * (0.5 + 0.5 * Math.cos(2 * th));
+  const k = Math.sin(4.1 * L + th);
+  return Math.min(1, (major + minor + spur) * (0.5 + 0.5 * k * k));
 };
 
 export interface Galaxia {
@@ -32,6 +42,8 @@ export interface Galaxia {
   luz: ReturnType<typeof pantalla>;
   /** Stars that host the drawn planets (positions, ly): near the Sun, then across the disk. */
   conPlanetas: THREE.Vector3[];
+  /** How many of them (the first) are the neighbourhood's, crowded along the camera's route. */
+  locales: number;
   /** For each of them: older than the Sun. */
   viejos: boolean[];
   /** Per frame: the world scale (scene units per ly) and where the camera is (ly). */
@@ -192,6 +204,7 @@ export function galaxia(ruta: [THREE.Vector3, THREE.Vector3] = [new THREE.Vector
     extra: { aLum: [new Float32Array(lum), 1], aOld: [new Float32Array(old), 1], aLoc: [new Float32Array(loc), 1] },
   });
   nube.u.uSpread.value = 0;
+  const locales = conPlanetas.length;
   // A few planets across the whole disk too (for the views from outside).
   for (let k = 0; k < 2500; k++) {
     const i = Math.floor(b.r() * 180000);
@@ -209,7 +222,15 @@ export function galaxia(ruta: [THREE.Vector3, THREE.Vector3] = [new THREE.Vector
       return mix(mix(mix(h31(i), h31(i + vec3(1,0,0)), f.x), mix(h31(i + vec3(0,1,0)), h31(i + vec3(1,1,0)), f.x), f.y),
                  mix(mix(h31(i + vec3(0,0,1)), h31(i + vec3(1,0,1)), f.x), mix(h31(i + vec3(0,1,1)), h31(i + vec3(1,1,1)), f.x), f.y), f.z);
     }
-    float armsG(float R, float phi) { float a = 0.5 + 0.5 * cos(4.0 * (phi - ${ARM_K.toFixed(2)} * log(max(R, 0.06)))); return a * a * a; }
+    float armsG(float R, float phi) {
+      float L = log(max(R, 0.06));
+      float th = phi - ${ARM_K.toFixed(2)} * L + 0.3 * sin(2.3 * L + phi + 0.7) + 0.16 * sin(5.3 * L - 2.0 * phi + 2.3);
+      float major = pow(0.5 + 0.5 * cos(2.0 * th), 7.0);
+      float minor = 0.6 * pow(0.5 - 0.5 * cos(2.0 * th), 9.0);
+      float spur = 0.25 * pow(0.5 + 0.5 * cos(6.0 * th + 2.5 * L), 6.0) * (0.5 + 0.5 * cos(2.0 * th));
+      float k = sin(4.1 * L + th);
+      return min(1.0, (major + minor + spur) * (0.5 + 0.5 * k * k));
+    }
     // Units inside: scale lengths of 8 500 ly, measured from the centre.
     void main() {
       vec3 d = normalize(vDir);
@@ -272,6 +293,7 @@ export function galaxia(ruta: [THREE.Vector3, THREE.Vector3] = [new THREE.Vector
     nube,
     luz,
     conPlanetas,
+    locales,
     viejos,
     update(scale, cam) {
       nube.u.uScale.value = scale;

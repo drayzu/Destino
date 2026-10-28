@@ -6,8 +6,9 @@ import { gauss } from '../engine/math';
  * Matter waking up (act I), in its own small space (micro units: a cell's radius is 1), drawn with
  * the camera (`cabina` in the act): the world's coordinates cannot tell micrometres apart.
  *
- * - A cell that reacts: its membrane, its nucleus, its mitochondria; a molecule touches it and a
- *   wave of light runs round the membrane. Deep sea blue.
+ * - A cell that reacts: a microbe (no nucleus): its membrane and wall, its DNA folded in the middle,
+ *   ribosomes, plasmids, hairs and a turning flagellum; a molecule touches it and a wave of light
+ *   runs round the membrane. Deep sea blue.
  * - Nerves: a small net of neurons (soma, branching dendrites, an axon with its beads of myelin),
  *   pulses running along the axons. Violet.
  * - A brain: two hemispheres of folded cortex, in points, with waves of activity crossing them. Ember.
@@ -16,37 +17,89 @@ import { gauss } from '../engine/math';
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 
 export function celula() {
+  // 3 500 million years ago life was microbes: a cell with no nucleus, a rod a few micrometres long.
   const b = materiaBuilder(3500);
   const part: number[] = [];
-  // The membrane: a wobbly sphere.
-  for (let i = 0; i < 6000; i++) {
+  const R = 0.8;
+  const L = 0.7;
+  /** A point on the rod's surface (a capsule along Z, laid along X when pushed) at radius r, and its outward normal. */
+  const capsula = (r: number): [THREE.Vector3, THREE.Vector3] => {
+    const cyl = 4 * Math.PI * r * L;
+    const sph = 4 * Math.PI * r * r;
+    if (b.r() < cyl / (cyl + sph)) {
+      const a = b.r() * Math.PI * 2;
+      const n = V(Math.cos(a), Math.sin(a), 0);
+      return [n.clone().multiplyScalar(r).setZ((b.r() * 2 - 1) * L), n];
+    }
     const [x, y, z] = b.onSphere();
-    const w = 1 + 0.05 * Math.sin(3 * x + 1.1) * Math.cos(2 * y) + 0.03 * Math.sin(5 * z);
-    b.push(x * w, y * w, z * w, new THREE.Color(0.55, 0.85, 1.0), 0.012, 0.55);
+    const n = V(x, y, z);
+    return [n.clone().multiplyScalar(r).add(V(0, 0, Math.sign(z) * L)), n];
+  };
+  const wob = (q: THREE.Vector3) => 1 + 0.025 * Math.sin(3 * q.x + 1.1) * Math.cos(2 * q.z) + 0.015 * Math.sin(5 * q.y);
+  // Its membrane, and the wall just outside it.
+  for (let i = 0; i < 9000; i++) {
+    const [q, n] = capsula(R);
+    q.addScaledVector(n, R * (wob(q) - 1));
+    b.push(q.z, q.y, -q.x, new THREE.Color(0.55, 0.85, 1.0), 0.011, 0.5);
     part.push(0);
   }
-  // Inside: the cytoplasm, faint; the nucleus, warmer; the mitochondria, small orange knots.
-  for (let i = 0; i < 2500; i++) {
-    const [x, y, z] = b.onSphere();
-    const r = Math.cbrt(b.r()) * 0.92;
-    b.push(x * r, y * r, z * r, new THREE.Color(0.3, 0.55, 0.85), 0.01, 0.12);
+  for (let i = 0; i < 5000; i++) {
+    const [q, n] = capsula(R + 0.06);
+    q.addScaledVector(n, R * (wob(q) - 1));
+    b.push(q.z, q.y, -q.x, new THREE.Color(0.45, 0.95, 0.85), 0.009, 0.2);
+    part.push(6);
+  }
+  // Inside, the cytoplasm, faint.
+  for (let i = 0; i < 2600; i++) {
+    const [q] = capsula(R * Math.cbrt(b.r()) * 0.92);
+    b.push(q.z, q.y, -q.x, new THREE.Color(0.3, 0.55, 0.85), 0.01, 0.1);
     part.push(1);
   }
-  for (let i = 0; i < 1800; i++) {
-    const [x, y, z] = b.onSphere();
-    const r = 0.34 * (0.94 + 0.06 * b.r());
-    b.push(x * r - 0.16, y * r + 0.06, z * r, new THREE.Color(1.0, 0.75, 0.45), 0.012, 0.5);
+  // Its DNA, no nucleus around it: one long loop folded on itself in the middle (the nucleoid).
+  const d = V(0, 0, 0);
+  const v = V(1, 0, 0);
+  for (let i = 0; i < 4200; i++) {
+    v.add(V(gauss(b.r), gauss(b.r), gauss(b.r)).multiplyScalar(0.35)).normalize();
+    d.addScaledVector(v, 0.018);
+    // (held in an ellipsoid round the middle of the rod)
+    const out = (d.x / 0.42) ** 2 + (d.y / 0.42) ** 2 + (d.z / 0.85) ** 2;
+    if (out > 1) v.addScaledVector(d.clone().multiply(V(1 / 0.42, 1 / 0.42, 1 / 0.85)).normalize(), -0.6).normalize();
+    b.push(d.z, d.y, -d.x, new THREE.Color(1.0, 0.75, 0.45), 0.009, 0.45);
     part.push(2);
   }
-  for (let k = 0; k < 9; k++) {
-    const c = V(gauss(b.r), gauss(b.r), gauss(b.r)).normalize().multiplyScalar(0.55 + 0.25 * b.r());
-    const d = V(gauss(b.r), gauss(b.r), gauss(b.r)).normalize();
-    for (let i = 0; i < 160; i++) {
-      const t = (b.r() - 0.5) * 0.28;
-      const q = c.clone().addScaledVector(d, t).add(V(gauss(b.r), gauss(b.r), gauss(b.r)).multiplyScalar(0.025));
-      b.push(q.x, q.y, q.z, new THREE.Color(1.0, 0.55, 0.3), 0.012, 0.45);
+  // Ribosomes, where proteins are made: grains all through it; and two small rings of DNA (plasmids).
+  for (let k = 0; k < 700; k++) {
+    const [q] = capsula(R * (0.3 + 0.62 * Math.cbrt(b.r())));
+    for (let j = 0; j < 2; j++) {
+      b.push(q.z + gauss(b.r) * 0.008, q.y + gauss(b.r) * 0.008, -q.x + gauss(b.r) * 0.008, new THREE.Color(1.0, 0.9, 0.72), 0.01, 0.55);
       part.push(3);
     }
+  }
+  for (const [c, r] of [[V(0.45, 0.2, 0.9), 0.1], [V(-0.4, -0.25, -0.75), 0.08]] as [THREE.Vector3, number][]) {
+    const ax = V(gauss(b.r), gauss(b.r), gauss(b.r)).normalize();
+    const e1 = ax.clone().cross(V(0, 1, 0)).normalize();
+    const e2 = ax.clone().cross(e1);
+    for (let i = 0; i < 90; i++) {
+      const a = (i / 90) * Math.PI * 2;
+      const q = c.clone().addScaledVector(e1, Math.cos(a) * r).addScaledVector(e2, Math.sin(a) * r);
+      b.push(q.z, q.y, -q.x, new THREE.Color(1.0, 0.6, 0.35), 0.011, 0.6);
+      part.push(3);
+    }
+  }
+  // Short hairs (pili) all over it.
+  for (let k = 0; k < 70; k++) {
+    const [q, n] = capsula(R + 0.06);
+    const len = 0.12 + 0.18 * b.r();
+    for (let j = 0; j < 6; j++) {
+      const t = (j / 6) * len;
+      b.push(q.z + n.z * t, q.y + n.y * t, -(q.x + n.x * t), new THREE.Color(0.5, 0.85, 0.95), 0.007, 0.25);
+      part.push(7);
+    }
+  }
+  // The flagellum at the other end (−X): a long helix that turns and pushes it (drawn in the shader; x is how far along).
+  for (let i = 0; i < 700; i++) {
+    b.push(i / 700, 0, 0, new THREE.Color(0.55, 0.9, 1.0), 0.009, 0.45);
+    part.push(5);
   }
   // The molecule that touches it, coming in from outside along +X.
   b.push(0, 0, 0, new THREE.Color(1.0, 0.95, 0.8), 0.05, 2.0);
@@ -56,9 +109,15 @@ export function celula() {
     move: /* glsl */ `
       // Alive: everything trembles a little.
       p += vec3(sin(uTime * 1.3 + seed * 40.0), cos(uTime * 1.1 + seed * 31.0), sin(uTime * 0.9 + seed * 17.0)) * 0.004;
-      if (aPart > 3.5) {
-        // The molecule: in from far off, to the membrane at +X.
-        p = vec3(mix(3.5, 1.04, uToque), 0.1, 0.05);
+      if (aPart > 4.5 && aPart < 5.5) {
+        float t = position.x;
+        float amp = 0.16 * smoothstep(0.0, 0.12, t);
+        float ph = t * 22.0 - uTime * 7.0;
+        p = vec3(-(${(L + R).toFixed(2)} + 0.04) - t * 3.2, amp * cos(ph), amp * sin(ph));
+      }
+      if (aPart > 3.5 && aPart < 4.5) {
+        // The molecule: in from far off, to the wall at the rod's end (+X).
+        p = vec3(mix(4.6, ${(L + R + 0.08).toFixed(2)}, uToque), 0.1, 0.05);
         em *= step(0.001, uToque) * (1.0 - smoothstep(0.98, 1.0, uOla));
       }
       if (aPart < 0.5) {

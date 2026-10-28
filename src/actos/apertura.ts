@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import type { Timeline } from '../engine/timeline';
-import { lerp, smoothstep } from '../engine/math';
+import { clamp, lerp, smoothstep } from '../engine/math';
 import { TEAL, cifra, ink, nota } from '../engine/placa';
 import { linea, panel, texto } from '../engine/lamina';
-import type { Vista } from '../engine/vista';
+import { mirar, type Vista } from '../engine/vista';
 import { CENTRO, esferaLamina } from '../mundo/galaxia';
-import { E, LY_AU, type Mundo } from '../mundo/mundo';
+import { E, LY_AU, NOCHE, deriva, type Mundo } from '../mundo/mundo';
 import { R_E } from '../mundo/obras';
 import type { Acto, Cuadro } from './tipos';
 
@@ -66,22 +66,32 @@ export function apertura(): Acto {
     const dir = a.applyQuaternion(new THREE.Quaternion().slerp(q, gira));
     return { pos, target: pos.clone().addScaledVector(dir, lb), up: UP.clone(), fov: lerp(64, 46, gira) };
   }
-  // The fall: wherever we are, to the Sun, then to the Earth's night side.
+  // The fall: wherever we are, to the Sun, then to the Earth, from the side where the next act
+  // looks at it (its night side, the Sun just behind its limb: a lit crescent).
   const approach = E_LY.clone().normalize();
-  function llegada(k: number, from: { pos: THREE.Vector3; target: THREE.Vector3; fov: number }) {
+  function llegada(k: number, kp: number, from: { pos: THREE.Vector3; target: THREE.Vector3; fov: number }) {
     const d0 = from.pos.length();
     const dir = from.pos.clone().normalize().lerp(approach, ease(0.0, 0.42, k)).normalize();
     const dSun = Math.exp(lerp(Math.log(d0), Math.log(AU_LY), ease(0, 0.78, k)));
     const onEarth = ease(0.62, 1, k);
     const center = V(0, 0, 0).lerp(E_LY, onEarth);
     const dist = Math.exp(lerp(Math.log(dSun), Math.log(4.2 * R_E_LY), onEarth));
-    const pos = center.clone().addScaledVector(dir, dist);
-    const target = from.target.clone().lerp(V(0, 0, 0), ease(0, 0.3, k)).lerp(E_LY, onEarth);
+    const recta = center.clone().addScaledVector(dir, dist);
+    // The last leg, in beats (not in the eased fall, which crowds its end): from half an AU off the
+    // Earth down to 4.2 of its radii, in powers of ten, the planet growing, never passing through it.
+    const dE = Math.exp(lerp(Math.log(0.5 * AU_LY), Math.log(4.2 * R_E_LY), ease(0.7, 1, kp)));
+    const pos = recta.lerp(E_LY.clone().addScaledVector(llegaDir(), dE), ease(0.68, 0.82, kp));
+    // The gaze stays on the Sun while the Earth grows beside it, and turns to the Earth (by angle) once it shows.
+    const alSol = from.target.clone().lerp(V(0, 0, 0), ease(0, 0.3, k));
+    const target = mirar(pos, alSol, E_LY, ease(0.76, 0.93, kp));
     return { pos, target, up: UP.clone(), fov: lerp(from.fov, 40, ease(0, 0.6, k)) };
   }
+  /** Where the next act takes the Earth from (world direction, from the Earth). */
+  const llegaDir = () => NOCHE.clone().applyAxisAngle(UP, deriva(P('a1'))).normalize();
   function camaraLy(p: number) {
     const k = tl.get('a0.caida', p);
-    return k > 0 ? llegada(k, cerca(P('a0.caida'))) : cerca(p);
+    const kp = clamp((p - P('a0.caida')) / (P('a0.fin') - P('a0.caida')), 0, 1);
+    return k > 0 ? llegada(k, kp, cerca(P('a0.caida'))) : cerca(p);
   }
   const bubble = (p: number) => {
     const k = tl.get('a0.bub', p);
@@ -160,7 +170,10 @@ export function apertura(): Acto {
       } else {
         bub.group.position.set(0, 0, 0);
         bub.group.scale.setScalar(Math.max(100 * ease(0, 1, voz), 1e-6));
-        bub.nube.u.uGain.value = (voz > 0.001 ? 1 : 0) * (1 - 0.6 * ease(P('a0.lejos'), P('a0.lejos', 1.4), p));
+        // Once it is a few pixels across, its points (each at least a pixel or two) pile into a lump:
+        // it gives way to the plate's mark.
+        const px = (100 / Math.max(camaraLy(p).pos.length(), 1)) * f.focal;
+        bub.nube.u.uGain.value = (voz > 0.001 ? 1 : 0) * (1 - 0.6 * ease(P('a0.lejos'), P('a0.lejos', 1.4), p)) * smoothstep(4, 14, px);
       }
       G.nube.u.uBub.value.copy(SB);
       G.nube.u.uBubR.value = sil.r;
@@ -212,7 +225,8 @@ export function apertura(): Acto {
       const plan = tl.get('a0.plan', p) * (1 - ease(0.05, 0.25, dive));
       if (plan > 0.01) {
         for (let i = 0; i < G.conPlanetas.length; i++) {
-          if (i < 1500) continue;
+          // (not the neighbourhood's: crowded along the camera's route, from outside they made a cigar)
+          if (i < G.locales) continue;
           const q = proj(G.conPlanetas[i]);
           if (!q || q.x < 0 || q.x > W || q.y < 0 || q.y > H) continue;
           g.save();
