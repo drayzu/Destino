@@ -102,8 +102,8 @@ export function infrarrojo() {
         vec3 ramp(float t) {
           vec3 c = mix(vec3(0.12, 0.012, 0.004), vec3(0.62, 0.11, 0.02), smoothstep(0.05, 0.32, t));
           c = mix(c, vec3(1.0, 0.42, 0.1), smoothstep(0.32, 0.6, t));
-          c = mix(c, vec3(1.05, 0.78, 0.45), smoothstep(0.62, 0.95, t));
-          return mix(c, vec3(1.3, 1.2, 1.0), clamp((t - 0.95) / 0.5, 0.0, 1.0));
+          // (it tops out at a warm amber: a white there read as a glint of sunlight on a shiny ball)
+          return mix(c, vec3(1.0, 0.66, 0.3), smoothstep(0.62, 1.1, t));
         }
         void main() {
           #include <logdepthbuf_fragment>
@@ -118,18 +118,59 @@ export function infrarrojo() {
           vec3 d = texture2D(uDia, uv).rgb;
           float desierto = smoothstep(0.25, 0.5, d.r) * (1.0 - smoothstep(0.55, 0.8, d.b)) * (1.0 - smoothstep(0.55, 0.75, abs(n.y)));
           own += 0.1 * desierto;
-          float nube = smoothstep(0.25, 0.85, texture2D(uNubes, uv).r);
-          own -= 0.22 * nube;
-          // The Sun's fine mottling, so it is not a flat paint.
-          own += 0.035 * snoise(n * 30.0) + 0.02 * snoise(n * 80.0);
+          float nube = smoothstep(0.2, 0.85, texture2D(uNubes, uv).r);
+          own -= 0.3 * nube;
+          // The Sun's mottling, so it is not a flat paint.
+          own += 0.04 * snoise(n * 30.0) + 0.025 * snoise(n * 80.0);
           float h = texture2D(uHeat, vUv).r;
-          float t = own + uGlobal + uLocal * h;
-          vec3 col = ramp(t) * (0.45 + 0.55 * sqrt(max(mu, 0.0))) * 0.85;
+          // Warming shifts the whole palette, with a soft knee, so the planet never washes out.
+          float t = own + 0.75 * uGlobal + uLocal * h;
+          t = t > 0.55 ? 0.55 + (t - 0.55) / (1.0 + 1.4 * (t - 0.55)) : t;
+          // Heat is given off, not reflected: no bright middle as on a lit ball, only a little less
+          // towards the limb. And a fine grain, as of the points everything else is made of.
+          float grano = 0.78 + 0.3 * snoise(n * 420.0) + 0.12 * snoise(n * 160.0);
+          vec3 col = ramp(t) * (0.8 + 0.2 * smoothstep(0.0, 0.45, mu)) * grano * 0.8;
           gl_FragColor = vec4(col, 1.0);
         }`,
     }),
   );
   mesh.renderOrder = 6;
+  // Its air in infrared: a thin warm rim over the blue one of the visible Earth.
+  const aire = new THREE.Mesh(
+    new THREE.SphereGeometry(1.06, 160, 96),
+    new THREE.ShaderMaterial({
+      uniforms: uni,
+      transparent: true,
+      depthWrite: false,
+      vertexShader: /* glsl */ `
+        #include <common>
+        #include <logdepthbuf_pars_vertex>
+        varying vec3 vP; varying vec3 vC;
+        void main() {
+          vP = position;
+          vC = (inverse(modelMatrix) * vec4(cameraPosition, 1.0)).xyz;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          #include <logdepthbuf_vertex>
+        }`,
+      fragmentShader: /* glsl */ `
+        #include <logdepthbuf_pars_fragment>
+        uniform float uWipePx, uGlobal;
+        varying vec3 vP; varying vec3 vC;
+        void main() {
+          #include <logdepthbuf_fragment>
+          if (gl_FragCoord.x < uWipePx) discard;
+          // How close the line of sight passes to the centre (Earth radii).
+          vec3 d = normalize(vP - vC);
+          float b = length(vC - d * dot(vC, d));
+          if (b < 1.0) discard;
+          float a = 1.0 - smoothstep(1.01, 1.055, b);
+          vec3 col = vec3(0.42, 0.09, 0.02) * (1.0 + 0.5 * uGlobal) * (0.25 + 0.75 * smoothstep(1.055, 1.004, b));
+          gl_FragColor = vec4(col, a);
+        }`,
+    }),
+  );
+  aire.renderOrder = 6;
+  mesh.add(aire);
   // The real Earth's clouds and land (the same maps as its points).
   new THREE.TextureLoader().load(textura('2k_earth_clouds.jpg'), (t) => {
     t.colorSpace = THREE.NoColorSpace;
