@@ -139,11 +139,28 @@ export function estrellas(): Acto {
   naveGiro.parent!.add(chorro.points);
   cabina.add(nave);
 
-  // While the sail is too small to see (metres across, kilometres away), a light marks it.
-  const faro = faros([{ color: new THREE.Color(1.4, 2.6, 2.2), px: 4.5 }]);
+  // While a sail is too small to see (metres across, kilometres away), a light marks it: Starshot's
+  // teal, the braking sail's gold.
+  const faro = faros([
+    { color: new THREE.Color(1.4, 2.6, 2.2), px: 4.5 },
+    { color: new THREE.Color(2.6, 2.1, 1.3), px: 4 },
+  ]);
   cabina.add(faro.points);
 
   // ------------------------------------------------------------ the sail's flight
+  /** Where the cruise ends and the closing in begins, and where the pass begins (fractions of the leg). */
+  const K_LOG = 0.55;
+  const K_PASO = 0.7;
+  /** The pass by A: how far past it (AU along the way, negative before), by beat: in logarithm far
+   * off and linear within H of it (a sinh), RITMO e-folds a beat, the closing in's own pace. */
+  const H = 0.06;
+  function pasoX(p: number) {
+    const p0 = P('a4.viaje') + K_PASO * (P('a4.frenar') - P('a4.viaje'));
+    const ritmo = Math.log(100) / ((K_PASO - K_LOG) * (P('a4.frenar') - P('a4.viaje')));
+    return Math.sinh(Math.asinh(-30 / H) + ritmo * (p - p0)) * H;
+  }
+  /** The sail from A (AU): small numbers, precise to the metre (from the Sun they are not). */
+  const sailA = (p: number) => SEP.clone().multiplyScalar(-0.06).addScaledVector(RUMBO, pasoX(p));
   /** How far the sail is from its launch (AU) and its speed (c), by beat. */
   function vuelo(p: number) {
     const a = P('a4');
@@ -155,13 +172,11 @@ export function estrellas(): Acto {
       return { s: 0.12 * u * u, beta: 0.2 * u };
     }
     // The cruise, at its real constant speed (the years tick evenly); the last 3 000 AU shrink in
-    // logarithm, so A and B grow; the last 30 AU, past A, again at the real speed.
-    if (kV < 0.76) return { s: lerp(0.12, TRAMO - 3000, kV / 0.76), beta: 0.2 };
-    if (kV < 0.88) return { s: TRAMO - Math.exp(lerp(Math.log(3000), Math.log(30), ease(0.76, 0.88, kV))), beta: 0.2 };
-    // Past A: in slow motion close to it (the passing itself lasts minutes).
-    const h = 0.04;
-    const x = Math.sinh(lerp(Math.asinh(-30 / h), Math.asinh(40 / h), (kV - 0.88) / 0.12)) * h;
-    return { s: TRAMO + x, beta: 0.2 };
+    // logarithm at a steady pace, so A and B grow; the pass goes on at that same pace (a sinh), in
+    // slow motion close to A (the passing itself lasts minutes), and away again.
+    if (kV < K_LOG) return { s: lerp(0.12, TRAMO - 3000, kV / K_LOG), beta: 0.2 };
+    if (kV < K_PASO) return { s: TRAMO - Math.exp(lerp(Math.log(3000), Math.log(30), (kV - K_LOG) / (K_PASO - K_LOG))), beta: 0.2 };
+    return { s: TRAMO + pasoX(p), beta: 0.2 };
   }
   const velaW = (s: number) => L0.clone().addScaledVector(RUMBO, s);
   /** Behind the sail and a little above, looking ahead. Metres, in the sail's frame. */
@@ -185,13 +200,8 @@ export function estrellas(): Acto {
       const d = Math.exp(lerp(Math.log(0.3 * M), Math.log(1), t));
       mira = sail.clone().addScaledVector(RUMBO, d).addScaledVector(ARRIBA, lerp(-0.06, 0.03, t) * d);
     }
-    // Passing α Centauri: the head turns to A as it rushes by.
-    const kV = (p - P('a4.viaje')) / (P('a4.frenar') - P('a4.viaje'));
-    if (p >= P('a4.viaje')) {
-      // (and stays on it: the braking that follows looks at A too; swinging back between read as a jolt)
-      const look = ease(0.89, 0.93, kV);
-      if (look > 0) mira = ahead.lerp(A, look);
-    }
+    // (riding, it looks ahead all the way: A rushes by at its side; the turn back to A comes once
+    // the camera lets the sail go, in camHaciaFreno)
     return { off, mira, fov: p < P('a4.viaje') ? lerp(52, 60, sw) : 60 };
   }
 
@@ -210,20 +220,49 @@ export function estrellas(): Acto {
     const w = U1.clone().cross(U2).normalize().cross(per).normalize();
     return per.multiplyScalar(r * Math.cos(f)).addScaledVector(w, r * Math.sin(f));
   }
-  const kFreno = (p: number) => (p - P('a4.frenar')) / (P('a4.nave') - P('a4.frenar'));
-  /** Behind the braking sail (metres): its face towards A, we see it against the star. */
-  function camFreno(p: number): Vista {
-    const k = kFreno(p);
-    const t = ease(0, 1, k);
+  /** The camera lets the first sail go (T0) and reaches the braking one (T1). */
+  const T0 = () => P('a4.frenar', 0.1);
+  const T1 = () => P('a4.frenar', 1.5);
+  const kFreno = (p: number) => (p - T1()) / (P('a4.nave') - T1());
+  /** The braking sail from A (AU) and the camera's place behind it (metres): its face towards A,
+   * we see it against the star. */
+  function frenoL(p: number) {
+    const t = ease(0, 1, kFreno(p));
     const rel = frenoRel(t);
-    const relN = frenoRel(Math.min(1, t + 0.01));
+    // (its way ahead from just past it, unclamped: at the end, clamped, the way was nought, the camera
+    // lost its offset and the sail jumped from the bottom of the frame to its middle)
+    const relN = frenoRel(t + 0.01);
     const fwd = relN.clone().sub(rel).normalize();
     const toA = rel.clone().negate().normalize();
     const side = fwd.clone().cross(toA).normalize();
     // Metres behind it on the line to A, a little to one side: the sail cut out against A's disc.
     const offM = toA.clone().multiplyScalar(-760).addScaledVector(side, 230).addScaledVector(fwd, -120);
-    const pos = A.clone().add(rel).addScaledVector(offM, M);
-    return { pos, target: A.clone(), up: UP.clone(), fov: 58 };
+    return { rel, offM };
+  }
+  function camFreno(p: number): Vista {
+    const { rel, offM } = frenoL(p);
+    return { pos: A.clone().add(rel).addScaledVector(offM, M), target: A.clone(), up: UP.clone(), fov: 58 };
+  }
+  /** Starshot's sail from A once the camera lets it go: held where it was (the pass is in slow motion;
+   * at its own pace it was gone in a frame, and the camera with it). */
+  const sailSuelta = () => sailA(T0());
+  /** Where the camera is from A (AU) between T0 and T1: it backs away from the first sail (which
+   * shrinks ahead to its light: it cannot stop), turns back to A, and closes in on the braking sail in
+   * powers of ten from farther out, so that sail grows from a point in front of A (the old way flew
+   * from one view to the other across the star, and the sail popped in at the end). */
+  function haciaFrenoL(p: number) {
+    const tau = clamp((p - T0()) / (T1() - T0()), 0, 1);
+    const S = sailSuelta().addScaledVector(offW(DETRAS), M * Math.exp(Math.log(200) * ease(0, 0.38, tau)));
+    const g = smoothstep(0.3, 1, tau);
+    if (g <= 0) return S;
+    const { rel, offM } = frenoL(p);
+    const E = rel.clone().addScaledVector(offM, M);
+    const D0 = S.distanceTo(E);
+    const d1 = 300 * M;
+    // (the last powers of ten, where the sail grows, given the most time)
+    const w = 1 - (1 - g) ** 3;
+    const rem = Math.exp(lerp(Math.log(D0), Math.log(d1), w)) - d1 * w;
+    return E.add(S.sub(E).multiplyScalar(rem / D0));
   }
 
   // ------------------------------------------------------------ the camera
@@ -259,16 +298,23 @@ export function estrellas(): Acto {
     // (aimed a little ahead of its middle: the ship fills the left of the frame, its jet the right)
     return { pos: NAVE.clone().addScaledVector(off, M), target: NAVE.clone().addScaledVector(DIR, 6e3 * M).addScaledVector(naveArriba, -3e3 * M), up: naveArriba.clone(), fov: 50 };
   }
+  /** Leaving the braking sail: first straight back from it (it shrinks where it is, against A), then
+   * the flight to the ship. `k` of the moment. */
+  const K_ATRAS = 0.08;
+  const K_LLEGA = 0.22;
+  const atras = (k: number) => Math.exp(lerp(0, Math.log(40), ease(0, K_ATRAS, k)));
   function camNave(p: number): Vista {
     const k = (p - P('a4.nave')) / (P('a4.muro') - P('a4.nave'));
-    if (k >= 0.14) return vNave(p);
-    // From the braking sail to the ship, in powers of ten: the sail shrinks behind, the ship grows
-    // from a point ahead (a straight mix crossed 0.05 light years in a frame: both just popped).
-    const a = camFreno(P('a4.nave'));
+    if (k >= K_LLEGA) return vNave(p);
+    const { rel, offM } = frenoL(P('a4.nave'));
+    const back: Vista = { pos: A.clone().add(rel).addScaledVector(offM, M * atras(k)), target: A.clone(), up: UP.clone(), fov: 58 };
+    if (k < K_ATRAS) return back;
+    // Then to the ship, in powers of ten: the sail falls behind, the ship grows from a point ahead (a
+    // straight mix crossed 0.05 light years in a frame: both just popped).
     const b = vNave(p);
-    const t = ease(0, 0.14, k);
-    const pos = volar(a.pos, b.pos, t, 800 * M, 45e3 * M);
-    return { pos, target: mirar(pos, a.target, b.target, ease(0, 0.45, t)), up: a.up.clone().lerp(b.up, ease(0.3, 1, t)).normalize(), fov: lerp(a.fov, b.fov, t) };
+    const t = ease(K_ATRAS, K_LLEGA, k);
+    const pos = volar(back.pos, b.pos, t, 30e3 * M, 45e3 * M);
+    return { pos, target: mirar(pos, back.target, b.target, ease(0, 0.45, t)), up: back.up.clone().lerp(b.up, ease(0.3, 1, t)).normalize(), fov: lerp(back.fov, b.fov, t) };
   }
   /** Pulling back: the neighbourhood, then the whole galaxy, where our bubble is a point. */
   const GAL = V(0, 0, -26000).multiplyScalar(LY_AU);
@@ -289,10 +335,23 @@ export function estrellas(): Acto {
     }
     return mezcla(barrio, galaxia, ease(0.5, 0.95, k));
   }
+  /** From the passing sail to the braking one (see haciaFrenoL); the gaze turns from ahead back to
+   * A by angle (it sweeps past B on the way). */
+  function camHaciaFreno(p: number): Vista {
+    const tau = (p - T0()) / (T1() - T0());
+    const pos = A.clone().add(haciaFrenoL(p));
+    const ahead = A.clone().add(sailA(T0())).addScaledVector(RUMBO, 1).addScaledVector(ARRIBA, 0.03);
+    // (in two quarter turns, by B's side: ahead and A are nearly opposite, and one half turn between
+    // them swung about an axis that wandered as the camera moved: the star jumped across the frame)
+    const t = ease(0.16, 0.64, tau);
+    const lado = pos.clone().addScaledVector(SEP, 1);
+    const target = t < 0.5 ? mirar(pos, ahead, lado, t * 2) : mirar(pos, lado, A, t * 2 - 1);
+    return { pos, target, up: UP.clone(), fov: lerp(60, 58, ease(0.3, 1, tau)) };
+  }
   function vista(p: number): Vista {
     if (p < P('a4.viaje')) return camVelas(p);
-    if (p < P('a4.frenar', -0.6)) return camViaje(p);
-    if (p < P('a4.frenar', 0.6)) return mezcla(camViaje(p), camFreno(p), ease(P('a4.frenar', -0.6), P('a4.frenar', 0.6), p));
+    if (p < T0()) return camViaje(p);
+    if (p < T1()) return camHaciaFreno(p);
     if (p < P('a4.nave')) return camFreno(p);
     if (p < P('a4.muro')) return camNave(p);
     return camMuro(p);
@@ -349,7 +408,7 @@ export function estrellas(): Acto {
       e.luna = 0;
       // Riding the sail: the sky as it looks at that speed.
       const { beta } = vuelo(Math.min(p, P('a4.frenar')));
-      e.beta = p < P('a4.frenar') ? beta : beta * (1 - ease(P('a4.frenar', -0.4), P('a4.frenar', 0.4), p));
+      e.beta = beta * (1 - ease(T0(), T0() + 0.3 * (T1() - T0()), p));
       e.vel = RUMBO.clone();
     },
     update(f: Cuadro) {
@@ -374,22 +433,37 @@ export function estrellas(): Acto {
       }
       // α Centauri up close.
       const nearAC = v.pos.distanceTo(AC) < 0.05 * LY_AU && here;
+      // (their discs come in gently: switched on at once, the pair brightened in a frame)
+      const onAC = here ? smoothstep(0.05 * LY_AU, 0.03 * LY_AU, v.pos.distanceTo(AC)) : 0;
       const vel = m.estado.vel.clone().normalize();
       starA.group.position.copy(aberrar(A, v.pos, vel, m.estado.beta));
       starB.group.position.copy(aberrar(B, v.pos, vel, m.estado.beta));
-      starA.update(camera, time, nearAC ? 1 : 0, v.pos.distanceTo(A) / R_A);
-      starB.update(camera, time, nearAC ? 1 : 0, v.pos.distanceTo(B) / R_B);
+      // (beyond some AU the starfield's point is the star: the disc's glow, boosted to stay visible
+      // from afar, made B outshine A as we turned past it)
+      const dA = v.pos.distanceTo(A);
+      const dB = v.pos.distanceTo(B);
+      starA.update(camera, time, onAC * (1 - smoothstep(4, 15, dA)), dA / R_A);
+      starB.update(camera, time, onAC * (1 - smoothstep(4, 15, dB)), dB / R_B);
       starP.update(camera, time, v.pos.distanceTo(PROX) < 0.02 * LY_AU && here ? 1 : 0);
-      vec.u.uCerca.value = nearAC ? 0.002 : 1e-9;
+      // The starfield's point gives way only within an AU or so, once the disc is pixels wide (at a
+      // hundred AU, as before, both disc and glow were under a pixel: A vanished for a while).
+      vec.u.uCerca.value = nearAC ? 2e-5 : 1e-9;
 
       // ---- the cabin: what rides with the camera, placed from the camera in metres.
       cabina.visible = false;
       velaS.group.visible = false;
       velaG.group.visible = false;
       faro.points.visible = false;
+      faro.set(0, V(), 0);
+      faro.set(1, V(), 0);
       nave.visible = false;
       chorro.points.visible = false;
       if (!here) return;
+      const encender = () => {
+        cabina.visible = true;
+        faro.points.visible = true;
+        faro.mat.uniforms.uDpr.value = f.dpr;
+      };
       // The ship that is a world, while we ride beside it.
       if (p > P('a4.nave', -0.3) && p < P('a4.muro', 1.2)) {
         const rel = NAVE.clone().sub(v.pos).divideScalar(M);
@@ -408,22 +482,21 @@ export function estrellas(): Acto {
         }
       }
       const toView = (w: THREE.Vector3) => w.clone().transformDirection(camera.matrixWorldInverse);
-      if (p < P('a4.frenar', 0.3)) {
+      const kV = (p - P('a4.viaje')) / (P('a4.frenar') - P('a4.viaje'));
+      if (p < T1()) {
         // Starshot's sail: where it is from the camera (metres), facing ahead.
         const mt = montura(p);
         const near = p >= P('a4') + (P('a4.viaje') - P('a4')) * 0.3;
         let rel: THREE.Vector3;
-        // (riding with it until the camera leaves for the braking sail; then where it is, falling behind)
-        if (near && p < P('a4.frenar', -0.6)) rel = mt.off.clone().negate();
+        // (riding with it until the camera lets it go; then where it is from the camera, both from A)
+        if (near && p < T0()) rel = mt.off.clone().negate();
+        else if (p >= T0()) rel = sailSuelta().sub(haciaFrenoL(p)).divideScalar(M);
         else rel = velaW(vuelo(p).s).sub(v.pos).divideScalar(M);
         const lejos = rel.length();
-        if (lejos > 600 && p < P('a4.viaje')) {
+        if (lejos > 600 && (p < P('a4.viaje') || p >= T0())) {
           // Its light, in its direction (the cabin keeps it near; only the direction matters).
-          cabina.visible = true;
-          faro.points.visible = true;
+          encender();
           faro.set(0, rel.clone().normalize().multiplyScalar(1000 * SIGMA), smoothstep(600, 2600, lejos) * smoothstep(3e12, 3e11, lejos));
-          faro.commit();
-          faro.mat.uniforms.uDpr.value = f.dpr;
         }
         if (lejos < 3000) {
           cabina.visible = true;
@@ -435,32 +508,39 @@ export function estrellas(): Acto {
           velaS.group.quaternion.setFromUnitVectors(V(0, 0, 1), RUMBO);
           const kL = (p - P('a4')) / (P('a4.viaje') - P('a4'));
           velaS.uni.uCalor.value = p < P('a4.viaje') ? ease(0.42, 0.55, kL) * (1 - ease(0.9, 1.0, kL) * 0.7) : 0.3 * (1 - ease(P('a4.viaje'), P('a4.viaje', 1), p));
-          // The Sun's light on it before it leaves; A's as it passes.
+          // The Sun's light on it before it leaves; A's as it passes (rising over the closing in, not
+          // as 1/d² in its last minutes: it lit up in a frame).
           const sail = velaW(vuelo(p).s);
           const sunDir = sail.clone().negate().normalize();
-          const aDir = A.clone().sub(sail);
+          const aDir = kV >= K_PASO ? sailA(Math.min(p, T0())).negate() : A.clone().sub(sail);
           const aD = aDir.length();
           const useA = aD < 200;
           velaS.uni.uLuzDir.value.copy(toView(useA ? aDir.normalize() : sunDir));
-          velaS.uni.uLuz.value = useA ? Math.min(3, 4 / (aD * aD)) : Math.min(2, 0.3 / sail.lengthSq());
+          velaS.uni.uLuz.value = useA ? 3 * smoothstep(Math.log(60), Math.log(0.5), Math.log(aD)) : Math.min(2, 0.3 / sail.lengthSq());
           velaS.uni.uLuzCol.value.set(useA ? 0xffd9a0 : 0xffe8c8);
         }
       }
-      if (p > P('a4.frenar', -0.6) && p < P('a4.nave', 0.6)) {
-        // The braking sail: its face to A, metres from the camera.
-        const k = kFreno(Math.min(p, P('a4.nave')));
-        const rel = frenoRel(ease(0, 1, k));
-        const cv = camFreno(Math.min(p, P('a4.nave')));
-        const offM = cv.pos.clone().sub(A.clone().add(rel)).divideScalar(M);
-        // Riding behind it only while the camera is exactly there; on the way in and out, where it
-        // is: it grows from a point as we fall to it and shrinks behind as we leave for the ship.
-        const glued = p >= P('a4.frenar', 0.6) && p < P('a4.nave');
-        const relCam = glued ? offM.negate() : A.clone().add(rel).sub(v.pos).divideScalar(M);
+      const kN = (p - P('a4.nave')) / (P('a4.muro') - P('a4.nave'));
+      if (p > T0() && kN < K_LLEGA) {
+        // The braking sail: its face to A, metres from the camera. From A's frame while we come to it
+        // (both small numbers: precise), glued while we ride behind it, straight ahead while we back
+        // away; then from the world (far off, metres no longer matter).
+        const { rel, offM } = frenoL(Math.min(p, P('a4.nave')));
+        let relCam: THREE.Vector3;
+        if (p < T1()) relCam = rel.clone().sub(haciaFrenoL(p)).divideScalar(M);
+        else if (kN < K_ATRAS) relCam = offM.clone().multiplyScalar(-atras(Math.max(kN, 0)));
+        else relCam = A.clone().add(rel).sub(v.pos).divideScalar(M);
         const d = relCam.length();
+        // Its light while it is a point: we see where it is before it grows.
+        const luz = ease(T0() + 0.3 * (T1() - T0()), T0() + 0.5 * (T1() - T0()), p) * smoothstep(3e3, 2e4, d) * (1 - ease(K_ATRAS, K_ATRAS + 0.06, kN));
+        if (luz > 0.001) {
+          encender();
+          faro.set(1, relCam.clone().normalize().multiplyScalar(1000 * SIGMA), luz * 0.8);
+        }
         if (d < 4e5) {
           cabina.visible = true;
           velaG.group.visible = true;
-          velaG.uni.uOn.value = ease(P('a4.frenar', -0.6), P('a4.frenar', 0.1), p) * smoothstep(4e5, 6e4, d);
+          velaG.uni.uOn.value = smoothstep(4e5, 6e4, d);
           velaG.group.position.copy(relCam).multiplyScalar(SIGMA);
           velaG.group.scale.setScalar(160 * SIGMA);
           const toA = rel.clone().negate().normalize();
@@ -472,6 +552,7 @@ export function estrellas(): Acto {
           velaG.uni.uCalor.value = 0;
         }
       }
+      if (faro.points.visible) faro.commit();
     },
     placa(g, f: Cuadro) {
       const { p, W, H, u } = f;
@@ -546,11 +627,11 @@ export function estrellas(): Acto {
         }
       }
       // Faster ways that stay on paper: what physics does not allow (or nobody knows how to do).
-      const nf = ease(0.4, 0.48, kV) * (1 - ease(0.86, 0.93, kV));
+      const nf = ease(0.3, 0.36, kV) * (1 - ease(0.5, 0.55, kV));
       if (f.lamina) panel(g, u, W, H, 0.73, 0.37, 'más rápido, solo en papel', ['Bussard: el gas que recoge frena más de lo que empuja', 'Alcubierre: pide energía negativa', 'agujeros de gusano: no se conoce ninguno'], nf);
       const visto = (w: THREE.Vector3) => aberrar(w, f.vista.pos, m.estado.vel.clone().normalize(), m.estado.beta);
-      add(visto(A), 'Alfa Centauri A', 34, -30, ease(0.8, 0.84, kV) * (1 - ease(0.97, 1.0, kV)));
-      add(visto(B), 'Alfa Centauri B', 34, -30, ease(0.8, 0.84, kV) * (1 - ease(0.97, 1.0, kV)));
+      add(visto(A), 'Alfa Centauri A', 34, -30, ease(K_LOG + 0.05, K_LOG + 0.09, kV) * (1 - ease(0.87, 0.9, kV)));
+      add(visto(B), 'Alfa Centauri B', 34, -30, ease(K_LOG + 0.05, K_LOG + 0.09, kV) * (1 - ease(0.87, 0.9, kV)));
       // Braking.
       const fr = ease(0.12, 0.2, kF) * (1 - ease(0.9, 0.98, kF));
       if (fr > 0.01) {

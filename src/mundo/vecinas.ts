@@ -92,8 +92,10 @@ export function vecinas(extra: { pos: THREE.Vector3; L: number; color: THREE.Col
     move: /* glsl */ `
       vec4 mq = modelViewMatrix * vec4(p, 1.0);
       float dly = length(mq.xyz) / uScale;
-      // What it sends to where we are: L / d², bounded, never quite gone.
-      em = color * clamp(aLumV / max(dly * dly, 1e-12) * 0.5, uPiso, 40.0) * uOn;
+      // What it sends to where we are: L / d², bounded, never quite gone (bounded by its own
+      // luminosity too: at the same cap, B passing by shone as bright as A).
+      float tope = max(40.0 * min(aLumV, 1.0), uPiso);
+      em = color * clamp(aLumV / max(dly * dly, 1e-12) * 0.5, uPiso, tope) * uOn;
       // When they are the subject, a few pixels wide whatever the distance (a point under a pixel is lost).
       sz = max(size, dly * 0.012 * uPiso);
       // Close enough to be a disc of its own: the point steps aside.
@@ -269,8 +271,9 @@ export function vela(rejilla = 10) {
           float rv = max(dot(R, normalize(vV)), 0.0);
           float spec = pow(rv, 900.0) * 6.0 + pow(rv, 60.0) * 0.25;
           col += uLuzCol * uLuz * (0.025 * max(dot(n, L), 0.0) + spec);
-          // From behind, the film lets a little of the star's light through: a lantern.
-          float back = step(dot(n, L), 0.0);
+          // From behind, the film lets a little of the star's light through: a lantern (coming on as
+          // the star goes behind it, not at once).
+          float back = smoothstep(0.1, -0.35, dot(n, L));
           col += uLuzCol * uLuz * back * 0.28 * (0.55 + 0.45 * (1.0 - r * r)) * (1.0 - 0.6 * max(rib, ring));
           // The beam's heat: a dull red glow, hottest at the middle.
           col += vec3(1.0, 0.28, 0.08) * uCalor * (0.35 + 0.65 * (1.0 - r * r));
@@ -286,5 +289,11 @@ export function vela(rejilla = 10) {
   const led = new THREE.Mesh(new THREE.SphereGeometry(0.012, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.9, 2.4, 2.0) }));
   led.position.z = 0.015;
   group.add(led);
+  // The chip and its light fade with the film (left opaque, a dark square outlived the sail).
+  for (const o of [chip, led]) {
+    const mat = o.material as THREE.MeshBasicMaterial;
+    mat.transparent = true;
+    o.onBeforeRender = () => (mat.opacity = uni.uOn.value);
+  }
   return { group, uni };
 }
