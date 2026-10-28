@@ -420,7 +420,15 @@ export function sistema(): Acto {
     const llegada = camMercurio(P('a3.mercurio'));
     const s = ease(0.85, 1.0, k);
     const pos = vuelo(ecl.pos, llegada.pos, s, 10 * R_VEN, 0.6 * llegada.pos.distanceTo(llegada.target));
-    const target = mirar(pos, ecl.target, llegada.target, ease(0.84, 0.9, k));
+    // The turn from the long lens's own gaze (a fixed direction): measured from the moving camera, the
+    // point beyond Venus swung as we left, and the turn stalled and lurched (a shudder).
+    const d0 = ecl.target.clone().sub(ecl.pos).normalize();
+    const d1 = llegada.target.clone().sub(pos);
+    const l1 = d1.length();
+    d1.divideScalar(l1);
+    const giro = new THREE.Quaternion().setFromUnitVectors(d0, d1);
+    const t = ease(0.84, 0.91, k);
+    const target = pos.clone().addScaledVector(d0.applyQuaternion(new THREE.Quaternion().slerp(giro, t)), Math.exp(lerp(Math.log(ecl.target.distanceTo(ecl.pos)), Math.log(l1), t)));
     // (the roll to Mercury's ground happens here, with only stars in view)
     const up = UP.clone().lerp(llegada.up, ease(0.86, 0.95, k)).normalize();
     return { pos, target, up, fov: lerp(9.5, llegada.fov, ease(0.84, 0.93, k)) };
