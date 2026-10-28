@@ -72,15 +72,20 @@ export function crearSonido() {
     zumbido.gain.value = 0;
     zumbidoOsc.connect(zf).connect(zumbido).connect(master);
     zumbidoOsc.start();
-    // The bed: a fifth stack, each voice entering as the power grows.
-    const bases = [55, 82.5, 110, 165, 220, 330];
+    // The bed: a fifth stack, each voice entering as the power grows. (No 55 Hz voice and softened
+    // above: steady low sines, all at once, droned like an engine.)
+    const bases = [82.5, 110, 165, 220, 330, 495];
+    const suave = ctx.createBiquadFilter();
+    suave.type = 'lowpass';
+    suave.frequency.value = 700;
+    suave.connect(lecho);
     voces = bases.map((base) => {
       const osc = ctx!.createOscillator();
       osc.type = 'sine';
       osc.frequency.value = base;
       const g = ctx!.createGain();
       g.gain.value = 0;
-      osc.connect(g).connect(lecho);
+      osc.connect(g).connect(suave);
       osc.start();
       return { osc, g, base };
     });
@@ -164,10 +169,14 @@ export function crearSonido() {
       const dens = Math.max(0, Math.min(1, (lp - 10) / 30));
       voces.forEach((v, i) => {
         const enter = Math.max(0, Math.min(1, dens * voces.length - i + 0.6));
-        v.g.gain.setTargetAtTime(0.05 * enter * (1 - silencio), t, 0.8);
+        // Each voice breathes on its own slow cycle (20–50 s), so the bed swells and thins instead of
+        // holding one constant tone; the lowest is the quietest.
+        const respira = 0.25 + 0.75 * (0.5 + 0.5 * Math.sin((t * 2 * Math.PI) / (20 + 6.3 * i) + i * 1.7));
+        v.g.gain.setTargetAtTime(0.03 * (i === 0 ? 0.5 : 1) * enter * respira * (1 - silencio), t, 0.8);
         v.osc.frequency.setTargetAtTime(v.base * tono * (1 + 0.004 * Math.sin(t * 0.3 + i)), t, 0.5);
       });
-      viento.gain.setTargetAtTime(Math.min(0.12, 0.02 + Math.abs(pace) * 0.04) * (1 - 0.7 * silencio), t, 0.3);
+      // (only while moving: standing still, a constant low rumble was left)
+      viento.gain.setTargetAtTime(Math.min(0.1, Math.abs(pace) * 0.04) * (1 - 0.7 * silencio), t, 0.3);
       filtro.frequency.setTargetAtTime(300 + Math.min(2000, Math.abs(pace) * 600), t, 0.3);
     },
   };
