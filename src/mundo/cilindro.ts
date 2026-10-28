@@ -288,7 +288,7 @@ export function cilindroPuntos(root: THREE.Group) {
     const v = port ? 1.2 : 0.075 * panel + 0.11 * costura + 0.08 * collar;
     cc.set(port ? [0.5 * v, 1.0 * v, 0.85 * v] : [v, v, v * 1.04], i * 3);
   }
-  const caps = puntos(geometria({ position: cp, color: cc, size: new Float32Array(capsN).fill(0.04), seed: new Float32Array(capsN), aKind: new Float32Array(capsN) }), {
+  const caps = puntos(geometria({ position: cp, color: cc, size: Float32Array.from({ length: capsN }, (_, i) => (Math.hypot(cp[i * 3], cp[i * 3 + 2]) < 0.4 ? 0.012 : 0.04)), seed: new Float32Array(capsN), aKind: new Float32Array(capsN) }), {
     pre: `uniform vec3 uCamL, uSun; uniform float uDentro;`,
     cuerpo: /* glsl */ `
       vec3 nCap = vec3(0.0, sign(p.y), 0.0);
@@ -364,6 +364,19 @@ export function cilindroPuntos(root: THREE.Group) {
   // beacons, heavy longerons along the windows' edges, the mirrors' trusses and the cables that
   // hold them, machinery and a lit docking port at the shade end, and craft coming and going.
   const uObra = { uSun: u.uSun, uTime: { value: 0 } };
+  /** The domed ends: height beyond the end plane (km) at radius r, and the normal (radial, axial).
+   * A superellipse: upright where it meets the hull (no corner), flat towards the axis. */
+  const DOMO = 0.75;
+  const HUB = 0.95;
+  const domo = (r: number): [number, number, number] => {
+    const n = 2.6;
+    const x = Math.min(r / R, 0.99999);
+    const y = Math.pow(1 - Math.pow(x, n), 1 / n);
+    const gr = Math.pow(x, n - 1) / R;
+    const gy = Math.pow(y, n - 1) / DOMO;
+    const l = Math.hypot(gr, gy);
+    return [DOMO * y, gr / l, gy / l];
+  };
   {
     const o = new Obra(0.03);
     // Hoops every 4 km.
@@ -393,31 +406,83 @@ export function cilindroPuntos(root: THREE.Group) {
       for (const x of [-w, w]) o.viga(at(x, h), hinge.clone().multiplyScalar(R + 0.2).setY(14), [0.4, 0.42, 0.45], 0.02);
       o.punto(at(0, h), V(0, 1, 0), [1.4, 0.4, 0.3], 0.12, 2);
     }
-    // The shade end: a ring of machinery round the port, its tunnel lit, craft coming in.
-    const yb = -L / 2;
-    // (low, as plant on a deck: tall boxes of points read as see-through crates)
-    for (let k = 0; k < 28; k++) {
-      const a = (k / 28) * Math.PI * 2;
-      const rad = V(Math.cos(a), 0, Math.sin(a));
-      const tan = V(-Math.sin(a), 0, Math.cos(a));
-      const alto = 0.03 + 0.03 * ((k * 7) % 3);
-      const r0 = k % 2 ? 2.2 : 3.1;
-      o.caja(rad.clone().multiplyScalar(r0).setY(yb - alto), rad.clone().multiplyScalar(0.28), V(0, alto, 0), tan.clone().multiplyScalar(0.16), k % 5 === 0 ? [0.45, 0.43, 0.38] : [0.36, 0.37, 0.4], 0.035);
-      if (k % 3 === 0) o.punto(rad.clone().multiplyScalar(r0).setY(yb - 2 * alto - 0.02), V(0, -1, 0), CALIDA, 0.06, 1);
+    // The ends: not flat discs on a tube (its edges read as a hard corner) but domes, round at the
+    // shoulder where they meet the hull, flat towards the axis, in panels by rings and sectors, with
+    // ribs over them. At the shade end the hub: a docking collar, its frame and guide lights, a shaft
+    // of light rings down to the port, plant on the dome, craft coming in.
+    for (const sg of [-1, 1]) {
+      const sobre = (r: number, a: number, d = 0) => {
+        const [h, nr, ny] = domo(r);
+        return V(Math.cos(a) * (r + nr * d), sg * (L / 2 + h + ny * d), Math.sin(a) * (r + nr * d));
+      };
+      const normal = (r: number, a: number) => {
+        const [, nr, ny] = domo(r);
+        return V(Math.cos(a) * nr, sg * ny, Math.sin(a) * nr);
+      };
+      // The skin: points along the profile (by arc length) and round it.
+      const r0 = sg < 0 ? HUB : 0.5;
+      // (walked by the superellipse's own angle: by radius, its upright shoulder came in jumps)
+      const radios: number[] = [];
+      let arco = 0;
+      let prev = sobre(R, 0);
+      for (let t = 0; t < Math.PI / 2; t += 1e-4) {
+        const r = R * Math.pow(Math.cos(t), 2 / 2.6);
+        if (r < r0) break;
+        const q = sobre(r, 0);
+        arco += q.distanceTo(prev);
+        prev = q;
+        if (arco < 0.035) continue;
+        arco = 0;
+        radios.push(r);
+      }
+      for (const r of radios) {
+        const n = Math.round((2 * Math.PI * r) / 0.035);
+        const anillo = Math.floor(r / 0.5);
+        for (let i = 0; i < n; i++) {
+          const a = ((i + (Math.round(r * 100) % 2) * 0.5) / n) * Math.PI * 2;
+          const SECT = (Math.PI * 2) / 24;
+          const sector = Math.floor(a / SECT);
+          const h = Math.sin(anillo * 91.7 + sector * 47.3 + sg) * 43758.5453;
+          const panel = 0.8 + 0.4 * (h - Math.floor(h));
+          const costura = Math.abs((r / 0.5) % 1 - 0.5) > 0.46 || Math.min(a % SECT, SECT - (a % SECT)) * r < 0.02;
+          const k = costura ? 0.55 : panel;
+          o.punto(sobre(r, a), normal(r, a), [0.42 * k, 0.43 * k, 0.46 * k], 0.04);
+        }
+      }
+      // Ribs over it, from the shoulder to the hub.
+      for (let k = 0; k < 12; k++) {
+        const a = (k / 12) * Math.PI * 2 + (sg > 0 ? 0.13 : 0);
+        for (let i = 0; i + 2 < radios.length; i += 2) o.viga(sobre(radios[i], a, 0.025), sobre(radios[i + 2], a, 0.025), [0.55, 0.57, 0.6], 0.028, normal(radios[i], a));
+      }
     }
-    for (let k = 0; k < 12; k++) {
-      const a = (k / 12) * Math.PI * 2;
-      const rad = V(Math.cos(a), 0, Math.sin(a));
-      o.viga(rad.clone().multiplyScalar(0.45).setY(yb - 0.02), rad.clone().multiplyScalar(R - 0.1).setY(yb - 0.02), [0.4, 0.42, 0.45], 0.03, V(0, -1, 0));
-    }
-    o.tubo(V(0, yb, 0), V(0, yb - 0.9, 0), 0.42, OSCURO, 0.03);
-    for (let y = 0; y < 0.9; y += 0.3) o.luces(V(0, yb - y - 0.05, 0), V(0, 1, 0), 0.44, 16, LUZ, 0.05, 1);
-    o.trafico(V(0, yb - 70, 0), V(0, yb - 0.9, 0), 26, 14);
-    // The sunward end: ribs on the cap.
-    for (let k = 0; k < 12; k++) {
-      const a = (k / 12) * Math.PI * 2 + 0.13;
-      const rad = V(Math.cos(a), 0, Math.sin(a));
-      o.viga(rad.clone().multiplyScalar(0.5).setY(L / 2 + 0.02), rad.clone().multiplyScalar(R - 0.1).setY(L / 2 + 0.02), METAL, 0.03, V(0, 1, 0));
+    {
+      const yb = -L / 2;
+      const top = yb - domo(HUB)[0];
+      // Plant on the dome (low, as on a deck: tall boxes of points read as see-through crates).
+      for (let k = 0; k < 20; k++) {
+        const a = (k / 20) * Math.PI * 2 + 0.08;
+        const rad = V(Math.cos(a), 0, Math.sin(a));
+        const tan = V(-Math.sin(a), 0, Math.cos(a));
+        const r0 = k % 2 ? 1.8 : 2.6;
+        const alto = 0.03 + 0.02 * ((k * 7) % 3);
+        const y = yb - domo(r0)[0] - alto;
+        o.caja(rad.clone().multiplyScalar(r0).setY(y), rad.clone().multiplyScalar(0.24), V(0, alto, 0), tan.clone().multiplyScalar(0.14), k % 5 === 0 ? [0.45, 0.43, 0.38] : [0.36, 0.37, 0.4], 0.03);
+        if (k % 3 === 0) o.punto(rad.clone().multiplyScalar(r0).setY(y - alto - 0.015), V(0, -1, 0), CALIDA, 0.035, 1);
+      }
+      // The collar: a short wide ring standing off the dome, its rim lit, a frame of spokes inside it
+      // round the open middle, guide lights.
+      o.tubo(V(0, top, 0), V(0, top - 0.22, 0), HUB, METAL, 0.03);
+      o.aro(V(0, top - 0.225, 0), V(0, 1, 0), HUB, LUZ, 0.014, 1);
+      o.aro(V(0, top - 0.2, 0), V(0, 1, 0), 0.62, [0.6, 0.62, 0.66], 0.025);
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2 + Math.PI / 8;
+        const rad = V(Math.cos(a), 0, Math.sin(a));
+        o.viga(rad.clone().multiplyScalar(0.62).setY(top - 0.2), rad.clone().multiplyScalar(HUB).setY(top - 0.2), [0.55, 0.57, 0.6], 0.025, V(0, -1, 0));
+        o.punto(rad.clone().multiplyScalar(HUB + 0.06).setY(top - 0.22), rad, k % 2 ? [0.4, 1.4, 0.6] : [1.4, 0.35, 0.3], 0.035, 2);
+      }
+      // The shaft down to the port: thin rings of light (fine: the camera passes close to them).
+      for (let y = top - 0.15; y < yb - 0.05; y += 0.2) o.aro(V(0, y, 0), V(0, 1, 0), 0.62, LUZ, 0.005, 1);
+      o.trafico(V(0, top - 60, 0), V(0, top - 0.3, 0), 14, 10, CALIDA, 0.03);
     }
     const obra = o.build(uObra, false, 0.3);
     root.add(obra.points);
@@ -451,6 +516,14 @@ export function cilindroPuntos(root: THREE.Group) {
     mesh.geometry.applyMatrix4(M);
     root.add(mesh);
   };
+  for (const sg of [-1, 1]) {
+    const perfil: THREE.Vector2[] = [];
+    for (let i = 0; i <= 80; i++) {
+      const r = R - (R - (sg < 0 ? HUB : 0.02)) * (1 - Math.cos((i / 80) * Math.PI * 0.5));
+      perfil.push(new THREE.Vector2(r - 0.004, sg * (L / 2 + domo(r)[0] - 0.004)));
+    }
+    bajo(new THREE.LatheGeometry(perfil, 128), new THREE.Matrix4(), `c = vec3(0.03);`);
+  }
   for (const sg of [-1, 1]) {
     const M = new THREE.Matrix4().makeTranslation(0, sg * (L / 2 + 0.002), 0).multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2));
     bajo(new THREE.CircleGeometry(R, 128), M, `

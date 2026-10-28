@@ -243,10 +243,13 @@ export function sistema(): Acto {
   // Inside, 1 km over one valley (at +z), «up» towards the axis: the other two valleys climb overhead.
   const CIL_TOMAS: Vista[] = [
     { pos: V(14, -36, 10), target: V(0, -6, 0), up: V(1, 0, 0), fov: 46 },
-    { pos: V(0.2, -17.6, 0.3), target: V(0, -6, 1.2), up: V(1, 0, 0), fov: 58 },
+    // (off the hub at the end of the shade dome: the docking collar, the shaft of light rings)
+    { pos: V(0.25, -18.9, 0.35), target: V(0, -6, 1.2), up: V(1, 0, 0), fov: 58 },
     { pos: V(0, -9, 2.9), target: V(0, 4, 2.3), up: V(0, 0, -1), fov: 70 },
     { pos: V(0.2, 3, 2.7), target: V(0.6, 15, 1.7), up: V(0, 0, -1), fov: 72 },
   ];
+  /** Just through the port, on the axis. */
+  const CIL_PUERTO: Vista = { pos: V(0.04, -15.3, 0.12), target: V(0, -6, 1.3), up: V(1, 0, 0), fov: 62 };
   const cilW = (v: Vista): Vista => ({ pos: cil2w(v.pos), target: cil2w(v.target), up: v.up.clone().applyQuaternion(qC), fov: v.fov });
   function camCilindro(p: number): Vista {
     const t0 = P('a3.oneill');
@@ -259,7 +262,11 @@ export function sistema(): Acto {
     if (k < 0.12) return { pos: desde.pos, target: mirar(desde.pos, desde.target, CIL, ease(0, 0.12, k)), up: desde.up, fov: lerp(desde.fov, 40, ease(0, 0.12, k)) };
     if (k < 0.3) return mezcla(a0, a, ease(0.12, 0.3, k));
     if (k < 0.5) return mezcla(a, b, ease(0.3, 0.5, k));
-    if (k < 0.72) return mezcla(b, c, ease(0.5, 0.72, k));
+    // (through the port on its axis, then out to the valley: straight from the hub to the valley the
+    // camera crossed the end wall beside the port)
+    const b2 = cilW(CIL_PUERTO);
+    if (k < 0.58) return mezcla(b, b2, ease(0.5, 0.58, k));
+    if (k < 0.72) return mezcla(b2, c, ease(0.58, 0.72, k));
     return mezcla(c, d, ease(0.72, 1, k));
   }
   /**
