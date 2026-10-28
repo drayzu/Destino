@@ -248,6 +248,10 @@ export function galactica(): Acto {
       membrana.u.uOn.value = mOn;
       membrana.u.uTime.value = time;
       membrana.mesh.scale.setScalar(radio(p));
+      // (the camera sits at the scene's origin)
+      membrana.mesh.updateWorldMatrix(true, false);
+      const rC = membrana.mesh.worldToLocal(new THREE.Vector3()).length();
+      membrana.u.uRasante.value = smoothstep(0.0, 0.06, Math.abs(rC - 1));
       if (!here) {
         // Leave the galaxy as the other acts expect it.
         m.G.nube.u.uIR.value = 0;

@@ -118,7 +118,9 @@ export function ruinas() {
  * aurora.
  */
 export function frente(color = new THREE.Color(0.4, 1.0, 0.82)) {
-  const u = { uOn: { value: 0 }, uTime: { value: 0 }, uColor: { value: color.clone() } };
+  // uRasante: how far the camera is from the shell itself (0 on it): its bright limb fades as we come
+  // to it, so crossing it is seamless (the limb leapt across the frame as we passed through).
+  const u = { uOn: { value: 0 }, uTime: { value: 0 }, uColor: { value: color.clone() }, uRasante: { value: 1 } };
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(1, 128, 96),
     new THREE.ShaderMaterial({
@@ -139,7 +141,7 @@ export function frente(color = new THREE.Color(0.4, 1.0, 0.82)) {
         }`,
       fragmentShader: /* glsl */ `
         #include <logdepthbuf_pars_fragment>
-        uniform float uOn, uTime; uniform vec3 uColor;
+        uniform float uOn, uTime, uRasante; uniform vec3 uColor;
         varying vec3 vN; varying vec3 vV; varying vec3 vP;
         float h3(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
         float n3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -149,7 +151,7 @@ export function frente(color = new THREE.Color(0.4, 1.0, 0.82)) {
           #include <logdepthbuf_fragment>
           float edge = 1.0 - abs(dot(normalize(vN), normalize(vV)));
           float aur = n3(vP * 9.0 + vec3(0.0, uTime * 0.03, 0.0)) * 0.6 + n3(vP * 23.0) * 0.4;
-          float g = pow(max(edge, 0.0), 5.0) * 0.55 + 0.012 + 0.03 * smoothstep(0.55, 0.8, aur);
+          float g = pow(max(edge, 0.0), 5.0) * 0.55 * uRasante + 0.012 + 0.03 * smoothstep(0.55, 0.8, aur);
           gl_FragColor = vec4(uColor * g * uOn, 1.0);
         }`,
     }),
