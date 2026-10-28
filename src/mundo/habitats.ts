@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { enfocar, geometria, puntos, type Puntos, type Vista } from '../horizontes';
+import { CALIDA, LUZ, METAL as ACERO, OSCURO, Obra } from './obra';
 
 /**
  * The other habitats at L5 (act III), all of them turning for their gravity, in kilometres:
@@ -223,6 +224,49 @@ export function anilloBishop() {
       90000,
       capas,
     );
+  }
+  // What makes it built: the cables that hold it (carbon nanotube, in bundles round its outside),
+  // ribs across it every 3°, towns and towers along the tops of the walls, docks standing off the
+  // hull with craft coming in.
+  {
+    const o = new Obra(3);
+    for (const y of [-200, -100, 0, 100, 200]) {
+      o.tubo(V(0, y - 7, 0), V(0, y + 7, 0), R + 9, ACERO, 3.2);
+      o.luces(V(0, y, 0), V(0, 1, 0), R + 20, 48, y === 0 ? LUZ : [1.4, 0.4, 0.3], 9);
+    }
+    for (let k = 0; k < 120; k++) {
+      const a = (k / 120) * Math.PI * 2;
+      const rad = V(Math.cos(a), 0, Math.sin(a));
+      const tan = V(-Math.sin(a), 0, Math.cos(a));
+      for (const dt of [-3, 3]) o.viga(rad.clone().multiplyScalar(R + 4).addScaledVector(tan, dt).setY(-W / 2), rad.clone().multiplyScalar(R + 4).addScaledVector(tan, dt).setY(W / 2), k % 10 === 0 ? [0.7, 0.72, 0.76] : OSCURO, 2.6, rad);
+    }
+    // Along each wall top: a rim, and every 9° a town on the wall, a few of them tall.
+    for (const sg of [-1, 1]) {
+      o.aro(V(0, (sg * W) / 2, 0), V(0, 1, 0), R - 200, [0.7, 0.72, 0.76], 2.5);
+      for (let k = 0; k < 40; k++) {
+        const a = (k / 40) * Math.PI * 2 + (sg > 0 ? 0.04 : 0);
+        const rad = V(Math.cos(a), 0, Math.sin(a));
+        const tan = V(-Math.sin(a), 0, Math.cos(a));
+        const alto = k % 5 === 0 ? 30 : 8 + 6 * ((k * 3) % 2);
+        const c = rad.clone().multiplyScalar(R - 190 - alto).setY((sg * W) / 2 + sg * 6);
+        o.caja(c, rad.clone().multiplyScalar(alto), V(0, 6, 0), tan.clone().multiplyScalar(k % 5 === 0 ? 8 : 18), [0.42, 0.43, 0.46], 3);
+        o.punto(c.clone().addScaledVector(rad, -alto - 2), rad.clone().negate(), CALIDA, 8, k % 5 === 0 ? 2 : 1);
+      }
+    }
+    // Six docks off the hull, their beacons, craft coming in.
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * Math.PI * 2 + 0.2;
+      const rad = V(Math.cos(a), 0, Math.sin(a));
+      const tan = V(-Math.sin(a), 0, Math.cos(a));
+      const y0 = (k % 2 ? 1 : -1) * 120;
+      o.celosia(rad.clone().multiplyScalar(R + 10).setY(y0), rad.clone().multiplyScalar(R + 70).setY(y0), 14, ACERO, 2.5);
+      o.caja(rad.clone().multiplyScalar(R + 80).setY(y0), rad.clone().multiplyScalar(10), V(0, 18, 0), tan.clone().multiplyScalar(26), [0.55, 0.56, 0.6], 2.8);
+      o.punto(rad.clone().multiplyScalar(R + 92).setY(y0), rad, LUZ, 10, 2);
+      o.trafico(rad.clone().multiplyScalar(R + 1400).setY(y0 + 300), rad.clone().multiplyScalar(R + 92).setY(y0), 6, 300);
+    }
+    const obra = o.build(uni, true, 0.25);
+    giro.add(obra.points);
+    capas.push(obra);
   }
   return {
     group,
