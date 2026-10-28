@@ -8,7 +8,7 @@ import { damp, smoothstep } from './engine/math';
 import { Timeline } from './engine/timeline';
 import { createPost } from './engine/post';
 import { createScroll } from './engine/scroll';
-import { AJUSTE, medirRitmo } from './engine/ritmo';
+import { AJUSTE, FUNDIDO_VIAJE, medirRitmo } from './engine/ritmo';
 import { FONDOS } from './engine/pantalla';
 import { ambiente } from './engine/ambiente';
 import { escalera, hud, hudLibre, idioma, peldanoEn, regla } from './engine/placa';
@@ -236,7 +236,8 @@ function step(now: number) {
   amb.update(c?.name, dt, 1);
   const tono = `rgb(${amb.color.toArray().map((x) => Math.round(255 * Math.min(1, 0.35 + 0.75 * x))).join(',')})`;
   const cap = c ? { name: tx(c.name), fact: c.fact ? tx(c.fact) : '', fuente: plateOn ? c.fuente : undefined, capitulo: `${acto.numero} · ${tx(acto.nombre)}`, viaje: c.viaje, tono } : null;
-  const capFade = c ? Math.min(1, (p - c.from) / 0.45, (c.to - p) / 0.45) : 0;
+  const fundido = c?.viaje ? FUNDIDO_VIAJE : 0.45;
+  const capFade = c ? Math.min(1, (p - c.from) / fundido, (c.to - p) / fundido) : 0;
   const l = acto.lectura(p);
   escaleraOn = !!l;
   if (l) {

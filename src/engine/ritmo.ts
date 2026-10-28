@@ -28,6 +28,9 @@ export interface Ritmo {
 
 export const RES = 0.05;
 
+/** How long a journey's name takes to fade in and out (beats): its stretch is short and in flight. */
+export const FUNDIDO_VIAJE = 0.2;
+
 export interface Peso {
   from: number;
   to: number;
@@ -44,14 +47,19 @@ export const AJUSTE = {
   vistasPorSegundo: 2.4,
   // A journey between moments always weighs as a flight, even when the camera stays (a fade between eras).
   viaje: 1.2,
-  // Autoplay: the fastest it goes once the words are read, and the slowest (beats per second); the
-  // views per second a flight may show (it was tuned at 0.55 beats per second, and only the sharpest
-  // turns go slower); the reading: a pause plus words per second.
+  // Autoplay: the fastest it goes once the words are read, and the slowest (beats per second: low
+  // enough that a long text in a short moment is still read whole); the views per second a flight may
+  // show (it was tuned at 0.55 beats per second, and only the sharpest turns go slower); the reading:
+  // a pause plus words per second (about a subtitle's pace, with the picture to look at too); a
+  // journey's name, a shorter pause and the same pace.
   autoMax: 0.9,
-  autoMin: 0.45,
+  autoMin: 0.12,
   autoVistas: 1.75,
   leerPausa: 1.0,
-  palabrasPorSegundo: 4.0,
+  palabrasPorSegundo: 3.5,
+  viajePausa: 0.5,
+  // The most the autoplay changes its pace, in beats per second, each second.
+  autoAcel: 0.3,
 };
 
 /** `vista(p)`: where the camera is at beat p, as the film shows it. */
@@ -82,12 +90,19 @@ export function ritmoDe(crudo: Float32Array, momentos: readonly Caption[], k = A
 
   // How long each beat must last for the words on screen to be read (autoplay only).
   const leer = new Float32Array(n);
+  // (and, for each, the samples where it is fully on screen and the seconds they must last)
+  const lecturas: { a: number; b: number; s: number }[] = [];
   for (const c of momentos) {
-    if (c.viaje || !c.fact) continue;
-    const palabras = `${c.name} ${c.fact}`.split(/\s+/).length;
-    // (it fades in and out over 0.45 beats at each end)
-    const s = (k.leerPausa + palabras / k.palabrasPorSegundo) / Math.max(0.5, c.to - c.from - 0.6);
+    if (!c.viaje && !c.fact) continue;
+    const palabras = `${c.name} ${c.fact}`.trim().split(/\s+/).length;
+    // (it fades in and out at each end: a moment over 0.45 beats, a journey's name over `FUNDIDO_VIAJE`)
+    const fundido = c.viaje ? FUNDIDO_VIAJE : 0.45;
+    const necesita = (c.viaje ? k.viajePausa : k.leerPausa) + palabras / k.palabrasPorSegundo;
+    const s = necesita / Math.max(0.5, c.to - c.from - 1.3 * fundido);
     for (let i = Math.max(0, Math.ceil(c.from / RES)); i <= Math.min(n - 1, Math.floor(c.to / RES)); i++) leer[i] = Math.max(leer[i], s);
+    const a = Math.max(0, Math.ceil((c.from + fundido) / RES));
+    const b = Math.min(n - 1, Math.floor((c.to - fundido) / RES));
+    if (b > a) lecturas.push({ a, b, s: necesita });
   }
 
   const px = new Float32Array(n);
@@ -99,10 +114,30 @@ export function ritmoDe(crudo: Float32Array, momentos: readonly Caption[], k = A
     tope[i] = k.vistasPorSegundo / Math.max(f, 1e-3);
     segundos[i] = Math.max(1 / k.autoMax, f / k.autoVistas, leer[i]);
   }
-  // The autoplay changes pace gently (over about a beat and a half).
-  const lento = suavizar(segundos, 15);
+  // The autoplay changes pace gently (over about a beat and a half). Smoothing borrows pace from the
+  // flights around a short moment, so a moment still read too fast is slowed again until it is not.
   const auto = new Float32Array(n);
-  for (let i = 0; i < n; i++) auto[i] = Math.min(k.autoMax, Math.max(k.autoMin, 1 / lento[i]));
+  const ritmoAuto = () => {
+    const lento = suavizar(segundos, 15);
+    for (let i = 0; i < n; i++) auto[i] = Math.min(k.autoMax, Math.max(k.autoMin, 1 / lento[i]));
+    // (and never speeds up or brakes harder than `autoAcel`: into a still moment it slows over a
+    // couple of seconds, not in a jolt; only ever slower, so nothing is read faster)
+    for (let i = 1; i < n; i++) auto[i] = Math.min(auto[i], auto[i - 1] + (k.autoAcel * RES) / auto[i - 1]);
+    for (let i = n - 2; i >= 0; i--) auto[i] = Math.min(auto[i], auto[i + 1] + (k.autoAcel * RES) / auto[i + 1]);
+  };
+  ritmoAuto();
+  for (let vuelta = 0; vuelta < 6; vuelta++) {
+    let corto = false;
+    for (const l of lecturas) {
+      let dura = 0;
+      for (let i = l.a; i <= l.b; i++) dura += RES / auto[i];
+      if (dura >= 0.97 * l.s) continue;
+      corto = true;
+      for (let i = l.a; i <= l.b; i++) segundos[i] *= l.s / dura;
+    }
+    if (!corto) break;
+    ritmoAuto();
+  }
   return { res: RES, flujo, px, auto, tope };
 }
 
