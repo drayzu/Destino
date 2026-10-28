@@ -24,6 +24,7 @@ export const INK = 'rgba(236,231,219,1)';
 export const ink = (a = 1) => `rgba(236,231,219,${a})`;
 
 const SUP: Record<string, string> = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+const BAJA: Record<string, string> = Object.fromEntries(Object.entries(SUP).map(([k, v]) => [v, k]));
 export const sup = (n: number) => [...String(n)].map((ch) => SUP[ch] ?? ch).join('');
 const group = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
@@ -401,7 +402,18 @@ export function hud(g: CanvasRenderingContext2D, u: number, W: number, H: number
   // (measured with the letter spacing they are drawn with: without it the columns ran into each other)
   g.letterSpacing = `${0.9 * u}px`;
   const ancho = (t: string, f: string) => ((g.font = f), g.measureText(t).width);
-  const cols = campos.map(([k, v]) => Math.max(ancho(k, KEY), ancho(v, VAL)));
+  // A value with its exponents drawn as raised digits (the font's superscript characters were tiny).
+  const SUB = FONT.mono(8.5 * u);
+  const tramos = (t: string) => [...t.matchAll(/([⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+)|([^⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+)/g)].map((m) => (m[1] ? { t: [...m[1]].map((ch) => BAJA[ch]).join(''), sup: true } : { t: m[2], sup: false }));
+  const anchoV = (t: string) => tramos(t).reduce((w, r) => w + ancho(r.t, r.sup ? SUB : VAL), 0);
+  const valor = (t: string, vx: number, vy: number) => {
+    for (const r of tramos(t)) {
+      g.font = r.sup ? SUB : VAL;
+      g.fillText(r.t, vx, r.sup ? vy - 5 * u : vy);
+      vx += g.measureText(r.t).width;
+    }
+  };
+  const cols = campos.map(([k, v]) => Math.max(ancho(k, KEY), anchoV(v)));
   const gap = 34 * u;
   if (cols.reduce((a, b) => a + b, 0) + gap * 2 <= W - x - 90 * u) {
     let cx = x;
@@ -409,9 +421,8 @@ export function hud(g: CanvasRenderingContext2D, u: number, W: number, H: number
       g.font = KEY;
       g.fillStyle = ink(0.45);
       g.fillText(k, cx, H - 60 * u);
-      g.font = VAL;
       g.fillStyle = ink(0.85);
-      g.fillText(v, cx, H - 44 * u);
+      valor(v, cx, H - 44 * u);
       cx += cols[n] + gap;
     });
   } else {
@@ -423,10 +434,9 @@ export function hud(g: CanvasRenderingContext2D, u: number, W: number, H: number
         g.fillStyle = ink(0.45);
         g.fillText(k, cx, y);
         cx += ancho(k, KEY) + 6 * u;
-        g.font = VAL;
         g.fillStyle = ink(0.85);
-        g.fillText(v, cx, y);
-        cx += ancho(v, VAL) + 18 * u;
+        valor(v, cx, y);
+        cx += anchoV(v) + 18 * u;
       }
     };
     linea(campos.slice(0, 2), H - 58 * u);
