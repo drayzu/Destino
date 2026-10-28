@@ -291,11 +291,14 @@ export function cilindroPuntos(root: THREE.Group) {
     cc.set(port ? [0.5 * v, 1.0 * v, 0.85 * v] : [v, v, v * 1.04], i * 3);
   }
   const caps = puntos(geometria({ position: cp, color: cc, size: Float32Array.from({ length: capsN }, (_, i) => (Math.hypot(cp[i * 3], cp[i * 3 + 2]) < 0.4 ? 0.012 : 0.04)), seed: new Float32Array(capsN), aKind: new Float32Array(capsN) }), {
-    pre: `uniform vec3 uCamL, uSun; uniform float uDentro;`,
+    pre: `uniform vec3 uCamL, uSun; uniform float uParedes;`,
     cuerpo: /* glsl */ `
       vec3 nCap = vec3(0.0, sign(p.y), 0.0);
       float port = step(0.9, color.g / max(color.r, 1e-3));
-      if (uDentro < 0.5) {
+      // Seen from inside when the camera is within the radius and on this cap's inner side (so the
+      // far end shows through the port while we come in, still outside).
+      bool interior = dot(nCap, uCamL - p) < 0.0 && uParedes > 0.5;
+      if (!interior) {
         if (dot(nCap, uCamL - p) < 0.0) em *= 0.0;
         else em = mix(color * (smoothstep(-0.1, 0.4, dot(nCap, uSun)) * 0.9 + 0.16), color, port);
       } else {
@@ -505,7 +508,7 @@ export function cilindroPuntos(root: THREE.Group) {
             #include <logdepthbuf_vertex>
           }`,
         fragmentShader: /* glsl */ `${LOG_F}
-          uniform vec3 uCamL; uniform float uDentro;
+          uniform vec3 uCamL; uniform float uParedes;
           varying vec3 vW;
           void main() {
             #include <logdepthbuf_fragment>
@@ -533,7 +536,8 @@ export function cilindroPuntos(root: THREE.Group) {
       if (r < 0.3) discard;
       float terr = fract(r * 3.0);
       vec3 alb = mix(vec3(0.12, 0.17, 0.08), vec3(0.24, 0.23, 0.16), step(0.5, terr));
-      c = uDentro > 0.5 ? mix(alb * 0.6, vec3(0.42, 0.55, 0.72) * 0.5, (1.0 - exp(-distance(vW, uCamL) / 22.0)) * 0.5) : vec3(0.035);`);
+      bool interior = sign(vW.y) * (uCamL.y - vW.y) < 0.0 && uParedes > 0.5;
+      c = interior ? mix(alb * 0.6, vec3(0.42, 0.55, 0.72) * 0.5, (1.0 - exp(-distance(vW, uCamL) / 22.0)) * 0.5) : vec3(0.035);`);
   }
   return {
     capas,
