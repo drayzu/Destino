@@ -125,7 +125,7 @@ export function apertura(): Acto {
       tl.label('a0.lejos').to(2.8, {});
       tl.caption(3.0, 'Planetas por todas partes', 'Y planetas no faltan: ya confirmamos 6 451 y calculamos que hay al menos uno por estrella. Muchos están donde podría haber agua líquida.');
       tl.label('a0.planetas').to(3.0, { 'a0.plan': 1 });
-      tl.caption(2.6, 'Lo que hemos escuchado', 'Llevamos décadas escuchando por si alguien transmite. Lo revisado hasta ahora es como buscar peces en un jacuzzi de agua sacada del océano.', { fuente: 'Wright y otros, 2018' });
+      tl.caption(2.6, 'Lo que hemos escuchado', 'Llevamos décadas escuchando por si alguien transmite. Lo revisado hasta ahora es como sacar un vaso de agua del mar y decir que no hay peces.', { fuente: 'Tarter, 2010; Wright y otros, 2018' });
       tl.label('a0.escuchado').to(2.6, {});
       tl.caption(3.0, 'El silencio', 'Aun así, el silencio es raro: a una décima de la velocidad de la luz, una sola civilización llenaría la galaxia en 650 000 años, y ha habido 13 000 millones. ¿Dónde están todos?', { fuente: 'Fermi, 1950; Hart, 1975' });
       tl.label('a0.silencio').to(3.0, { 'a0.bub': 1 });
