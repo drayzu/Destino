@@ -163,9 +163,13 @@ export function adentro(): Acto {
       bits.forEach((c, n) => {
         c.u.uTime.value = time;
         c.u.uOrden.value = ordenK;
-        const near = 1 - ease(0.0, 0.6, Math.abs(Math.log(dist / RADIOS[n])));
+        const lejos = Math.abs(Math.log(dist / RADIOS[n]));
+        const near = 1 - ease(0.0, 0.6, lejos);
         const flash = 0.9 - 0.5 * ordenK;
-        c.u.uA.value = (0.55 + flash * near) * (n === 4 ? 0.85 : 1) * bitsK * (1 - 0.45 * redK) * (1 - 0.7 * ease(0, 0.3, muroK));
+        // (brighter as we pass near a shell, but gone right as we cross it: its patch then fills the
+        // frame, and the whole view flashed white for a frame)
+        const cruce = ease(0.01, 0.08, lejos);
+        c.u.uA.value = (0.55 + flash * near) * cruce * (n === 4 ? 0.85 : 1) * bitsK * (1 - 0.45 * redK) * (1 - 0.7 * ease(0, 0.3, muroK));
         c.mesh.visible = bitsK > 0.003;
       });
       heat.u.uFlow.value = 0.9 * flow * (1 - lamK * 0.6);
