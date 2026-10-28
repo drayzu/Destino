@@ -1,20 +1,20 @@
 /**
  * Sound (optional, off at the start, made in the browser): the power can be heard. Soft notes of a
- * pentatonic scale, here and there like distant chimes with their echo, more often as log P grows,
- * over a faint breathing veil (a steady stack of low sines droned like an engine),
+ * pentatonic scale, here and there like distant chimes with their echo, more often as log P grows
+ * (no steady bed under them: a stack of low sines droned like an engine),
  * a wind that rises with the pace of the scroll, and a soft bell on each named moment. The silence
  * of Fermi is real silence. Ambient, never music.
  *
- * Each act has its signature, gliding from one to the next: the bed is transposed (lower as the
+ * Each act has its signature, gliding from one to the next: the notes are transposed (lower as the
  * journey goes out and on), and one trait of its own is added: a slow pulse like a heartbeat while
  * matter wakes (I), the hum of the grid today (II), a brighter shimmer among the stars, its pitch
  * raised by the sail's speed (IV), the ticks of thought as bits (VI), a slow fading pulse at the end.
  */
 
 interface Firma {
-  /** The bed's transposition. */
+  /** The notes' transposition. */
   tono: number;
-  /** A pulse on the bed (its rate, Hz) and how deep. */
+  /** A pulse on the notes (its rate, Hz) and how deep. */
   pulso: number;
   hondo: number;
   /** The grid's hum (0..1). */
@@ -37,7 +37,6 @@ export function crearSonido() {
   let ctx: AudioContext | null = null;
   let on = false;
   let master: GainNode;
-  let voces: { osc: OscillatorNode; g: GainNode; base: number }[] = [];
   let viento: GainNode;
   let filtro: BiquadFilterNode;
   let lecho: GainNode;
@@ -59,7 +58,8 @@ export function crearSonido() {
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(a, t + 0.03);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 4);
-    g.connect(master);
+    // (through the act's pulse, which once moved the steady bed, now gone: it droned like an engine)
+    g.connect(lecho);
     g.connect(eco);
     for (const [m, k] of [[1, 1], [2, 0.18]] as const) {
       const o = ctx.createOscillator();
@@ -89,7 +89,7 @@ export function crearSonido() {
     const humedo = ctx.createGain();
     humedo.gain.value = 0.5;
     oscuro.connect(humedo).connect(master);
-    // The bed goes through a gain a slow oscillator moves: the act's pulse.
+    // The notes go through a gain a slow oscillator moves: the act's pulse.
     lecho = ctx.createGain();
     lecho.gain.value = 1;
     lecho.connect(master);
@@ -110,23 +110,6 @@ export function crearSonido() {
     zumbido.gain.value = 0;
     zumbidoOsc.connect(zf).connect(zumbido).connect(master);
     zumbidoOsc.start();
-    // The bed: a fifth stack, each voice entering as the power grows. (No 55 Hz voice and softened
-    // above: steady low sines, all at once, droned like an engine.)
-    const bases = [82.5, 110, 165, 220, 330, 495];
-    const suave = ctx.createBiquadFilter();
-    suave.type = 'lowpass';
-    suave.frequency.value = 700;
-    suave.connect(lecho);
-    voces = bases.map((base) => {
-      const osc = ctx!.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.value = base;
-      const g = ctx!.createGain();
-      g.gain.value = 0;
-      osc.connect(g).connect(suave);
-      osc.start();
-      return { osc, g, base };
-    });
     // The wind: filtered noise.
     const buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = buf.getChannelData(0);
@@ -184,7 +167,7 @@ export function crearSonido() {
       // Glide towards the act's signature.
       const meta = FIRMAS[Math.max(0, Math.min(FIRMAS.length - 1, acto))];
       for (const k of Object.keys(firma) as (keyof Firma)[]) firma[k] += (meta[k] - firma[k]) * 0.02;
-      // Light ahead is bluer: at speed the bed rises (the sail's Doppler).
+      // Light ahead is bluer: at speed the notes rise (the sail's Doppler).
       const doppler = Math.sqrt((1 + beta) / Math.max(1e-3, 1 - beta));
       const tono = firma.tono * Math.min(2, doppler);
       lfo.frequency.setTargetAtTime(firma.pulso, t, 0.5);
@@ -215,14 +198,6 @@ export function crearSonido() {
         const f = ESCALA[Math.floor(Math.random() * alto)] * tono;
         nota(f, 0.035 * (0.6 + 0.4 * Math.random()));
       }
-      voces.forEach((v, i) => {
-        const enter = Math.max(0, Math.min(1, dens * voces.length - i + 0.6));
-        // Each voice breathes on its own slow cycle (20–50 s), so the bed swells and thins instead of
-        // holding one constant tone; the lowest is the quietest.
-        const respira = 0.25 + 0.75 * (0.5 + 0.5 * Math.sin((t * 2 * Math.PI) / (20 + 6.3 * i) + i * 1.7));
-        v.g.gain.setTargetAtTime(0.012 * (i === 0 ? 0.5 : 1) * enter * respira * (1 - silencio), t, 0.8);
-        v.osc.frequency.setTargetAtTime(v.base * tono * (1 + 0.004 * Math.sin(t * 0.3 + i)), t, 0.5);
-      });
       // (only while moving: standing still, a constant low rumble was left)
       viento.gain.setTargetAtTime(Math.min(0.1, Math.abs(pace) * 0.04) * (1 - 0.7 * silencio), t, 0.3);
       filtro.frequency.setTargetAtTime(300 + Math.min(2000, Math.abs(pace) * 600), t, 0.3);
