@@ -553,9 +553,9 @@ export function escalera(g: CanvasRenderingContext2D, u: number, W: number, H: n
   g.fillStyle = ink(0.55);
   // (left of the rail's top: above it, the page's buttons hid it)
   g.textBaseline = 'middle';
-  g.fillText((EN ? 'power · watts' : 'potencia · vatios').toUpperCase(), x - 14 * u, y1 - 4 * u);
+  // (one line: the figure by the dot and the foot at 1 W already tell it goes in powers of ten)
+  g.fillText((EN ? 'power (W)' : 'potencia (W)').toUpperCase(), x - 14 * u, y1);
   g.fillStyle = ink(0.35);
-  g.fillText((EN ? 'each mark ×10' : 'cada marca ×10').toUpperCase(), x - 14 * u, y1 + 9 * u);
   g.fillText('1 W', x - 14 * u, y0);
   // The fill: the civilization's power so far.
   const yp = yOf(clamp(lp, LP0, LP1));
