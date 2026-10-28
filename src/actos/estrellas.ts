@@ -338,12 +338,26 @@ export function estrellas(): Acto {
     const barrio: Vista = { pos: DIR.clone().multiplyScalar(-30 * LY_AU).addScaledVector(UP, 26 * LY_AU), target: DIR.clone().multiplyScalar(4 * LY_AU), up: naveArriba.clone().normalize(), fov: 50 };
     const galaxia: Vista = { pos: GAL.clone().add(V(30000, 62000, 60000).multiplyScalar(LY_AU)), target: GAL.clone().multiplyScalar(0.55), up: UP.clone(), fov: 46 };
     if (k < 0.45) {
-      // Away from the ship in powers of ten, so it shrinks to a point instead of vanishing.
-      const t = ease(0.0, 0.4, k);
-      const pos = volar(from.pos, barrio.pos, t, 45e3 * M, 30 * LY_AU);
-      // Looking back at the ship all the way out (the neighbourhood's centre lies between the ship and
-      // where we go: turning to it early swung the gaze under us and flipped it as we passed it).
-      return { pos, target: mirar(pos, from.target, barrio.target, ease(0.75, 1, t)), up: from.up.clone().lerp(barrio.up, ease(0, 0.6, t)).normalize(), fov: lerp(from.fov, barrio.fov, t) };
+      // Away from the ship in powers of ten at a steady pace, so it shrinks to a point instead of
+      // vanishing (`volar` packed fifteen powers of ten into two beats and then stood still). Straight
+      // back from it at first, bending while still close onto the line to the neighbourhood view (out
+      // of the plane of the routes). Once the ship is a point the gaze turns slowly to A, still far
+      // ahead, so it comes into the frame by the turn: looking at the ship all the way, A dropped from
+      // the top of the sky to the middle in a moment as our distance passed its own.
+      const t = ease(0.0, 0.43, k);
+      const d0 = from.pos.clone().sub(NAVE);
+      const l0 = d0.length();
+      d0.divideScalar(l0);
+      const eB = barrio.pos.clone().sub(NAVE);
+      const l1 = eB.length();
+      eB.divideScalar(l1);
+      const r = Math.exp(lerp(Math.log(l0), Math.log(l1), t));
+      const dir = d0.clone().applyQuaternion(new THREE.Quaternion().slerp(new THREE.Quaternion().setFromUnitVectors(d0, eB), ease(Math.log(1e-5), Math.log(300), Math.log(r))));
+      const pos = NAVE.clone().addScaledVector(dir, r);
+      const aA = mirar(pos, from.target, A, ease(Math.log(1e-6), Math.log(100), Math.log(r)));
+      // (to the neighbourhood's middle only once far from A: nearer, it lies well off A, and the gaze swung)
+      const mA = Math.max(pos.distanceTo(A), 1e-30);
+      return { pos, target: mirar(pos, aA, barrio.target, ease(Math.log(4e4), Math.log(2e6), Math.log(mA))), up: from.up.clone().lerp(barrio.up, ease(0, 0.6, t)).normalize(), fov: lerp(from.fov, barrio.fov, t) };
     }
     // Then out in powers of ten, still looking at the neighbourhood (its routes, our bubble), turning to
     // the galaxy's middle only once far (a straight mix slid the gaze across space: the routes swung
@@ -427,7 +441,9 @@ export function estrellas(): Acto {
       vec.u.uPiso.value = lerp(0.006, 0.5, barrio);
       // (only once we are out among the neighbours: lit while we flew out past them, they fell through
       // the frame as streaks of light)
-      rutas.mat.opacity = 0.55 * barrio * ease(P('a4.muro', 1.5), P('a4.muro', 2.5), p);
+      // (and once far from the ship, so they never pass by us as streaks however fast we pull back)
+      const lejos = ease(Math.log(3 * LY_AU), Math.log(15 * LY_AU), Math.log(Math.max(v.pos.distanceTo(NAVE), 1e-30)));
+      rutas.mat.opacity = 0.55 * barrio * ease(P('a4.muro', 1.5), P('a4.muro', 2.5), p) * lejos;
       rutas.lines.visible = rutas.mat.opacity > 0.001;
       // The galaxy's own stars in our bubble too.
       const bub = ease(P('a4.muro', 0.5), P('a4.muro', 2.5), p);
