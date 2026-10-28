@@ -145,8 +145,9 @@ export function final(): Acto {
   bh.u.uBand.value = 0;
   bh.u.uDiskIn.value = 3;
   bh.u.uDiskOut.value = 16;
-  // A warmer disk than Tiempo's: this moment's colour is gold.
-  bh.u.uDiskT.value = 5200;
+  // Warmer than Tiempo's (this moment's colour is gold), but hot at its inner edge: warm white there,
+  // going orange outward (at 5 200 K all of it read as a dull brown, a disk with nothing left to give).
+  bh.u.uDiskT.value = 6600;
   const pen = penrose();
   const penG = new THREE.Group();
   penG.scale.setScalar(RS);
@@ -288,7 +289,7 @@ export function final(): Acto {
       if (!here) return;
       // The hole: its disk while there is matter; its Hawking glow at the end.
       const disco = ease(P('a8', 0.7), P('a8', 2.2), p) * (1 - ease(P('a8.contados', 0.6), P('a8.contados', 3.4), p));
-      bh.u.uDiskL.value = disco;
+      bh.u.uDiskL.value = 1.2 * disco;
       bh.u.uHawk.value = 0.02 * ease(P('a8.contados', 2.0), P('a8.contados', 4.4), p) * (1 - ease(P('a8.relevo'), P('a8.relevo', 1), p));
       const center = V().sub(v.pos).multiplyScalar(k);
       bh.update({ camera, center, normal: NORMAL, rs: RS * k, sky: new THREE.Matrix3(), time, alpha: 1 - ease(P('a8.relevo', 0.6), P('a8.relevo', 1.6), p) });
