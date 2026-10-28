@@ -50,7 +50,7 @@ export function cilindro() {
     update(camL: THREE.Vector3, time: number, night = 0.3, vista: { focal: number; dpr: number } = { focal: 1000, dpr: 1 }) {
       giro.rotation.y = time * OMEGA;
       uni.uCamL.value.copy(camL);
-      cuerpo.update(camL, vista);
+      cuerpo.update(camL, vista, time);
       uni.uTime.value = time;
       // The homes are points (they do not hide behind the hull): only seen from inside.
       const inside = Math.abs(camL.y) < L / 2 && Math.hypot(camL.x, camL.z) < R;

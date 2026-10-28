@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { enfocar, geometria, puntos, type Puntos } from '../horizontes';
+import { CALIDA, LUZ, METAL, OSCURO, Obra } from './obra';
 
 /**
  * An O'Neill cylinder (Island Three: 8 km across, 32 km long; O'Neill 1976) in the style Diego chose
@@ -359,6 +360,69 @@ export function cilindroPuntos(root: THREE.Group) {
     root.add(agro.points);
     capas.push(agro);
   }
+  // What makes it a built thing, not a solid: structural hoops standing off the hull with their
+  // beacons, heavy longerons along the windows' edges, the mirrors' trusses and the cables that
+  // hold them, machinery and a lit docking port at the shade end, and craft coming and going.
+  const uObra = { uSun: u.uSun, uTime: { value: 0 } };
+  {
+    const o = new Obra(0.03);
+    // Hoops every 4 km.
+    for (let y = -14; y <= 14; y += 4) {
+      o.tubo(V(0, y - 0.12, 0), V(0, y + 0.12, 0), R + 0.09, METAL, 0.035);
+      for (const e of [-0.13, 0.13]) o.aro(V(0, y + e, 0), V(0, 1, 0), R + 0.1, [0.7, 0.72, 0.76], 0.03);
+      o.luces(V(0, y, 0), V(0, 1, 0), R + 0.2, 18, y % 8 === 0 ? LUZ : [1.4, 0.4, 0.3]);
+    }
+    // Longerons along the six edges of the windows.
+    for (let k = 0; k < 6; k++) {
+      const a = (k * Math.PI) / 3 - Math.PI;
+      const rad = V(Math.cos(a), 0, Math.sin(a));
+      const tan = V(-Math.sin(a), 0, Math.cos(a));
+      o.caja(rad.clone().multiplyScalar(R + 0.06), rad.clone().multiplyScalar(0.06), V(0, L / 2, 0), tan.clone().multiplyScalar(0.1), METAL, 0.045);
+    }
+    // The mirrors' frames: a truss along each long edge and across the far end, ribs every 4 km,
+    // and two cables from the far corners to the hull.
+    for (const M of espejos()) {
+      const at = (x: number, y: number) => V(x, y, 0).applyMatrix4(M);
+      const w = ANCHO_ESPEJO / 2;
+      const h = LARGO_ESPEJO / 2;
+      o.celosia(at(-w, -h), at(-w, h), 0.22, METAL, 0.03);
+      o.celosia(at(w, -h), at(w, h), 0.22, METAL, 0.03);
+      o.celosia(at(-w, h), at(w, h), 0.22, METAL, 0.03);
+      for (let y = -h + 4; y < h; y += 4) o.viga(at(-w, y), at(w, y), OSCURO, 0.03);
+      const hinge = at(0, -h).setY(0).normalize();
+      for (const x of [-w, w]) o.viga(at(x, h), hinge.clone().multiplyScalar(R + 0.2).setY(14), [0.4, 0.42, 0.45], 0.02);
+      o.punto(at(0, h), V(0, 1, 0), [1.4, 0.4, 0.3], 0.12, 2);
+    }
+    // The shade end: a ring of machinery round the port, its tunnel lit, craft coming in.
+    const yb = -L / 2;
+    // (low, as plant on a deck: tall boxes of points read as see-through crates)
+    for (let k = 0; k < 28; k++) {
+      const a = (k / 28) * Math.PI * 2;
+      const rad = V(Math.cos(a), 0, Math.sin(a));
+      const tan = V(-Math.sin(a), 0, Math.cos(a));
+      const alto = 0.03 + 0.03 * ((k * 7) % 3);
+      const r0 = k % 2 ? 2.2 : 3.1;
+      o.caja(rad.clone().multiplyScalar(r0).setY(yb - alto), rad.clone().multiplyScalar(0.28), V(0, alto, 0), tan.clone().multiplyScalar(0.16), k % 5 === 0 ? [0.45, 0.43, 0.38] : [0.36, 0.37, 0.4], 0.035);
+      if (k % 3 === 0) o.punto(rad.clone().multiplyScalar(r0).setY(yb - 2 * alto - 0.02), V(0, -1, 0), CALIDA, 0.06, 1);
+    }
+    for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * Math.PI * 2;
+      const rad = V(Math.cos(a), 0, Math.sin(a));
+      o.viga(rad.clone().multiplyScalar(0.45).setY(yb - 0.02), rad.clone().multiplyScalar(R - 0.1).setY(yb - 0.02), [0.4, 0.42, 0.45], 0.03, V(0, -1, 0));
+    }
+    o.tubo(V(0, yb, 0), V(0, yb - 0.9, 0), 0.42, OSCURO, 0.03);
+    for (let y = 0; y < 0.9; y += 0.3) o.luces(V(0, yb - y - 0.05, 0), V(0, 1, 0), 0.44, 16, LUZ, 0.05, 1);
+    o.trafico(V(0, yb - 70, 0), V(0, yb - 0.9, 0), 26, 14);
+    // The sunward end: ribs on the cap.
+    for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * Math.PI * 2 + 0.13;
+      const rad = V(Math.cos(a), 0, Math.sin(a));
+      o.viga(rad.clone().multiplyScalar(0.5).setY(L / 2 + 0.02), rad.clone().multiplyScalar(R - 0.1).setY(L / 2 + 0.02), METAL, 0.03, V(0, 1, 0));
+    }
+    const obra = o.build(uObra, false, 0.3);
+    root.add(obra.points);
+    capas.push(obra);
+  }
   // The mirrors: silhouettes (dark glass, a glint, a thin frame).
   espejosSilueta(root, u);
   // Under the mirrors' and the caps' points, their surfaces, dim (as under the hull).
@@ -398,7 +462,8 @@ export function cilindroPuntos(root: THREE.Group) {
   }
   return {
     capas,
-    update(cam: THREE.Vector3, vista: { focal: number; dpr: number }) {
+    update(cam: THREE.Vector3, vista: { focal: number; dpr: number }, time = 0) {
+      uObra.uTime.value = time;
       for (const c of capas) enfocar(c, vista);
       u.uCamL.value.copy(cam);
       const inn = dentro(cam);
