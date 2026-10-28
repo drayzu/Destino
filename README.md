@@ -27,7 +27,7 @@
 </p>
 
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="media/enter-dark.svg"><img src="media/enter-light.svg" width="500" alt="Destino, coming soon to drayzu.github.io/Destino"></picture>
+  <a href="https://drayzu.github.io/Destino/"><picture><source media="(prefers-color-scheme: dark)" srcset="media/enter-dark.svg"><img src="media/enter-light.svg" width="500" alt="Open drayzu.github.io/Destino"></picture></a>
 </p>
 
 <br>

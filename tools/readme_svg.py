@@ -9,7 +9,7 @@ import base64, io, os
 from fontTools import subset
 from fontTools.ttLib import TTFont
 
-ABIERTO = False
+ABIERTO = True
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'media')
