@@ -285,13 +285,37 @@ export function sistema(): Acto {
     if (k < 0.5) return mezcla(a, b, ease(0.34, 0.5, k));
     // (through the port on its axis, then out to the valley: straight from the hub to the valley the
     // camera crossed the end wall beside the port)
+    // In, one unbroken move along a smooth curve through those places at an even pace (by legs, it
+    // stopped and started again at each), and «up» turns from along the end wall to towards the axis
+    // all the way in, to the end of the moment (it finished early and the camera went on unturned).
     const b2 = cilW(CIL_PUERTO);
-    // Inside, «up» turns from along the end wall to towards the axis: one long, gentle roll from the
-    // port to the valley (with the move to the valley it was a quarter turn in under a beat).
-    const rodar = (v: Vista) => ({ ...v, up: b.up.clone().lerp(c.up, ease(0.46, 0.86, k)).normalize() });
-    if (k < 0.6) return rodar(mezcla(b, b2, ease(0.5, 0.6, k)));
-    if (k < 0.8) return rodar(mezcla(b2, c, ease(0.6, 0.8, k)));
-    return rodar(mezcla(c, d, ease(0.8, 1, k)));
+    if (k < 0.5) return b;
+    const { o, cPos, cTgt, fovs } = curvaDentro([b, b2, c, d]);
+    const s = ease(0.5, 1, k);
+    const t = cPos.getUtoTmapping(s, 0);
+    const pos = cPos.getPoint(t).multiplyScalar(KM).add(o);
+    const target = cTgt.getPoint(t).multiplyScalar(KM).add(o);
+    const i = Math.min(2, Math.floor(t * 3));
+    const fov = lerp(fovs[i], fovs[i + 1], t * 3 - i);
+    // (by angle, at the pace of the move itself)
+    const up = b.up.clone().applyQuaternion(new THREE.Quaternion().slerp(new THREE.Quaternion().setFromUnitVectors(b.up.clone().normalize(), c.up.clone().normalize()), s));
+    return { pos, target, up, fov };
+  }
+  /** The curves of the way in (positions and targets, in km from the first place), made once: the
+   * world's AU are too coarse for the curve's own sums. */
+  let curvas: { o: THREE.Vector3; cPos: THREE.CatmullRomCurve3; cTgt: THREE.CatmullRomCurve3; fovs: number[] } | null = null;
+  function curvaDentro(tomas: Vista[]) {
+    if (!curvas) {
+      const o = tomas[0].pos.clone();
+      const km = (w: THREE.Vector3) => w.clone().sub(o).divideScalar(KM);
+      curvas = {
+        o,
+        cPos: new THREE.CatmullRomCurve3(tomas.map((v) => km(v.pos)), false, 'centripetal'),
+        cTgt: new THREE.CatmullRomCurve3(tomas.map((v) => km(v.target)), false, 'centripetal'),
+        fovs: tomas.map((v) => v.fov),
+      };
+    }
+    return curvas;
   }
   /**
    * From one place to another far away, across scales: the distance from the start grows in
