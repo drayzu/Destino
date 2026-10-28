@@ -7,7 +7,7 @@ import { mezcla, mirar, vuelo as volar, type Vista } from '../engine/vista';
 import { LY_AU, type Mundo } from '../mundo/mundo';
 import { R_SUN, faros } from '../mundo/obras';
 import { VECINAS, dondeVecina, estrella, rutasVecinas, vecinas, vela } from '../mundo/vecinas';
-import { cilindroPuntos } from '../mundo/cilindro';
+import { naveGeneracional } from '../mundo/nave';
 import { OMEGA } from '../mundo/habitat';
 import { enfocar, geometria, puntos } from '../horizontes';
 import type { Acto, Cuadro } from './tipos';
@@ -106,7 +106,10 @@ export function estrellas(): Acto {
   nave.scale.setScalar(1000 * SIGMA);
   const naveGiro = new THREE.Group();
   nave.add(naveGiro);
-  const naveCil = cilindroPuntos(naveGiro);
+  // (not another cylinder: a generation ship of its own shape)
+  const naveG = naveGeneracional();
+  nave.add(naveG.fijo);
+  naveGiro.add(naveG.giro);
   const NJ = 26000;
   const jp = new Float32Array(NJ * 3);
   const jc = new Float32Array(NJ * 3);
@@ -252,8 +255,9 @@ export function estrellas(): Acto {
     const k = (p - P('a4.nave')) / (P('a4.muro') - P('a4.nave'));
     // Round it slowly from behind and beside: its hull, its petals, its jet thrown ahead.
     const a = lerp(-0.9, 0.5, k);
-    const off = naveLado.clone().multiplyScalar(Math.cos(a) * 62e3).addScaledVector(naveArriba, 16e3).addScaledVector(DIR, -30e3 + Math.sin(a) * 40e3);
-    return { pos: NAVE.clone().addScaledVector(off, M), target: NAVE.clone().addScaledVector(DIR, 22e3 * M), up: naveArriba.clone(), fov: 50 };
+    const off = naveLado.clone().multiplyScalar(Math.cos(a) * 40e3).addScaledVector(naveArriba, 11e3).addScaledVector(DIR, -18e3 + Math.sin(a) * 26e3);
+    // (aimed a little ahead of its middle: the ship fills the left of the frame, its jet the right)
+    return { pos: NAVE.clone().addScaledVector(off, M), target: NAVE.clone().addScaledVector(DIR, 6e3 * M).addScaledVector(naveArriba, -3e3 * M), up: naveArriba.clone(), fov: 50 };
   }
   function camNave(p: number): Vista {
     const k = (p - P('a4.nave')) / (P('a4.muro') - P('a4.nave'));
@@ -263,7 +267,7 @@ export function estrellas(): Acto {
     const a = camFreno(P('a4.nave'));
     const b = vNave(p);
     const t = ease(0, 0.14, k);
-    const pos = volar(a.pos, b.pos, t, 800 * M, 70e3 * M);
+    const pos = volar(a.pos, b.pos, t, 800 * M, 45e3 * M);
     return { pos, target: mirar(pos, a.target, b.target, ease(0, 0.45, t)), up: a.up.clone().lerp(b.up, ease(0.3, 1, t)).normalize(), fov: lerp(a.fov, b.fov, t) };
   }
   /** Pulling back: the neighbourhood, then the whole galaxy, where our bubble is a point. */
@@ -278,7 +282,7 @@ export function estrellas(): Acto {
     if (k < 0.45) {
       // Away from the ship in powers of ten, so it shrinks to a point instead of vanishing.
       const t = ease(0.0, 0.4, k);
-      const pos = volar(from.pos, barrio.pos, t, 70e3 * M, 30 * LY_AU);
+      const pos = volar(from.pos, barrio.pos, t, 45e3 * M, 30 * LY_AU);
       // Looking back at the ship all the way out (the neighbourhood's centre lies between the ship and
       // where we go: turning to it early swung the gaze under us and flipped it as we passed it).
       return { pos, target: mirar(pos, from.target, barrio.target, ease(0.75, 1, t)), up: from.up.clone().lerp(barrio.up, ease(0, 0.6, t)).normalize(), fov: lerp(from.fov, barrio.fov, t) };
@@ -397,9 +401,7 @@ export function estrellas(): Acto {
           nave.quaternion.setFromUnitVectors(UP, DIR);
           naveGiro.rotation.y = time * OMEGA;
           naveGiro.updateMatrixWorld(true);
-          // The camera in the turning cylinder's frame (km).
-          const camL = rel.clone().negate().divideScalar(1000).applyQuaternion(nave.quaternion.clone().invert()).applyQuaternion(naveGiro.quaternion.clone().invert());
-          naveCil.update(camL, { focal: f.focal, dpr: f.dpr });
+          naveG.update({ focal: f.focal, dpr: f.dpr });
           chorro.u.uT.value = time;
           chorro.u.uOn.value = ease(P('a4.nave', -0.3), P('a4.nave', 0.6), p);
           enfocar(chorro, { focal: f.focal, dpr: f.dpr }, chorro.u.uGain.value);
@@ -411,7 +413,8 @@ export function estrellas(): Acto {
         const mt = montura(p);
         const near = p >= P('a4') + (P('a4.viaje') - P('a4')) * 0.3;
         let rel: THREE.Vector3;
-        if (near) rel = mt.off.clone().negate();
+        // (riding with it until the camera leaves for the braking sail; then where it is, falling behind)
+        if (near && p < P('a4.frenar', -0.6)) rel = mt.off.clone().negate();
         else rel = velaW(vuelo(p).s).sub(v.pos).divideScalar(M);
         const lejos = rel.length();
         if (lejos > 600 && p < P('a4.viaje')) {
@@ -442,17 +445,22 @@ export function estrellas(): Acto {
           velaS.uni.uLuz.value = useA ? Math.min(3, 4 / (aD * aD)) : Math.min(2, 0.3 / sail.lengthSq());
           velaS.uni.uLuzCol.value.set(useA ? 0xffd9a0 : 0xffe8c8);
         }
-      } else if (p < P('a4.nave', 0.4)) {
+      }
+      if (p > P('a4.frenar', -0.6) && p < P('a4.nave', 0.6)) {
         // The braking sail: its face to A, metres from the camera.
         const k = kFreno(Math.min(p, P('a4.nave')));
         const rel = frenoRel(ease(0, 1, k));
         const cv = camFreno(Math.min(p, P('a4.nave')));
         const offM = cv.pos.clone().sub(A.clone().add(rel)).divideScalar(M);
-        const relCam = p < P('a4.nave') ? offM.negate() : A.clone().add(rel).sub(v.pos).divideScalar(M);
-        if (relCam.length() < 2e5) {
+        // Riding behind it only while the camera is exactly there; on the way in and out, where it
+        // is: it grows from a point as we fall to it and shrinks behind as we leave for the ship.
+        const glued = p >= P('a4.frenar', 0.6) && p < P('a4.nave');
+        const relCam = glued ? offM.negate() : A.clone().add(rel).sub(v.pos).divideScalar(M);
+        const d = relCam.length();
+        if (d < 4e5) {
           cabina.visible = true;
           velaG.group.visible = true;
-          velaG.uni.uOn.value = ease(P('a4.frenar', -0.3), P('a4.frenar', 0.5), p) * (1 - ease(P('a4.nave', -0.7), P('a4.nave', -0.05), p));
+          velaG.uni.uOn.value = ease(P('a4.frenar', -0.6), P('a4.frenar', 0.1), p) * smoothstep(4e5, 6e4, d);
           velaG.group.position.copy(relCam).multiplyScalar(SIGMA);
           velaG.group.scale.setScalar(160 * SIGMA);
           const toA = rel.clone().negate().normalize();
@@ -558,6 +566,17 @@ export function estrellas(): Acto {
             flecha(g, u, q0, q1, '#ffd08a', fr, 1.8);
             texto(g, u, q1.x + 10 * u, q1.y, 'la luz de A la empuja hacia atrás', '#ffd08a', fr, 10);
           }
+        }
+      }
+      // The ship's parts, named while we ride beside it (with or without the plate: without them its
+      // tanks and fins were a puzzle).
+      const kN = (p - P('a4.nave')) / (P('a4.muro') - P('a4.nave'));
+      const pa = ease(0.22, 0.32, kN) * (1 - ease(0.84, 0.94, kN));
+      if (pa > 0.01) {
+        const qN = new THREE.Quaternion().setFromUnitVectors(UP, DIR);
+        for (const t of naveG.partes) {
+          const q = f.proj(NAVE.clone().addScaledVector(t.en.clone().applyQuaternion(qN), 1000 * M));
+          if (q && q.x > 0 && q.x < W && q.y > 0 && q.y < H) nota(g, u, q.x, q.y, t.texto, t.dx, t.dy, pa);
         }
       }
       // The wall.

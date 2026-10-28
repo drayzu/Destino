@@ -8,7 +8,7 @@ import { mezcla, type Vista } from '../engine/vista';
 import { E, LUNA, LUNA_DIR, type Mundo } from '../mundo/mundo';
 import { cilindro, OMEGA } from '../mundo/habitat';
 import { espejoShkadov, levante, motorCaplan } from '../mundo/estrella';
-import { anilloBishop, cilindroMcKendree, esferaBernal, toroStanford } from '../mundo/habitats';
+import { anilloBishop, esferaBernal, toroStanford } from '../mundo/habitats';
 import { L1_VEN, R_MARS, R_PARASOL, R_VEN, marte, venus } from '../mundo/planetas';
 import { MOON_D, R_E, R_MER, R_SUN, RING_A, bezier, camino, cinturon, enjambre, faros, mercurio, orbitas, placas, ringABasis, ringAPoint, transferencia } from '../mundo/obras';
 import type { Acto, Cuadro } from './tipos';
@@ -103,10 +103,9 @@ export function sistema(): Acto {
   caplan.group.quaternion.setFromUnitVectors(UP, MOTOR.clone().negate());
   // The other habitats at L5.
   const ring = anilloBishop();
-  const mck = cilindroMcKendree();
   const torus = toroStanford();
   const bernal = esferaBernal();
-  for (const h of [ring, mck, torus, bernal]) h.group.scale.setScalar(KM);
+  for (const h of [ring, torus, bernal]) h.group.scale.setScalar(KM);
   const habSun = CIL.clone().negate().normalize();
   // The small ones float beside the cylinder (cylinder frame, km), turned like it, towards the Sun.
   const TORO = cil2w(V(-26, 12, -18));
@@ -504,7 +503,7 @@ export function sistema(): Acto {
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a3');
       tl.set({ 'a3.lp': 16.25, 'a3.ly': 2.54, 'a3.lr': 7.6, 'a3.built': 0, 'a3.eat': 0 });
-      tl.caption(5.2, 'Mundos que giran', 'Para vivir fuera de la Tierra hacen falta mundos que giren: su giro hace de gravedad. Hay esferas, ruedas, cilindros y anillos; los más grandes piden materiales que aún no sabemos fabricar.', { fuente: 'Bishop, 1997; McKendree, 2000', desde: 3.1, viaje: 'Más allá de la Luna' });
+      tl.caption(5.2, 'Mundos que giran', 'Para vivir fuera de la Tierra hacen falta mundos que giren: su giro hace de gravedad. Hay esferas, ruedas, cilindros y anillos; los más grandes piden materiales que aún no sabemos fabricar.', { fuente: 'Bishop, 1997; O’Neill, 1976', desde: 3.1, viaje: 'Más allá de la Luna' });
       tl.to(1.4, { 'a3.lp': 16.4, 'a3.ly': 2.6, 'a3.lr': 8.6, 'a3.built': 0.1, 'a3.eat': 0.02 });
       tl.label('a3.habitats').to(3.8, { 'a3.lp': 16.5, 'a3.built': 0.12, 'a3.eat': 0.03 });
       tl.caption(5.0, 'Un mundo por dentro', 'Un cilindro de 8 km de ancho y 32 de largo que gira una vez cada dos minutos. Adentro, el paisaje sube por los lados y pasa por encima; por sus tres ventanas entra el sol que reflejan sus espejos.', { fuente: 'O’Neill, 1976', desde: 1.5, viaje: 'Hacia el cilindro' });
@@ -537,9 +536,9 @@ export function sistema(): Acto {
       const h = hab();
       ring.group.position.copy(h.ring);
       ring.group.quaternion.setFromUnitVectors(UP, h.ringAxis);
-      mck.group.position.copy(h.mck);
-      mck.group.quaternion.setFromUnitVectors(UP, h.mckAxis);
-      m.root.add(ring.group, mck.group, torus.group, bernal.group);
+      // (no McKendree cylinder: with O'Neill's and the ship of act IV, it made three cylinders; the
+      // Bishop ring stands for the giants that need materials we cannot make yet)
+      m.root.add(ring.group, torus.group, bernal.group);
       m.root.add(mars.group, ven.group, lift.group, espejo.mesh, caplan.group, cil.group, swarm.points, plates.mesh, merc.group, belt.points, orbits, B.points);
       m.nubes.push(cil.casas, lift.nube, caplan.nube);
       for (const r of rutas) m.root.add(r.group);
@@ -603,7 +602,7 @@ export function sistema(): Acto {
       plates.u.uCam.value.copy(cam);
       // The habitats at L5: only drawn while we are around.
       const atL5 = cam.distanceTo(CIL) < 3e6 * KM && p < P('a3.marte', 2);
-      for (const hb of [ring, mck, torus, bernal]) {
+      for (const hb of [ring, torus, bernal]) {
         hb.group.visible = atL5;
         if (atL5) {
           hb.uni.uSun.value.copy(habSun);
@@ -708,7 +707,6 @@ export function sistema(): Acto {
       if (ha > 0.01) {
         const h = hab();
         add(h.ring.clone().addScaledVector(UP, 1000 * KM), 'anillo de Bishop · 2 000 km', 34, -30, ha);
-        add(h.mck, 'cilindro de McKendree · 4 600 km', -40, 32, ha);
         add(CIL, 'el de O’Neill: 32 km, aquí un punto', 34, 30, ha);
       }
       const kc = (p - P('a3.oneill')) / (P('a3.marte') - P('a3.oneill'));

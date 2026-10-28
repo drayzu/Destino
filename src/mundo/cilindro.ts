@@ -140,21 +140,29 @@ const PUNTO_CIL = /* glsl */ `
     vec3 nOut = normalize(vec3(p0.x, 0.0, p0.z));
     if (dot(nOut, uCamL - p0) < 0.0) em *= 0.0;
     else if (ventana) {
-      // From outside, the windows glow with the day inside (and its land, across the cylinder).
+      // From outside, through the window: the valley across the cylinder (the land strip opposite
+      // a window is a valley), in daylight under its air, clouds over it, and the frame's ribs.
       float rib = 1.0 - smoothstep(0.0, max(0.02, paso * 0.6), abs(fract(p0.y * 1.5) - 0.5) - 0.48);
-      vec3 dentroVisto = mix(vec3(0.42, 0.58, 0.72), vec3(0.3, 0.42, 0.24), smoothstep(0.4, 0.7, n2(vec2(th * 6.0, p0.y * 0.4))));
-      em = dentroVisto * 0.6 * (1.0 - 0.7 * rib) * (0.85 + 0.3 * hp) * smoothstep(0.0, 0.08, s) * smoothstep(0.0, 0.08, 1.0 - s);
+      vec3 valle = grado(tierraCil(vec2((th + 3.14159265) * RC, p0.y), s)) * 1.6;
+      float nube = smoothstep(0.55, 0.8, fbm2(vec2(th * RC * 0.6, p0.y * 0.35) + 11.0));
+      vec3 dentroVisto = mix(mix(valle, vec3(0.5, 0.64, 0.8) * 0.55, 0.3), vec3(0.85, 0.88, 0.9) * 0.7, nube * 0.7);
+      float marco = smoothstep(0.0, 0.05, s) * smoothstep(0.0, 0.05, 1.0 - s);
+      em = dentroVisto * (1.0 - 0.75 * rib) * (0.85 + 0.3 * hp) * marco + vec3(0.5, 0.55, 0.6) * 0.12 * (1.0 - marco);
     } else {
       // The hull: plates in rings and seams, lit by the Sun.
       float seam = 1.0 - smoothstep(0.0, max(0.012, paso * 0.6), abs(fract(p0.y * 0.5) - 0.5) - 0.485);
       float seam2 = 1.0 - smoothstep(0.0, max(0.012, paso * 0.6), abs(fract(th * RC * 0.8) - 0.5) - 0.485);
-      vec3 alb = vec3(0.32, 0.33, 0.34) * (0.75 + 0.5 * h21(floor(vec2(th * RC * 0.8, p0.y * 0.5)))) * (0.82 + 0.36 * hp);
-      alb *= 1.0 - 0.45 * max(seam, seam2);
+      vec3 alb = vec3(0.4, 0.41, 0.43) * (0.7 + 0.6 * h21(floor(vec2(th * RC * 0.8, p0.y * 0.5)))) * (0.82 + 0.36 * hp);
+      alb *= 1.0 - 0.6 * max(seam, seam2);
       // A structural ring every 4 km, lighter.
       float aro = 1.0 - smoothstep(0.0, max(0.03, paso * 0.7), abs(fract(p0.y * 0.25 + 0.5) - 0.5) - 0.48);
       alb = mix(alb, vec3(0.6, 0.6, 0.62), aro * min(1.0, 0.06 / max(paso, 0.001)));
       float lit = smoothstep(-0.02, 0.3, dot(nOut, uSun));
-      em = grado(alb) * (lit * 0.9 + 0.09);
+      // The Sun comes down the axis, so the sides are grazed: a fill from the mirrors' light and a
+      // brighter rim where the hull turns away give it its round body.
+      vec3 vv = normalize(uCamL - p0);
+      float rim = pow(1.0 - abs(dot(nOut, vv)), 2.5);
+      em = grado(alb) * (lit * 1.25 + 0.2 + 0.45 * rim);
       em += vec3(1.0, 0.95, 0.85) * pow(max(dot(reflect(-uSun, nOut), normalize(uCamL - p0)), 0.0), 40.0) * 0.25 * lit;
     }
   }`;
@@ -300,6 +308,57 @@ export function cilindroPuntos(root: THREE.Group) {
   });
   root.add(caps.points);
   capas.push(caps);
+  // The agricultural ring (as in the 1975 paintings): pods round a hub beyond the sunward cap, on
+  // spokes, glowing faintly green with their crops; lit by the Sun from +Y.
+  {
+    const pods = 24;
+    const RA = 6.2;
+    const per = 1600;
+    const n = pods * per + pods * 160 + 3000;
+    const pp = new Float32Array(n * 3);
+    const pc = new Float32Array(n * 3);
+    let k = 0;
+    const put = (x: number, y: number, z: number, b: number, g = 0) => {
+      pp.set([x, y, z], k * 3);
+      pc.set([b * (1 - 0.35 * g), b * (1 + 0.1 * g), b * (1 - 0.25 * g)], k * 3);
+      k++;
+    };
+    const y0 = L / 2 + 2.2;
+    for (let i = 0; i < pods; i++) {
+      const a = (i / pods) * Math.PI * 2;
+      const c = V(Math.cos(a) * RA, y0, Math.sin(a) * RA);
+      const t = V(-Math.sin(a), 0, Math.cos(a));
+      for (let j = 0; j < per; j++) {
+        // A short cylinder along the ring's tangent, 1.3 km long, 300 m across.
+        const w = Math.random() * Math.PI * 2;
+        const along = (Math.random() - 0.5) * 1.3;
+        const nr = V(Math.cos(a) * Math.cos(w), Math.sin(w), Math.sin(a) * Math.cos(w));
+        const q = c.clone().addScaledVector(t, along).addScaledVector(nr, 0.3);
+        const lit = 0.25 + 0.75 * Math.max(0, nr.y);
+        const vidrio = Math.abs(Math.sin(w * 2)) < 0.35 ? 1 : 0;
+        put(q.x, q.y, q.z, (vidrio ? 0.5 : 0.32) * lit + (vidrio ? 0.12 : 0), vidrio);
+      }
+      // Its spoke to the hub.
+      for (let j = 0; j < 160; j++) {
+        const r = (j / 160) * RA;
+        put(Math.cos(a) * r, y0, Math.sin(a) * r, 0.22);
+      }
+    }
+    // The hub and its mast down to the cap.
+    for (let j = 0; j < 3000; j++) {
+      const w = Math.random() * Math.PI * 2;
+      const y = L / 2 + Math.random() * 2.6;
+      const r = y > y0 - 0.4 && y < y0 + 0.4 ? 0.7 : 0.25;
+      put(Math.cos(w) * r, y, Math.sin(w) * r, 0.18 + 0.3 * Math.max(0, Math.sin(w)));
+    }
+    const agro = puntos(geometria({ position: pp.slice(0, k * 3), color: pc.slice(0, k * 3), size: new Float32Array(k).fill(0.035), seed: new Float32Array(k), aKind: new Float32Array(k) }), {
+      pre: `uniform float uDentro;`,
+      cuerpo: `em *= 1.0 - uDentro;`,
+      uniforms: u,
+    });
+    root.add(agro.points);
+    capas.push(agro);
+  }
   // The mirrors: silhouettes (dark glass, a glint, a thin frame).
   espejosSilueta(root, u);
   // Under the mirrors' and the caps' points, their surfaces, dim (as under the hull).
@@ -378,10 +437,27 @@ function espejosSilueta(root: THREE.Group, u: { uCamL: { value: THREE.Vector3 };
           void main() {
             #include <logdepthbuf_fragment>
             vec3 nn = dot(uN, uSun) > 0.0 ? uN : -uN;
-            float glint = pow(max(dot(reflect(-uSun, nn), normalize(uCamL - vW)), 0.0), 400.0);
+            vec3 v = normalize(uCamL - vW);
+            bool cara = dot(nn, v) > 0.0;
+            float rv = max(dot(reflect(-uSun, nn), v), 0.0);
+            // Silvered panels (about 550 m by 1 km), each a touch off flat, with dark seams; the
+            // face shows the sky's blue-black and catches the Sun broadly and in a glint. The back,
+            // dark, its truss in a grid.
+            vec2 q = vUv * vec2(8.0, 32.0);
+            vec2 fq = fract(q);
+            float tile = fract(sin(dot(floor(q), vec2(12.9898, 78.233))) * 43758.5453);
+            float seam = 1.0 - smoothstep(0.0, 0.04, min(min(fq.x, 1.0 - fq.x), min(fq.y, 1.0 - fq.y)));
             vec2 e = min(vUv, 1.0 - vUv);
             float edge = 1.0 - smoothstep(0.0, 0.006, min(e.x, e.y));
-            vec3 c = vec3(0.006) + vec3(1.0, 0.95, 0.88) * glint * 1.6 + vec3(0.6, 0.65, 0.7) * edge * 0.25;
+            vec3 c;
+            if (cara) {
+              float sheen = pow(rv, 6.0) * (0.75 + 0.5 * tile);
+              c = vec3(0.05, 0.058, 0.072) * (0.8 + 0.4 * tile) + vec3(1.0, 0.95, 0.88) * (sheen * 0.45 + pow(rv, 400.0) * 1.6);
+              c *= 1.0 - 0.55 * seam;
+            } else {
+              c = vec3(0.014, 0.015, 0.017) * (0.8 + 0.4 * tile) + vec3(0.12, 0.13, 0.14) * seam * 0.35;
+            }
+            c += vec3(0.6, 0.65, 0.7) * edge * 0.3;
             gl_FragColor = vec4(c, 1.0);
           }`,
       }),
