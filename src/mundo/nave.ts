@@ -66,6 +66,16 @@ export function naveGeneracional() {
       }
   }
 
+  // Inside the truss, a closed box (cables, pipes, the corridor between the wheels): with only the
+  // truss, the spine read as see-through.
+  for (let i = 0; i < 20000 * D; i++) {
+    const k = Math.floor(r() * 4);
+    const t = r() * 2 - 1;
+    const n = [V(1, 0, 0), V(0, 0, 1), V(-1, 0, 0), V(0, 0, -1)][k];
+    const lado = V(-n.z, 0, n.x);
+    a.lit(n.clone().multiplyScalar(0.2).addScaledVector(lado, 0.2 * t).setY(Y0 + r() * (Y1 - Y0)), n, [0.12, 0.125, 0.135], 0.025, 0.25);
+  }
+
   // The engine at the fore end: the magnetic nozzle (a bell of coil rings and ribs, open forward),
   // its throat glowing.
   for (let i = 0; i < 30000 * D; i++) {
@@ -77,7 +87,7 @@ export function naveGeneracional() {
     const costilla = Math.abs(((ph / (Math.PI * 2)) * 16) % 1 - 0.5) > 0.44;
     if (!anillo && !costilla && r() > 0.25) continue;
     const n = V(Math.cos(ph), -0.5 * t, Math.sin(ph)).normalize();
-    a.lit(V(Math.cos(ph) * rad, y, Math.sin(ph) * rad), n, anillo || costilla ? [0.55, 0.58, 0.62] : [0.3, 0.31, 0.33], 0.03, 0.22);
+    a.lit(V(Math.cos(ph) * rad, y, Math.sin(ph) * rad), n, anillo || costilla ? [0.22, 0.23, 0.25] : [0.12, 0.125, 0.135], 0.03, 0.22);
   }
   for (let i = 0; i < 1500 * D; i++) {
     const [x, y, z] = [r() - 0.5, r() - 0.5, r() - 0.5].map((v) => v * 0.6);
@@ -86,7 +96,8 @@ export function naveGeneracional() {
 
   // The propellant (deuterium and helium-3): six long capsule tanks round the spine behind the
   // engine, in white insulation with darker bands, each held to the spine by struts.
-  const TANQUE: [number, number, number] = [0.74, 0.72, 0.66];
+  // (points add up: as dense as they are, a dim white reads as the insulation; brighter, they glared)
+  const TANQUE: [number, number, number] = [0.3, 0.29, 0.27];
   const RT = 0.62;
   const TY0 = 6.2;
   const TY1 = 11.6;
@@ -161,10 +172,10 @@ export function naveGeneracional() {
       const p = V(Math.cos(u) * rin, yc + 0.6 * Math.sin(v), Math.sin(u) * rin);
       const n = V(Math.cos(u) * Math.cos(v), Math.sin(v), Math.sin(u) * Math.cos(v));
       const ventana = Math.abs(Math.cos(v) + 1) < 0.25 && Math.abs((u * 60) % 1 - 0.5) < 0.3;
-      if (ventana) b.push(p, [1.3, 0.95, 0.55], 0.028);
+      if (ventana) b.push(p, [0.6, 0.43, 0.25], 0.028);
       else {
         const seg = Math.abs(((u / (Math.PI * 2)) * 48) % 1 - 0.5) > 0.46;
-        b.lit(p, n, seg ? [0.7, 0.72, 0.76] : [0.52, 0.54, 0.58], 0.028, 0.3);
+        b.lit(p, n, seg ? [0.26, 0.27, 0.29] : [0.19, 0.2, 0.22], 0.028, 0.22);
       }
     }
     for (let k = 0; k < 6; k++) {
@@ -175,7 +186,7 @@ export function naveGeneracional() {
       const u = r() * Math.PI * 2;
       const y = yc + (r() - 0.5) * 1.6;
       const n = V(Math.cos(u), 0, Math.sin(u));
-      b.lit(V(Math.cos(u) * 0.6, y, Math.sin(u) * 0.6), n, ACERO, 0.03);
+      b.lit(V(Math.cos(u) * 0.6, y, Math.sin(u) * 0.6), n, [0.2, 0.21, 0.22], 0.03);
     }
   }
 
