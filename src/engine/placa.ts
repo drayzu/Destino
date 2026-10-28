@@ -77,6 +77,20 @@ export function cuando(ly: number) {
   return EN ? `in 10${sup(Math.floor(ly))} years` : `dentro de 10${sup(Math.floor(ly))} años`;
 }
 
+/** The same, as a label and its value for the reading: «año · 2340», «dentro de · 1 000 años». */
+export function cuandoCampo(ly: number, anio?: number): [string, string] {
+  const year = EN ? 'year' : 'año';
+  if (anio !== undefined && anio < 2026) return [year, String(Math.round(anio))];
+  const y = Math.pow(10, ly);
+  if (anio !== undefined || y < 1) return [year, EN ? '2026 · today' : '2026 · hoy'];
+  if (y < 7000) return [year, String(2026 + Math.round(y / 10) * 10)];
+  const fuera = EN ? 'from now' : 'dentro de';
+  const anios = EN ? 'years' : 'años';
+  if (y < 1e6) return [fuera, `${group(Math.round(y / 1000) * 1000)} ${anios}`];
+  if (y < 1e9) return [fuera, EN ? `${Math.round(y / 1e6)} million years` : `${Math.round(y / 1e6)} millones de años`];
+  return [fuera, `10${sup(Math.floor(ly))} ${anios}`];
+}
+
 const LY_M = 9.4607e15;
 const AU_M = 1.496e11;
 /** How far: «400 km», «1,3 UA», «12 años luz». */
@@ -371,19 +385,24 @@ export function hud(g: CanvasRenderingContext2D, u: number, W: number, H: number
   g.font = FONT.italic(24 * u);
   g.fillStyle = TEAL;
   g.fillText(`${EN ? 'type' : 'tipo'} ${coma(K, 2)}`, x + w + 22 * u, H - 92 * u);
+  // (named, like the rest of the reading: its rungs, I · a planet, II · a star, III · a galaxy, are on the ladder)
+  g.font = FONT.mono(8.5 * u);
+  g.letterSpacing = `${0.9 * u}px`;
+  g.fillStyle = ink(0.45);
+  g.fillText((EN ? 'Kardashev scale' : 'escala de Kardashev').toUpperCase(), x + w + 22 * u, H - 120 * u);
   // The reading, each value under its name (one line of values and words ran together).
-  const when = l.anio !== undefined ? (l.anio >= 2026 ? cuando(-1) : `${EN ? 'year' : 'año'} ${Math.round(l.anio)}`) : cuando(l.ly);
   const campos = [
     [EN ? 'power in use' : 'potencia en uso', vatios(lp)],
-    [EN ? 'when' : 'cuándo', when],
+    cuandoCampo(l.ly, l.anio),
     [EN ? 'reach' : 'alcance', alcance(l.lr)],
   ].map(([k, v]) => [k.toUpperCase(), v.toUpperCase()]);
   const VAL = FONT.mono(11 * u);
   const KEY = FONT.mono(8.5 * u);
+  // (measured with the letter spacing they are drawn with: without it the columns ran into each other)
+  g.letterSpacing = `${0.9 * u}px`;
   const ancho = (t: string, f: string) => ((g.font = f), g.measureText(t).width);
   const cols = campos.map(([k, v]) => Math.max(ancho(k, KEY), ancho(v, VAL)));
-  const gap = 30 * u;
-  g.letterSpacing = `${0.9 * u}px`;
+  const gap = 34 * u;
   if (cols.reduce((a, b) => a + b, 0) + gap * 2 <= W - x - 90 * u) {
     let cx = x;
     campos.forEach(([k, v], n) => {
