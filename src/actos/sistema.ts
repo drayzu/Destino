@@ -714,7 +714,7 @@ export function sistema(): Acto {
       const ha = ease(0.6, 0.7, kh) * (1 - ease(0.96, 1.04, kh));
       if (ha > 0.01) {
         const h = hab();
-        add(h.ring.clone().addScaledVector(UP, 1000 * KM), 'anillo de Bishop · 2 000 km', 34, -30, ha);
+        add(h.ring.clone().addScaledVector(UP, 1000 * KM), 'anillo de Bishop · 2 000 km, aún en obra', 34, -30, ha);
         add(CIL, 'el de O’Neill: 32 km, aquí un punto', -40, 34, ha);
         add(h.toro, 'toro de Stanford · 1,8 km', 34, -34, ha);
         add(h.bernal, 'esfera de Bernal · 0,5 km', 40, 30, ha);

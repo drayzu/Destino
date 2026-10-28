@@ -194,7 +194,7 @@ const EN: Record<string, string> = {
   'nuestra burbuja': 'our bubble',
   'aquí: nuestra burbuja, un punto': 'here: our bubble, a point',
   'Mundos que giran': 'Worlds that turn',
-  'anillo de Bishop · 2 000 km': 'Bishop ring · 2,000 km',
+  'anillo de Bishop · 2 000 km, aún en obra': 'Bishop ring · 2,000 km, still being built',
   'cilindro de McKendree · 4 600 km': 'McKendree cylinder · 4,600 km',
   'el de O’Neill: 32 km, aquí un punto': 'O’Neill’s: 32 km, a point from here',
   'toro de Stanford · 1,8 km': 'Stanford torus · 1.8 km',

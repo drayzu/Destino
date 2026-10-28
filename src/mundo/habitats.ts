@@ -6,7 +6,8 @@ import { CALIDA, LUZ, METAL as ACERO, OSCURO, Obra } from './obra';
  * The other habitats at L5 (act III), all of them turning for their gravity, in kilometres:
  *
  * - Bishop ring (Bishop 1997): a band 1 000 km in radius and 500 km wide, open to space, its air held
- *   by walls 200 km high; it needs carbon nanotubes. One turn every ~33 minutes.
+ *   by walls 200 km high; it needs carbon nanotubes. One turn every ~33 minutes. Here still being
+ *   built: a stretch of it is bare frames between two bulkheads.
  * - McKendree cylinder (McKendree 2000): an O'Neill cylinder of carbon nanotubes, 460 km in radius and
  *   4 600 km long. One turn every ~24 minutes.
  * - Stanford torus (NASA–Stanford summer study, 1975): a wheel 1.8 km across for 10 000 people,
@@ -150,6 +151,8 @@ const HULL = (ribs: number, len: number) => /* glsl */ `
 
 // ---------------------------------------------------------------- Bishop ring
 
+/** Where it stands in its turn: the gap on the near side as we pass. */
+const FASE = 3.0;
 export function anilloBishop() {
   const R = 1000;
   const W = 500;
@@ -158,8 +161,25 @@ export function anilloBishop() {
   group.add(giro);
   const uni = { uSun: { value: V(1, 0, 0) }, uTime: { value: 0 } };
   const capas: Puntos[] = [];
-  // The floor: land, seas and clouds inside; the hull outside.
-  const floor = new THREE.Mesh(new THREE.CylinderGeometry(R, R, W, 720, 8, true));
+  const h = W / 2;
+  // Not closed yet: a stretch of it (2 HUECO round angle 0) is still being built, its bare frames
+  // between two bulkheads, the cables already across. Angles `a` as in obra.ts: (cos a, 0, sin a).
+  const HUECO = 0.22;
+  const PHI0 = HUECO - 1.5 * Math.PI;
+  const PHI = 2 * Math.PI - 2 * HUECO;
+  const en = (a: number, r: number, y: number) => V(Math.cos(a) * r, y, Math.sin(a) * r);
+  // The cross-section of the hull (r, y), from the crest of one wall round to the other's: each wall a
+  // dam, thick at its foot, leaning, rounded at its crest; the keel under the land bulging a little.
+  const medio: [number, number][] = [
+    [R + 30, 0], [R + 27, 100], [R + 18, 190], [R + 2, 252], [R - 26, 296], [R - 62, 306],
+    [R - 122, 288], [R - 180, 268], [R - 201, 261], [R - 207, 254], [R - 200, 250],
+  ];
+  const ctrl = [...medio.slice(1).reverse().map(([r, y]) => V(r, -y, 0)), ...medio.map(([r, y]) => V(r, y, 0))];
+  const perfil = new THREE.CatmullRomCurve3(ctrl, false, 'centripetal').getSpacedPoints(400).map((p) => new THREE.Vector2(p.x, p.y));
+  /** The keel's radius at y (under the land). */
+  const quilla = (y: number) => perfil.reduce((b, p) => (p.x > R - 5 && Math.abs(p.y - y) < Math.abs(b.y - y) ? p : b), perfil[200]).x;
+  // The floor: land, seas and clouds inside (its outside is behind the hull).
+  const floor = new THREE.Mesh(new THREE.CylinderGeometry(R, R, W, 720, 8, true, PHI0, PHI));
   giro.add(floor);
   superficie(
     floor,
@@ -197,12 +217,12 @@ export function anilloBishop() {
       }
       return grado(col);
     }`,
-    420000,
+    340000,
     capas,
   );
   // The walls that hold the air: 200 km high, a line of light along their tops.
   for (const s of [-1, 1]) {
-    const wall = new THREE.Mesh(new THREE.RingGeometry(R - 200, R, 720, 2));
+    const wall = new THREE.Mesh(new THREE.RingGeometry(R - 200, R, 720, 2, HUECO, PHI));
     wall.rotation.x = Math.PI / 2;
     wall.position.y = (s * W) / 2;
     giro.add(wall);
@@ -225,44 +245,168 @@ export function anilloBishop() {
       capas,
     );
   }
-  // What makes it built: the cables that hold it (carbon nanotube, in bundles round its outside),
-  // ribs across it every 3°, towns and towers along the tops of the walls, docks standing off the
-  // hull with craft coming in.
+  // The hull: one piece round the section, from wall crest to wall crest; people live in the dams.
+  {
+    const casco = new THREE.LatheGeometry(perfil, 720, PHI0, PHI);
+    // (its normals outwards: the keel's, mid-section of the first meridian, away from the axis)
+    const pn = casco.getAttribute('normal');
+    const pp = casco.getAttribute('position');
+    if (pn.getX(200) * pp.getX(200) + pn.getZ(200) * pp.getZ(200) < 0) for (let i = 0; i < pn.count; i++) pn.setXYZ(i, -pn.getX(i), -pn.getY(i), -pn.getZ(i));
+    const mesh = new THREE.Mesh(casco);
+    giro.add(mesh);
+    superficie(
+      mesh,
+      uni,
+      /* glsl */ `
+      uniform vec3 uSun;
+      vec3 sup(vec3 vP, vec3 vNW, bool fuera) {
+        float r = length(vP.xz);
+        float sun = max(dot(vNW, uSun), 0.0);
+        float a = (atan(vP.z, vP.x) + 3.14159265) / 6.2831853 * 240.0;
+        // how far round the section from the keel's middle (up a dam's face, on from |y|)
+        float s = abs(vP.y) + max(0.0, ${R.toFixed(1)} - r);
+        float seam = smoothstep(0.43, 0.5, abs(fract(a) - 0.5));
+        float rib = smoothstep(0.44, 0.5, abs(fract(s / 64.0) - 0.5));
+        float shade = 0.78 + 0.44 * h21(vec2(floor(a), floor(s / 64.0)));
+        float dique = smoothstep(${(R - 5).toFixed(1)}, ${(R - 30).toFixed(1)}, r);
+        vec3 col = vec3(0.45, 0.47, 0.5) * shade * (0.42 + 0.58 * sun) * (1.0 - 0.12 * dique);
+        col = grado(col * (1.0 - 0.55 * max(seam, rib)));
+        float ven = step(0.9, h21(floor(vec2(a * 6.0, s / 5.0)))) * step(0.5, fract(s / 5.0)) * dique;
+        return col + vec3(1.25, 0.9, 0.55) * ven * 0.55;
+      }`,
+      380000,
+      capas,
+    );
+  }
+  // The two bulkheads where the built part ends: the section closed, up to the walls' crests (above
+  // the land, the dam that holds the air); a row of lights along the land's edge.
+  for (const a of [HUECO, -HUECO]) {
+    const tapa = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(perfil), 1));
+    tapa.rotation.y = -a;
+    giro.add(tapa);
+    superficie(
+      tapa,
+      uni,
+      /* glsl */ `
+      uniform vec3 uSun;
+      vec3 sup(vec3 vP, vec3 vNW, bool fuera) {
+        float sun = abs(dot(vNW, uSun));
+        vec2 g = abs(fract(vP.xy / 24.0) - 0.5);
+        float seam = smoothstep(0.42, 0.5, max(g.x, g.y));
+        float aire = step(vP.x, ${R.toFixed(1)});
+        vec3 col = vec3(0.42, 0.44, 0.47) * (0.8 + 0.4 * h21(floor(vP.xy / 24.0))) * (0.2 + 0.8 * sun) * (1.0 - 0.5 * seam) * (1.0 - 0.3 * aire);
+        float suelo = 1.0 - smoothstep(0.0, 5.0, abs(vP.x - ${R.toFixed(1)}));
+        return grado(col) + vec3(1.25, 0.9, 0.55) * suelo * step(0.5, fract(vP.y / 9.0)) * 0.9;
+      }`,
+      30000,
+      capas,
+    );
+  }
+  // What makes it built: the cables that hold it (carbon nanotube, in bundles round its keel, already
+  // across the gap), ribs round its section every 3°, towns and towers along the walls' crests, docks
+  // standing off the keel with craft coming in; in the gap, the bare frames, the hull's first panels
+  // creeping in from both ends, the lights of the work and the craft that bring more.
   {
     const o = new Obra(3);
+    const hecho = (a: number) => {
+      const b = ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      return b > HUECO + 0.004 && b < 2 * Math.PI - HUECO - 0.004;
+    };
+    // The section, coarser, and its outward normal at each point (r, y).
+    const cp = perfil.filter((_, i) => i % 8 === 0);
+    const nrm2 = (j: number) => {
+      const t = cp[Math.min(j + 1, cp.length - 1)].clone().sub(cp[Math.max(j - 1, 0)]);
+      return new THREE.Vector2(t.y, -t.x).normalize();
+    };
+    const sobre = (a: number, j: number, d: number) => {
+      const n = nrm2(j);
+      return en(a, cp[j].x + n.x * d, cp[j].y + n.y * d);
+    };
+    const nrm3 = (a: number, j: number) => {
+      const n = nrm2(j);
+      return en(a, n.x, n.y);
+    };
     for (const y of [-200, -100, 0, 100, 200]) {
-      o.tubo(V(0, y - 7, 0), V(0, y + 7, 0), R + 9, ACERO, 3.2);
-      o.luces(V(0, y, 0), V(0, 1, 0), R + 20, 48, y === 0 ? LUZ : [1.4, 0.4, 0.3], 9);
+      const rc = quilla(y) + 8;
+      o.tubo(V(0, y - 7, 0), V(0, y + 7, 0), rc, ACERO, 3.2);
+      o.luces(V(0, y, 0), V(0, 1, 0), rc + 9, 48, y === 0 ? LUZ : [1.4, 0.4, 0.3], 9);
     }
     for (let k = 0; k < 120; k++) {
       const a = (k / 120) * Math.PI * 2;
-      const rad = V(Math.cos(a), 0, Math.sin(a));
-      const tan = V(-Math.sin(a), 0, Math.cos(a));
-      for (const dt of [-3, 3]) o.viga(rad.clone().multiplyScalar(R + 4).addScaledVector(tan, dt).setY(-W / 2), rad.clone().multiplyScalar(R + 4).addScaledVector(tan, dt).setY(W / 2), k % 10 === 0 ? [0.7, 0.72, 0.76] : OSCURO, 2.6, rad);
+      if (!hecho(a)) continue;
+      const c: [number, number, number] = k % 10 === 0 ? [0.7, 0.72, 0.76] : OSCURO;
+      for (let j = 0; j < cp.length - 1; j++) o.viga(sobre(a, j, 3), sobre(a, j + 1, 3), c, 2.6, nrm3(a, j));
     }
-    // Along each wall top: a rim, and every 9° a town on the wall, a few of them tall.
+    // Along each wall's crest: a rim, and every 9° a town on it, a few of them tall.
     for (const sg of [-1, 1]) {
-      o.aro(V(0, (sg * W) / 2, 0), V(0, 1, 0), R - 200, [0.7, 0.72, 0.76], 2.5);
+      for (let a = HUECO; a < 2 * Math.PI - HUECO; a += 2 / (R - 207)) o.punto(en(a, R - 208, sg * 254), en(a, -1, 0), [0.7, 0.72, 0.76], 2.5);
       for (let k = 0; k < 40; k++) {
         const a = (k / 40) * Math.PI * 2 + (sg > 0 ? 0.04 : 0);
+        if (!hecho(a - 0.03) || !hecho(a + 0.03)) continue;
         const rad = V(Math.cos(a), 0, Math.sin(a));
         const tan = V(-Math.sin(a), 0, Math.cos(a));
         const alto = k % 5 === 0 ? 30 : 8 + 6 * ((k * 3) % 2);
-        const c = rad.clone().multiplyScalar(R - 190 - alto).setY((sg * W) / 2 + sg * 6);
+        const c = rad.clone().multiplyScalar(R - 200 - alto).setY(sg * (h + 4));
         o.caja(c, rad.clone().multiplyScalar(alto), V(0, 6, 0), tan.clone().multiplyScalar(k % 5 === 0 ? 8 : 18), [0.42, 0.43, 0.46], 3);
         o.punto(c.clone().addScaledVector(rad, -alto - 2), rad.clone().negate(), CALIDA, 8, k % 5 === 0 ? 2 : 1);
       }
     }
-    // Six docks off the hull, their beacons, craft coming in.
+    // Six docks off the keel, their beacons, craft coming in.
     for (let k = 0; k < 6; k++) {
-      const a = (k / 6) * Math.PI * 2 + 0.2;
+      const a = (k / 6) * Math.PI * 2 + 0.35;
       const rad = V(Math.cos(a), 0, Math.sin(a));
       const tan = V(-Math.sin(a), 0, Math.cos(a));
       const y0 = (k % 2 ? 1 : -1) * 120;
-      o.celosia(rad.clone().multiplyScalar(R + 10).setY(y0), rad.clone().multiplyScalar(R + 70).setY(y0), 14, ACERO, 2.5);
-      o.caja(rad.clone().multiplyScalar(R + 80).setY(y0), rad.clone().multiplyScalar(10), V(0, 18, 0), tan.clone().multiplyScalar(26), [0.55, 0.56, 0.6], 2.8);
-      o.punto(rad.clone().multiplyScalar(R + 92).setY(y0), rad, LUZ, 10, 2);
-      o.trafico(rad.clone().multiplyScalar(R + 1400).setY(y0 + 300), rad.clone().multiplyScalar(R + 92).setY(y0), 6, 300);
+      const rq = quilla(y0);
+      o.celosia(rad.clone().multiplyScalar(rq + 1).setY(y0), rad.clone().multiplyScalar(rq + 60).setY(y0), 14, ACERO, 2.5);
+      o.caja(rad.clone().multiplyScalar(rq + 70).setY(y0), rad.clone().multiplyScalar(10), V(0, 18, 0), tan.clone().multiplyScalar(26), [0.55, 0.56, 0.6], 2.8);
+      o.punto(rad.clone().multiplyScalar(rq + 82).setY(y0), rad, LUZ, 10, 2);
+      o.trafico(rad.clone().multiplyScalar(rq + 1400).setY(y0 + 300), rad.clone().multiplyScalar(rq + 82).setY(y0), 6, 300);
+    }
+    // The gap. Frames every ~1.2° (0 and NF are the bulkheads), and the floor's beams.
+    const NF = 12;
+    const aF = (i: number) => -HUECO + (2 * HUECO * i) / NF;
+    for (let i = 1; i < NF; i++) {
+      for (let j = 0; j < cp.length - 1; j++) o.viga(sobre(aF(i), j, 0), sobre(aF(i), j + 1, 0), i % 3 === 0 ? [0.85, 0.87, 0.9] : [0.62, 0.64, 0.68], 2.8, nrm3(aF(i), j));
+      o.viga(en(aF(i), R, -h), en(aF(i), R, h), ACERO, 2.4, en(aF(i), -1, 0));
+    }
+    // Trusses along it, at stations round the section; beams along the floor.
+    for (let i = 0; i < NF; i++) {
+      for (let j = 0; j < cp.length; j += 5) o.celosia(sobre(aF(i), j, 0), sobre(aF(i + 1), j, 0), 7, ACERO, 2.2);
+      for (const y of [-200, -100, 0, 100, 200]) o.viga(en(aF(i), R, y), en(aF(i + 1), R, y), OSCURO, 2.2, en(aF(i), -1, 0));
+    }
+    // The hull's panels creeping in from each bulkhead, raggedly.
+    for (const lado of [0, 1])
+      for (let j = 0; j < cp.length - 1; j++) {
+        const hondo = Math.max(0, Math.min(5, Math.floor(2.2 + 1.8 * Math.sin(j * 0.37 + lado * 2.1) + 1.4 * (Math.random() - 0.5))));
+        const n2 = nrm2(j);
+        for (let q = 0; q < hondo; q++) {
+          const i0 = lado ? NF - q - 1 : q;
+          const A0 = aF(i0);
+          const A1 = aF(i0 + 1);
+          const nu = Math.ceil(((A1 - A0) * cp[j].x) / 3);
+          const nv = Math.ceil(cp[j + 1].distanceTo(cp[j]) / 3);
+          const tono = 0.8 + 0.4 * Math.random();
+          for (let u = 0; u <= nu; u++)
+            for (let v = 0; v <= nv; v++) {
+              const a = A0 + ((A1 - A0) * u) / nu;
+              const p2 = cp[j].clone().lerp(cp[j + 1], v / nv);
+              const k = (u === 0 || v === 0 || u === nu || v === nv ? 0.55 : 1) * tono;
+              o.punto(en(a, p2.x + n2.x, p2.y + n2.y), en(a, n2.x, n2.y), [0.45 * k, 0.47 * k, 0.5 * k], 3);
+            }
+        }
+      }
+    // The lights of the work, and craft bringing more.
+    for (let k = 0; k < 140; k++) {
+      const j = Math.floor(Math.random() * cp.length);
+      const a = aF(1 + Math.floor(Math.random() * (NF - 1)));
+      o.punto(sobre(a, j, 4), nrm3(a, j), CALIDA, 7, 2);
+    }
+    for (let k = 0; k < 16; k++) {
+      const j = Math.floor(Math.random() * cp.length);
+      const a = (Math.random() - 0.5) * 2 * HUECO;
+      const lejos = en(a + (Math.random() - 0.5) * 0.4, cp[j].x + 900 + 600 * Math.random(), cp[j].y * 2 + (Math.random() - 0.5) * 600);
+      o.trafico(lejos, sobre(a, j, 4), 1, 40, CALIDA, 7);
     }
     const obra = o.build(uni, true, 0.25);
     giro.add(obra.points);
@@ -276,7 +420,7 @@ export function anilloBishop() {
     update(time: number, vista: Vista) {
       // (sped up: at its real pace, a turn in 33 minutes, it looked still; one turn in about two and
       // a half minutes reads as turning)
-      giro.rotation.y = time * Math.max(omega(R), 0.04);
+      giro.rotation.y = time * Math.max(omega(R), 0.04) + FASE;
       uni.uTime.value = time;
       for (const c of capas) enfocar(c, vista);
     },
