@@ -127,7 +127,7 @@ const PUNTO_CIL = /* glsl */ `
   bool ventana = t >= 0.5;
   float s = ventana ? (t - 0.5) / 0.5 : t / 0.5;
   float dCam = distance(p0, uCamL);
-  if (uDentro > 0.5) {
+  if (uParedes > 0.5) {
     if (ventana) {
       // The windows' ribs, faint against space.
       float rib = 1.0 - smoothstep(0.0, max(0.02, paso * 0.6), abs(fract(p0.y * 1.5) - 0.5) - 0.48);
@@ -173,6 +173,8 @@ export function cilindroPuntos(root: THREE.Group) {
     uCamL: { value: V() },
     uSun: { value: V(0, 1, 0) },
     uDentro: { value: 0 },
+    /** The walls seen from their inner side: within the radius, inside or out past an end (through the port). */
+    uParedes: { value: 0 },
     uDia: { value: 1 },
     uPeso: { value: 0.55 },
     uFocoU: { value: 0 },
@@ -180,7 +182,7 @@ export function cilindroPuntos(root: THREE.Group) {
     uNivel: { value: 0 },
   };
   const { global, parche, nu } = geoCilindro();
-  const PRE = /* glsl */ `uniform vec3 uCamL, uSun; uniform float uDentro, uDia, uPeso, uFocoU, uFocoV, uNivel; ${GLSL}`;
+  const PRE = /* glsl */ `uniform vec3 uCamL, uSun; uniform float uDentro, uParedes, uDia, uPeso, uFocoU, uFocoV, uNivel; ${GLSL}`;
   const capas: Puntos[] = [];
   // The global lattice: 50 m apart.
   const g = puntos(global, {
@@ -194,7 +196,7 @@ export function cilindroPuntos(root: THREE.Group) {
       float paso = ${G0.toFixed(3)};
       ${PUNTO_CIL}
       // Inside, they are only grain over the surface; near the camera the patch takes over.
-      sz = ${G0.toFixed(3)} * mix(0.8, 0.45, uDentro);
+      sz = ${G0.toFixed(3)} * mix(0.8, 0.45, uParedes);
       float dF = length(vec2(th0 * RC - uFocoU, y0 - uFocoV));
       em *= mix(1.0, smoothstep(0.7, 0.95, dF / (${NVC.toFixed(1)} * ${(G0 / 2).toFixed(4)})), clamp(uNivel, 0.0, 1.0));
     }`,
@@ -224,7 +226,7 @@ export function cilindroPuntos(root: THREE.Group) {
       on *= step(abs(vv), ${(L / 2).toFixed(1)});
       em *= on;
       // Inside, the ground is close and grazing: the points overlap so it reads as land, not foam.
-      sz = sp * mix(0.8, 1.25, uDentro);
+      sz = sp * mix(0.8, 1.25, uParedes);
     }`,
     uniforms: u,
   });
@@ -240,7 +242,7 @@ export function cilindroPuntos(root: THREE.Group) {
           #include <logdepthbuf_vertex>
         }`,
       fragmentShader: /* glsl */ `${LOG_F}
-        uniform vec3 uCamL, uSun; uniform float uDentro, uDia;
+        uniform vec3 uCamL, uSun; uniform float uParedes, uDia;
         varying vec3 vP;
         ${GLSL}
         void main() {
@@ -249,7 +251,7 @@ export function cilindroPuntos(root: THREE.Group) {
           float t = tramo(th);
           float d = distance(vP, uCamL);
           vec3 c;
-          if (uDentro > 0.5) {
+          if (uParedes > 0.5) {
             if (t >= 0.5) discard;
             c = aire(grado(tierraCil(vec2(th * RC, vP.y), t / 0.5)) * 1.1 * uDia, d, uDia) * 0.85;
           } else {
@@ -541,6 +543,10 @@ export function cilindroPuntos(root: THREE.Group) {
       u.uCamL.value.copy(cam);
       const inn = dentro(cam);
       u.uDentro.value = inn ? 1 : 0;
+      // (coming in along the axis, still outside, the valley shows through the port: from within the
+      // radius only the walls' inner side can be seen, and drawn as hull it was dark until we crossed)
+      const paredes = Math.hypot(cam.x, cam.z) < R;
+      u.uParedes.value = paredes ? 1 : 0;
       // The patch round the nearest point of the surface; its level from the distance to it.
       const th = Math.atan2(cam.z, cam.x) + Math.PI;
       u.uFocoU.value = th * R;
@@ -548,8 +554,8 @@ export function cilindroPuntos(root: THREE.Group) {
       const d = Math.max(Math.abs(Math.hypot(cam.x, cam.z) - R), Math.max(0, Math.abs(cam.y) - L / 2), 1e-4);
       u.uNivel.value = THREE.MathUtils.clamp(Math.log2(G0 / (d * 0.0045)), 0, NIV);
       // Under the points from either side: just outside them seen from inside, just inside from outside.
-      fondo.material.side = inn ? THREE.BackSide : THREE.FrontSide;
-      fondo.scale.set(inn ? 1 : 0.995, 1, inn ? 1 : 0.995);
+      fondo.material.side = paredes ? THREE.BackSide : THREE.FrontSide;
+      fondo.scale.set(paredes ? 1 : 0.995, 1, paredes ? 1 : 0.995);
     },
   };
 }
