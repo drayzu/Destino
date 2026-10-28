@@ -170,10 +170,18 @@ export function anilloBishop() {
       vec2 q = vec2(th * ${(R / 90).toFixed(2)}, vP.y / 90.0);
       vec3 col;
       if (fuera) {
-        // Outside: the hull, its cables.
+        // Outside: the same light metal as the others, in 120 segments round the ring (each its own
+        // shade, so the turning shows), ribbed along its width, a row of lights along each edge.
         float sun = max(dot(vNW, uSun), 0.0);
-        col = vec3(0.3, 0.31, 0.32) * (0.12 + 0.8 * sun);
-        col += vec3(0.2) * smoothstep(0.47, 0.5, abs(fract(q.x * 0.5) - 0.5)) * 0.15;
+        float a = (th + 3.14159265) / 6.2831853 * 120.0;
+        float seam = smoothstep(0.43, 0.5, abs(fract(a) - 0.5));
+        float rib = smoothstep(0.44, 0.5, abs(fract(vP.y / 125.0) - 0.5));
+        float shade = 0.8 + 0.4 * h21(vec2(floor(a), floor(vP.y / 125.0)));
+        col = vec3(0.45, 0.47, 0.5) * shade * (0.18 + 0.82 * sun);
+        col *= 1.0 - 0.55 * max(seam, rib);
+        float borde = 1.0 - smoothstep(${(W / 2 - 12).toFixed(1)}, ${(W / 2 - 4).toFixed(1)}, abs(vP.y));
+        float luz = step(0.7, fract(a * 2.0));
+        return grado(col) + vec3(0.45, 1.0, 0.85) * (1.0 - borde) * luz * 0.9;
       } else {
         // Inside: a whole continent turned into a band. The day falls in from the open side.
         float f = fbm2(q * 0.6);
@@ -184,7 +192,7 @@ export function anilloBishop() {
         // Towards the walls the land rises in terraces.
         float e = abs(vP.y) / ${(W / 2).toFixed(1)};
         col = mix(col, vec3(0.2, 0.2, 0.18), smoothstep(0.85, 0.98, e));
-        col *= 0.8;
+        col *= 1.15;
       }
       return grado(col);
     }`,
@@ -205,8 +213,11 @@ export function anilloBishop() {
       vec3 sup(vec3 vP, vec3 vNW, bool fuera) {
         float r = length(vP.xy);
         float sun = abs(dot(vNW, uSun));
-        vec3 col = grado(vec3(0.3, 0.31, 0.32) * (0.12 + 0.8 * sun));
-        col += vec3(0.45, 1.0, 0.85) * (1.0 - smoothstep(0.0, 6.0, r - ${(R - 200).toFixed(1)})) * 0.9;
+        // The walls, in the same metal, in segments; along their tops a dashed line of lights.
+        float a = (atan(vP.y, vP.x) + 3.14159265) / 6.2831853 * 120.0;
+        float seam = smoothstep(0.43, 0.5, abs(fract(a) - 0.5));
+        vec3 col = grado(vec3(0.45, 0.47, 0.5) * (0.18 + 0.82 * sun) * (1.0 - 0.5 * seam));
+        col += vec3(0.45, 1.0, 0.85) * (1.0 - smoothstep(0.0, 6.0, r - ${(R - 200).toFixed(1)})) * step(0.55, fract(a * 2.0)) * 1.2;
         return col;
       }`,
       90000,
@@ -219,7 +230,9 @@ export function anilloBishop() {
     R,
     W,
     update(time: number, vista: Vista) {
-      giro.rotation.y = time * omega(R);
+      // (sped up: at its real pace, a turn in 33 minutes, it looked still; one turn in about two and
+      // a half minutes reads as turning)
+      giro.rotation.y = time * Math.max(omega(R), 0.04);
       uni.uTime.value = time;
       for (const c of capas) enfocar(c, vista);
     },
