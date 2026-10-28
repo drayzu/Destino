@@ -371,17 +371,48 @@ export function hud(g: CanvasRenderingContext2D, u: number, W: number, H: number
   g.font = FONT.italic(24 * u);
   g.fillStyle = TEAL;
   g.fillText(`${EN ? 'type' : 'tipo'} ${coma(K, 2)}`, x + w + 22 * u, H - 92 * u);
-  g.font = FONT.mono(11 * u);
-  g.letterSpacing = `${0.9 * u}px`;
-  g.fillStyle = ink(0.78);
+  // The reading, each value under its name (one line of values and words ran together).
   const when = l.anio !== undefined ? (l.anio >= 2026 ? cuando(-1) : `${EN ? 'year' : 'año'} ${Math.round(l.anio)}`) : cuando(l.ly);
-  const a = `${vatios(lp)} ${EN ? 'in use' : 'en uso'}  ·  ${when}`.toUpperCase();
-  const b = `${EN ? 'reach' : 'alcance'} ${alcance(l.lr)}`.toUpperCase();
-  // On a narrow screen, in two lines.
-  if (g.measureText(`${a}  ·  ${b}`).width > W - x - 90 * u) {
-    g.fillText(a, x, H - 58 * u);
-    g.fillText(b, x, H - 40 * u);
-  } else g.fillText(`${a}  ·  ${b}`, x, H - 52 * u);
+  const campos = [
+    [EN ? 'power in use' : 'potencia en uso', vatios(lp)],
+    [EN ? 'when' : 'cuándo', when],
+    [EN ? 'reach' : 'alcance', alcance(l.lr)],
+  ].map(([k, v]) => [k.toUpperCase(), v.toUpperCase()]);
+  const VAL = FONT.mono(11 * u);
+  const KEY = FONT.mono(8.5 * u);
+  const ancho = (t: string, f: string) => ((g.font = f), g.measureText(t).width);
+  const cols = campos.map(([k, v]) => Math.max(ancho(k, KEY), ancho(v, VAL)));
+  const gap = 30 * u;
+  g.letterSpacing = `${0.9 * u}px`;
+  if (cols.reduce((a, b) => a + b, 0) + gap * 2 <= W - x - 90 * u) {
+    let cx = x;
+    campos.forEach(([k, v], n) => {
+      g.font = KEY;
+      g.fillStyle = ink(0.45);
+      g.fillText(k, cx, H - 60 * u);
+      g.font = VAL;
+      g.fillStyle = ink(0.85);
+      g.fillText(v, cx, H - 44 * u);
+      cx += cols[n] + gap;
+    });
+  } else {
+    // On a narrow screen, name and value inline, in two lines.
+    const linea = (items: string[][], y: number) => {
+      let cx = x;
+      for (const [k, v] of items) {
+        g.font = KEY;
+        g.fillStyle = ink(0.45);
+        g.fillText(k, cx, y);
+        cx += ancho(k, KEY) + 6 * u;
+        g.font = VAL;
+        g.fillStyle = ink(0.85);
+        g.fillText(v, cx, y);
+        cx += ancho(v, VAL) + 18 * u;
+      }
+    };
+    linea(campos.slice(0, 2), H - 58 * u);
+    linea(campos.slice(2), H - 40 * u);
+  }
   g.restore();
 }
 
@@ -468,6 +499,18 @@ export function escalera(g: CanvasRenderingContext2D, u: number, W: number, H: n
     g.lineTo(x, yy);
     g.stroke();
   }
+  // What it measures: the title over the rail, its foot at one watt.
+  g.font = FONT.mono(8.5 * u);
+  g.letterSpacing = `${1 * u}px`;
+  g.textAlign = 'right';
+  g.textBaseline = 'alphabetic';
+  g.fillStyle = ink(0.55);
+  // (left of the rail's top: above it, the page's buttons hid it)
+  g.textBaseline = 'middle';
+  g.fillText((EN ? 'power · watts' : 'potencia · vatios').toUpperCase(), x - 14 * u, y1 - 4 * u);
+  g.fillStyle = ink(0.35);
+  g.fillText((EN ? 'each mark ×10' : 'cada marca ×10').toUpperCase(), x - 14 * u, y1 + 9 * u);
+  g.fillText('1 W', x - 14 * u, y0);
   // The fill: the civilization's power so far.
   const yp = yOf(clamp(lp, LP0, LP1));
   const grd = g.createLinearGradient(0, y0, 0, yp);
