@@ -39,7 +39,7 @@ const FinishShader = {
     uRes: { value: new THREE.Vector2(1, 1) },
     uGrain: { value: 0.02 },
     uVignette: { value: 0.6 },
-    uFringe: { value: 0.014 },
+    uFringe: { value: 0.003 },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -127,8 +127,9 @@ export function createPost(canvas: HTMLCanvasElement) {
     },
     /** `push` (0..1): how hard the hand is driving the journey; it adds blur and lens fringing. */
     render(time: number, zoomSpeed: number, push = 0) {
-      zoomBlur.uniforms.uStrength.value = calm.matches ? 0 : Math.min(Math.abs(zoomSpeed) * 0.05 + push * 0.07, 0.15);
-      finish.uniforms.uFringe.value = 0.014 + 0.05 * push;
+      zoomBlur.uniforms.uStrength.value = calm.matches ? 0 : Math.min(Math.abs(zoomSpeed) * 0.05 + push * 0.04, 0.15);
+      // (barely: this sky is full of stars, and fringing splits each into a red, green and blue dash)
+      finish.uniforms.uFringe.value = 0.003 + 0.02 * push;
       finish.uniforms.uTime.value = time;
       composer.render();
     },

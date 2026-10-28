@@ -33,10 +33,11 @@ const params = new URLSearchParams(location.search);
 const post = createPost(document.querySelector<HTMLCanvasElement>('#scene')!);
 const { renderer, scene, camera } = post;
 // Points of light on black: a high threshold keeps the glow to what is really bright (the Sun, a
-// city's core), so the lights stay lights and the heat does not burn out.
-post.bloom.strength = 0.55;
-post.bloom.radius = 0.4;
-post.bloom.threshold = 0.6;
+// city's core), so the lights stay lights and the heat does not burn out. Kept light: stronger, it
+// made every bright thing shine in excess.
+post.bloom.strength = 0.3;
+post.bloom.radius = 0.3;
+post.bloom.threshold = 0.78;
 renderer.toneMappingExposure = 1.0;
 
 // ---------------------------------------------------------------- the world and the acts
@@ -155,6 +156,7 @@ let last = performance.now();
 let prevP = 0;
 let pace = 0;
 let push = 0;
+let lean = 0;
 let lastCap = '';
 
 function step(now: number) {
@@ -163,11 +165,13 @@ function step(now: number) {
   last = now;
   const time = calm.matches ? 0 : now / 1000;
   const p = scroll.update(dt);
-  // The hand on the wheel is felt: the faster the journey goes, the more the camera leans into it.
+  // The hand on the wheel is felt: the faster the journey goes, the more blur and fringing, and the
+  // camera leans back a little (gently, and easing in and out, so it never reads as a jolt).
   const jumped = Math.abs(p - prevP) > 3;
   pace = jumped ? 0 : damp(pace, (p - prevP) / Math.max(dt, 1e-3), 7, dt);
   prevP = p;
   push = calm.matches ? 0 : Math.tanh(Math.abs(pace) / 2.6);
+  lean = damp(lean, push * Math.sign(pace || 1), 3, dt);
 
   // The act we are in sets the world's state and says where the camera is; the first beats of an act
   // glide from where the last one left it.
@@ -180,7 +184,7 @@ function step(now: number) {
     const prev = tramos[i - 1];
     v = mezcla(prev.a.vista(prev.hasta, time), v, smoothstep(desde, desde + 0.8, p));
   }
-  v = { ...v, fov: v.fov * (1 + 0.16 * push * Math.sign(pace || 1)) };
+  v = { ...v, fov: v.fov * (1 + 0.14 * lean) };
   const k = aplicar(mundo.root, camera, v);
   // A little of the pointer.
   if (!calm.matches) {
