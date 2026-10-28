@@ -22,7 +22,7 @@ ITALIC = NM + '/@fontsource/instrument-serif/files/instrument-serif-latin-400-it
 MONO = NM + '/@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2'
 
 TITLE = 'Destino'
-PHRASE = 'From the first thought to the last power plant.'
+PHRASE = 'From the first thought to the last thing we could ever build.'
 
 W, H = 960, 360            # layout units
 CW, CH = 580, 326          # the clip
@@ -55,7 +55,7 @@ MOMENTS = [
 ]
 # The hero, as in Espacio and Tiempo: one flight through the piece, its tempo set in tools/readme.json
 # (lingering on each place, rushing through the flights), the places joined by short crossfades.
-HERO = dict(clips=['hero1', 'hero2', 'hero3', 'hero4', 'hero5'], crop=(0, 0, 1840, 1035), crf=36, join=10)
+HERO = dict(clips=['hero1', 'hero2', 'hero4'], crop=(0, 0, 1840, 1035), crf=36, join=10)
 
 
 def px(v):
