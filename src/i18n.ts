@@ -237,6 +237,7 @@ const EN: Record<string, string> = {
   'Venus': 'Venus',
   'Mercurio · se desarma': 'Mercury · being taken apart',
   'el Sol y su enjambre': 'the Sun and its swarm',
+  'sale a más de 4 km/s: escapa de Mercurio': 'it leaves at over 4 km/s: free of Mercury',
   'riel de 2 000 km': '2,000 km rail',
   'nuestra carga': 'our payload',
   'colector · tamaño ilustrativo': 'collector · size illustrative',

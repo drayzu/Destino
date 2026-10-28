@@ -398,17 +398,76 @@ export function mercurio() {
   void riel;
   const rb = materiaBuilder(42);
   const rs: number[] = [];
-  for (let k = 0; k < 2400; k++) {
-    const s = k / 2400;
-    const p = riel.at(s, new THREE.Vector3());
-    const big = k % 40 === 0;
-    rb.push(p.x, p.y, p.z, new THREE.Color(0.7, 1.0, 0.92), big ? 0.003 : 0.0012, big ? 1.6 : 0.5);
+  const pr = new THREE.Vector3();
+  const up = new THREE.Vector3();
+  // Two thin rails, a few kilometres apart (drawn wider than they are, to be seen).
+  const RW = 0.0024;
+  for (let k = 0; k < 1800; k++) {
+    const s = k / 1800;
+    riel.at(s, pr);
+    for (const side of [-1, 1]) {
+      rb.push(pr.x + riel.axis.x * RW * side, pr.y + riel.axis.y * RW * side, pr.z + riel.axis.z * RW * side, new THREE.Color(0.5, 0.86, 0.78), 0.0007, 0.22);
+      rs.push(s);
+    }
+  }
+  // The coils that push: rings around the track, each with a small light on top.
+  const COILS = 140;
+  for (let c = 0; c <= COILS; c++) {
+    const s = c / COILS;
+    riel.at(s, pr);
+    up.copy(pr).normalize();
+    for (let j = 0; j < 18; j++) {
+      const a = (j / 18) * Math.PI * 2;
+      const ca = Math.cos(a) * RW * 1.5;
+      const sa = Math.max(Math.sin(a), -0.15) * RW * 1.5;
+      rb.push(pr.x + riel.axis.x * ca + up.x * sa, pr.y + riel.axis.y * ca + up.y * sa, pr.z + riel.axis.z * ca + up.z * sa, new THREE.Color(0.55, 0.95, 0.85), 0.0006, 0.35);
+      rs.push(s);
+    }
+    rb.push(pr.x + up.x * RW * 1.6, pr.y + up.y * RW * 1.6, pr.z + up.z * RW * 1.6, new THREE.Color(0.7, 1.0, 0.92), 0.0014, c % 10 === 0 ? 1.1 : 0.55);
     rs.push(s);
   }
-  // Payloads: they run the rail faster and faster and leave at its end.
-  for (let k = 0; k < 40; k++) {
-    rb.push(0, 0, 0, new THREE.Color(1, 0.95, 0.85), 0.004, 4);
-    rs.push(1 + k / 40);
+  // Pylons under the ramp, down to the ground.
+  for (let c = 0; c <= 40; c++) {
+    const s = RAMPA + (c / 40) * (1 - RAMPA);
+    riel.at(s, pr);
+    const h = pr.length() - 0.943;
+    if (h < 0.0015) continue;
+    up.copy(pr).normalize();
+    const n = Math.max(2, Math.round(h / 0.0007));
+    for (let j = 0; j < n; j++) {
+      const d = (j / n) * h;
+      rb.push(pr.x - up.x * d, pr.y - up.y * d, pr.z - up.z * d, new THREE.Color(0.5, 0.86, 0.78), 0.0006, 0.25);
+      rs.push(s);
+    }
+  }
+  // The loading yard at its start (a pad, its stacks of ore) and the gate at its end.
+  const tg = new THREE.Vector3();
+  riel.at(0, pr);
+  up.copy(pr).normalize();
+  riel.dir(0, tg);
+  for (let i = 0; i < 260; i++) {
+    const u = (rb.r() - 0.5) * 0.05;
+    const v = (rb.r() - 0.85) * 0.03;
+    const h = rb.r() < 0.3 ? rb.r() * RW * 1.2 : 0;
+    rb.push(pr.x + riel.axis.x * u + tg.x * v + up.x * h, pr.y + riel.axis.y * u + tg.y * v + up.y * h, pr.z + riel.axis.z * u + tg.z * v + up.z * h, new THREE.Color(0.6, 0.95, 0.85), 0.0009, rb.r() < 0.08 ? 1.0 : 0.3);
+    rs.push(0);
+  }
+  riel.at(1, pr);
+  up.copy(pr).normalize();
+  for (let j = 0; j < 36; j++) {
+    const a = (j / 36) * Math.PI * 2;
+    const ca = Math.cos(a) * RW * 4;
+    const sa = (Math.sin(a) + 0.6) * RW * 4;
+    rb.push(pr.x + riel.axis.x * ca + up.x * sa, pr.y + riel.axis.y * ca + up.y * sa, pr.z + riel.axis.z * ca + up.z * sa, new THREE.Color(0.7, 1.0, 0.92), 0.0011, j % 6 === 0 ? 1.2 : 0.5);
+    rs.push(1);
+  }
+  // Payloads: they run the rail faster and faster and leave at its end, each with a short wake
+  // (its points a little behind it, so the wake stretches as it speeds up).
+  for (let k = 0; k < 24; k++) {
+    for (let j = 0; j < 8; j++) {
+      rb.push(0, 0, 0, new THREE.Color(1, 0.95, 0.85), j === 0 ? 0.0026 : 0.0014, j === 0 ? 2.2 : 0.9 * (1 - j / 8));
+      rs.push(2 + k / 24 - j * 0.004);
+    }
   }
   const rail = materia(rb.data(), {
     pre: `${SPHERE_PRE}\nattribute float aS;\nuniform vec3 uMina, uAxis;\nuniform float uSpan;
@@ -416,9 +475,14 @@ export function mercurio() {
     move: /* glsl */ `
       if (aS > 1.0) {
         float s = fract(aS + uTime * 0.12);
-        s = s * s;
-        p = rot(uMina, uAxis, (s - 0.5) * uSpan) * 0.95;
-        em *= 1.0 - smoothstep(0.97, 1.0, s);
+        s = s * s * 1.3;
+        if (s <= ${RAMPA.toFixed(2)}) p = rot(uMina, uAxis, (s - 0.5) * uSpan) * 0.95;
+        else {
+          // Up the ramp and past the gate it goes straight on; the curved ground falls away beneath it.
+          vec3 e = rot(uMina, uAxis, (${RAMPA.toFixed(2)} - 0.5) * uSpan) * 0.95;
+          p = e + normalize(cross(uAxis, e)) * (s - ${RAMPA.toFixed(2)}) * uSpan * 0.95;
+        }
+        em *= 1.0 - smoothstep(1.15, 1.3, s);
       }
       ${HORIZONTE}`,
     uniforms: { ...uni, uMina: { value: MINA }, uAxis: { value: new THREE.Vector3() }, uSpan: { value: 0 } },
@@ -445,24 +509,37 @@ export function mercurio() {
   };
 }
 
-/** The rail: a great-circle arc over Mercury, slightly above the pit floor (local units). */
+/**
+ * The rail: a great-circle arc over Mercury, slightly above the pit floor (local units); its last
+ * stretch (from RAMPA) runs straight on, a ramp on pylons that leaves the curved ground behind, the
+ * way the payloads go.
+ */
+export const RAMPA = 0.8;
 export function rielMercurio() {
   const a = MINA.clone();
   const axis = new THREE.Vector3(0, 1, 0).cross(a).normalize();
   const q = new THREE.Quaternion();
   const span = 0.9;
+  const arco = (s: number, out: THREE.Vector3) => {
+    q.setFromAxisAngle(axis, (s - 0.5) * span);
+    return out.copy(a).applyQuaternion(q).multiplyScalar(0.945);
+  };
+  const tangente = (s: number, out: THREE.Vector3) => {
+    q.setFromAxisAngle(axis, (s - 0.5) * span);
+    return out.copy(a).applyQuaternion(q).cross(axis).negate().normalize();
+  };
   return {
     span,
     axis,
     /** Point at s (0..1) along the rail. */
     at(s: number, out: THREE.Vector3) {
-      q.setFromAxisAngle(axis, (s - 0.5) * span);
-      return out.copy(a).applyQuaternion(q).multiplyScalar(0.945);
+      if (s <= RAMPA) return arco(s, out);
+      const t = tangente(RAMPA, new THREE.Vector3());
+      return arco(RAMPA, out).addScaledVector(t, (s - RAMPA) * span * 0.945);
     },
     /** Direction of travel at s. */
     dir(s: number, out: THREE.Vector3) {
-      q.setFromAxisAngle(axis, (s - 0.5) * span);
-      return out.copy(a).applyQuaternion(q).cross(axis).negate().normalize();
+      return tangente(Math.min(s, RAMPA), out);
     },
   };
 }
@@ -828,10 +905,16 @@ export function orbitas(radii: number[]) {
   const nube = materia(b.data(), { move: 'fuente = 0.6;' });
   nube.u.uSpread.value = 0;
   group.add(nube.points);
-  return Object.assign(group, {
-    nube,
-    set opacidad(v: number) {
-      nube.u.uGain.value = v;
+  // (defineProperty, not Object.assign: assign would copy the setter's result, not the setter)
+  return Object.defineProperties(group as THREE.Group & { nube: typeof nube; opacidad: number }, {
+    nube: { value: nube },
+    opacidad: {
+      set(v: number) {
+        nube.u.uGain.value = v;
+      },
+      get() {
+        return nube.u.uGain.value;
+      },
     },
   });
 }

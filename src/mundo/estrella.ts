@@ -114,18 +114,29 @@ export function espejoShkadov() {
         uniform float uOn; varying vec3 vP; varying vec2 vUv;
         void main() {
           #include <logdepthbuf_fragment>
-          // A silhouette, as the habitats' mirrors: dark glass with a thin frame. Its back is black
-          // against the sky; its face, towards the Sun, holds the light it sends back.
-          float rim = smoothstep(0.62, 0.67, 1.0 - vP.y);
-          float panel = smoothstep(0.48, 0.5, abs(fract(vUv.x * 64.0) - 0.5)) + smoothstep(0.48, 0.5, abs(fract(vUv.y * 10.0) - 0.5));
-          vec3 col = vec3(0.006) + vec3(0.6, 0.65, 0.7) * panel * 0.04 + vec3(0.6, 1.0, 0.9) * rim * 0.55;
-          if (!gl_FrontFacing) col += vec3(1.0, 0.9, 0.72) * 0.025 * (0.5 + 0.5 * vP.y);
-          gl_FragColor = vec4(col, uOn);
+          // A faint dark backing for the shell of mirrors (in points, over it): it keeps the shape.
+          vec3 col = vec3(0.004);
+          if (!gl_FrontFacing) col += vec3(1.0, 0.9, 0.72) * 0.012 * (0.5 + 0.5 * vP.y);
+          gl_FragColor = vec4(col, uOn * 0.6);
         }`,
     }),
   );
   mesh.frustumCulled = false;
-  return { mesh, u };
+  // The mirror itself: a shell of many small mirrors (points, as everything built in this series),
+  // silver touched with the Sun's gold, brighter towards its rim where they catch the light edge-on.
+  const CAP = (48 * Math.PI) / 180;
+  const b = materiaBuilder(4848);
+  for (let i = 0; i < 26000; i++) {
+    const th = Math.acos(1 - b.r() * (1 - Math.cos(CAP)));
+    const ph = b.r() * Math.PI * 2;
+    const borde = th > CAP - 0.04;
+    const c = new THREE.Color().setRGB(0.82, 0.8, 0.74).lerp(new THREE.Color(1.0, 0.82, 0.5), b.r() * 0.6);
+    b.push(Math.sin(th) * Math.cos(ph), Math.cos(th), Math.sin(th) * Math.sin(ph), c, borde ? 0.003 : 0.0022, borde ? 2.6 : 0.9 + 0.6 * b.r());
+  }
+  const nube = materia(b.data(), { pre: 'uniform float uOnE;', move: 'em *= uOnE;', uniforms: { uOnE: u.uOn } });
+  nube.u.uSpread.value = 0;
+  mesh.add(nube.points);
+  return { mesh, u, nube };
 }
 
 /**

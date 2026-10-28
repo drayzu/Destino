@@ -74,8 +74,6 @@ export interface Estado {
   vel: THREE.Vector3;
   /** The Sun's and the Earth's beacons (0..1). */
   faros: number;
-  /** Extra on the Sun's beacon alone (looking back at it from light years). */
-  faroSol: number;
   /** The Earth and its works are there (0: taken apart, later in the journey). */
   tierra: number;
   /** The Sun is there (0: gone out, at the end). */
@@ -84,7 +82,7 @@ export interface Estado {
   mentes: number;
 }
 
-const DEFECTO: Estado = { luces: 0.36, nuevas: 0, giro: 0, cercanias: 0, luna: 1, galaxia: 1, cielo: 0.8, solDim: 0.55, oclusor: null, beta: 0, vel: new THREE.Vector3(0, 0, -1), faros: 1, faroSol: 1, tierra: 1, sol: 1, mentes: 0 };
+const DEFECTO: Estado = { luces: 0.36, nuevas: 0, giro: 0, cercanias: 0, luna: 1, galaxia: 1, cielo: 0.8, solDim: 0.55, oclusor: null, beta: 0, vel: new THREE.Vector3(0, 0, -1), faros: 1, tierra: 1, sol: 1, mentes: 0 };
 
 export type Mundo = ReturnType<typeof crearMundo>;
 
@@ -261,7 +259,7 @@ export function crearMundo(scene: THREE.Scene) {
 
       // Beacons, while the bodies are smaller than a few pixels.
       const px = (c: THREE.Vector3, r: number) => (r / Math.max(c.distanceTo(camW), 1e-300)) * focal;
-      B.set(0, V(), (1 - smoothstep(2, 8, px(V(), R_SUN))) * estado.faros * estado.faroSol);
+      B.set(0, V(), (1 - smoothstep(2, 8, px(V(), R_SUN))) * estado.faros);
       B.set(1, E, (1 - smoothstep(2, 6, px(E, R_E))) * estado.faros);
       B.commit();
       B.mat.uniforms.uDpr.value = dpr;

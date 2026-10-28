@@ -364,7 +364,9 @@ export function sistema(): Acto {
     const s = ease(0.85, 1.0, k);
     const pos = vuelo(ecl.pos, llegada.pos, s, 10 * R_VEN, 0.6 * llegada.pos.distanceTo(llegada.target));
     const target = mirar(pos, ecl.target, llegada.target, ease(0.84, 0.9, k));
-    return { pos, target, up: UP.clone(), fov: lerp(9.5, llegada.fov, ease(0.84, 0.93, k)) };
+    // (the roll to Mercury's ground happens here, with only stars in view)
+    const up = UP.clone().lerp(llegada.up, ease(0.86, 0.95, k)).normalize();
+    return { pos, target, up, fov: lerp(9.5, llegada.fov, ease(0.84, 0.93, k)) };
   }
   function camMercurio(p: number): Vista {
     const a = ease(P('a3.mercurio'), P('a3.riel'), p);
@@ -377,10 +379,14 @@ export function sistema(): Acto {
     const alt = Math.exp(lerp(Math.log(8), Math.log(0.07), a));
     const start = merc.riel.at(0.05, V());
     const approach = start.clone().normalize().multiplyScalar(1 + alt).addScaledVector(merc.riel.dir(0.05, V()), -alt * 0.9).add(V(0, alt * 0.4, 0));
-    const along = railP.clone().addScaledVector(nrm, 0.07).addScaledVector(railD, -0.08).addScaledVector(merc.riel.axis, 0.035);
+    // (nearly in the rail's own plane: from beside it, its arc over the curved ground read as a bend at the far end)
+    const along = railP.clone().addScaledVector(nrm, 0.07).addScaledVector(railD, -0.08).addScaledVector(merc.riel.axis, 0.01);
     const posL = r > 0 ? approach.lerp(along, ease(0, 0.25, r)) : approach;
-    const tgtL = V(0, 0, 0).lerp(railP.clone().addScaledVector(railD, 0.2), ease(0.6, 1, a));
-    const upL = UP.clone().lerp(nrm, ease(0.7, 1, a)).normalize().applyQuaternion(qL);
+    // Already rolled to the ground's own up (done in the flight from Venus, among the stars); the
+    // pitch from looking down to the horizon is slow (with the roll, close to the ground, it read
+    // as the camera flipping over).
+    const tgtL = V(0, 0, 0).lerp(railP.clone().addScaledVector(railD, 0.2), ease(0.4, 1, a));
+    const upL = nrm.clone().applyQuaternion(qL);
     return { pos: merc2w(posL), target: merc2w(tgtL), up: upL, fov: lerp(50, 58, a) };
   }
   // On a payload, from the end of the rail to ring A.
@@ -537,7 +543,7 @@ export function sistema(): Acto {
       m.root.add(mars.group, ven.group, lift.group, espejo.mesh, caplan.group, cil.group, swarm.points, plates.mesh, merc.group, belt.points, orbits, B.points);
       m.nubes.push(cil.casas, lift.nube, caplan.nube);
       for (const r of rutas) m.root.add(r.group);
-      m.nubes.push(swarm, belt, orbits.nube, ...rutas.map((r) => r.nube));
+      m.nubes.push(swarm, belt, orbits.nube, espejo.nube, ...rutas.map((r) => r.nube));
       // The planets join once their maps are loaded and their points built.
       return Promise.all([mars.listo, ven.listo, merc.listo]).then(() => void m.nubes.push(...mars.nubes, ...ven.nubes, ...merc.nubes));
     },
@@ -580,7 +586,7 @@ export function sistema(): Acto {
       const spin = time * 0.0006;
       swarm.points.visible = on;
       swarm.u.uBuilt.value = built;
-      swarm.u.uGain.value = 1 - 0.85 * ease(P('a3.lift', -0.2), P('a3.lift', 0.8), p) * (1 - ease(P('a3.todo', -0.4), P('a3.todo', 0.6), p));
+      swarm.u.uGain.value = (1 - 0.85 * ease(P('a3.lift', -0.2), P('a3.lift', 0.8), p) * (1 - ease(P('a3.todo', -0.4), P('a3.todo', 0.6), p)));
       swarm.u.uSpin.value = spin;
       swarm.u.uCamW.value.copy(cam);
       swarm.u.uFar.value = smoothstep(0.5, 0.95, cam.length()) * (1 - smoothstep(2, 4, cam.length()));
@@ -653,7 +659,8 @@ export function sistema(): Acto {
       belt.u.uGain.value = 1 - cilCercaU;
       belt.points.visible = on && cilCercaU < 0.999;
       orbits.visible = p > P('a3.todo', -0.2) && p < P('a3.fin', 3);
-      orbits.opacidad = 0.5 * ease(P('a3.todo'), P('a3.todo', 1), p);
+      // (gone before the dive to the sail, launched beside Mercury's orbit: up close its dots were a row of blots)
+      orbits.opacidad = 0.5 * ease(P('a3.todo'), P('a3.todo', 1), p) * (1 - ease(P('a4', 0.3), P('a4', 0.9), p));
       // Seen from afar: visible light and the infrared, behind the curtain.
       const wipe = wipeAt(p);
       const wipePx = ((wipe + 1) / 2) * W;
@@ -796,7 +803,8 @@ export function sistema(): Acto {
           }
         }
       }
-      add(merc2w(merc.riel.at(0.7, V())), 'riel de 2 000 km', 34, -30, win('a3.riel', 'a3.carga', 0.1));
+      add(merc2w(merc.riel.at(0.5, V())), 'riel de 2 000 km', -40, -30, win('a3.riel', 'a3.carga', 0.1));
+      add(merc2w(merc.riel.at(1, V())), 'sale a más de 4 km/s: escapa de Mercurio', 34, -30, win('a3.riel', 'a3.carga', 0.1));
       add(mercRoute.at(rideT(p), V()), 'nuestra carga', 26, -26, win('a3.carga', 'a3.enjambre', 0.1));
       add(ringAPoint(ringAng(p) + 0.0012, SLOT + 1.56e-4, 0), 'colector · tamaño ilustrativo', 30, -30, win('a3.enjambre', 'a3.lejos', 0.15) * ease(P('a3.enjambre', 0.2), P('a3.enjambre', 0.5), p), true);
       // The machines that copy themselves: 2, 4, 8… 2⁴⁰.
