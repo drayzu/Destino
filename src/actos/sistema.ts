@@ -265,11 +265,12 @@ export function sistema(): Acto {
     { pos: V(14, -36, 10), target: V(0, -6, 0), up: V(1, 0, 0), fov: 46 },
     // (off the hub at the end of the shade dome: the docking collar, the shaft of light rings)
     { pos: V(0.25, -18.9, 0.35), target: V(0, -6, 1.2), up: V(1, 0, 0), fov: 58 },
-    { pos: V(0, -9, 2.9), target: V(0, 4, 2.3), up: V(0, 0, -1), fov: 70 },
-    { pos: V(0.2, 3, 2.7), target: V(0.6, 15, 1.7), up: V(0, 0, -1), fov: 72 },
+    // Inside, on the axis, looking along it (down by the valley, it read as touching the ground).
+    { pos: V(0, -6, 0), target: V(0, 6, 0), up: V(0, 0, -1), fov: 68 },
+    { pos: V(0, 3, 0), target: V(0, 15, 0), up: V(0, 0, -1), fov: 72 },
   ];
   /** Just through the port, on the axis. */
-  const CIL_PUERTO: Vista = { pos: V(0.04, -15.3, 0.12), target: V(0, -6, 1.3), up: V(1, 0, 0), fov: 62 };
+  const CIL_PUERTO: Vista = { pos: V(0, -15.3, 0), target: V(0, -3, 0), up: V(1, 0, 0), fov: 62 };
   const cilW = (v: Vista): Vista => ({ pos: cil2w(v.pos), target: cil2w(v.target), up: v.up.clone().applyQuaternion(qC), fov: v.fov });
   function camCilindro(p: number): Vista {
     const t0 = P('a3.oneill');
@@ -283,36 +284,24 @@ export function sistema(): Acto {
     if (k < 0.18) return { pos: desde.pos, target: mirar(desde.pos, desde.target, CIL, ease(0, 0.18, k)), up: desde.up, fov: lerp(desde.fov, 40, ease(0, 0.18, k)) };
     if (k < 0.34) return mezcla(a0, a, ease(0.18, 0.34, k));
     if (k < 0.5) return mezcla(a, b, ease(0.34, 0.5, k));
-    // (through the port on its axis, then out to the valley: straight from the hub to the valley the
-    // camera crossed the end wall beside the port)
-    // In, one unbroken move along a smooth curve through those places at an even pace (by legs, it
-    // stopped and started again at each), and «up» turns from along the end wall to towards the axis
-    // all the way in, to the end of the moment (it finished early and the camera went on unturned).
-    const b2 = cilW(CIL_PUERTO);
-    if (k < 0.5) return b;
-    const { o, cPos, cTgt, fovs } = curvaDentro([b, b2, c, d]);
+    // In through the port and along the axis in one unbroken move, at an even pace, looking ahead along
+    // it, and turning round it all the way in: a quarter turn, steady, to the end of the moment.
     const s = ease(0.5, 1, k);
+    const { cPos, cTgt } = curvaDentro();
     const t = cPos.getUtoTmapping(s, 0);
-    const pos = cPos.getPoint(t).multiplyScalar(KM).add(o);
-    const target = cTgt.getPoint(t).multiplyScalar(KM).add(o);
+    const tomas = [CIL_TOMAS[1], CIL_PUERTO, CIL_TOMAS[2], CIL_TOMAS[3]];
     const i = Math.min(2, Math.floor(t * 3));
-    const fov = lerp(fovs[i], fovs[i + 1], t * 3 - i);
-    // (by angle, at the pace of the move itself)
-    const up = b.up.clone().applyQuaternion(new THREE.Quaternion().slerp(new THREE.Quaternion().setFromUnitVectors(b.up.clone().normalize(), c.up.clone().normalize()), s));
-    return { pos, target, up, fov };
+    const up = V(1, 0, 0).applyAxisAngle(V(0, 1, 0), (Math.PI / 2) * s);
+    return cilW({ pos: cPos.getPoint(t), target: cTgt.getPoint(t), up, fov: lerp(tomas[i].fov, tomas[i + 1].fov, t * 3 - i) });
   }
-  /** The curves of the way in (positions and targets, in km from the first place), made once: the
-   * world's AU are too coarse for the curve's own sums. */
-  let curvas: { o: THREE.Vector3; cPos: THREE.CatmullRomCurve3; cTgt: THREE.CatmullRomCurve3; fovs: number[] } | null = null;
-  function curvaDentro(tomas: Vista[]) {
+  /** The curves of the way in (the cylinder's own km), made once. */
+  let curvas: { cPos: THREE.CatmullRomCurve3; cTgt: THREE.CatmullRomCurve3 } | null = null;
+  function curvaDentro() {
     if (!curvas) {
-      const o = tomas[0].pos.clone();
-      const km = (w: THREE.Vector3) => w.clone().sub(o).divideScalar(KM);
+      const tomas = [CIL_TOMAS[1], CIL_PUERTO, CIL_TOMAS[2], CIL_TOMAS[3]];
       curvas = {
-        o,
-        cPos: new THREE.CatmullRomCurve3(tomas.map((v) => km(v.pos)), false, 'centripetal'),
-        cTgt: new THREE.CatmullRomCurve3(tomas.map((v) => km(v.target)), false, 'centripetal'),
-        fovs: tomas.map((v) => v.fov),
+        cPos: new THREE.CatmullRomCurve3(tomas.map((v) => v.pos.clone()), false, 'centripetal'),
+        cTgt: new THREE.CatmullRomCurve3(tomas.map((v) => v.target.clone()), false, 'centripetal'),
       };
     }
     return curvas;
