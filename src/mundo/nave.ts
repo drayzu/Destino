@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { enfocar, geometria, puntos, type Puntos } from '../horizontes';
+import { LIVIANO } from '../engine/post';
 
 /**
  * A generation ship (act IV), in points, unlike the habitats: a long truss spine; at its fore end
@@ -14,6 +15,8 @@ import { enfocar, geometria, puntos, type Puntos } from '../horizontes';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const LUZ = V(0.55, 0.35, 0.75).normalize();
+/** How dense the hull is (all but the radiators, which read as panels already): sparse, it looked like a sketch. */
+const D = LIVIANO ? 1.5 : 3;
 
 class Nube {
   pos: number[] = [];
@@ -52,12 +55,12 @@ export function naveGeneracional() {
   const w = 0.28;
   const esquinas = [V(w, 0, w), V(-w, 0, w), V(-w, 0, -w), V(w, 0, -w)];
   for (const c of esquinas)
-    for (let y = Y0; y < Y1; y += 0.012) a.lit(V(c.x, y, c.z), c.clone().normalize(), ACERO, 0.025);
+    for (let y = Y0; y < Y1; y += 0.012 / D) a.lit(V(c.x, y, c.z), c.clone().normalize(), ACERO, 0.025);
   for (let k = 0; k < 4; k++) {
     const c0 = esquinas[k];
     const c1 = esquinas[(k + 1) % 4];
     for (let y = Y0; y < Y1; y += 0.8)
-      for (let t = 0; t < 1; t += 0.015) {
+      for (let t = 0; t < 1; t += 0.015 / D) {
         const p = c0.clone().lerp(c1, t).setY(y + t * 0.8);
         a.lit(p, c0.clone().add(c1).normalize(), ACERO, 0.025);
       }
@@ -65,7 +68,7 @@ export function naveGeneracional() {
 
   // The engine at the fore end: the magnetic nozzle (a bell of coil rings and ribs, open forward),
   // its throat glowing.
-  for (let i = 0; i < 30000; i++) {
+  for (let i = 0; i < 30000 * D; i++) {
     const t = r();
     const y = 13 + t * 3.5;
     const rad = 0.5 + 1.8 * t * t;
@@ -76,7 +79,7 @@ export function naveGeneracional() {
     const n = V(Math.cos(ph), -0.5 * t, Math.sin(ph)).normalize();
     a.lit(V(Math.cos(ph) * rad, y, Math.sin(ph) * rad), n, anillo || costilla ? [0.55, 0.58, 0.62] : [0.3, 0.31, 0.33], 0.03, 0.22);
   }
-  for (let i = 0; i < 1500; i++) {
+  for (let i = 0; i < 1500 * D; i++) {
     const [x, y, z] = [r() - 0.5, r() - 0.5, r() - 0.5].map((v) => v * 0.6);
     a.push(V(x, 13.4 + y, z), [1.4, 1.7, 2.0], 0.04);
   }
@@ -91,7 +94,7 @@ export function naveGeneracional() {
     const ang = (k * Math.PI) / 3 + Math.PI / 6;
     const cx = Math.cos(ang) * 1.3;
     const cz = Math.sin(ang) * 1.3;
-    for (let i = 0; i < 16000; i++) {
+    for (let i = 0; i < 16000 * D; i++) {
       // body or a domed end, by area
       const w = r();
       let p: THREE.Vector3;
@@ -117,7 +120,7 @@ export function naveGeneracional() {
       a.lit(p, n, [TANQUE[0] * f, TANQUE[1] * f, TANQUE[2] * f], 0.025, 0.2);
     }
     for (const y of [TY0 + 0.6, (TY0 + TY1) / 2, TY1 - 0.6])
-      for (let s = 0.3; s < 1.3 - RT; s += 0.012) a.lit(V(Math.cos(ang) * s, y, Math.sin(ang) * s), V(0, 1, 0), ACERO, 0.02, 0.4);
+      for (let s = 0.3; s < 1.3 - RT; s += 0.012 / D) a.lit(V(Math.cos(ang) * s, y, Math.sin(ang) * s), V(0, 1, 0), ACERO, 0.02, 0.4);
   }
 
   // Radiators: four long fins from the spine, glowing dull red with the heat they shed.
@@ -137,7 +140,7 @@ export function naveGeneracional() {
   }
 
   // The dish at the aft end, pointing home.
-  for (let i = 0; i < 22000; i++) {
+  for (let i = 0; i < 22000 * D; i++) {
     const t = Math.sqrt(r());
     const ph = r() * Math.PI * 2;
     const rad = 2.6 * t;
@@ -146,12 +149,12 @@ export function naveGeneracional() {
     const red = Math.abs(((ph / (Math.PI * 2)) * 24) % 1 - 0.5) > 0.44 || Math.abs((t * 5) % 1 - 0.5) > 0.44;
     a.lit(V(Math.cos(ph) * rad, y, Math.sin(ph) * rad), n.negate(), red ? [0.6, 0.62, 0.66] : [0.38, 0.4, 0.43], 0.03, 0.25);
   }
-  for (let y = Y0; y > Y0 - 2.4; y -= 0.012) a.push(V(0, y, 0), [0.5, 0.52, 0.55], 0.025);
+  for (let y = Y0; y > Y0 - 2.4; y -= 0.012 / D) a.push(V(0, y, 0), [0.5, 0.52, 0.55], 0.025);
 
   // The two habitat wheels (they turn): tubes 600 m thick, 6 km out, on six spokes from a hub; their
   // inner windows lit warm, where people live.
   for (const yc of [-9, -15.5]) {
-    for (let i = 0; i < 90000; i++) {
+    for (let i = 0; i < 90000 * D; i++) {
       const u = r() * Math.PI * 2;
       const v = r() * Math.PI * 2;
       const rin = 6 + 0.6 * Math.cos(v);
@@ -166,9 +169,9 @@ export function naveGeneracional() {
     }
     for (let k = 0; k < 6; k++) {
       const u = (k * Math.PI) / 3;
-      for (let s = 0.6; s < 5.4; s += 0.01) b.lit(V(Math.cos(u) * s, yc, Math.sin(u) * s), V(0, 1, 0), ACERO, 0.025, 0.4);
+      for (let s = 0.6; s < 5.4; s += 0.01 / D) b.lit(V(Math.cos(u) * s, yc, Math.sin(u) * s), V(0, 1, 0), ACERO, 0.025, 0.4);
     }
-    for (let i = 0; i < 8000; i++) {
+    for (let i = 0; i < 8000 * D; i++) {
       const u = r() * Math.PI * 2;
       const y = yc + (r() - 0.5) * 1.6;
       const n = V(Math.cos(u), 0, Math.sin(u));
