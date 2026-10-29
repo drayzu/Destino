@@ -342,6 +342,8 @@ export interface Rotulo {
   fact: string;
   /** Where the fact comes from (only with the plate). */
   fuente?: string;
+  /** The figures the sentence leaves out (only with the plate, translated). */
+  ficha?: string;
   /** The chapter it belongs to, above the name: «III · El sistema solar trabaja». */
   capitulo?: string;
   /** A journey between moments: an arrow and a name, nothing else. */
@@ -365,15 +367,23 @@ function rotuloMomento(g: CanvasRenderingContext2D, u: number, H: number, cap: R
   // On a narrow screen the sentence keeps clear of the ladder at the right.
   const lines = wrap(g, cap.fact, Math.min(500 * u, g.canvas.width - 150 * u), (t) => anchoSup(g, t, FACT, EXP));
   const fuente = cap.fuente ? tr(cap.fuente) : '';
-  const bottom = H - 174 * u - (fuente ? 20 * u : 0);
+  // The figures, in mono under the sentence (their exponents raised by hand, as everywhere).
+  const MONO = FONT.mono(10 * u);
+  const MONO_EXP = FONT.mono(7.5 * u);
+  g.font = MONO;
+  const ficha = cap.ficha ? wrap(g, cap.ficha, Math.min(500 * u, g.canvas.width - 150 * u), (t) => anchoSup(g, t, MONO, MONO_EXP)) : [];
+  g.font = FACT;
+  const bottom = H - 174 * u - (fuente ? 20 * u : 0) - ficha.length * 16 * u;
   const top = bottom - (lines.length - 1) * 21 * u;
   g.fillStyle = ink(0.7);
   lines.forEach((line, i) => textoSup(g, line, x, top + i * 21 * u, FACT, EXP, 5.5 * u));
+  g.fillStyle = ink(0.62);
+  ficha.forEach((line, i) => textoSup(g, line, x, bottom + 22 * u + i * 16 * u, MONO, MONO_EXP, 3.5 * u));
   if (fuente) {
     g.font = FONT.mono(10 * u);
     g.letterSpacing = `${0.6 * u}px`;
     g.fillStyle = ink(0.55);
-    g.fillText(fuente, x, bottom + 22 * u);
+    g.fillText(fuente, x, bottom + 22 * u + ficha.length * 16 * u);
     g.letterSpacing = '0px';
   }
   g.font = FONT.italic(32 * u);
