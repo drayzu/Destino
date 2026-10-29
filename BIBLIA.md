@@ -1,90 +1,94 @@
-# Destino · biblia visual
+# Destino · biblia visual (remake)
 
-**Una pregunta: ¿adónde podemos llegar?** Un solo viaje con scroll desde «¿hay alguien más?» hasta la última obra posible de una civilización, crear un universo, que le pasa el relevo a Infinito. **La regla es la energía:** la potencia en vatios es el exponente del HUD, con el tipo de Kardashev al lado.
+*29 de octubre de 2026. Reemplaza a la biblia del 26 de octubre. El guion (`GUION.md`) no cambia: la voz, el arco y el punto se quedan. Cambia cómo se ve.*
 
-Tercera obra de la serie **Horizontes**: Espacio responde *¿dónde?* (metros), Tiempo *¿cuándo?* (años), Destino *¿adónde podemos llegar?* (energía) e Infinito *¿qué hay más allá?* (números). El Atlas es la biblioteca: **las obras se miran, el Atlas se lee.** Destino es la única obra con agencia: aquí nosotros actuamos. **Emoción y esperanza, con tensión.**
+**Una pregunta: ¿adónde podemos llegar?** Un solo viaje con scroll que empieza en tus veinte vatios y termina en la última obra posible, un universo nuevo, que le pasa el relevo a Infinito. **La regla es la energía:** la potencia en vatios y el tipo de Kardashev.
+
+## Por qué un remake
+
+Destino se veía como un **simulador**: un solo mundo a escala real, con el Sol en el centro y las distancias verdaderas. Tenía un cielo de estrellas con una niebla de color por momento, mallas sólidas al lado de partículas, órbitas y destellos, vuelos por el vacío y mucha interfaz. Tiempo e Infinito se ven como **películas**: cada lugar es un escenario a su escala, el fondo es negro, todo está hecho de un solo material, la luz en partículas, y la cámara va pegada a lo que mira. Este remake hace de Destino una película. La comparación está en `docs/remake/comparacion.jpg`.
+
+**De Tiempo tomamos la inmersión:** la cámara adentro, que fluye sin frenar, y la materia que se reordena alrededor. **De Infinito, la dirección de arte:** el negro de verdad y una sola cosa que brilla, hecha de puntos de luz.
 
 ## Principios
-0. **El viaje más largo y más ancho de la serie, en el mismo tiempo que las otras.** De 10¹³ W a 10⁴⁶ W; de una ciudad a todas las galaxias alcanzables; de hoy al final del tiempo. **~10–12 minutos con autoplay** (~340 beats). Algo que ver en cada tramo y algo pasando en cada dirección.
-1. **Lo visual va primero.** Cada momento tiene un nombre, **una frase** y su lectura en el HUD. Lo que necesita un párrafo va a la lámina o al Atlas. Sin enlace al Atlas en cada momento.
-2. **El muro y la obra.** La civilización choca con un límite físico **y se ve** (la Tierra que se calienta, la luz del Sol que no alcanza, la luz que es demasiado lenta, el silencio, el frío, las galaxias que se alejan, el final). El muro empuja la obra siguiente, que lo resuelve. Es un respiro para mirar, no una clase: la escena lo muestra, la escalera lo marca con una línea que la cruza y una frase lo nombra.
-3. **Un mundo que crece con muchas cosas a la vez.** El escenario se ensancha por etapas (planeta → sistema → estrellas vecinas → galaxia → cosmos) y en cada etapa muchas cosas ocurren en lugares distintos: una línea de carga que cruza, el destello de una catapulta, una vela que se aleja. Nunca se apaga el mundo para mostrar una sola cosa.
-4. **La cámara va montada en la civilización:** el escalador del ascensor, una carga de la catapulta, una placa del enjambre, la vela, la sonda, el frente de expansión. Su alcance crece con el de la civilización.
-5. **Cada límite empuja el paso siguiente**, el hilo que da unidad y enseña sin texto.
-6. **Nada se crea: la mente reordena.** La materia de cada obra viene de un lugar visible: Mercurio se vuelve enjambre, la roca de la Luna sale por la catapulta, el Sol entrega su propia materia. Se ve el flujo, nunca un objeto que aparece.
-7. **Se entiende viéndolo funcionar, sin pararse.** Cada estructura muestra su mecanismo mientras pasa: el ascensor se sostiene por el giro, las velas giran de cara al Sol, el espejo de Shkadov empuja la luz a un lado y la estrella se mueve, las capas del cerebro Matrioshka se enfrían hacia afuera. **Si una frase afirma algo que se puede ver, se ve.**
-8. **Lo nuestro es luz.** La naturaleza está en sus colores físicos; lo que hace la civilización emite luz propia, verde azulado. Se ve de lejos, como una ciudad de noche, y el visitante siempre sabe qué es obra y qué es naturaleza.
-9. **Lo observado, lo que la física permite y lo especulativo se distinguen a la vista:** continuo, discontinuo, punteado (como en Tiempo). Las otras civilizaciones y todo lo que está más allá del tipo II son hipótesis: lenguaje de lámina, con su autor y año.
-10. **Esperanza con tensión.** Cada obra es algo que *hacemos*; cada muro pregunta si llegaremos; el silencio de Fermi acompaña el viaje entero.
-11. **Nunca un cuadro vacío por accidente; nada parpadea sin razón física.** Los destellos de las velas son reflejos del Sol. Lo invisible (un haz láser, el calor infrarrojo) se dibuja en lámina y se dice.
-12. **Los números son el espectáculo** en los extremos: 2⁴⁰ máquinas, 10⁹ galaxias en seis horas, 10⁴⁶ W, el número finito de pensamientos que le quedan al universo.
 
-## Estilo elegido (fase 0, 26 de octubre de 2026)
-- **Los muros se ven en el mundo, en falso color:** el del calor es la Tierra que se tiñe del color de su calor (infrarrojo) detrás de una cortina que barre la pantalla; la industria que sube a órbita se enfría. La escalera marca el muro, pero el protagonista es el mundo. Referencia: `docs/estudios/resumen-muro.jpg`, fila 1.
-- **La apertura es escuchar:** desde el Sol hacia afuera, nuestra voz (una burbuja de radio de 100 años luz) contra una galaxia de 100 000, y lo poco que hemos escuchado; luego la caída a la Tierra. Referencia: `docs/estudios/resumen-apertura.jpg`, fila 3.
-- **Dejar de ser materia es entrar en el cálculo:** la cámara entra entre las capas y queda rodeada de bits (cuadros que se encienden y apagan, en el color de su temperatura); de los bits nace la red que piensa (nodos y pulsos de lámina viva). Inmersivo ante todo. Referencia: `docs/estudios/resumen-mente.jpg` (cuadros de la fila 3, red de las filas 1 y 2) y la manera 4 del estudio.
+1. **Escenarios, no un mundo.** Cada lugar es su propio escenario, con sus unidades y su encuadre, como las eras de Tiempo: la Tierra de noche, el cable, el cilindro, Mercurio que se deshace, el enjambre, la vela, la burbuja, la estrella que piensa, el último agujero negro… Uno se anida en el otro, y se pasa de uno a otro por escala, nunca cruzando el vacío. Son 22 escenarios (ver `ESCALETA.md`).
+2. **Un protagonista por cuadro,** que ocupa entre un tercio y dos tercios de la pantalla. Lo demás se apaga o queda tenue. Si hace falta un plano general, se compone como un cuadro, con un centro.
+3. **Un solo material: la luz en partículas.** Todo está hecho de puntos y filamentos que brillan: los planetas, el Sol, las estrellas y también nuestras obras (el cable, el cilindro, el enjambre, la nave, las cáscaras de la estrella que piensa). No hay mallas sólidas, ni faros con destello, ni órbitas dibujadas, ni cuadrículas.
+4. **El negro es negro.** No hay niebla de color ni cielo pintado al infinito. Cuando hay estrellas, son partículas de verdad en el espacio, cerca de la cámara, y pasan a su lado con paralaje. Solo aparecen donde el cielo es el tema: la galaxia, Fermi, la vela.
+5. **Lo nuestro es verde agua, y crece.** La naturaleza va en sus colores físicos y lo que hacemos brilla verde agua `#6fe3c1`. El verde agua es el hilo de la obra, como el protón azul en Tiempo, y en cada acto ocupa más del cuadro:
+   - el punto (tú) y una gota de radio;
+   - las luces de la Tierra y el cable;
+   - el cilindro, el río de Mercurio y el enjambre;
+   - la vela y la burbuja que tiñe la galaxia;
+   - los hilos hacia todas las galaxias.
 
-## Lenguaje
-| Capa | Qué es | Dónde |
-|---|---|---|
-| **Superficies** | Planetas que se ven de cerca: malla con sombreado propio (la Tierra con el mapa de Natural Earth y el Sol reflejado en el mar; Mercurio con cráteres procedurales) | Lo natural, de cerca |
-| **Partículas de luz** | La civilización (luces, colectores, cargas, minas) y la materia lejana (estrellas, polvo, galaxias), con tamaño físico | Todo el viaje |
-| **Fuentes** | Partículas que no se apagan bajo un píxel (`fuente` en `materia.ts`): lo que emite luz se ve de lejos | Rutas, enjambre, minas, sondas |
-| **Faros** | Un punto de luz para lo que es demasiado pequeño para verse (un planeta, la vela), que se apaga cuando el objeto ya se resuelve | Vistas generales |
-| **Lámina** | Líneas finas, notas con guía, órbitas, flechas de fuerza; lo invisible y lo hipotético | Capa opcional (I) y lenguaje de lo especulativo |
-
-**La lámina (I) es la capa para aprender.** Dibuja sobre la escena viva el mecanismo de lo que se ve, sin pausar el viaje: las fuerzas del ascensor, la luz que entra en una vela del enjambre y el calor que sale por detrás, por qué una cáscara de Dyson no funciona, el cono de aberración de la vela, las temperaturas de las capas del cerebro Matrioshka. Es lo que antes hacían las estaciones «Cómo funciona», ahora encima del viaje y no en una parada. Sus rótulos de conceptos protagonistas enlazan a su ficha del Atlas; aparte, un solo enlace al Atlas al final del viaje.
-
-**El cambio de estética hacia adentro** (acto VI): a medida que la civilización deja de ser biológica, la imagen deja de ser materia: primero la luz de las obras, después estructuras de lámina, al final la mente como dibujo vivo (cómputo). Sin simulación: no es el mundo el que resulta calculado; es la civilización la que se vuelve cálculo. Es el único lugar donde lo abstracto ocupa toda la pantalla, porque ahí el tema es la abstracción.
+   Después se repliega en una mente y queda un solo punto. **Cuánto verde agua hay en pantalla es la potencia**, vista sin números.
+6. **Nada se crea: la mente reordena.** Las partículas de un escenario se vuelven las del siguiente siempre que se pueda. La célula se vuelve red y la red, cerebro; las neuronas pasan a ser ciudades; la superficie de Mercurio, un río; el río se abre en enjambre; la estrella, en cáscaras, y las cáscaras, en bits.
+7. **La cámara va adentro y no frena.** Viaja montada en lo que se mueve (el cable, una carga, la vela, el frente) u orbita cerca del protagonista, y siempre hay algo que le pasa por delante. Fluye de una toma a otra sin detenerse, salvo en las pausas del guion.
+8. **Los muros se ven en el mundo:** la Tierra roja de calor, el Sol que se apaga detrás del enjambre, la nave que se arrastra en la galaxia, el horizonte que se vacía. No hay una línea roja en pantalla; eso queda en la lámina.
+9. **Lo didáctico va a la lámina (I).** La escalera de potencias, las cifras, las órbitas, los nombres de las piezas, «la vista mide», las fuentes. Sin la lámina, la pantalla queda limpia.
+10. **Nunca un cuadro vacío por accidente, nada brusco.** Las reglas de ritmo del 28 de octubre siguen igual (`ESTADO.md`): nada aparece de golpe y el autoplay es vivo.
 
 ## Color
-Interfaz: tinta `#ece7db`, tenue al 50 %, fondo negro. **Acento verde azulado `#6fe3c1`** (tema oscuro) / `#1f8f73` (claro): **el color de la obra**. Espacio es naranja `#ff5b2e`; Tiempo, azul `#8fb4ff`; Destino, verde azulado.
 
-- Es la luz de la civilización: ciudades nuevas, colectores, rutas, el frente de expansión, el marcador del HUD.
-- Las ciudades de hoy conservan su color real (sodio y LED cálidos). Lo que se agrega después ya es verde azulado: así se ve qué es nuevo.
-- Lo que es calor (infrarrojo, falso color) va en rojos y naranjas de lámina (`#ff6a3d`, `#ff9a6a`); la luz del Sol en lámina, crema `#ffe0a0`; un muro, un error físico o un choque, rojo `#ff5b4a`.
+**Interfaz:** tinta `#ece7db`, tenue al 50 %, sobre negro. **Acento verde agua `#6fe3c1`:** el color de la obra, de lo nuestro y del punto.
+
+**Un color por acto, puesto en el protagonista y no en el fondo.** Dentro de un acto, el color de cada momento sale de lo que se ve.
 
 | Acto | Paleta |
 |---|---|
-| 0 · ¿Hay alguien más? | La Vía Láctea desde dentro: bulbo dorado, brazos azulados, polvo; los planetas y sus zonas habitables en lámina; la burbuja que debería existir, verde azulado punteado |
-| I · La materia despierta | Lo vivo en sus colores; lo que piensa (neuronas, máquinas) empieza a tener luz propia |
-| II · Nosotros, hoy | La Tierra de noche: océano azul profundo, ciudades cálidas, el *airglow* verde en el borde (real y casi verde azulado); el muro, la Tierra teñida del color de su calor |
-| III · El sistema solar | Sol blanco cálido, Mercurio gris duro, el enjambre como polvo de vidrio que destella; el Sol en infrarrojo, falso color |
-| IV · Estrellas vecinas | Doppler y aberración a velocidades relativistas: el arcoíris estelar al frente |
-| V · La galaxia | Luz dorada del bulbo, brazos azules, la burbuja verde azulada; las hipótesis de Fermi en lámina punteada; en infrarrojo, falso color |
-| VI · Hacia adentro | Las capas del cerebro Matrioshka del color de su temperatura; después, lámina viva |
-| VII y VIII · Cosmos y final | Negro, rojos de agujeros negros, el destello blanco de un universo que nace |
+| Apertura | Negro, el punto; la galaxia en dorado (bulbo) y azul (brazos) |
+| 0 · Escuchar | Azul frío de estrellas; el verde agua apenas en la gota de radio |
+| I · La materia despierta | Azul de mar profundo → violeta de nervios → coral cálido del cerebro |
+| II · Nosotros, hoy | Azul de noche y sodio de las ciudades; después, el rojo del infrarrojo |
+| III · El sistema solar | Blanco cálido del Sol, gris de Mercurio, vidrio del enjambre; Marte óxido, Venus azufre |
+| IV · Estrellas vecinas | Azul adelante y rojo atrás (Doppler); dorado de Alfa Centauri |
+| V · La galaxia | Dorado y azul que pasan a verde agua; ceniza del enjambre muerto |
+| VI · Hacia adentro | Las cáscaras del color de su temperatura, de blanco a rojo; la red, verde agua y blanco |
+| VII · El cosmos | La red de galaxias en azul frío; nuestras sondas en verde agua; otras burbujas en ámbar y rosa |
+| VIII · El final | Dorado y negro del agujero; el blanco del universo que nace |
 
-## Tipografía
-- **Instrument Serif:** el título, los nombres de momentos (cursiva), el exponente grande, las cifras que son espectáculo.
-- **Geist:** frases e interfaz.
-- **Geist Mono:** cifras, unidades, notas de lámina. Geist Mono no trae todos los superíndices: los exponentes se dibujan elevados a mano.
+## Pantalla
 
-## HUD: la potencia
-- Grande, en Instrument Serif: **la potencia, 10¹³ W**, con el exponente como protagonista. Al lado, en cursiva verde azulada: **tipo 0,73** (Sagan: K = (log₁₀ P − 6) / 10).
-- Debajo, en Geist Mono: la potencia en palabras (19 TW), **cuándo** («2026 · hoy», «año 2370», «dentro de 10⁶ años») y **hasta dónde llega** («alcance 400 km», «3,4 UA», «12 años luz»).
-- **La escalera de la derecha:** de una persona (10² W) a una galaxia (10³⁷ W) y más allá; se llena de verde azulado hasta donde está la civilización; peldaños con nombre (hoy, fotosíntesis, I, la luz del Sol en la Tierra, II, el Sol, III, la Vía Láctea, IV); continua hasta hoy, discontinua hasta el II, punteada después. **Los muros la cruzan** con una línea roja y su nombre.
-- Abajo a la izquierda, el nombre del momento en cursiva y su frase (una).
+Como la de Infinito.
+- **Abajo a la izquierda:** el nombre del momento en cursiva (Instrument Serif), su frase en Geist y la potencia, **10¹³ W · tipo 0,73**, en una línea. En la apertura y el cierre: *20 W · tú, pensando*.
+- **Nada más** sin la lámina: ni escalera, ni rótulos sobre objetos, ni cifras flotantes, ni rótulos de viaje, ni «la vista mide». La única excepción es la cifra que es espectáculo en su momento, grande y sola: las seis horas, los pensamientos contados.
+- **Con la lámina (I):** la escalera de potencias con sus muros, las fichas con cifras y fuentes (las de `GUION.md`), y el dibujo del mecanismo sobre la escena viva, como hoy.
 
 ## Movimiento y cámara
-- Primera persona y montada: la cámara viaja en algo (el cable, una carga, la vela, la sonda, el frente) y se mueve mucho, entre cosas reales.
-- El mouse inclina la vista unos grados (paralaje), nunca más.
-- **El scroll se siente** (de Tiempo): cuanto más rápido empuja la mano, más se inclina la cámara hacia adelante (lente más abierta, desenfoque radial, franjas de color).
-- Lo que pasa demasiado rápido se ve como exposición larga (los días como bandas), nunca como estroboscopio.
-- En los muros el ritmo se frena un poco: un respiro para mirar, no una parada.
+
+- **La cámara se escribe en pistas** (`yaw`, `pitch`, `roll`, `dist`, el foco y la lente), como en Tiempo. Las pistas fluyen por sus claves sin detenerse (interpolación cúbica monótona). Prohibido armar la cámara con rampas `smoothstep` por tramos: cada rampa frena a cero en sus bordes, y eso producía el «se detiene, gira, avanza» de la versión anterior.
+- **Girar y avanzar a la vez,** nunca uno y después el otro.
+- **Puentes entre escenarios:**
+  - **zambullida de escala:** un escenario está anclado dentro del otro, con el polvo de escala de Tiempo para que la velocidad se lea;
+  - **montado en algo:** la cámara se sube a la carga, el cable, la vela o el frente;
+  - **corte por semejanza:** la red de neuronas se vuelve la red de ciudades.
+
+  Nunca un fundido a negro ni un vuelo por el vacío.
+- **Primer plano vivo:** partículas cerca de la lente (motas, carga, estrellas al viajar) que dan paralaje y velocidad.
+- **El scroll se siente,** como en Tiempo: cuanto más rápido, más se inclina la lente, con algo de desenfoque radial. El mouse inclina la vista unos grados.
+- **Las pausas** del guion quedan quietas de verdad: la cámara respira y el punto se enciende.
+
+## Tipografía
+- **Instrument Serif:** el título, los nombres de los momentos (cursiva), la potencia y las cifras que son espectáculo.
+- **Geist:** las frases y la interfaz.
+- **Geist Mono:** solo en la lámina.
 
 ## Sonido
-- Opcional y apagado al empezar (**S**), generado en el navegador.
-- **La potencia se oye:** la densidad del ambiente crece con log P. Pocas voces graves hoy; un coro inmenso y lento en lo cósmico.
-- Cada obra tiene su firma (el golpe sordo de la catapulta, el siseo de vidrio del enjambre, el zumbido del ascensor).
-- **El silencio de Fermi es silencio de verdad.** Una campana suave al llegar a cada momento; la última, el universo que nace.
-- Ambiente, no música.
+Sin cambios (en pausa, «Sonido · pronto»; ver la sesión de sonido).
 
-## Técnica (reglas del motor)
-- Todo es función del progreso del scroll → pistas de la línea de tiempo. Reversible siempre. Teclas A, S, I, L.
-- Pistas principales: `lp` (log₁₀ de la potencia en W), `ly` (log₁₀ de los años desde hoy), `lr` (log₁₀ del alcance en m), más las de cada obra.
-- **Mundo multiescala** con la cadena de Espacio (doble precisión relativa a un pivote; marcos anidados: radios terrestres → UA → años luz → kiloparsecs → megaparsecs). Cada cuerpo es un grupo en sus propias unidades.
-- **Obras persistentes** con dos niveles de detalle (faro o puntos de lejos; malla, instancias y sombreado de cerca), cada una con su animación ambiental aunque nadie la mire.
-- GLSL: **nunca `pow()` con base negativa** (NaN en esta GPU, y el bloom lo esparce por el cuadro, que queda negro): usar `x * x`; `pow(0, y)` → `sqrt(max(x, 0.0))`.
-- `logarithmicDepthBuffer: true` y, en los `ShaderMaterial` con profundidad, `logdepthbuf_pars_vertex/fragment` y `logdepthbuf_vertex/fragment`. Límite de profundidad de `materia.ts` ínfimo y `uSizeUnit` a la escala del mundo de cada nube.
-- 60 fps en escritorio, workers para lo pesado, calidad adaptable, modo liviano en teléfonos, «reducir movimiento». Hoja de contactos que dibuja cada cuadro a mano (sin depender de `requestAnimationFrame`) y guarda en `docs/`.
+## Técnica
+- **Se queda el chasis de Destino:**
+  - scroll, ritmo (`ritmo.ts`), autoplay y línea de tiempo;
+  - la lámina (`lamina.ts`, `placa.ts`, simplificada), i18n, el punto (`tu.ts`), la posproducción y las hojas de contactos;
+  - las teclas A, S, I, L y el modo liviano en móvil.
+- **Se adopta la escena de Tiempo:**
+  - el sistema de eras (`tiempo/src/engine/eras.ts`) como **escenarios**: unidades propias, un ancla en el anterior, la pista `esc`, el fundido por escala y la construcción perezosa;
+  - el polvo de escala (`polvo.ts`), la materia (`materia.ts`) y el agujero negro (`agujero.ts`).
+- **Se van:**
+  - el mundo multiescala (`mundo/mundo.ts`, `cosmos.ts`, `cielo.ts`), la niebla por momento (`engine/ambiente.ts`) y las vistas a mano (`engine/vista.ts` y cada `vista(p)` de los actos);
+  - los faros;
+  - las mallas sólidas (cilindro, nave, hábitats, anillos), que se rehacen en partículas.
+- **Planetas y Sol:** desde `horizontes-cuerpos` (`tools/copiar.mjs`), con el aspecto que elijan los estudios.
+- Siguen valiendo las reglas de GPU de la biblia anterior: nada de `pow()` con base negativa, `smoothstep` con bordes en orden y `logarithmicDepthBuffer` en los materiales con profundidad.
