@@ -11,5 +11,5 @@
     "resolveJsonModule": true,
     "types": ["vite/client"]
   },
-  "include": ["prototypes", "src"]
+  "include": ["prototypes", "src", "estudios"]
 }
