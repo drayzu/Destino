@@ -10,6 +10,7 @@ import { pantalla } from './pantalla';
 /** The moment's colour, by its name (Spanish, as written in the acts). */
 const COLORES: Record<string, [number, number, number]> = {
   // 0 · Listening
+  'Un pensamiento': [0.2, 0.62, 0.58],
   '¿Hay alguien más?': [0.32, 0.24, 0.62],
   'Nuestra voz': [0.2, 0.62, 0.58],
   'Cien mil años luz': [0.26, 0.34, 0.7],
@@ -89,7 +90,9 @@ const COLORES: Record<string, [number, number, number]> = {
   'Las últimas centrales': [1.0, 0.68, 0.32],
   'Pensamientos contados': [0.8, 0.45, 0.25],
   'Crear un universo': [1.0, 0.9, 0.7],
-  'El relevo': [0.79, 0.7, 1.0],
+  Adentro: [0.79, 0.7, 1.0],
+  Alguien: [0.32, 0.42, 0.85],
+  '¿Y el nuestro?': [0.05, 0.14, 0.12],
 };
 
 export function colorDe(nombre: string | undefined) {

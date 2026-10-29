@@ -35,6 +35,8 @@ export interface Libre {
   linea: string;
   /** What the power is of, at the right of the figure (instead of the type). */
   tipo?: string;
+  /** A figure in plain watts instead of the power of ten («20 W»), shown as much as `a` (0..1). */
+  cifra?: { valor: string; unidad: string; linea: string; a: number };
 }
 
 /**

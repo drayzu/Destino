@@ -11,7 +11,7 @@ import { createScroll } from './engine/scroll';
 import { AJUSTE, FUNDIDO_VIAJE, medirRitmo } from './engine/ritmo';
 import { FONDOS } from './engine/pantalla';
 import { ambiente } from './engine/ambiente';
-import { escalera, hud, hudLibre, idioma, peldanoEn, regla } from './engine/placa';
+import { escalera, hud, hudLibre, idioma, peldanoEn, regla, reloj } from './engine/placa';
 import { aplicar, mezcla, proyectarMundo, type Vista } from './engine/vista';
 import { contactos } from './engine/contactos';
 import { crearSonido } from './engine/sonido';
@@ -110,6 +110,8 @@ langBtn.addEventListener('click', switchLang);
 // ---------------------------------------------------------------- the chrome
 
 const intro = $('#intro');
+const cue = $('#cue');
+const brand = $('.brand');
 const outro = $('#outro');
 const leer = $('#leer');
 const provisional = $('#provisional');
@@ -242,26 +244,39 @@ function step(now: number) {
   g.clearRect(0, 0, W, H);
   const u = f.u;
   for (const t of tramos) t.a.placa?.(g, f);
-  const introOut = Math.min(1, Math.max(0, (p - 0.05) / 0.55));
+  // The opening (GUION.md 1–4): before it ends the moments have no chapter, and the brand and the
+  // ladder wait for the title (`cromo`); the title comes and goes with `titulo`; `velo` keeps the
+  // film black around you.
+  const cromo = tl.get('cromo', p);
+  const titulo = tl.get('titulo', p);
+  const velo = tl.get('velo', p);
+  const abierta = p >= tl.at('apertura-fin');
   const c = tl.captionAt(p);
   // The moment's caption under its chapter; its source only with the plate. Each caption fades in
   // and out at its edges, so one gives way to the next instead of jumping.
   if (jumped) amb.saltar(c?.name);
-  amb.update(c?.name, dt, 1);
+  amb.update(c?.name, dt, 1 - velo);
   const tono = `rgb(${amb.color.toArray().map((x) => Math.round(255 * Math.min(1, 0.35 + 0.75 * x))).join(',')})`;
-  const cap = c ? { name: tx(c.name), fact: c.fact ? tx(c.fact) : '', fuente: plateOn ? c.fuente : undefined, capitulo: `${acto.numero} · ${tx(acto.nombre)}`, viaje: c.viaje, tono } : null;
+  const cap = c ? { name: tx(c.name), fact: c.fact ? tx(c.fact) : '', fuente: plateOn ? c.fuente : undefined, ficha: plateOn && c.ficha ? tx(c.ficha) : undefined, capitulo: abierta ? `${acto.numero} · ${tx(acto.nombre)}` : undefined, viaje: c.viaje, tono } : null;
   const fundido = c?.viaje ? FUNDIDO_VIAJE : 0.45;
-  const capFade = c ? Math.min(1, (p - c.from) / fundido, (c.to - p) / fundido) : 0;
+  // (the first one is there when the page opens)
+  const capFade = c ? Math.min(1, c.from <= 0 ? 1 : (p - c.from) / fundido, (c.to - p) / fundido) : 0;
   const l = acto.lectura(p);
   escaleraOn = !!l;
   if (l) {
-    hud(g, u, W, H, l, cap, introOut * capFade);
+    hud(g, u, W, H, l, cap, capFade);
+    g.globalAlpha = cromo;
     escalera(g, u, W, H, l.lp, acto.muro?.(p) ?? null);
+    g.globalAlpha = 1;
   } else {
     const lb = acto.libre?.(p);
     if (lb) {
-      hudLibre(g, u, H, lb.lp, lb.linea, cap, introOut * capFade, introOut, lb.tipo);
-      g.globalAlpha = introOut;
+      // (a figure in plain watts gives way to the power of ten as it climbs)
+      // (one after the other: in the same place their figures ran into each other)
+      const a = lb.cifra?.a ?? 0;
+      hudLibre(g, u, H, lb.lp, lb.linea, cap, capFade, 1 - smoothstep(0, 0.5, a), lb.tipo);
+      if (lb.cifra && a > 0.5) reloj(g, u, H, lb.cifra.valor, lb.cifra.unidad, tx(lb.cifra.linea), null, 0, smoothstep(0.5, 1, a));
+      g.globalAlpha = cromo;
       escalera(g, u, W, H, lb.lp, null, 1);
       g.globalAlpha = 1;
     }
@@ -270,7 +285,7 @@ function step(now: number) {
   if (typeof acto.regla === 'function' ? acto.regla(p) : acto.regla !== false) {
     const dAU = v.pos.distanceTo(v.target);
     const ancho = 2 * dAU * 1.495978707e11 * Math.tan(THREE.MathUtils.degToRad(v.fov / 2)) * (W / H);
-    regla(g, u, W, H, ancho, introOut);
+    regla(g, u, W, H, ancho, cromo);
   }
   if (cap && cap.name !== lastCap && p > 0.3) {
     if (!cap.viaje) sound.campana();
@@ -278,10 +293,13 @@ function step(now: number) {
   }
   lastCap = cap?.name ?? '';
 
-  intro.style.opacity = String(1 - introOut);
-  intro.style.transform = `translateY(${-introOut * 40}px)`;
+  intro.style.opacity = String(smoothstep(0, 1, titulo) * (1 - smoothstep(1, 2, titulo)));
+  intro.style.transform = `translateY(${titulo < 1 ? (1 - titulo) * 16 : -(titulo - 1) * 24}px)`;
+  // «Desliza para empezar» stays under you until the first gesture.
+  cue.style.opacity = String(1 - smoothstep(0.05, 0.6, p));
+  brand.style.opacity = String(cromo);
   provisional.classList.toggle('is-in', !!acto.provisional && p > desde + 0.2);
-  outro.classList.toggle('is-in', p > tl.length - 0.9);
+  outro.classList.toggle('is-in', tl.get('relevo', p) > 0.5);
   playBtn.classList.toggle('is-on', scroll.playing);
   sound.update(l?.lp ?? acto.libre?.(p)?.lp ?? 13, pace, cap?.name === tx('El silencio') ? 1 : 0, i, mundo.estado.beta);
 }

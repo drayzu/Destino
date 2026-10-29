@@ -10,6 +10,7 @@ import { E, NOCHE, deriva, noche, type Mundo } from '../mundo/mundo';
 import { R_E } from '../mundo/obras';
 import { HORIZONTE, SPHERE_PRE, esfera } from '../mundo/tierra';
 import { DATOS, celula, cerebro, neuronas } from '../mundo/vida';
+import { crearTu } from '../engine/tu';
 import type { Acto, Cuadro } from './tipos';
 
 /**
@@ -49,6 +50,9 @@ export function despertar(): Acto {
   const neu = neuronas();
   const cer = cerebro();
   micro.add(cel.points, neu.points, cer.points);
+  // (GUION.md 12, a pause: you, inside the brain, on the same twenty watts)
+  const tu = crearTu();
+  micro.add(tu.points);
   // Its background: the dark sea (the cell), violet dark (the nerves).
   const fondo = pantalla(
     /* glsl */ `
@@ -132,19 +136,19 @@ export function despertar(): Acto {
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a1');
       tl.set({ 'a1.lp': -12, 'a1.ly': 9.54 });
-      tl.caption(4.4, 'Una célula que reacciona', 'Hace al menos 3 500 millones de años, en la Tierra, la materia empezó a reaccionar a lo que la rodea. Una célula vive con una billonésima de vatio.', { desde: 1.2, viaje: 'A la Tierra, hace 3 500 millones de años' });
+      tl.caption(4.4, 'Una célula que reacciona', 'Antes de pensar, la materia aprendió a reaccionar. Empezó en el mar, con una célula.', { ficha: 'hace al menos 3 500 millones de años; una célula vive con alrededor de un picovatio, una billonésima de vatio', desde: 1.2, viaje: 'A la Tierra, hace 3 500 millones de años' });
       tl.to(4.4, { 'a1.lp': -12 });
       tl.label('a1.nervios');
-      tl.caption(3.6, 'Nervios', 'Hace unos 600 millones de años, algunas células empezaron a pasarse señales eléctricas: los primeros nervios. Con ellos, un cuerpo entero reacciona, y rápido.', { desde: 1.0, viaje: '3 000 millones de años después' });
+      tl.caption(3.6, 'Nervios', 'Después, unas células empezaron a pasarse chispas. Con ellas, un cuerpo entero reacciona a la vez.', { ficha: 'los primeros nervios, hace unos 600 millones de años', desde: 1.0, viaje: '3 000 millones de años después' });
       tl.to(3.6, { 'a1.lp': -12 });
       tl.label('a1.cerebro');
-      tl.caption(3.6, 'Un cerebro', 'Un cerebro humano junta 86 000 millones de neuronas, lo más complejo que conocemos, y funciona con unos 20 vatios: lo que gasta una bombilla.', { desde: 1.1, viaje: 'Hasta nosotros' });
-      tl.to(0.9, { 'a1.lp': Math.log10(20) }).to(2.7, {});
+      tl.caption(4.6, 'Un cerebro', 'Lo más complejo que conocemos, y funciona con veinte vatios. Como el tuyo, ahora.', { ficha: 'unos 86 000 millones de neuronas, con unos 20 W', fuente: 'Azevedo y otros, 2009', desde: 1.1, viaje: 'Hasta nosotros' });
+      tl.to(0.9, { 'a1.lp': Math.log10(20) }).to(3.7, {});
       tl.label('a1.todos');
-      tl.caption(3.4, 'Ocho mil millones de cerebros', 'Todos los cerebros humanos juntos gastan lo que una central eléctrica grande. Están ahí, donde de noche hay luz.', { desde: 1.0, viaje: 'De vuelta a la Tierra' });
+      tl.caption(3.4, 'Ocho mil millones de cerebros', 'Están ahí, donde de noche hay luz. Todos juntos piensan con menos del uno por ciento de lo que gastamos.', { ficha: '8 200 millones × 20 W ≈ 1,6 × 10¹¹ W: el 0,9 % de los 19 TW que usamos', desde: 1.0, viaje: 'De vuelta a la Tierra' });
       tl.to(0.9, { 'a1.lp': Math.log10(8.2e9 * 20) }).to(2.5, {});
       tl.label('a1.maquinas');
-      tl.caption(3.2, 'Las máquinas que piensan', 'Y ya no pensamos solo con cerebros: los centros de datos gastan casi un tercio de lo que gastan todos ellos, y crecen cada año.');
+      tl.caption(3.2, 'Las máquinas que piensan', 'Y ahora pensamos también fuera de la cabeza. Las máquinas que piensan crecen cada año.', { ficha: 'los centros de datos: unos 47 GW en 2024 (415 TWh al año), casi un tercio de todos los cerebros', fuente: 'AIE, 2025' });
       tl.to(0.9, { 'a1.lp': Math.log10(4.7e10) }).to(2.3, {});
       tl.label('a1.fin');
     },
@@ -184,6 +188,8 @@ export function despertar(): Acto {
       cabina.visible = here;
       fondo.mesh.visible = here;
       datos.points.visible = here;
+      const tuOn = ease(P('a1.cerebro', 2.0), P('a1.cerebro', 2.6), p) * (1 - ease(P('a1.todos', -0.5), P('a1.todos', 0.1), p));
+      tu.update(new THREE.Vector3(), here ? tuOn : 0, time, f.dpr);
       if (!here) return;
       // What the small space shows, moment by moment.
       const celOn = ease(P('a1', 0.6), P('a1', 1.4), p) * (1 - ease(P('a1.nervios', 0.4), P('a1.nervios', 1.4), p));

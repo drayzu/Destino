@@ -7,6 +7,7 @@ import { mezcla, mirar, vuelo, type Vista } from '../engine/vista';
 import { CENTRO } from '../mundo/galaxia';
 import { LY_AU, type Mundo } from '../mundo/mundo';
 import { AZ, CAL, RADIOS, TEMPS, calor, capaBits, capaMateria, red } from '../mundo/matrioshka';
+import { crearTu } from '../engine/tu';
 import type { Acto, Cuadro } from './tipos';
 
 /**
@@ -48,6 +49,8 @@ export function adentro(): Acto {
   group.add(net.lines, net.puntos.points);
   const heat = calor();
   group.add(heat.points);
+  // (GUION.md 45, a pause: you, a point among the bits, ahead of the camera)
+  const tu = crearTu();
 
   // ------------------------------------------------------------ the camera (the study's way 4)
   function camEstudio(c: number, time: number): Vista {
@@ -101,22 +104,22 @@ export function adentro(): Acto {
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a6');
       tl.set({ 'a6.cam': 0, 'a6.frio': 0, 'a6.lam': 0, 'a6.flow': 0, 'a6.muro': 0, 'a6.ly': 8.6 });
-      tl.caption(5.6, 'Pensar con una estrella', 'Hacia adentro: en vez de seguir expandiéndose, una civilización madura podría envolver su estrella en capas de computadoras, cada una alimentada con el calor de la anterior.', { fuente: 'Bradbury, 1999 (cerebro Matrioshka)', desde: 2.5, viaje: 'Hacia una sola estrella' });
+      tl.caption(5.6, 'Pensar con una estrella', 'Hacia adentro: envolver una estrella en capas de computadoras, y ponerla a pensar.', { fuente: 'Bradbury, 1999 (cerebro Matrioshka)', desde: 2.5, viaje: 'Hacia una sola estrella' });
       tl.to(3.0, {}).to(2.6, { 'a6.cam': 1, 'a6.ly': 8.62 });
       tl.label('a6.frio');
-      tl.caption(3.8, 'El frío piensa más', 'Cuanto más frío, más barato es pensar: borrar un bit a 3 K cuesta 110 veces menos que a 300 K. Con la luz de un sol, de 10⁴⁷ a 10⁴⁹ operaciones por segundo.', { fuente: 'Landauer, 1961' });
+      tl.caption(3.8, 'El frío piensa más', 'Cada capa vive del calor de la anterior. Y cuanto más fría, más barato le sale pensar.', { ficha: 'borrar un bit a 2,7 K cuesta unas 110 veces menos que a 300 K; con la luz de un sol, de 10⁴⁷ a 10⁴⁹ operaciones por segundo', fuente: 'Landauer, 1961' });
       tl.to(3.8, { 'a6.cam': 2, 'a6.frio': 1, 'a6.flow': 1, 'a6.ly': 8.64 });
       tl.label('a6.mente');
-      tl.caption(5.6, 'Dejar de ser materia', 'Una civilización así ya no necesita cuerpos: sus mentes son cálculo. De nosotros queda la forma en que corre la información.');
-      tl.to(0.5, { 'a6.frio': 0 }).to(5.1, { 'a6.cam': 3, 'a6.lam': 1, 'a6.ly': 8.68 });
+      tl.caption(6.4, 'Dejar de ser materia', 'Una mente así ya no necesita cuerpo: es cálculo. De ti quedaría la forma en que piensas.');
+      tl.to(0.5, { 'a6.frio': 0 }).to(5.1, { 'a6.cam': 3, 'a6.lam': 1, 'a6.ly': 8.68 }).to(0.8, {});
       tl.label('a6.muro');
-      tl.caption(4.0, 'El frío', 'Pero pensar cuesta energía, y toda energía termina como calor. Nada se enfría por debajo del fondo del universo: cada pensamiento tiene su precio.');
+      tl.caption(4.0, 'El frío', 'Pero pensar cuesta, y todo termina como calor. Nada se enfría más que el fondo del universo.', { ficha: 'el fondo del universo está hoy a 2,7 K' });
       tl.to(4.0, { 'a6.cam': 4, 'a6.muro': 1, 'a6.ly': 8.7 });
       tl.label('a6.fin');
     },
     montar(mundo) {
       m = mundo;
-      m.root.add(group);
+      m.root.add(group, tu.points);
       m.nubes.push(...mat, heat, net.puntos);
     },
     vista: (p, time) => vista(p, time),
@@ -142,6 +145,7 @@ export function adentro(): Acto {
       const { p, time, vista: v } = f;
       const here = p > P('a6', -0.5) && p < P('a6.fin', 2);
       group.visible = here;
+      tu.update(v.target, here ? ease(P('a6.mente', 2.4), P('a6.mente', 3.2), p) * (1 - ease(P('a6.muro', -0.5), P('a6.muro', 0.3), p)) : 0, time, f.dpr);
       if (!here) return;
       const dist = v.pos.length() / S;
       const lamK = tl.get('a6.lam', p);

@@ -5,8 +5,9 @@ import { TEAL, cifra, ink, nota, type Muro } from '../engine/placa';
 import { flecha, linea, texto } from '../engine/lamina';
 import { mirar, type Vista } from '../engine/vista';
 import { calentamiento, grados, industria, infrarrojo } from '../mundo/calor';
-import { E, deriva, noche, type Mundo } from '../mundo/mundo';
+import { E, NOCHE, deriva, noche, type Mundo } from '../mundo/mundo';
 import { GEO, R_E, ascensorDir } from '../mundo/obras';
+import { crearTu } from '../engine/tu';
 import type { Acto, Cuadro } from './tipos';
 
 /**
@@ -45,6 +46,10 @@ export function hoy(): Acto {
   let m: Mundo;
   const ir = infrarrojo();
   const ind = industria(ascensorDir());
+  // (GUION.md 16, a pause) You, among the lights, in the middle of the night side we see. (Not
+  // Santiago, as in Infinito: at this turn of the Earth it is daytime there, round the limb.)
+  const tu = crearTu();
+  let aqui: THREE.Vector3 | null = null;
   let giroAsc = 0;
   let giroDelta = 0;
 
@@ -85,17 +90,18 @@ export function hoy(): Acto {
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a2');
       tl.set({ 'a2.t': 0, 'a2.lp': 13.28, 'a2.ly': -1, 'a2.lr': 5.6, 'a2.luces': 0.36, 'a2.wipe': 1.25, 'a2.sube': 0, 'a2.giro': 0 });
-      tl.caption(4.2, 'Doscientos años de luces', 'Desde 1800 fuimos encendiendo el planeta, primero de a poco y después de golpe. La energía que usamos pasó de 0,6 a 19 billones de vatios.');
+      tl.caption(4.2, 'Doscientos años de luces', 'En doscientos años encendimos el planeta: primero de a poco, después de golpe.', { ficha: 'de 0,64 TW en 1800 a 19 TW hoy', fuente: 'Smil, 2017; Energy Institute, 2026' });
       tl.to(4.2, { 'a2.t': 1 });
-      tl.caption(2.6, 'Hoy', 'Hoy son 19 TW: en la escala de Kardashev, tipo 0,73. Parece mucho, pero la Tierra recibe del Sol 174 000 TW. Y toda la energía que usamos termina como calor.');
-      tl.label('a2.hoy').with(1.6, { 'a2.wipe': 0.02 }).to(2.6, {});
-      tl.caption(3.0, 'Más energía, más calor', 'Si seguimos creciendo, las luces llenan la Tierra y el calor de nuestras máquinas crece con ellas. A la derecha, el planeta como lo vería una cámara infrarroja.');
+      tl.caption(3.6, 'Hoy', 'Hoy usamos diecinueve billones de vatios. Unos pocos encienden la pantalla en que miras esto.', { ficha: 'tipo 0,73 en la escala de Kardashev: K = (log P − 6) / 10, con P en vatios', fuente: 'Sagan, 1973' });
+      // (a pause: the infrared curtain comes at its end, with the heat)
+      tl.label('a2.hoy').wait(2.4).with(1.6, { 'a2.wipe': 0.02 }).to(1.2, {});
+      tl.caption(3.0, 'Más energía, más calor', 'Hay espacio para crecer: el Sol le da a la Tierra casi diez mil veces más. Pero lo que usamos termina como calor.', { ficha: 'la Tierra recibe del Sol 174 000 TW; a la derecha, como la vería una cámara infrarroja' });
       tl.label('a2.crece').to(3.0, { 'a2.lp': 15.0, 'a2.ly': 2.35, 'a2.luces': 0.62 });
-      tl.caption(2.8, 'El calor nos echa', 'Un planeta solo puede soltar calor irradiándolo al espacio. Con 10¹⁶ W usados en su superficie, la Tierra se calentaría al menos 6 grados: hay que salir.', { fuente: 'Balbi y Lingam, 2025' });
+      tl.caption(2.8, 'El calor nos echa', 'Un planeta solo se enfría brillando hacia el espacio. Si seguimos creciendo aquí, se recalienta: hay que salir.', { ficha: 'con 10¹⁶ W usados en la superficie, la Tierra se calentaría al menos 6 grados', fuente: 'Balbi y Lingam, 2025' });
       tl.label('a2.muro').with(1.3, { 'a2.wipe': -1.25 }).to(2.8, { 'a2.lp': 16.0, 'a2.ly': 2.54 });
       // The elevator is the way up, not a moment of its own: the ride is a journey, and the moment
       // begins at the top, where the point is (the heat goes to the void). Its physics is on the plate.
-      tl.caption(6.4, 'La industria sale al espacio', 'Por el cable suben fábricas y centros de datos. En órbita, su calor se va directo al vacío sin calentar el planeta: se puede seguir creciendo, y hacia el año 2370 llegamos al tipo I.', { desde: 2.2, viaje: 'Por el ascensor espacial, hasta 36 000 km' });
+      tl.caption(6.4, 'La industria sale al espacio', 'Las fábricas suben por el cable. Allá arriba su calor se va al vacío, y podemos seguir creciendo hasta el tipo I.', { ficha: 'el tipo I, hacia el año 2370 (entre 2333 y 2404)', fuente: 'Jiang y otros, 2022', desde: 2.2, viaje: 'Por el ascensor espacial, hasta 36 000 km' });
       // The industry starts climbing as we do: we ride up beside it.
       tl.label('a2.asc').with(0.9, { 'a2.wipe': 1.25 }).with(1.6, { 'a2.giro': 1 }).with(6.4, { 'a2.sube': 1 }).to(2.6, { 'a2.lr': 7.6 });
       tl.label('a2.sale').to(3.8, { 'a2.lp': 16.25, 'a2.ly': 2.54 });
@@ -103,7 +109,7 @@ export function hoy(): Acto {
     },
     montar(mundo) {
       m = mundo;
-      m.body.add(ir.mesh, ind.points);
+      m.body.add(ir.mesh, ind.points, tu.points);
       m.nubes.push(ind);
       giroAsc = m.giroAscensor;
       giroDelta = ((((giroAsc - m.giroNoche) % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
@@ -144,6 +150,9 @@ export function hoy(): Acto {
     },
     update(f) {
       const { p, time, W } = f;
+      // You, on the Earth (its frame, its radii): where the camera looks from in the middle of «Hoy».
+      aqui ??= NOCHE.clone().applyAxisAngle(V(0, 1, 0), deriva(P('a2.hoy', 1.8))).applyQuaternion(m.giroQ(m.giroNoche).clone().invert()).multiplyScalar(1.004);
+      tu.update(aqui, ease(P('a2.hoy', 0.8), P('a2.hoy', 1.4), p) * (1 - ease(P('a2.crece', -0.4), P('a2.crece', 0.3), p)), time, f.dpr);
       // (the band in orbit stays while the next act leaves the Earth behind)
       const on = p > P('a2', -1) && p < P('a2.fin', 6);
       ind.points.visible = on;

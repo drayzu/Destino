@@ -87,19 +87,19 @@ export function cosmico(): Acto {
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a7');
       tl.set({ 'a7.lp': 37.0, 'a7.ly': 8.7, 'a7.lr': 20.98 });
-      tl.caption(7.0, 'La eternidad en seis horas', 'O hacia afuera, a lo grande: con la energía de una sola estrella, en seis horas se pueden lanzar sondas a todas las galaxias alcanzables, entre 100 y 4 000 millones.', { fuente: 'Armstrong y Sandberg, 2013' });
+      tl.caption(7.0, 'La eternidad en seis horas', 'O hacia afuera: con la luz de una estrella, en seis horas salen sondas a todas las galaxias alcanzables.', { ficha: 'entre 100 y 4 000 millones de galaxias alcanzables', fuente: 'Armstrong y Sandberg, 2013' });
       tl.to(7.0, { 'a7.lp': 41.0, 'a7.ly': 9.6, 'a7.lr': 24.5 });
       tl.label('a7.prisa');
-      tl.caption(5.6, 'La prisa', 'Hay que apurarse: la energía oscura aleja las galaxias cada vez más rápido. Las que cruzan el horizonte, hoy a unos 16 000 millones de años luz, ya no se alcanzan nunca.');
+      tl.caption(5.6, 'La prisa', 'Hay que apurarse: las galaxias se alejan cada vez más rápido, y las que cruzan el horizonte ya no se alcanzan.', { ficha: 'el horizonte está hoy a unos 16 000 millones de años luz' });
       tl.to(5.6, { 'a7.lp': 43.5, 'a7.ly': 10.0, 'a7.lr': 25.6 });
       tl.label('a7.expansivas');
-      tl.caption(5.6, 'Las expansivas se tocan', 'Si hay otras civilizaciones que se expanden casi a la velocidad de la luz, nuestras burbujas terminan tocándose, y cada una se queda con su parte del cielo.', { fuente: 'Hanson y otros, 2021' });
+      tl.caption(5.6, 'Las expansivas se tocan', 'Si otras se expanden igual, las burbujas se tocan, y cada una se queda con su parte del cielo.', { fuente: 'Hanson y otros, 2021' });
       tl.to(5.6, { 'a7.lp': 45.2, 'a7.ly': 10.3, 'a7.lr': 26.1 });
       tl.label('a7.tipo4');
-      tl.caption(4.4, 'Tipo IV', 'Unos 10⁴⁶ W, del orden de todo el universo observable: tipo IV. Más allá no hay a dónde ir.', { fuente: 'Gray, 2020' });
+      tl.caption(4.4, 'Tipo IV', 'Tipo IV: todo lo que se puede alcanzar. Más allá no hay adónde ir.', { ficha: '10⁴⁶ W: del orden de la luz de las galaxias alcanzables; todo lo observable brilla con unos 10⁴⁸ a 10⁴⁹ W', fuente: 'Gray, 2020' });
       tl.to(4.4, { 'a7.lp': 46.0, 'a7.ly': 10.5 });
       tl.label('a7.muro');
-      tl.caption(4.6, 'El horizonte', 'Y lo que la energía oscura se lleva no vuelve. El universo que podemos tocar ya no crece: se vacía.');
+      tl.caption(4.6, 'El horizonte', 'Lo que se lleva la energía oscura no vuelve. Lo que podemos tocar ya no crece: se vacía.');
       tl.to(4.6, { 'a7.ly': 10.7 });
       tl.label('a7.fin');
     },

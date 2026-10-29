@@ -6,10 +6,21 @@ import { linea, panel, texto } from '../engine/lamina';
 import { mirar, type Vista } from '../engine/vista';
 import { CENTRO, esferaLamina } from '../mundo/galaxia';
 import { E, LY_AU, NOCHE, deriva, type Mundo } from '../mundo/mundo';
+import { crearTu } from '../engine/tu';
 import { R_E } from '../mundo/obras';
 import type { Acto, Cuadro } from './tipos';
 
 /**
+ * The opening (GUION.md 1–4), then act 0. Black, and a teal point that breathes: you, the series'
+ * point (Infinito's «tú»), thinking on twenty watts, the clock's first reading. The camera pulls back
+ * from you while our radio bubble swells out of the point and the Milky Way lights up around it, seen
+ * from inside; then out to the whole galaxy, where all of our voice is a dot again. Only there the
+ * title, while the clock climbs from your twenty watts to the galaxy's 10³⁷.
+ *
+ * Tracks: `velo` (1 hides the galaxy, the sky and the Sun), `titulo` (0 → 1 the title comes, 1 → 2 it
+ * goes), `cromo` (the brand, the ladder), `ap.tu` (you), `ap.vatios` (0 your twenty watts, 1 the
+ * galaxy's power).
+ *
  * Act 0 · ¿Hay alguien más? The style Diego chose in phase 0 is listening: from the Sun outwards,
  * our own voice (a bubble of radio about a century old, ~100 light years) against a galaxy of
  * 100 000; planets everywhere; how little we have listened; the bubble a single civilization would
@@ -35,6 +46,9 @@ const UP = V(0, 1, 0);
 const sph = (c: THREE.Vector3, d: number, elev: number, az: number) => c.clone().add(V(Math.cos(elev) * Math.sin(az) * d, Math.sin(elev) * d, Math.cos(elev) * Math.cos(az) * d));
 /** The bubble that should exist: where a civilization might have started, and the years it takes. */
 const SB = CENTRO.clone().add(V(-17000, 0, 11000));
+/** The opening's camera: a couple of light years off you, and where our whole voice is in view (ly). */
+const D_TU = 2;
+const D_VOZ = 420;
 
 export function apertura(): Acto {
   let tl: Timeline;
@@ -42,29 +56,34 @@ export function apertura(): Acto {
   const ease = smoothstep;
   let G: Mundo['G'];
   const bub = esferaLamina();
+  const tu = crearTu();
 
-  /** Close to the Sun, then pulled back until the whole galaxy is in view; a slow drift after. */
+  /** On the way out of you (0..1): from a couple of light years to where our whole voice is in view. */
+  const sale = (p: number) => ease(P('a0.voz', 0.2), P('a0.lejos'), p);
+  const dSale = (s: number) => Math.exp(lerp(Math.log(D_TU), Math.log(D_VOZ), s));
+  /**
+   * Our radio bubble's radius (ly) on the way out: it reaches its hundred light years as we reach our
+   * distance, so it swells out of the point and stays in view (never wider than a third of it).
+   */
+  const rVoz = (p: number) => (100 * (dSale(sale(p)) - D_TU)) / (D_VOZ - D_TU);
+  /**
+   * Off you, looking back at you with the galaxy's core behind; pulled back, in powers of ten, until
+   * our whole voice is in view, and then until the whole galaxy is; a slow drift after.
+   */
   function cerca(p: number) {
-    const az = 0.35 + 0.05 * (p - P('a0'));
-    const d0 = lerp(420, 300, ease(P('a0.voz'), P('a0.lejos'), p));
-    const k = ease(P('a0.lejos'), P('a0.planetas', -0.2), p);
-    // With the whole galaxy in view, a slow turn round it and down towards its plane, so the
-    // arms wheel past while the planets and the silence are told.
-    const deriva = ease(P('a0.planetas', -0.2), P('a0.caida'), p);
-    const d = Math.exp(lerp(Math.log(d0), Math.log(155000), k)) * (1 - 0.12 * deriva);
-    // Pull straight back from the Sun first; only near the end turn to frame the whole galaxy.
+    const k = ease(P('a0.lejos'), P('a0.titulo'), p);
+    // Out of you, low over the disc with the core just behind you, so the Milky Way's band and its
+    // glow pass behind the point; rising and turning aside as the whole galaxy comes into view.
+    const sube = ease(0.0, 0.6, k);
+    const az = lerp(0.12, 0.35, sube) + 0.05 * (p - P('a0'));
+    // With the whole galaxy in view, a slow turn round it and down towards its plane, so the arms
+    // wheel past under the title and while the planets and the silence are told.
+    const deriva = ease(P('a0.titulo'), P('a0.caida'), p);
+    const d = Math.exp(lerp(Math.log(dSale(sale(p))), Math.log(155000), k)) * (1 - 0.12 * deriva);
+    // Pull straight back from you first; only near the end turn to frame the whole galaxy.
     const target = V(0, 0, 0).lerp(CENTRO.clone().multiplyScalar(0.62), ease(0.55, 1, k));
-    const pos = sph(target, d, lerp(0.18, 1.0, ease(0.0, 0.6, k)) - 0.28 * deriva, az + 0.75 * deriva);
-    // At first we look away from the Sun, along the disc to the galaxy's core (all those stars, and
-    // the glow of the bulge); then the gaze turns to the Sun, a point among them.
-    const gira = ease(P('a0', 1.0), P('a0.voz', 0.5), p);
-    if (gira >= 1) return { pos, target, up: UP.clone(), fov: 46 };
-    const a = CENTRO.clone().sub(pos).normalize();
-    const b = target.clone().sub(pos);
-    const lb = b.length();
-    const q = new THREE.Quaternion().setFromUnitVectors(a, b.divideScalar(lb));
-    const dir = a.applyQuaternion(new THREE.Quaternion().slerp(q, gira));
-    return { pos, target: pos.clone().addScaledVector(dir, lb), up: UP.clone(), fov: lerp(64, 46, gira) };
+    const pos = sph(target, d, lerp(0.05, 1.0, sube) - 0.28 * deriva, az + 0.75 * deriva);
+    return { pos, target, up: UP.clone(), fov: 46 };
   }
   // The fall: wherever we are, to the Sun, then to the Earth, from the side where the next act
   // looks at it (its night side, the Sun just behind its limb: a lit crescent).
@@ -116,20 +135,41 @@ export function apertura(): Acto {
     coreografia(t) {
       tl = t;
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
+      // The opening (GUION.md 1–4): black, and you. Nothing of the world shows yet.
+      tl.set({ velo: 1, titulo: 0, cromo: 0, 'ap.tu': 1, 'ap.vatios': 0 });
       tl.label('a0');
-      tl.caption(1.8, '¿Hay alguien más?', 'Nuestra galaxia tiene cientos de miles de millones de estrellas. Juntas brillan con unos 10³⁷ vatios y, hasta donde sabemos, nadie usa esa energía.');
-      tl.to(1.8, {});
-      tl.caption(2.6, 'Nuestra voz', 'Hace un siglo empezamos a transmitir por radio. Esas señales viajan a la velocidad de la luz y ya forman una burbuja de 100 años luz alrededor de la Tierra.');
-      tl.label('a0.voz').to(2.6, { 'a0.voz': 1 });
-      tl.caption(2.8, 'Cien mil años luz', 'Pero la galaxia mide 100 000 años luz. A esta escala, toda nuestra voz cabe en un punto.');
-      tl.label('a0.lejos').to(2.8, {});
-      tl.caption(3.0, 'Planetas por todas partes', 'Y planetas no faltan: ya confirmamos 6 451 y calculamos que hay al menos uno por estrella. Muchos están donde podría haber agua líquida.');
+      tl.caption(2.6, 'Un pensamiento', 'Estás pensando. Eso cuesta unos veinte vatios.', { ficha: 'un cerebro humano usa unos 20 W, una quinta parte de lo que gasta el cuerpo en reposo' });
+      tl.wait(2.6);
+      // Out of you: our radio bubble swells out of the point, and the Milky Way lights up around it.
+      tl.label('a0.voz');
+      tl.caption(3.4, 'Nuestra voz', 'Y lo que pensamos, lo decimos. Hace un siglo que nuestra radio sale de aquí.', { ficha: 'las primeras emisoras de radio son de 1920: una burbuja de unos 100 años luz' });
+      tl.wait(0.4);
+      tl.with(2.2, { velo: 0 });
+      tl.wait(3.0);
+      // Out to the whole galaxy: our voice is a dot again.
+      tl.label('a0.lejos');
+      tl.caption(3.0, 'Cien mil años luz', 'Pero la galaxia mide cien mil años luz. Toda nuestra voz cabe en un punto.');
+      tl.wait(3.0);
+      // Only now the title; the clock climbs from your twenty watts to the galaxy's. Then the chrome.
+      tl.label('a0.titulo');
+      tl.with(1.2, { titulo: 1 });
+      tl.with(2.4, { 'ap.vatios': 1 });
+      tl.wait(2.6);
+      tl.with(1.0, { cromo: 1 });
+      tl.with(1.4, { titulo: 2 });
+      tl.wait(1.4);
+      // You give way to the plate's ring around our voice.
+      tl.label('apertura-fin');
+      tl.with(0.8, { 'ap.tu': 0 });
+      tl.caption(2.4, '¿Hay alguien más?', 'Cientos de miles de millones de estrellas. Hasta donde sabemos, nadie usa su luz.', { ficha: 'de 100 000 a 400 000 millones de estrellas, que juntas brillan con unos 10³⁷ W' });
+      tl.wait(2.4);
+      tl.caption(3.0, 'Planetas por todas partes', 'Y planetas no faltan: al menos uno por estrella. Muchos, donde podría haber agua.', { ficha: '6 451 planetas confirmados (NASA Exoplanet Archive, 15 de octubre de 2026); al menos uno por estrella en promedio', fuente: 'Cassan y otros, 2012' });
       tl.label('a0.planetas').to(3.0, { 'a0.plan': 1 });
-      tl.caption(2.6, 'Lo que hemos escuchado', 'Llevamos décadas escuchando por si alguien transmite. Lo revisado hasta ahora es como sacar un vaso de agua del mar y decir que no hay peces.', { fuente: 'Tarter, 2010; Wright y otros, 2018' });
+      tl.caption(2.6, 'Lo que hemos escuchado', 'Llevamos décadas escuchando. Es como sacar un vaso de agua del mar y decir que no hay peces.', { ficha: 'con más datos, una tina de baño entre todos los océanos', fuente: 'Tarter, 2010; Wright y otros, 2018' });
       tl.label('a0.escuchado').to(2.6, {});
-      tl.caption(3.0, 'El silencio', 'Aun así, el silencio es raro: a una décima de la velocidad de la luz, una sola civilización llenaría la galaxia en 650 000 años, y ha habido 13 000 millones. ¿Dónde están todos?', { fuente: 'Fermi, 1950; Hart, 1975' });
+      tl.caption(3.0, 'El silencio', 'Una sola civilización habría tenido tiempo de llenar la galaxia miles de veces. ¿Dónde están todos?', { ficha: 'a una décima de la luz, una civilización llenaría la galaxia en unos 650 000 años; la galaxia tiene unos 13 000 millones', fuente: 'Fermi, 1950; Hart, 1975' });
       tl.label('a0.silencio').to(3.0, { 'a0.bub': 1 });
-      tl.caption(3.4, 'Una estrella amarilla', 'No lo sabemos. Pero podemos imaginar cómo crecería una, empezando por la única que conocemos: la nuestra, junto a una estrella amarilla.', { desde: 1.9, viaje: 'Hacia el Sol' });
+      tl.caption(3.4, 'Una estrella amarilla', 'No lo sabemos. Pero podemos imaginar cómo crecería una, empezando por la nuestra.', { desde: 1.9, viaje: 'Hacia el Sol' });
       tl.label('a0.caida').to(3.4, { 'a0.caida': 1, 'a0.plan': 0 });
       tl.label('a0.fin');
     },
@@ -137,6 +177,7 @@ export function apertura(): Acto {
       G = m.G;
       m.gal.add(bub.group);
       m.nubes.push(bub.nube);
+      m.root.add(tu.points);
     },
     vista(p) {
       const v = camaraLy(p);
@@ -145,30 +186,39 @@ export function apertura(): Acto {
     lectura: () => null,
     libre(p) {
       const k = tl.get('a0.caida', p);
-      const lp = lerp(lerp(37.0, 26.58, ease(0.1, 0.35, k)), 17.24, ease(0.5, 0.78, k));
+      // At first your twenty watts, in watts; under the title they climb to the galaxy's power.
+      const sube = tl.get('ap.vatios', p);
+      const lp = lerp(Math.log10(20), lerp(lerp(37.0, 26.58, ease(0.1, 0.35, k)), 17.24, ease(0.5, 0.78, k)), sube);
       const linea =
         k > 0.5 ? 'la luz del Sol que llega a un planeta azul'
         : k > 0.1 ? 'una estrella amarilla · el Sol'
         : `la Vía Láctea · 13 000 millones de años · ${tl.get('a0.plan', p) > 0.05 ? '6 451 planetas confirmados' : 'nuestra radio: 100 años luz'}`;
-      return { lp, linea };
+      const cifra = { valor: '20', unidad: 'W', linea: p < P('a0.voz', 0.6) ? 'tú, pensando' : 'nuestra radio · 100 años luz', a: 1 - ease(0, 0.12, sube) };
+      return { lp, linea, cifra };
     },
     estado(m, p) {
       const k = tl.get('a0.caida', p);
       // The Earth's lights are not there yet: the next act turns them on.
       m.estado.luces = 0;
       m.estado.luna = ease(0.7, 0.95, k);
-      // The first look, along the disc to the core: the Milky Way as from a dark site, brighter than
-      // the galaxy is drawn elsewhere (from inside, its light is otherwise held back).
-      const via = 1 - ease(P('a0', 1.4), P('a0.voz', 0.6), p);
-      m.estado.galaxia = 1 + 1.3 * via;
-      m.estado.cielo = 0.8 + 0.3 * via;
+      // Out of you, the Milky Way from inside, as from a dark site: brighter than the galaxy is drawn
+      // elsewhere (from inside, its light is otherwise held back). Before that, only black.
+      const velo = tl.get('velo', p);
+      const via = ease(P('a0.voz', 0.3), P('a0.voz', 1.8), p) * (1 - ease(P('a0.lejos'), P('a0.lejos', 1.4), p));
+      m.estado.galaxia = (1 + 1.3 * via) * (1 - velo);
+      m.estado.cielo = (0.8 + 0.3 * via) * (1 - velo);
+      // The Sun (and the beacons) wait while you are the point there.
+      const sol = 1 - Math.max(velo, tl.get('ap.tu', p));
+      m.estado.sol = sol;
+      m.estado.faros = sol;
     },
     update(f) {
       const { p } = f;
       const on = p < P('a0.fin', 1);
       bub.group.visible = on;
+      // You, at home.
+      tu.update(E, tl.get('ap.tu', p), f.time, f.dpr);
       // Our radio bubble around the Sun, then (El silencio) the bubble that should exist, over the galaxy.
-      const voz = tl.get('a0.voz', p);
       const sil = bubble(p);
       const silencio = tl.get('a0.bub', p) > 0.001;
       if (silencio) {
@@ -176,12 +226,14 @@ export function apertura(): Acto {
         bub.group.scale.setScalar(sil.r);
         bub.nube.u.uGain.value = sil.on * 0.5;
       } else {
+        const r = rVoz(p);
         bub.group.position.set(0, 0, 0);
-        bub.group.scale.setScalar(Math.max(100 * ease(0, 1, voz), 1e-6));
-        // Once it is a few pixels across, its points (each at least a pixel or two) pile into a lump:
-        // it gives way to the plate's mark.
-        const px = (100 / Math.max(camaraLy(p).pos.length(), 1)) * f.focal;
-        bub.nube.u.uGain.value = (voz > 0.001 ? 1 : 0) * (1 - 0.6 * ease(P('a0.lejos'), P('a0.lejos', 1.4), p)) * smoothstep(4, 14, px);
+        bub.group.scale.setScalar(Math.max(r, 1e-6));
+        // Only once it is more than a few pixels across: smaller, its points (each at least a pixel or
+        // two) pile into a lump. Out of the point it grows from that; far off it gives way to the
+        // plate's mark.
+        const px = (r / Math.max(camaraLy(p).pos.length(), 1e-3)) * f.focal;
+        bub.nube.u.uGain.value = (1 - 0.6 * ease(P('a0.lejos'), P('a0.lejos', 1.4), p)) * smoothstep(4, 14, px);
       }
       G.nube.u.uBub.value.copy(SB);
       G.nube.u.uBubR.value = sil.r;
@@ -193,11 +245,12 @@ export function apertura(): Acto {
       const proj = (ly: THREE.Vector3) => f.proj(toAU(ly));
       const dive = tl.get('a0.caida', p);
       // Our voice, and how far it is from everything.
-      const vq = proj(V(0, 100, 0));
-      const a = ease(P('a0.voz', 0.4), P('a0.voz', 1.0), p) * (1 - ease(P('a0.lejos', 0.4), P('a0.lejos', 1.0), p));
+      const vq = proj(V(0, rVoz(p), 0));
+      const a = ease(0.75, 0.95, sale(p)) * (1 - ease(P('a0.lejos', 0.4), P('a0.lejos', 1.0), p));
       if (vq && a > 0.01) nota(g, u, vq.x, vq.y, 'nuestra radio · 100 años luz', 34, -30, a);
       const sq = proj(V());
-      const b2 = ease(P('a0.lejos', 1.0), P('a0.lejos', 1.6), p) * (1 - ease(P('a0.silencio'), P('a0.silencio', 0.6), p));
+      // (after the title: under it, the point that is you says it)
+      const b2 = ease(P('apertura-fin', -0.4), P('apertura-fin', 0.3), p) * (1 - ease(P('a0.silencio'), P('a0.silencio', 0.6), p));
       if (sq && b2 > 0.01) {
         g.save();
         g.globalAlpha = b2;

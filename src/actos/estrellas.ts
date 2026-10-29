@@ -10,6 +10,7 @@ import { VECINAS, dondeVecina, estrella, rutasVecinas, vecinas, vela } from '../
 import { naveGeneracional } from '../mundo/nave';
 import { OMEGA } from '../mundo/habitat';
 import { enfocar, geometria, puntos } from '../horizontes';
+import { crearTu } from '../engine/tu';
 import type { Acto, Cuadro } from './tipos';
 
 /**
@@ -138,6 +139,10 @@ export function estrellas(): Acto {
   chorro.u.uMinPx.value = 1.3;
   naveGiro.parent!.add(chorro.points);
   cabina.add(nave);
+  // (GUION.md 35, a pause: someone like you, on board, between the wheels)
+  const tu = crearTu();
+  nave.add(tu.points);
+  const A_BORDO = new THREE.Vector3(0, -12.2, 0);
 
   // While a sail is too small to see (metres across, kilometres away), a light marks it: the warm
   // white of Starshot's sail in the sunlight (a teal disc turned into a beige sail), the braking sail's gold.
@@ -385,19 +390,19 @@ export function estrellas(): Acto {
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a4');
       tl.set({ 'a4.lp': 26.58, 'a4.ly': 3.13, 'a4.lr': 12.6, 'a4.bub': 0 });
-      tl.caption(5.4, 'Velas de luz', 'Para ir a otra estrella, un láser enorme empuja una vela de pocos gramos: en minutos va a un quinto de la velocidad de la luz.', { fuente: 'Breakthrough Starshot, 2016', desde: 1.2, viaje: 'Hacia la vela' });
+      tl.caption(5.4, 'Velas de luz', 'Para ir a otra estrella, un láser empuja una vela de pocos gramos. En minutos va a un quinto de la luz.', { ficha: 'unos gramos, decenas de gigavatios de láser', fuente: 'Breakthrough Starshot, 2016', desde: 1.2, viaje: 'Hacia la vela' });
       tl.to(5.4, { 'a4.lp': 26.62, 'a4.ly': 3.132 });
       tl.label('a4.viaje');
-      tl.caption(8.0, 'A un quinto de la luz', 'Son veinte años hasta Alfa Centauri. A esta velocidad el cielo se deforma: las estrellas se juntan hacia adelante y se ven más azules; las de atrás, más rojas.');
+      tl.caption(8.0, 'A un quinto de la luz', 'Veinte años hasta Alfa Centauri. A esta velocidad el cielo se deforma: adelante, azul; atrás, rojo.', { ficha: 'unos 22 años hasta Alfa Centauri' });
       tl.to(8.0, { 'a4.lp': 26.8, 'a4.ly': 3.138, 'a4.lr': 16.62 });
       tl.label('a4.frenar');
-      tl.caption(6.4, 'Frenar con su luz', 'Al llegar no hay con qué frenar. Una vela más grande y más lenta sí puede usar la luz de Alfa Centauri A y B como freno, y quedarse en Próxima.', { fuente: 'Heller y Hippke, 2017' });
+      tl.caption(6.4, 'Frenar con su luz', 'Al llegar no hay con qué frenar. Una vela más grande usa la luz de la estrella como freno.', { ficha: 'a lo más al 4,6 % de la luz, con la luz de A y B, para quedarse en Próxima', fuente: 'Heller y Hippke, 2017' });
       tl.to(6.4, { 'a4.lp': 27.4, 'a4.ly': 3.163 });
       tl.label('a4.nave');
-      tl.caption(6.4, 'Naves que son mundos', 'Con personas a bordo no hay atajos: a un 1 % de la luz, el viaje dura siglos. La nave es un mundo, como el cilindro, y quienes llegan son los nietos de los nietos de los que salieron.', { fuente: 'Hein y otros, 2012 (proyecto Hyperion)', desde: 1.0, viaje: 'Hacia una nave que llega' });
-      tl.to(6.4, { 'a4.lp': 27.5, 'a4.ly': 3.17 });
+      tl.caption(7.2, 'Naves que son mundos', 'El viaje dura siglos. Quien llega es nieto de los nietos de quien salió: alguien como tú, que nunca vio la Tierra.', { ficha: 'a un 1 % de la luz, unos 440 años', fuente: 'Hein y otros, 2012 (proyecto Hyperion)', desde: 1.0, viaje: 'Hacia una nave que llega' });
+      tl.to(7.2, { 'a4.lp': 27.5, 'a4.ly': 3.17 });
       tl.label('a4.muro');
-      tl.caption(7.0, 'La luz pone el freno', 'Al ritmo de hoy querríamos toda la galaxia en unos 2 500 años, pero la luz tarda 100 000 en cruzarla. Desde aquí, el tiempo se mide en millones de años.', { fuente: 'Murphy, 2011', desde: 1.05, viaje: 'Alejándonos' });
+      tl.caption(7.0, 'La luz pone el freno', 'La luz tarda cien mil años en cruzar la galaxia. Desde aquí, el tiempo se mide en millones de años.', { ficha: 'al ritmo de hoy querríamos toda la galaxia en unos 2 500 años', fuente: 'Murphy, 2011', desde: 1.05, viaje: 'Alejándonos' });
       tl.to(7.0, { 'a4.lp': 29.0, 'a4.ly': 3.4, 'a4.lr': 17.7, 'a4.bub': 1 });
       tl.label('a4.fin');
     },
@@ -431,6 +436,7 @@ export function estrellas(): Acto {
     update(f: Cuadro) {
       const { p, time, camera, vista: v } = f;
       const here = p > P('a4', -1) && p < P('a4.fin', 2);
+      tu.update(A_BORDO, ease(P('a4.nave', 2.6), P('a4.nave', 3.2), p) * (1 - ease(P('a4.muro', -0.6), P('a4.muro', 0.1), p)), time, f.dpr);
       vec.u.uScale.value = f.k * LY_AU;
       vec.u.uOn.value = here ? 1 : 0.6;
       vec.points.visible = p > P('a4', -1);

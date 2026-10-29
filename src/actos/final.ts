@@ -2,13 +2,13 @@ import * as THREE from 'three';
 import type { Timeline } from '../engine/timeline';
 import { gauss, lerp, smoothstep } from '../engine/math';
 import { TEAL, cifra, nota, rumbo, sup, type Muro } from '../engine/placa';
-import { texto } from '../engine/lamina';
 import { mezcla, mirar, type Vista } from '../engine/vista';
 import { crearAgujero } from '../engine/agujero';
 import { materia, materiaBuilder } from '../engine/materia';
 import { type Mundo } from '../mundo/mundo';
 import { MLY_AU } from '../mundo/cosmos';
 import { frente } from '../mundo/fermi';
+import { crearTu } from '../engine/tu';
 import type { Acto, Cuadro } from './tipos';
 
 /**
@@ -23,8 +23,14 @@ import type { Acto, Cuadro } from './tipos';
  *   Starkman 2000). The counter runs and stops. The wall: the heat death.
  * - Crear un universo: the last possible work. A bubble of false vacuum that inflates into a universe
  *   of its own (Farhi & Guth 1987 show the obstacle; Ansoldi & Guendelman 2006 review ways out).
- * - El relevo: the camera goes inside and watches a new universe begin. What is outside the bubble
- *   is Infinito's question.
+ * - Adentro: the camera goes inside and watches a new universe begin.
+ * - The closing (GUION.md 56–57, «Alguien va a mirar» in drayzu.github.io/RELEVOS.md): the young
+ *   light cools and gathers into a web; down in a corner of it a point lights, someone who will think
+ *   for the first time, as you do now, and the clock comes back down to your twenty watts. «¿Y si
+ *   alguien hizo también el nuestro?»: the web goes out and only the point is left, breathing in the
+ *   middle of the black, which is where Infinito begins. The card hands on to it (track `relevo`).
+ *
+ * In «Pensamientos contados» (a pause) you are beside the last mind: it goes out, you do not.
  */
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -34,6 +40,8 @@ const RS = 20;
 const NORMAL = V(0.12, 1, 0.22).normalize();
 /** Where the new universe starts (AU from the hole). */
 const SEMILLA = V(150, 26, 70);
+/** The knot of the new universe's web where someone will think (in the bubble's radii, from its seed). */
+const NODO = V(-0.12, 0.04, -0.45);
 
 /** Matter thrown in, round and down into the ergosphere; half falls in, half comes out with more energy. */
 function penrose() {
@@ -94,15 +102,56 @@ function comienzo() {
     const warm = b.r();
     b.push(x, y, z, warm < 0.5 ? new THREE.Color(1.0, 0.9, 0.75) : warm < 0.85 ? new THREE.Color(1.0, 0.98, 0.95) : new THREE.Color(0.7, 0.85, 1.0), 0.0012, 1.4);
   }
+  // Later the light cools and gathers into a web: knots inside the bubble, each tied to its nearest
+  // three, and every grain on a thread or round a knot. The first knot is where someone will think.
+  const nodos: THREE.Vector3[] = [NODO.clone()];
+  // (and a few close round it, so threads leave its corner in every direction)
+  while (nodos.length < 8) {
+    const [x, y, z] = b.onSphere();
+    nodos.push(NODO.clone().add(V(x, y, z).multiplyScalar(0.08 + 0.12 * b.r())));
+  }
+  while (nodos.length < 40) {
+    const [x, y, z] = b.onSphere();
+    const r = 0.85 * Math.cbrt(b.r());
+    nodos.push(V(x * r, y * r, z * r));
+  }
+  const hilos: [number, number][] = [];
+  nodos.forEach((a, i) => {
+    const cerca = nodos
+      .map((c, j) => [a.distanceTo(c), j] as const)
+      .filter(([, j]) => j !== i)
+      .sort((x, y) => x[0] - y[0])
+      .slice(0, 3);
+    for (const [, j] of cerca) if (!hilos.some(([x, y]) => (x === i && y === j) || (x === j && y === i))) hilos.push([i, j]);
+  });
+  const web = new Float32Array(9000 * 3);
+  const jit = (s: number) => V(gauss(b.r), gauss(b.r), gauss(b.r)).multiplyScalar(s);
+  for (let i = 0; i < 9000; i++) {
+    let q: THREE.Vector3;
+    if (b.r() < 0.3) q = nodos[Math.floor(b.r() * nodos.length)].clone().add(jit(0.025));
+    else {
+      const [a, c] = hilos[Math.floor(b.r() * hilos.length)];
+      q = nodos[a].clone().lerp(nodos[c], b.r()).add(jit(0.01));
+    }
+    web.set([q.x, q.y, q.z], i * 3);
+  }
   const nube = materia(b.data(), {
-    pre: /* glsl */ `uniform float uOn;`,
+    pre: /* glsl */ `uniform float uOn, uRed; attribute vec3 aWeb;`,
     move: /* glsl */ `
       float f = fract(uTime * 0.12 + seed);
-      p = position * (0.02 + 1.4 * f * f);
+      vec3 flujo = position * (0.02 + 1.4 * f * f);
       // Brighter as they fly out, gone at the edge.
-      em *= uOn * (1.0 - smoothstep(0.6, 1.0, f)) * (0.4 + 2.0 * f);
+      float brillo = (1.0 - smoothstep(0.6, 1.0, f)) * (0.4 + 2.0 * f);
+      // Then cooler, gathered into the web (uRed 0 → 1).
+      float w = smoothstep(0.0, 1.0, uRed);
+      p = mix(flujo, aWeb, w);
+      // (fine grains: up close, the size of the young light's made a blur)
+      sz *= mix(1.0, 0.5, w);
+      em = mix(em, vec3(0.55, 0.68, 1.0) * 0.9, 0.55 * w);
+      em *= uOn * mix(brillo, 1.5, w);
       fuente = 1.0;`,
-    uniforms: { uOn: { value: 0 } },
+    uniforms: { uOn: { value: 0 }, uRed: { value: 0 } },
+    extra: { aWeb: [web, 3] },
   });
   nube.u.uSpread.value = 0;
   // Inside, the young universe's light fills everything.
@@ -171,6 +220,9 @@ export function final(): Acto {
   })();
   mente.u.uSpread.value = 0;
   mente.points.position.copy(MENTE);
+  // You: beside the last mind (a pause), and at the end the someone in the new universe.
+  const tu = crearTu();
+  const JUNTO = MENTE.clone().add(V(20, -10, 8));
   nuevoG.position.copy(SEMILLA);
   nuevoG.add(burbuja.mesh, nuevo.nube.points, nuevo.fill);
 
@@ -194,11 +246,20 @@ export function final(): Acto {
     if (p < P('a8.contados')) return mezcla(desde, orbitaBH(p, 270), ease(0.02, 0.3, k0));
     if (p < P('a8.crear')) return orbitaBH(p, 270);
     // Turn to the seed beside the hole, and as it inflates, go in.
-    const kc = (p - P('a8.crear')) / (P('a8.fin') - P('a8.crear'));
+    const kc = (p - P('a8.crear')) / (P('a8.alguien') - P('a8.crear'));
     const fuera = orbitaBH(p, 270);
     const R = radio(p);
     const enSemilla: Vista = { pos: SEMILLA.clone().add(V(0.35, 0.12, 1).normalize().multiplyScalar(Math.max(R * 2.6, 3))), target: SEMILLA.clone(), up: UP.clone(), fov: 50 };
     const dentro: Vista = { pos: SEMILLA.clone().add(V(0.35, 0.12, 1).normalize().multiplyScalar(R * 0.3)), target: SEMILLA.clone().add(V(-0.2, 0, -1).multiplyScalar(R)), up: UP.clone(), fov: 70 };
+    if (kc >= 1) {
+      // Down to a corner of the web: the gaze turns to its knot by angle, then we go to it, and stay,
+      // drifting a little round it.
+      const nodo = SEMILLA.clone().addScaledVector(NODO, R);
+      const t = ease(P('a8.alguien', 0.8), P('a8.alguien', 4.2), p);
+      const dir = V(0.25, 0.1, 0.9).normalize().applyAxisAngle(UP, 0.04 * (p - P('a8.alguien')));
+      const pos = dentro.pos.clone().lerp(nodo.clone().addScaledVector(dir, R * 0.16), t);
+      return { pos, target: mirar(pos, dentro.target, nodo, ease(P('a8.alguien', 0.2), P('a8.alguien', 2.0), p)), up: UP.clone(), fov: lerp(70, 46, t) };
+    }
     // First turn from the hole to the seed (a point of light beside it), then fly to it: the path
     // never crosses the hole, and the seed stays in the middle of the view.
     if (kc < 0.55) {
@@ -227,27 +288,47 @@ export function final(): Acto {
       P = (l, d = 0) => tl.at(l) + d * tl.escala;
       tl.label('a8');
       tl.set({ 'a8.lp': 46.0, 'a8.ly': 10.7 });
-      tl.caption(6.6, 'Las últimas centrales', 'Cuando las estrellas se apagan, quedan los agujeros negros. De uno que gira al máximo se puede sacar hasta el 29 % de su masa; después, solo su débil radiación de Hawking.', { fuente: 'Penrose, 1969', desde: 2.0, viaje: 'Billones de años después' });
+      tl.caption(6.6, 'Las últimas centrales', 'Cuando las estrellas se apagan, quedan los agujeros negros. Todavía se puede sacar energía de su giro.', { ficha: 'hasta el 29 % de la masa de un agujero que gira al máximo; después, su débil radiación de Hawking', fuente: 'Penrose, 1969', desde: 2.0, viaje: 'Billones de años después' });
       tl.to(6.6, { 'a8.lp': 38.0, 'a8.ly': 14.0 });
       tl.label('a8.contados');
-      tl.caption(5.6, 'Pensamientos contados', 'Si el universo se expandiera sin acelerar, la vida podría pensar para siempre. Pero se acelera: los pensamientos posibles son un número finito.', { fuente: 'Dyson, 1979; Krauss y Starkman, 2000' });
-      tl.to(5.6, { 'a8.lp': 22.0, 'a8.ly': 100.0 });
+      tl.caption(6.4, 'Pensamientos contados', 'Al universo le quedan pensamientos contados. Este que tienes ahora es uno de ellos.', { ficha: 'sin aceleración, la vida podría pensar para siempre; con ella, el número es finito', fuente: 'Dyson, 1979; Krauss y Starkman, 2000' });
+      tl.to(6.4, { 'a8.lp': 22.0, 'a8.ly': 100.0 });
       tl.label('a8.crear');
-      tl.caption(6.0, 'Crear un universo', 'La última obra posible: una burbuja de falso vacío que crece hasta ser un universo propio. Hoy no sabemos hacerlo, pero hay ideas para intentarlo.', { fuente: 'Farhi y Guth, 1987; Ansoldi y Guendelman, 2006' });
+      tl.caption(6.0, 'Crear un universo', 'La última obra posible: una burbuja que crece hasta ser un universo propio. Hoy no sabemos hacerlo.', { ficha: 'una burbuja de falso vacío', fuente: 'Farhi y Guth, 1987; Ansoldi y Guendelman, 2006' });
       tl.to(6.0, {});
       tl.label('a8.relevo');
-      tl.caption(5.4, 'El relevo', 'Adentro, un universo empieza. Lo que hay afuera de la burbuja, otros universos con otras leyes, es la pregunta de la próxima obra: Infinito.');
+      tl.caption(5.4, 'Adentro', 'Adentro, un universo empieza.');
       tl.to(5.4, {});
+      // The closing (GUION.md 56–57): the light gathers into a web, and in a corner of it, someone.
+      tl.label('a8.alguien');
+      tl.caption(6.6, 'Alguien', 'En miles de millones de años, en algún rincón de ahí adentro, algo va a pensar por primera vez. Como tú, ahora.');
+      tl.with(3.0, { 'a8.red': 1 });
+      tl.with(4.4, { 'a8.baja': 1 });
+      tl.to(6.6, {});
+      // And ours? The web goes out and you are left, breathing in the black: Infinito's first frame.
+      tl.label('a8.nuestro');
+      tl.caption(7.0, '¿Y el nuestro?', '¿Y si alguien hizo también el nuestro?', { fuente: 'Linde, 1992' });
+      tl.with(2.4, { 'a8.red': 2 });
+      tl.wait(1.2);
+      tl.with(1.6, { cromo: 0 });
+      tl.wait(1.2);
+      tl.with(1.6, { relevo: 1 });
+      tl.wait(4.6);
       tl.label('a8.fin');
     },
     montar(mundo) {
       m = mundo;
       m.root.parent!.add(bh.mesh);
-      m.root.add(penG, nuevoG, mente.points);
+      m.root.add(penG, nuevoG, mente.points, tu.points);
       m.nubes.push(pen, nuevo.nube, mente);
     },
     vista: (p) => vista(p),
-    lectura: (p) => ({ lp: tl.get('a8.lp', p), ly: tl.get('a8.ly', p), lr: 26.1 }),
+    lectura: (p) => (p < P('a8.alguien') ? { lp: tl.get('a8.lp', p), ly: tl.get('a8.ly', p), lr: 26.1 } : null),
+    // In the new universe the clock comes back down to your twenty watts, as in the opening.
+    libre(p) {
+      const baja = tl.get('a8.baja', p);
+      return { lp: lerp(22.0, Math.log10(20), baja), linea: 'algo que piensa, adentro', cifra: { valor: '20', unidad: 'W', linea: 'tú, pensando', a: ease(0.85, 1, baja) } };
+    },
     muro(p): Muro | null {
       const a = ease(P('a8.contados', 1.4), P('a8.contados', 2.4), p) * (1 - ease(P('a8.relevo'), P('a8.relevo', 1.0), p));
       return a > 0.01 ? { lp: 21.5, label: 'muro · la muerte térmica', a, choque: ease(P('a8.contados', 2.4), P('a8.contados', 4.0), p) } : null;
@@ -268,6 +349,13 @@ export function final(): Acto {
       const { p, time, camera, vista: v, k } = f;
       const here = p > P('a8', -0.5) && p < P('a8.fin', 2);
       penG.visible = here;
+      const red = tl.get('a8.red', p);
+      const apaga = 1 - ease(1, 2, red);
+      const enMente = p < P('a8.crear');
+      const tuOn = enMente
+        ? ease(P('a8.contados', 1.6), P('a8.contados', 2.2), p) * (1 - ease(P('a8.crear', -0.6), P('a8.crear', 0.2), p))
+        : ease(P('a8.alguien', 2.6), P('a8.alguien', 3.4), p);
+      tu.update(enMente ? JUNTO : SEMILLA.clone().addScaledVector(NODO, radio(p)), here ? tuOn : 0, time, f.dpr);
       // The last mind: bursts at s_k = (1.55^k − 1) / (1.55^8 − 1) of the count, crowded at first
       // (it still thinks fast), then rarer and dimmer; the last one is where the counter stops.
       // (in beats, like the counter: from P(contados, 1.0) to P(contados, 3.6))
@@ -301,15 +389,18 @@ export function final(): Acto {
       const sem = ease(P('a8.crear', 0.6), P('a8.crear', 1.4), p);
       burbuja.mesh.scale.setScalar(R);
       // From inside, the membrane is only a faint veil.
-      burbuja.u.uOn.value = sem * 0.9 * (1 - 0.8 * ease(P('a8.relevo', -0.4), P('a8.relevo', 0.6), p));
+      burbuja.u.uOn.value = sem * 0.9 * (1 - 0.8 * ease(P('a8.relevo', -0.4), P('a8.relevo', 0.6), p)) * apaga;
       burbuja.u.uTime.value = time;
       burbuja.mesh.visible = sem > 0.001;
       nuevo.nube.points.scale.setScalar(R);
       // The first light pours out, then thins: the new universe goes on, dark, for the last words.
-      nuevo.nube.u.uOn.value = sem * (0.35 + 0.4 * ease(P('a8.relevo'), P('a8.relevo', 1.5), p)) * (1 - 0.8 * ease(P('a8.relevo', 1.8), P('a8.relevo', 3.0), p));
+      // Then it gathers into the web, which goes out at the end.
+      const luz = sem * (0.35 + 0.4 * ease(P('a8.relevo'), P('a8.relevo', 1.5), p)) * (1 - 0.8 * ease(P('a8.relevo', 1.8), P('a8.relevo', 3.0), p));
+      nuevo.nube.u.uOn.value = lerp(luz, 0.9, Math.min(red, 1)) * apaga;
+      nuevo.nube.u.uRed.value = Math.min(red, 1);
       nuevo.nube.points.visible = sem > 0.001;
       nuevo.fill.scale.setScalar(R);
-      (nuevo.fill.material as THREE.ShaderMaterial).uniforms.uOn.value = ease(P('a8.relevo', 0.4), P('a8.relevo', 2.0), p);
+      (nuevo.fill.material as THREE.ShaderMaterial).uniforms.uOn.value = ease(P('a8.relevo', 0.4), P('a8.relevo', 2.0), p) * apaga;
       nuevo.fill.visible = p > P('a8.relevo');
     },
     placa(g, f: Cuadro) {
@@ -347,19 +438,6 @@ export function final(): Acto {
       if (co > 0.01) {
         const q = f.proj(MENTE);
         if (q) nota(g, u, q.x, q.y, 'la última mente: piensa a ratos, cada vez más lento', -40, -48, co);
-      }
-      // The relay.
-      const re = ease(P('a8.relevo', 2.0), P('a8.relevo', 3.0), p);
-      if (re > 0.01) {
-        texto(g, u, W / 2, H * 0.42, 'continúa en', 'rgba(242,236,224,0.7)', re, 11, 'center');
-        g.save();
-        g.globalAlpha = re;
-        g.fillStyle = '#f2ece0';
-        g.font = `italic ${46 * u}px "Instrument Serif", serif`;
-        g.textAlign = 'center';
-        g.fillText('Infinito', W / 2, H * 0.42 + 56 * u);
-        g.restore();
-        texto(g, u, W / 2, H * 0.42 + 84 * u, 'pronto', TEAL, re, 10.5, 'center');
       }
     },
   };
