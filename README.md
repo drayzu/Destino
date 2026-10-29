@@ -36,11 +36,11 @@
 <summary><sub>How it's made</sub></summary>
 <br>
 
-- The third piece of Horizontes (Espacio · Tiempo · Destino · Infinito): one scroll, about ten minutes, from «is anyone out there?» to the last possible work, with a civilization's power on a Kardashev ladder, from the twenty watts of a brain to a galaxy and beyond.
+- The third piece of Horizontes (Espacio · Tiempo · Destino · Infinito): one scroll, about ten minutes, from “is anyone out there?” to the last thing a civilization could build, climbing the Kardashev scale from the twenty watts of a brain to a galaxy.
 - One shared world in astronomical units with a pivoting camera, so the metres of a space elevator and the hundred thousand light years of the galaxy are exact in the same frame.
-- Everything is points: the planets and the Sun come from a shared library of bodies drawn in points over real maps (Solar System Scope, CC BY 4.0); habitats, swarms and sails are points too, with their mirrors as silhouettes.
-- A plate layer with labels, diagrams and the source of every figure; each act has its own sound, synthesized in the browser.
-- English and Spanish. Keys: `A` plays, `S` sound, `I` the plate, `L` language; the ladder's rungs I, II and III take you to where the civilization reaches them.
-- TypeScript, Three.js and Vite, no framework. `npm install`, `npm run dev`. The clips above are recorded from the piece itself: `node tools/clip.mjs`, then `python tools/readme_media.py`.
+- Everything is points: the planets and the Sun come from the series' shared library of bodies, drawn over real maps (Solar System Scope, CC BY 4.0); habitats, swarms and light sails are points too.
+- Physics where it counts: the light sail sees the sky with real aberration and Doppler shift, and brakes on Alpha Centauri's light (Heller & Hippke, 2017). A plate layer gives every figure its source.
+- English and Spanish. Keys: `A` autoplay, `I` plate, `L` language; the ladder's rungs I, II and III jump to where the civilization reaches them.
+- TypeScript, Three.js and Vite, no framework. `npm install`, `npm run dev`; pushing to `main` deploys to GitHub Pages.
 
 </details>
