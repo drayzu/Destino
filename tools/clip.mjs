@@ -3,6 +3,7 @@
 // `n` frames, or follows its `claves`, [seconds, beat] pairs that set the tempo (eased between them,
 // never backwards, so it can linger on a moment and rush through the next flight); the frames land in <out>/<segment>/0000.jpg (quality 0.95: PNG is several times slower), and the power at its middle is printed (the
 // exponent of its row). Segments already captured are kept (pass --fresh <name>[,<name>…] to redo some).
+// A segment with `sub` (and `shutter`, 0.3 of a frame by default) is drawn with motion blur.
 //
 //   npm run dev   (in another terminal)
 //   node tools/clip.mjs [list = tools/readme.json] [out = tools/readme]
@@ -123,9 +124,20 @@ for (const seg of segmentos) {
     for (let k = 0; k < 12; k++) await ev(`(() => { destino.seek(${seg.b}); destino.step(${t0 - (12 - k) * (1000 / FPS)}); return 1; })()`);
     let recargada = false;
     for (let i = 0; i < seg.n && !recargada; i++) {
-      const b = beatAt(i);
+      // `sub` draws the frame that many times across `shutter` of a frame and averages them: motion
+      // blur, so what crosses the screen fast glides instead of jumping (a short shutter keeps it sharp).
+      const k = seg.sub ?? 1, sh = seg.shutter ?? 0.3;
+      const us = Array.from({ length: k }, (_, s) => (k === 1 ? 0 : ((s + 0.5) / k - 0.5) * sh));
+      const B = us.map((u) => beatAt(i + u)), T = us.map((u) => t0 + (i + u) * (1000 / FPS));
+      const b = B[0];
       // The film's canvas, read in the same task as its frame is drawn (its buffer is not preserved).
-      const r = await ev(`(() => { if (!window.__clip) return 'reload'; destino.seek(${b}); destino.step(${t0 + i * (1000 / FPS)}); return document.querySelector('#scene').toDataURL('image/jpeg', 0.95); })()`);
+      const r = await ev(`(() => { if (!window.__clip) return 'reload'; const sc = document.querySelector('#scene');
+        const B = ${JSON.stringify(B)}, T = ${JSON.stringify(T)};
+        if (B.length === 1) { destino.seek(B[0]); destino.step(T[0]); return sc.toDataURL('image/jpeg', 0.95); }
+        let a = window.__medio; if (!a || a.width !== sc.width || a.height !== sc.height) { a = window.__medio = document.createElement('canvas'); a.width = sc.width; a.height = sc.height; }
+        const g = a.getContext('2d');
+        for (let s = 0; s < B.length; s++) { destino.seek(B[s]); destino.step(T[s]); g.globalAlpha = 1 / (s + 1); g.drawImage(sc, 0, 0); }
+        return a.toDataURL('image/jpeg', 0.95); })()`);
       const url = r.result?.result?.value;
       if (url === 'reload' || /is not defined/.test(r.result?.result?.description ?? '')) recargada = true;
       else if (typeof url !== 'string') throw new Error(`no frame at ${b}: ${JSON.stringify(r.result).slice(0, 300)}`);
