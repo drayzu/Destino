@@ -10,6 +10,7 @@ import { CARA } from './tierra';
 import { COLOR, E, MA, RE, RMA, RV, VE, enOrbita } from './interior';
 import { enfocarMarcas, marcas, nombres, orbitas, type Nombre } from './revelar';
 import { M, RM } from './mercurio';
+import { crearCilindro } from './cilindro';
 import type { Cuenta, Rotulo } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
 
@@ -82,68 +83,6 @@ function hilo(a: THREE.Vector3, b: THREE.Vector3, n: number, ancho: number, alto
   });
   nube.u.uFuente.value = 0.5;
   return { nube, arco: r };
-}
-
-/**
- * The cylinder, in its own frame (axis +Z): three strips of land (fields, rivers, towns) and three
- * of windows, its end caps, clouds in the middle, and three mirrors hinged at the shaded end.
- * `aKind`: 0 land, 1 window, 2 cap, 3 cloud, 4 mirror.
- */
-function cilindroDatos(): MateriaData {
-  const b = materiaBuilder(131);
-  const r = b.r;
-  const c = new THREE.Color();
-  const sector = (k: number) => (k * Math.PI) / 3;
-  for (let i = 0; i < 150000; i++) {
-    const k = 2 * Math.floor(r() * 3);
-    const fi = sector(k) + r() * (Math.PI / 3);
-    const z = (r() - 0.5) * LC;
-    const campo = 0.5 + 0.5 * Math.sin(fi * 23 + Math.sin(z * 40) * 2) * Math.sin(z * 55 + fi * 7);
-    c.setRGB(0.28 + 0.2 * campo, 0.46 + 0.12 * campo, 0.2 + 0.06 * campo);
-    let luz = 0.42;
-    if (Math.abs(Math.sin(z * 26 + fi * 5)) < 0.03) {
-      c.setRGB(0.3, 0.55, 0.85);
-      luz = 0.6;
-    } else if (r() < 0.015) {
-      c.setRGB(1.0, 0.78, 0.5);
-      luz = 1.4;
-    }
-    b.push(Math.cos(fi) * RC, Math.sin(fi) * RC, z, c, 0.0016, luz, { kind: 0 });
-  }
-  for (let i = 0; i < 30000; i++) {
-    const k = 2 * Math.floor(r() * 3) + 1;
-    const fi = sector(k) + r() * (Math.PI / 3);
-    const z = (r() - 0.5) * LC;
-    b.push(Math.cos(fi) * RC, Math.sin(fi) * RC, z, new THREE.Color(0.62, 0.8, 1.0), 0.0016, 0.28, { kind: 1 });
-  }
-  for (const zc of [-LC / 2, LC / 2]) {
-    for (let i = 0; i < 12000; i++) {
-      // (an annulus: the middle of each cap is open, a door into the world)
-      const q = RC * (0.32 + 0.68 * Math.sqrt(r()));
-      const fi = r() * Math.PI * 2;
-      b.push(Math.cos(fi) * q, Math.sin(fi) * q, zc, new THREE.Color(0.6, 0.64, 0.7), 0.0016, 0.2, { kind: 2 });
-    }
-  }
-  for (let k = 0; k < 40; k++) {
-    const fi = r() * Math.PI * 2;
-    const q = RC * (0.5 + r() * 0.22);
-    const z = (r() - 0.5) * LC * 0.9;
-    for (let i = 0; i < 160; i++) b.push(Math.cos(fi) * q + gauss(r) * 0.006, Math.sin(fi) * q + gauss(r) * 0.006, z + gauss(r) * 0.012, 0xffffff, 0.002, 0.22, { kind: 3 });
-  }
-  // The mirrors: one beside each window, hinged at the shaded end (−Z), opened 28° outwards.
-  for (let k = 0; k < 3; k++) {
-    const fi0 = sector(2 * k + 1);
-    for (let i = 0; i < 9000; i++) {
-      const u = r();
-      const v = r();
-      const fi = fi0 + v * (Math.PI / 3);
-      const along = u * LC;
-      const abre = along * Math.sin(D2R(28));
-      const rr = RC + abre;
-      b.push(Math.cos(fi) * rr, Math.sin(fi) * rr, -LC / 2 + along * Math.cos(D2R(28)), new THREE.Color(0.78, 0.84, 0.9), 0.0016, 0.12, { kind: 4 });
-    }
-  }
-  return b.data();
 }
 
 /**
@@ -316,21 +255,9 @@ export const sistema: Escena = {
     cilG.position.copy(C);
     cilG.quaternion.setFromUnitVectors(V(0, 0, 1), EJE);
     root.add(cilG);
-    const cilindro = add(
-      materia(cilindroDatos(), {
-        pre: /* glsl */ `uniform float uCil;`,
-        move: /* glsl */ `
-          float ag = uTime * 0.35;
-          float cg = cos(ag);
-          float sg = sin(ag);
-          p.xy = vec2(cg * p.x - sg * p.y, sg * p.x + cg * p.y);
-          em *= uCil;
-        `,
-        uniforms: { uCil: { value: 0 } },
-      }),
-      cilG,
-    );
-    cilindro.u.uFuente.value = 0.35;
+    const cil = crearCilindro(RC, LC);
+    cilG.add(cil.grupo);
+    nubes.push(cil.nubes);
 
     const marteN = add(
       materia(marteDatos(), {
@@ -448,7 +375,17 @@ export const sistema: Escena = {
     // The spark's way (GUION.md v2, 22–26): from the Earth's ring to the cylinder (ch 0..1), along its
     // axis (1..2), on the thread to Mars (2..3), on to Venus (3..4), and to Mercury (4..5).
     const entradaCil = C.clone().addScaledVector(EJE, LC / 2 + 0.25);
-    const cilPath0 = (sv: number, out: THREE.Vector3) => out.copy(C).addScaledVector(EJE, LC / 2 + 0.25 - sv * (LC + 0.55));
+    // Inside, the spark flies low over the land below (the world turns slowly round it, a strip of
+    // land and one of windows passing under in turn). In and out through the doors on the axis.
+    let agCil = 0;
+    const abajo = Y.clone().negate().addScaledVector(EJE, EJE.y).normalize();
+    const suelo = (out: THREE.Vector3) => out.copy(abajo);
+    const tmpS = V();
+    const ladoCil = EJE.clone().cross(Y).normalize();
+    const cilPath0 = (sv: number, out: THREE.Vector3) => {
+      const k = THREE.MathUtils.smoothstep(sv, 0.18, 0.36) * (1 - THREE.MathUtils.smoothstep(sv, 0.62, 0.77));
+      return out.copy(C).addScaledVector(EJE, LC / 2 + 0.25 - sv * (LC + 0.55)).addScaledVector(suelo(tmpS), RC * 0.55 * k);
+    };
     const caminoCh: Camino = (sv, out) => {
       if (sv <= 1) {
         // The last of the beam comes in along the axis, so whoever follows it lines up with the door.
@@ -466,7 +403,7 @@ export const sistema: Escena = {
       }
       return hilos.venusMerc.arco.en(Math.min(1, sv - 4), out);
     };
-    tl.set({ ...Cn(E), ox: 0, oy: 0, oz: 0, az: fin7.az, el: fin7.el, ld: Math.log10(23 * RE), yaw: 90, pitch: -90, roll: 0, fov: 34, mw: 0, lw: 0, ch: 0, on: 1, cil: 0, mar: 0, todo: 0, ven: 0, sombra: 0, anillo: 1, h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0, vel: 0, mapa: 0, nombres: 0, md: 0 });
+    tl.set({ ...Cn(E), ox: 0, oy: 0, oz: 0, az: fin7.az, el: fin7.el, ld: Math.log10(23 * RE), yaw: 90, pitch: -90, roll: 0, fov: 34, mw: 0, lw: 0, ch: 0, on: 1, cil: 0, mar: 0, todo: 0, ven: 0, sombra: 0, anillo: 1, h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0, vel: 0, mapa: 0, nombres: 0, md: 0, mc: 0 });
 
     // From the ring, a beam carries the spark to a world that turns, seen from outside.
     tl.label('giran').caption(5.4, 'Mundos que giran', 'Para vivir lejos de la Tierra hacen falta mundos que giren: el giro hace de gravedad.');
@@ -477,11 +414,11 @@ export const sistema: Escena = {
 
     // In through the sunward cap with it, along the axis, out the shaded end.
     const entrada = C.clone().addScaledVector(EJE, LC / 2 + 0.6);
-    tl.label('dentro').caption(5.6, 'Un mundo por dentro', 'Adentro, el paisaje sube por los lados y pasa por arriba.');
+    tl.label('dentro').caption(6.9, 'Un mundo por dentro', 'Adentro, el paisaje sube por los lados y pasa por arriba.');
     tl.to(1.4, { ...rel(C, entrada) });
     tl.to(0.9, { lw: 1, mw: 1 });
     luego(1.6, 1.4, { h2: 1 });
-    tl.to(3.3, { ch: 2 });
+    tl.to(4.6, { ch: 2 });
 
     // Out the far end with the spark and along the thread to Mars, Mars ahead the whole way: a red
     // point that grows into a world. Then off the spark, round under its south pole: the ring of
@@ -491,6 +428,10 @@ export const sistema: Escena = {
     const cMar = MA.clone().add(V(0, -0.1, 0));
     const vistaMarte = (giro: number, baja: number) => cMar.clone().addScaledVector(ladoM0.clone().applyAxisAngle(Y, D2R(giro)).addScaledVector(Y, -baja).normalize(), 0.92);
     tl.label('marte').caption(9.4, 'Calentar Marte', 'Unos espejos pueden calentar Marte, pero su aire nunca será como el nuestro: viviríamos bajo cúpulas.');
+    // (out of the far door, the camera swings aside and looks back a moment: the world it leaves,
+    // between its mirrors; then on, Mars ahead)
+    luego(-1.4, 1.6, { mc: 1 });
+    luego(1.0, 2.2, { mc: 0 });
     tl.with(1.4, { md: 0.8, fov: 46 });
     luego(0.3, 4.4, { ch: 3 });
     luego(0.8, 1.6, { vel: 0.28 });
@@ -586,6 +527,7 @@ export const sistema: Escena = {
         const t = f.time;
         camera.near = 1e-5;
         camera.far = 3000;
+        agCil = t * 0.06;
         const ch = tl.get('ch', p);
         const lw = tl.get('lw', p);
         const mw = tl.get('mw', p);
@@ -593,13 +535,26 @@ export const sistema: Escena = {
         // Riding: closer and level outside, further back and looking well ahead along the axis inside;
         // blended across the door, so the gaze never jumps there.
         const kc = THREE.MathUtils.smoothstep(ch, 0.9, 1.12) * (1 - THREE.MathUtils.smoothstep(ch, 1.9, 2.1));
-        const m = montar(caminoCh, ch, THREE.MathUtils.lerp(0.025, 0.08, kc), THREE.MathUtils.lerp(0.06, 0.25, kc), THREE.MathUtils.lerp(0.04 + 0.2 * tl.get('md', p), 0, kc));
+        // (inside, «up» is towards the axis, away from the land below)
+        const arribaC = Y.clone().lerp(suelo(V()).negate(), kc).normalize();
+        const m = montar(caminoCh, ch, THREE.MathUtils.lerp(0.025, 0.07, kc), THREE.MathUtils.lerp(0.06, 0.25, kc), THREE.MathUtils.lerp(0.04 + 0.2 * tl.get('md', p), 0.02, kc), arribaC);
         lugar.copy(m.lugar);
         mira.copy(m.mira);
         const centro = V(tl.get('cx', p), tl.get('cy', p), tl.get('cz', p));
         // Riding to a world, the gaze leans to it, so where we go is in sight the whole way.
         const md = tl.get('md', p);
         if (md > 0.001) mira.lerp(MA.clone().lerp(VE, THREE.MathUtils.smoothstep(ch, 3.0, 3.3)), md);
+        const mc = tl.get('mc', p);
+        if (mc > 0.001) {
+          lugar.addScaledVector(ladoCil, 0.5 * mc).addScaledVector(Y, 0.16 * mc);
+          // (the gaze turns, not slides: halfway round from the spark ahead to the world behind)
+          const dSpark = mira.clone().sub(lugar);
+          const dCil = C.clone().addScaledVector(EJE, -LC * 0.2).sub(lugar).normalize();
+          const L = dSpark.length();
+          dSpark.normalize();
+          const q = new THREE.Quaternion().setFromUnitVectors(dSpark, dCil);
+          mira.copy(lugar).addScaledVector(dSpark.applyQuaternion(new THREE.Quaternion().slerp(q, 0.55 * mc)), L);
+        }
         if (lw < 0.999) mira.lerp(centro, 1 - lw);
         aplicarToma(camera, toma(tl, p, tm, { punto: mira, peso: mw, arriba: m.arriba, delante: m.delante }, { punto: lugar, peso: lw }));
         camera.updateProjectionMatrix();
@@ -617,7 +572,7 @@ export const sistema: Escena = {
           x.c.update({ sol: solL, camara: camL, focal: f.focal, dpr: f.dpr, tiempo: t, presencia: x.c === venus ? 1 - 0.6 * tl.get('sombra', p) : 1 });
         }
         const lejosDe = (q: THREE.Vector3, d0: number, k = 1) => Math.min(1, Math.pow(d0 / Math.max(1e-6, camera.position.distanceTo(q)), k));
-        cilindro.u.uCil.value = tl.get('cil', p) * lejosDe(C, 5, 2);
+        cil.update(tl.get('cil', p) * lejosDe(C, 5, 2), agCil, camera.position);
         chispa.update(caminoCh, ch, enCil ? 0.0025 : 0.0012, tl.get('on', p), 0, camera.position, f.focal, f.dpr, t);
         hilos.marteVenus.nube.u.uOn.value = Math.max(tl.get('h6', p), tl.get('todo', p));
         marteN.u.uMar.value = tl.get('mar', p);

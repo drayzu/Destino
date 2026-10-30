@@ -18,8 +18,8 @@ import { TEAL } from './remake';
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 /** Joints along the wake. */
 const TRAZO = 120;
-/** The wake's length, in the `paso` callers give (it was 56 points, `paso` apart). */
-const LARGO = 55;
+/** The wake's length, in the `paso` callers give (it was 56 points `paso` apart; a stroke reads longer). */
+const LARGO = 40;
 
 export type Camino = (s: number, out: THREE.Vector3) => THREE.Vector3;
 
@@ -62,7 +62,7 @@ function crearTrazo() {
     uniforms: {
       uFocal: { value: 1000 },
       uDpr: { value: 1 },
-      uAncho: { value: 2.0 },
+      uAncho: { value: 1.7 },
       uOn: { value: 1 },
       uTitila: { value: 0 },
       uTime: { value: 0 },
@@ -96,7 +96,7 @@ function crearTrazo() {
         // Bright at the head, gone at the tail; and gone where it comes near the camera (closer
         // than a part of the head's distance), so riding behind it we never see it run under us.
         float cerca = smoothstep(0.45 * uCerca, 0.95 * uCerca, -mv.z);
-        vLuz = pow(1.0 - aT, 1.4) * uOn * ${PARPADEO} * uGain * uFundido * cerca;
+        vLuz = pow(1.0 - aT, 1.8) * 0.8 * uOn * ${PARPADEO} * uGain * uFundido * cerca;
         if (c.w <= 0.0 || cp.w <= 0.0 || cn.w <= 0.0 || vLuz < 1e-4) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
       }
     `,
@@ -129,7 +129,7 @@ export function crearChispa(): Chispa {
   const b = materiaBuilder(7);
   // Head (white at its heart) and its halo.
   b.push(0, 0, 0, new THREE.Color(0.85, 1.0, 0.95), 6, 2.6);
-  b.push(0, 0, 0, TEAL, 26, 0.16);
+  b.push(0, 0, 0, TEAL, 26, 0.26);
   const data = b.data();
   // Sizes and light without the builder's random spread: the spark is exact.
   data.size[0] = 6;
