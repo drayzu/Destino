@@ -46,14 +46,74 @@ function cieloDatos(): MateriaData {
 /** The sail: a thin square of teal light with a chip at its middle (its own units: the sail is 1 across). */
 function velaDatos(): MateriaData {
   const b = materiaBuilder(191);
-  for (let i = 0; i < 14000; i++) {
-    const x = b.r() - 0.5;
-    const y = b.r() - 0.5;
-    const borde = Math.max(Math.abs(x), Math.abs(y)) > 0.48;
-    b.push(x, y, 0, borde ? TEAL : new THREE.Color(0.7, 0.92, 0.88), 0.006, borde ? 0.9 : 0.16);
+  // (its film is a membrane, below; here only the chip at its middle and a few glints on its rim)
+  for (let i = 0; i < 1600; i++) {
+    const t = b.r() * 4;
+    const k = Math.floor(t);
+    const f = t - k - 0.5;
+    const [x, y] = k === 0 ? [f, 0.5] : k === 1 ? [0.5, f] : k === 2 ? [f, -0.5] : [-0.5, f];
+    b.push(x, y, 0, TEAL, 0.006, 0.5);
   }
   for (let i = 0; i < 300; i++) b.push(gauss(b.r) * 0.02, gauss(b.r) * 0.02, 0.01, 0xffffff, 0.006, 1.2);
   return b.data();
+}
+
+/**
+ * The sail's film: a membrane a few atoms thick, nearly invisible, that shines where light falls
+ * on it (the laser that pushes it, or Alpha Centauri's that brakes it): soft rainbow sheens as the
+ * view slides over it, a bright frame, faint rigging to the chip.
+ */
+function velaMembrana() {
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uLuz: { value: 0 }, uLuzA: { value: 0 }, uGain: { value: 1 }, uFundido: { value: 1 }, uTime: { value: 0 } },
+    vertexShader: /* glsl */ `
+      varying vec2 vP;
+      varying vec3 vV;
+      varying vec3 vN;
+      void main() {
+        vP = position.xy;
+        vN = normalize(normalMatrix * normal);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vV = mv.xyz;
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uLuz, uLuzA, uGain, uFundido, uTime;
+      varying vec2 vP;
+      varying vec3 vV;
+      varying vec3 vN;
+      float raya(float x, float w) {
+        float fw = max(fwidth(x), 1e-6);
+        return 1.0 - smoothstep(w - fw, w + fw, abs(x));
+      }
+      void main() {
+        vec3 n = normalize(vN);
+        float c = abs(dot(n, normalize(-vV)));
+        // Thin-film sheens: colour that shifts with the angle and slides across the film.
+        float fase = (1.0 - c) * 9.0 + (vP.x + vP.y) * 2.0 + uTime * 0.15;
+        vec3 iris = 0.5 + 0.5 * cos(6.2831853 * (fase + vec3(0.0, 0.33, 0.67)));
+        float luz = 0.05 + 0.6 * (uLuz + uLuzA);
+        vec3 col = mix(vec3(0.55, 0.85, 0.8), iris, 0.42) * luz * (0.35 + 0.65 * pow(1.0 - c, 1.5));
+        // Its frame, and rigging from the corners to the chip.
+        float marco = max(raya(abs(vP.x) - 0.5, 0.006), raya(abs(vP.y) - 0.5, 0.006));
+        float aparejo = max(raya(vP.x - vP.y, 0.003), raya(vP.x + vP.y, 0.003)) * 0.35;
+        col += vec3(0.45, 0.95, 0.85) * (marco * (0.6 + 1.5 * (uLuz + uLuzA)) + aparejo * (0.2 + uLuz + uLuzA));
+        gl_FragColor = vec4(col * uGain * uFundido, 0.0);
+      }
+    `,
+    side: THREE.DoubleSide,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
+  });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.02, 1.02, 1, 1), mat);
+  m.renderOrder = 5;
+  m.frustumCulled = false;
+  return { mesh: m, u: mat.uniforms };
 }
 
 /** Interstellar dust that streams past (`aKind` phase; `aOff` place round the path). */
@@ -175,6 +235,8 @@ export const vela: Escena = {
     root.add(velaG);
     const velaN = add(materia(velaDatos(), { pre: `uniform float uLuzA;`, move: `em *= 1.0 + uLuzA * 2.5 * step(0.5, length(em));`, uniforms: { uLuzA: { value: 0 } } }), velaG, 6);
     velaN.u.uFuente.value = 0.4;
+    const membrana = velaMembrana();
+    velaG.add(membrana.mesh);
     // The beam that pushes it, from the swarm.
     const hazB = materiaBuilder(199);
     for (let i = 0; i < 12000; i++) hazB.push(gauss(hazB.r) * 0.004, gauss(hazB.r) * 0.004, hazB.r(), TEAL, 0.004, 0.5, { kind: hazB.r() });
@@ -400,6 +462,10 @@ export const vela: Escena = {
         // From afar the sail is a speck, not a lamp.
         velaN.u.uGain.value = Math.min(1, 2 / Math.max(1e-6, camera.position.length()));
         haz.u.uHaz.value = tl.get('haz', p);
+        membrana.u.uLuz.value = 0.5 * tl.get('haz', p);
+        membrana.u.uLuzA.value = 0.6 * tl.get('luzA', p);
+        membrana.u.uGain.value = velaN.u.uGain.value;
+        membrana.u.uTime.value = t;
         naveG.position.set(0.9, 0.1, 0.2 + tl.get('nz', p));
         // The spark: along the beam from the swarm into the sail, then on the sail, then a jump to the ship.
         const desde = casa.position.clone().add(V(0, 0, 3.2));
