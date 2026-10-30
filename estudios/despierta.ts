@@ -440,6 +440,9 @@ export const despierta: Escena = {
         planeta.group.visible = pres > 0.002;
         planeta.update({ sol: solL, camara: camL, focal: f.focal, dpr: f.dpr, tiempo: t, presencia: pres });
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
+        // Flying low through the network as it becomes the Earth's lights: fine points, not big blobs.
+        const bajo = THREE.MathUtils.smoothstep(p, tl.at('ocho'), tl.at('ocho') + 1.5);
+        if (bajo > 0) for (const n of nubes) n.u.uMaxPx.value = THREE.MathUtils.lerp(24, 8, bajo) * f.dpr;
       },
       placa(g, f) {
         // The Sun's light, still filling the frame as the sea comes up.

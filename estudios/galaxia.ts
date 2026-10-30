@@ -458,7 +458,8 @@ export const galaxia: Escena = {
         camera.far = 2000;
         const ch = tl.get('ch', p);
         const lw = tl.get('lw', p);
-        const m = montar(caminoCh, ch, 0.03, 0.06, ch < 1 ? 0.3 * frente(ch) : 0.02);
+        // (On the branch, looking well ahead along it, so the hops from star to star do not jerk the gaze.)
+        const m = ch < 1 ? montar(caminoCh, ch, 0.07, 0.22, 0.3 * frente(ch)) : montar(caminoCh, ch, 0.03, 0.06, 0.02);
         aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: lw }, { punto: m.lugar, peso: lw }));
         chispa.update(caminoCh, ch, 0.0015, 1, tl.get('tit', p), camera.position, f.focal, f.dpr, f.time);
         camera.updateProjectionMatrix();
