@@ -305,7 +305,7 @@ export const vela: Escena = {
     // The reveal: out until both stars fit, the Sun drawn near (short), ours, with the route between
     // them; the names a moment; then back in to the sail, where something enormous passes.
     const MEDIO = V(-1.5, -2.6, -29);
-    tl.label('nave').caption(25.0, 'Naves que son mundos', 'El viaje dura siglos. Quien llega es nieto de los nietos de quien salió: alguien como tú, que nunca vio la Tierra.');
+    tl.label('nave').caption(27.6, 'Naves que son mundos', 'El viaje dura siglos. Quien llega es nieto de los nietos de quien salió: alguien como tú, que nunca vio la Tierra.');
     tl.with(1.0, { beta: 0 });
     tl.with(3.6, { lsol: Math.log10(80) });
     luego(0.2, 4.2, { ld: Math.log10(150), el: 22, az: 96, fov: 34 });
@@ -328,6 +328,8 @@ export const vela: Escena = {
     tl.to(3.6, { dentro: 1, fov: 58 });
     luego(1.2, 1.2, { tu: 1 });
     tl.to(4.4, { vuelo: 1 });
+    // And back out of the ring: the ship among the stars again, where the galaxy takes over.
+    tl.to(2.8, { dentro: 0, fov: 40, az: 150, el: 14, ld: -0.45 });
 
     const tm = toma(tl, 0);
     const velV = V();
