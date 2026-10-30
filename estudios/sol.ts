@@ -29,6 +29,8 @@ const EMPUJE = V(-1, 0, 0.25).normalize();
 const R_ESPEJO = 7.5;
 /** How far ahead of the spark the orbiting camera goes round (radians): the spark keeps to the left. */
 const ADELANTO = THREE.MathUtils.degToRad(26);
+/** Where on its orbit the spark is when this act starts (mercurio.ts leaves it there). */
+const DESFASE = -0.34;
 
 /** The jets off the poles: grains with a phase (`aKind`), a pole (`aDelay` < 0.5 south) and a place across (`aOff`); and the rings that gather them. */
 function chorrosDatos() {
@@ -175,7 +177,8 @@ export const solTrabajado: Escena = {
     const chispa = crearChispa();
     movil.add(chispa.nube.points);
     const caminoCh: Camino = (sv, out) => {
-      const a = sv * 2.2;
+      // (from where the swarm's act leaves it on its orbit, the same way round)
+      const a = sv * 2.2 + DESFASE;
       return out.set(Math.sin(a) * 3.1, 0.25 * Math.sin(sv * 3.1), Math.cos(a) * 3.1);
     };
     enjambre.u.uCubre.value = 1;
@@ -270,7 +273,7 @@ export const solTrabajado: Escena = {
         const centro = EMPUJE.clone().multiplyScalar(mueve0);
         const orb = tl.get('orb', p);
         if (orb > 0.0005) {
-          const A = p * 0.18 * 2.2 + ADELANTO;
+          const A = p * 0.18 * 2.2 + DESFASE + ADELANTO;
           const R = Math.pow(10, tl.get('oR', p));
           const el = THREE.MathUtils.degToRad(tl.get('oEl', p));
           const sitio = centro.clone().add(V(Math.sin(A) * Math.cos(el), Math.sin(el), Math.cos(A) * Math.cos(el)).multiplyScalar(R));

@@ -422,15 +422,8 @@ export const mercurio: Escena = {
     const fuera = (sv: number) => camino(sv).addScaledVector(Y, 0.08).addScaledVector(Y.clone().cross(camino(sv + 0.001).sub(camino(sv)).normalize()), 0.05);
     const c3 = rigDe(fuera(0.04));
     // Off the river, outside the swarm, the Sun ahead; then far away.
-    // Inside the shell, round the Sun: where the river leaves the camera, and further round.
-    const enOrbitaSol = (ang: number, r: number, y: number) => V(Math.sin(ang) * r, y, Math.cos(ang) * r);
-    const angRio = PHI0 + PHI * 0.93;
-    const dentroA = rigDe(enOrbitaSol(angRio + 0.25, 3.05, 0.35));
-    const dentroB = rigDe(enOrbitaSol(angRio + 1.25, 2.9, -0.25));
-    const c5 = rigDe(V(Math.sin(PHI0 + PHI * 0.86), 0.32, Math.cos(PHI0 + PHI * 0.86)).multiplyScalar(6.4));
-    const c6 = rigDe(V(Math.sin(PHI0 + PHI * 0.86 + 0.5), 0.3, Math.cos(PHI0 + PHI * 0.86 + 0.5)).multiplyScalar(5.6));
     const lejos = rigDe(LEJOS);
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, ...c0, yaw: 0, pitch: -40, roll: 0, fov: 40, mm: 0, ms: 0, lw: 0, sc: 0, lr: 0, cv: 0, vel: 0, mina: 0, riel: 0, rio: 0, rioOn: 1, cubre: 0, ir: 0, mapa: 0, nombres: 0 });
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, ...c0, yaw: 0, pitch: -40, roll: 0, fov: 40, mm: 0, ms: 0, lw: 0, sc: 0, lr: 0, cv: 0, vel: 0, sw: 0, swA: 0, swR: 0, swE: 0, swK: 0, swF: 40, mina: 0, riel: 0, rio: 0, rioOn: 1, cubre: 0, ir: 0, mapa: 0, nombres: 0 });
 
     tl.label('mina').caption(4.8, 'Desarmar Mercurio', 'Para el enjambre hace falta materia. Máquinas que se copian deshacen Mercurio en menos de una vida.');
     luego(0.3, 4.4, { mina: 0.62 });
@@ -452,29 +445,49 @@ export const mercurio: Escena = {
     // The river carries the camera into the swarm's shell; off it, round the Sun among the
     // collectors (they cross its face, dark; they flash as they turn their light to us); and out
     // through the shell as it closes: from outside, the Sun goes out behind it.
+    // One unbroken move from here to the end of the act (Diego, 30 Oct: the swarm is one of the
+    // work's most important moments; fluid and cinematic, never back and forth): the river carries
+    // the camera into the swarm's shell, and the camera goes on round the Sun, always the same way,
+    // with the spark just ahead: down among the collectors (they cross the Sun's face, dark; they
+    // flash as they turn its light to us; the nearest pass large), up through the shell as it
+    // closes, and out, still turning, until the Sun is a dim point in its swarm far away.
     tl.label('pared').caption(12.6, 'La pared que tapa el Sol', 'No es una cáscara: es un enjambre, cada colector en su órbita. Desde afuera, el Sol se va apagando.');
     luego(0, 3.6, { rio: 1 });
     luego(0.4, 6.4, { cubre: 0.8 });
     tl.to(4.2, { sc: 0.93 });
-    luego(-1.2, 1.4, { vel: 0.3 });
-    // (the gaze settles on the Sun first, still on the river; then the camera leaves the river)
-    luego(-0.8, 1.0, { ms: 1 });
-    tl.with(1.8, { lw: 0, ...dentroA, fov: 52 });
-    luego(1.4, 1.4, { vel: 0 });
-    tl.to(3.6, { ...dentroB });
-    luego(0.4, 3.0, { cubre: 1 });
-    tl.to(2.2, { ...c5, ms: 1, fov: 40 });
-    tl.to(2.6, { ...c6 });
+    luego(-1.2, 1.4, { vel: 0.25 });
+    luego(0.6, 1.6, { vel: 0 });
+    luego(5.2, 3.2, { cubre: 1 });
+    tl.wait(8.4);
 
     // The reveal: far out, the whole system ours, the Sun dim in its swarm; the names a moment; still.
     tl.label('lejos').caption(8.0, 'Visto desde lejos', 'Desde otra estrella, un Sol así se vería débil y tibio. Así buscamos a otros. Hasta ahora, nadie.');
     luego(0.6, 3.4, { ir: 1, rioOn: 0 });
     luego(2.6, 2.2, { mapa: 1 });
     luego(4.2, 1.4, { nombres: 1 });
-    tl.to(5.0, { ...lejos, fov: 30 });
+    tl.wait(5.0);
     luego(1.6, 1.2, { nombres: 0 });
     luego(1.8, 1.2, { mapa: 0 });
     tl.wait(3.0);
+    // The orbit's keys (laid over the moments above): its angle only grows; inside the shell, then
+    // out to where the Sun's act takes over (LEJOS: the same place, one turn on).
+    {
+      const L0 = tl.at('lejos');
+      const P0 = tl.at('pared');
+      const fin = tl.length;
+      const A_L = Math.atan2(LEJOS.x, LEJOS.z);
+      const A0 = PHI0 + PHI * 0.95;
+      const A_FIN = A_L + Math.PI * 2 * Math.ceil((A0 + 4 - A_L) / (Math.PI * 2));
+      const E_L = THREE.MathUtils.radToDeg(Math.asin(LEJOS.y / LEJOS.length()));
+      const clave = (b: number, v: Record<string, number>) => tl.keyAt(b, v);
+      clave(P0 + 2.8, { sw: 0, swA: A0, swR: Math.log10(3.35), swE: 1.4, swK: 0.35, swF: 40 });
+      clave(P0 + 5.6, { swK: 0.8 });
+      clave(P0 + 4.8, { sw: 1 });
+      clave(P0 + 6.8, { swR: Math.log10(2.9), swE: 4.5, swF: 54 });
+      clave(P0 + 9.8, { swR: Math.log10(3.05), swE: -3.5, swK: 0.6 });
+      clave(L0, { swA: A0 + (A_FIN - A0) * 0.62, swR: Math.log10(7.5), swE: 9, swK: 0.12, swF: 44 });
+      clave(fin, { swA: A_FIN, swR: Math.log10(LEJOS.length()), swE: E_L, swK: 0, swF: 30 });
+    }
 
     // The spark: from where scene 10 left it over Mercury, to the rail's end (ch 0..1), along the river
     // just ahead of the camera (1..2), and round the Sun among the collectors (2..3).
@@ -484,8 +497,11 @@ export const mercurio: Escena = {
       if (sv <= 1) return out.copy(llega).lerp(inicioRiel, THREE.MathUtils.smoothstep(Math.max(0, sv), 0, 1));
       if (sv <= 2) return enRiel(sv - 1, 0.004, out);
       if (sv <= 3) return camino(Math.min(1, sv - 2), out).addScaledVector(Y, 0.02 * THREE.MathUtils.smoothstep(sv - 2, 0, 0.05)).addScaledVector(N_T, 0.004 * (1 - THREE.MathUtils.smoothstep(sv - 2, 0, 0.05)));
-      const a = PHI0 + PHI + (sv - 3) * 2.2;
-      return out.set(Math.sin(a) * 3.1, 0.2 * Math.sin((sv - 3) * 5), Math.cos(a) * 3.1);
+      // (round the Sun with the camera, a little ahead of it, the same way)
+      const q = tl.at('pared') + 3.4 + (sv - 3) * 8;
+      const a = tl.get('swA', q) + 0.05 + 0.37 * THREE.MathUtils.smoothstep(q, tl.at('pared') + 3.4, tl.at('pared') + 6.4);
+      const R = THREE.MathUtils.lerp(3.2, 3.02, THREE.MathUtils.smoothstep(q, tl.at('pared') + 3.4, tl.at('pared') + 6.4));
+      return out.set(Math.sin(a) * R, 0.02 + 0.12 * Math.sin((sv - 3) * 2.2), Math.cos(a) * R);
     };
     const chispa = crearChispa();
     root.add(chispa.nube.points);
@@ -563,7 +579,22 @@ export const mercurio: Escena = {
           // (on the rail, «up» is Mercury's own: away from its ground)
           arribaR = Y.clone().lerp(rad, lr).normalize();
         }
+        // Round the Sun (see the orbit's keys): taking over from the river, then the whole way.
+        const sw = tl.get('sw', p);
+        if (sw > 0.0005) {
+          const A = tl.get('swA', p);
+          const R = Math.pow(10, tl.get('swR', p));
+          const E = THREE.MathUtils.degToRad(tl.get('swE', p));
+          const orbita = V(Math.sin(A) * Math.cos(E), Math.sin(E), Math.cos(A) * Math.cos(E)).multiplyScalar(R);
+          // (the gaze on the Sun, turned a little ahead: the Sun to one side, the way ahead open)
+          const ahead = V(Math.sin(A + 0.9), 0, Math.cos(A + 0.9)).multiplyScalar(R * 0.8);
+          const mira = V().lerp(ahead, tl.get('swK', p));
+          lugarP = lugarP.clone().lerp(orbita, sw);
+          lugarW = Math.max(lugarW, sw);
+          objetivo.lerp(mira, sw);
+        }
         aplicarToma(camera, toma(tl, p, tm, { punto: objetivo, peso: 1, arriba: arribaR }, { punto: lugarP, peso: lugarW }));
+        if (sw > 0.0005) camera.fov = THREE.MathUtils.lerp(camera.fov, tl.get('swF', p), sw);
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
 

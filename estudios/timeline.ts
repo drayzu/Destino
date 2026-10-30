@@ -76,6 +76,13 @@ export class Timeline {
     return this;
   }
 
+  /** Keys at beat `p` (the cursor stays where it is): values passing through, flowing. */
+  keyAt(p: number, values: Record<string, number>) {
+    for (const [name, v] of Object.entries(values)) this.key(name, p, v, null);
+    this.length = Math.max(this.length, p);
+    return this;
+  }
+
   wait(dur: number) {
     this.cursor += dur;
     this.length = Math.max(this.length, this.cursor);
