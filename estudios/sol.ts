@@ -51,19 +51,86 @@ function anillosDatos(): MateriaData {
   return b.data();
 }
 
-/** The mirror: a cap of a sphere, 110° across, on the side opposite the push. */
-function espejoDatos(): MateriaData {
-  const b = materiaBuilder(167);
-  const eje = EMPUJE.clone().negate();
-  for (let i = 0; i < 110000; i++) {
-    const [x, y, z] = b.onSphere();
-    const d = V(x, y, z);
-    const c = d.dot(eje);
-    if (c < Math.cos(THREE.MathUtils.degToRad(55))) continue;
-    const borde = THREE.MathUtils.smoothstep(c, Math.cos(THREE.MathUtils.degToRad(55)), Math.cos(THREE.MathUtils.degToRad(48)));
-    b.push(x * R_ESPEJO, y * R_ESPEJO, z * R_ESPEJO, borde < 0.99 ? TEAL : new THREE.Color(0.75, 0.88, 0.9), 0.02, borde < 0.99 ? 0.7 : 0.16 + b.r() * 0.1);
-  }
-  return b.data();
+/**
+ * The mirror as a surface: a cap of a sphere round the Sun, tiled in hexagons. Its inside, facing
+ * the Sun, glows with the light it sends back, each tile a little different; its outside is dark,
+ * the tiles' seams catching a little light.
+ */
+function espejoMalla() {
+  const ang = THREE.MathUtils.degToRad(55);
+  const g = new THREE.SphereGeometry(R_ESPEJO, 160, 56, 0, Math.PI * 2, 0, ang);
+  g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(Y, EMPUJE.clone().negate()));
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uEsp: { value: 0 }, uFundido: { value: 1 }, uEje: { value: EMPUJE.clone().negate() }, uR: { value: R_ESPEJO } },
+    vertexShader: /* glsl */ `
+      varying vec3 vL;
+      varying vec3 vV;
+      varying vec3 vN;
+      void main() {
+        vL = position;
+        vN = normalize(normalMatrix * normal);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vV = mv.xyz;
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uEsp, uFundido, uR;
+      uniform vec3 uEje;
+      varying vec3 vL;
+      varying vec3 vV;
+      varying vec3 vN;
+      float h21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      // Distance to the edge of the hexagonal tile this point is in (0 on a seam), and the tile.
+      vec3 hexa(vec2 p) {
+        vec2 r = vec2(1.0, 1.7320508);
+        vec2 h = r * 0.5;
+        vec2 a = mod(p, r) - h;
+        vec2 b = mod(p - h, r) - h;
+        vec2 gv = dot(a, a) < dot(b, b) ? a : b;
+        vec2 id = p - gv;
+        vec2 q = abs(gv);
+        float borde = 0.5 - max(dot(q, normalize(vec2(1.0, 1.7320508))), q.x);
+        return vec3(borde, id);
+      }
+      void main() {
+        vec3 d = normalize(vL);
+        // A flat map of the cap (round its axis), for the tiles.
+        vec3 t1 = normalize(cross(uEje, abs(uEje.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
+        vec3 t2 = cross(uEje, t1);
+        vec2 q = vec2(dot(d, t1), dot(d, t2)) * 26.0;
+        vec3 hx = hexa(q);
+        float fw = fwidth(hx.x);
+        float costura = 1.0 - smoothstep(0.02, 0.02 + 1.5 * fw, hx.x);
+        float tono = h21(hx.yz);
+        float c = dot(d, uEje);
+        float borde = smoothstep(cos(0.96), cos(0.86), c);
+        vec3 col;
+        float a;
+        if (gl_FrontFacing) {
+          // Outside: dark tiles, their seams faintly lit.
+          col = vec3(0.025, 0.028, 0.034) * (0.8 + 0.4 * tono) + vec3(0.5, 0.42, 0.3) * costura * 0.18;
+          a = 1.0;
+        } else {
+          // Inside, facing the Sun: its light, sent back, warm; each tile tilted a hair differently.
+          col = vec3(1.0, 0.78, 0.46) * (0.22 + 0.16 * tono) * (1.0 - costura * 0.7) + vec3(1.0, 0.9, 0.7) * costura * 0.05;
+          a = 0.9;
+        }
+        col += vec3(0.4, 0.95, 0.85) * (1.0 - borde) * 0.5;
+        gl_FragColor = vec4(col * uEsp * uFundido, a * uEsp * uFundido);
+      }
+    `,
+    side: THREE.DoubleSide,
+    transparent: true,
+    depthTest: true,
+    depthWrite: true,
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
+  });
+  const m = new THREE.Mesh(g, mat);
+  m.renderOrder = 2;
+  return { mesh: m, u: mat.uniforms };
 }
 
 /** The thread left behind: where the Sun has been (`aKind`, how far back along the push). */
@@ -130,8 +197,8 @@ export const solTrabajado: Escena = {
     chorros.u.uFuente.value = 0.5;
     const anillos = add(materia(anillosDatos(), { pre: `uniform float uVida;`, move: `em *= uVida;`, uniforms: { uVida: { value: 0 } } }), movil);
     anillos.u.uFuente.value = 0.4;
-    const espejo = add(materia(espejoDatos(), { pre: `uniform float uEsp;`, move: `em *= uEsp; p *= mix(0.6, 1.0, uEsp);`, uniforms: { uEsp: { value: 0 } } }), movil);
-    espejo.u.uFuente.value = 0.4;
+    const espejo = espejoMalla();
+    movil.add(espejo.mesh);
     const estela = add(materia(estelaDatos(), { pre: `uniform float uMueve;`, move: `em *= step(aKind, uMueve) * (0.4 + 0.6 * smoothstep(uMueve - 1.5, uMueve, aKind));`, uniforms: { uMueve: { value: 0 } } }));
     estela.u.uFuente.value = 0.5;
 
@@ -147,21 +214,27 @@ export const solTrabajado: Escena = {
     const fin = EMPUJE.clone().multiplyScalar(MUEVE);
     tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: lejos.az, el: lejos.el, ld: Math.log10(LEJOS.length()), yaw: 90, pitch: -90, roll: 0, fov: 30, ir: 1, vida: 0, encoge: 0, esp: 0, mueve: 0, satura: 0 });
 
-    tl.label('vida').caption(5.6, 'Alargar la vida del Sol', 'Una estrella también se cuida: con menos masa arde más despacio, y vive más.');
+    tl.label('vida').caption(7.4, 'Alargar la vida del Sol', 'Una estrella también se cuida: con menos masa arde más despacio, y vive más.');
     tl.with(2.0, { ir: 0 });
-    luego(1.6, 2.4, { vida: 1 });
-    luego(2.6, 3.0, { encoge: 1 });
-    tl.to(5.6, { az: lejos.az + 40, el: 16, ld: Math.log10(11), fov: 40 });
+    luego(1.2, 2.4, { vida: 1 });
+    luego(3.6, 3.0, { encoge: 1 });
+    tl.to(3.6, { az: lejos.az + 30, el: 14, ld: Math.log10(12), fov: 40 });
+    // (up beside the north jet: the matter lifted off the pole, gathered by our ring)
+    tl.to(3.8, { az: lejos.az + 62, el: 44, ld: Math.log10(6.2) });
 
-    tl.label('mover').caption(6.0, 'Mover el Sol', 'Y se puede mover: un espejo le devuelve parte de su luz y lo empuja, despacio.');
-    tl.with(2.0, { esp: 1 });
-    luego(1.6, 4.4, { mueve: MUEVE, cx: fin.x, cy: fin.y, cz: fin.z });
-    tl.to(6.0, { az: lejos.az + 110, el: 24, ld: Math.log10(21) });
+    tl.label('mover').caption(7.6, 'Mover el Sol', 'Y se puede mover: un espejo le devuelve parte de su luz y lo empuja, despacio.');
+    tl.with(2.4, { esp: 1 });
+    luego(2.8, 4.8, { mueve: MUEVE, cx: fin.x, cy: fin.y, cz: fin.z });
+    // (round to the mirror's open side: its glowing face behind the Sun; then the Sun comes towards
+    // us as it moves, its thread behind it)
+    const abierto = angulos(EMPUJE).az;
+    tl.to(3.4, { az: abierto + 30, el: 14, ld: Math.log10(16) });
+    tl.to(4.2, { az: abierto + 12, el: 20, ld: Math.log10(21) });
 
-    tl.label('tipo').caption(5.0, 'Tipo II', 'Toda la luz del Sol: tipo II. Y la estrella ya no alcanza.');
+    tl.label('tipo').caption(5.6, 'Tipo II', 'Toda la luz del Sol: tipo II. Y la estrella ya no alcanza.');
     luego(1.0, 2.4, { satura: 1 });
     luego(1.6, 3.0, { ir: 1 });
-    tl.to(5.0, { az: lejos.az + 150, el: 30, ld: 2.2, fov: 34 });
+    tl.to(5.6, { az: lejos.az + 150, el: 30, ld: 2.2, fov: 34 });
 
     const tm = toma(tl, 0);
     return {
@@ -208,7 +281,10 @@ export const solTrabajado: Escena = {
         enjambre.u.uOcc.value.set(solV.x, solV.y, solV.z, 1.0);
         chorros.u.uVida.value = tl.get('vida', p);
         anillos.u.uVida.value = tl.get('vida', p);
-        espejo.u.uEsp.value = tl.get('esp', p);
+        const esp = tl.get('esp', p);
+        espejo.u.uEsp.value = esp;
+        espejo.mesh.scale.setScalar(THREE.MathUtils.lerp(0.6, 1.0, esp));
+        espejo.mesh.visible = esp > 0.002;
         estela.u.uMueve.value = mueve;
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
         void Y;
