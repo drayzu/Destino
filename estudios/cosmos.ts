@@ -296,7 +296,7 @@ export const cosmos: Escena = {
         const sv = THREE.MathUtils.clamp(tl.get('sv', p), 0, 1);
         // (the gaze always a little ahead of the place, even at the way's end; both smoothed, so the
         // camera rounds each galaxy it passes instead of turning at it)
-        const mv = montar(caminoRuta, sv * 0.95, 0, 0.1, 0, V(0, 1, 0), 0.04);
+        const mv = montar(caminoRuta, sv * 0.9, 0, 0.3, 0, V(0, 1, 0), 0.2, false, 0.2);
         const lugarV = mv.lugar;
         const miraV = mv.mira;
         aplicarToma(camera, toma(tl, p, tm, { punto: miraV, peso: vuela }, { punto: lugarV, peso: vuela }));
