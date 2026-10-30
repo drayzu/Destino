@@ -20,6 +20,8 @@ export interface Frame {
   camera: THREE.PerspectiveCamera;
   /** The journey's page draws its own chrome (the card to Infinito is a link there, not paint). */
   chasis?: boolean;
+  /** In a relay, how far this act has come up (0..1); its bodies' light follows it. */
+  fundido?: number;
 }
 
 /** Where an act hands over or takes over (journey): a point in its world and a size there. */

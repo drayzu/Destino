@@ -331,7 +331,7 @@ export const estrella: Escena = {
       tl.with(dur, v);
       tl.wait(-off);
     };
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 18, el: 16, ld: 1.32, yaw: 90, pitch: -90, roll: 0, fov: 40, capas: 0, bits: 0, piensa: 0, forma: 0, sale: 0, red: 0, tu: 0, expande: 0, frio: 0, flujo: 0 });
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 18, el: 16, ld: 2.3, yaw: 90, pitch: -90, roll: 0, fov: 40, capas: 0, bits: 0, piensa: 0, forma: 0, sale: 0, red: 0, tu: 0, expande: 0, frio: 0, flujo: 0 });
 
     tl.label('estrella').caption(8.0, 'Pensar con una estrella', 'Hacia adentro: envolver una estrella en capas de computadoras, y ponerla a pensar.');
     luego(0.3, 7.0, { capas: 1 });
@@ -404,7 +404,7 @@ export const estrella: Escena = {
         const cap = tl.get('capas', p);
         const dentro = THREE.MathUtils.smoothstep(camera.position.length(), RADIOS[0], RADIOS[4]);
         sol.u.uBrillo.value = 1.5 * (1 - 0.88 * cap * dentro) * (1 - tl.get('frio', p));
-        sol.update({ sol: V(1, 0, 0), camara: camera.position.clone(), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: 1 });
+        sol.update({ sol: V(1, 0, 0), camara: camera.position.clone(), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: f.fundido ?? 1 });
 
         capas.u.uCapas.value = cap;
         capas.u.uBits.value = tl.get('bits', p);

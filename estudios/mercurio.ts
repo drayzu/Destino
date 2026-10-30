@@ -601,8 +601,8 @@ export const mercurio: Escena = {
         // Seen from outside the swarm, the Sun goes out behind it as it closes.
         const afuera = THREE.MathUtils.smoothstep(camera.position.length(), 2.6, 3.9);
         sol.u.uBrillo.value = 2.2 * (1 - 0.86 * tl.get('cubre', p) * afuera);
-        sol.update({ sol: V(1, 0, 0), camara: camera.position.clone(), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: 1 });
-        merc.update({ sol: M.clone().negate().normalize(), camara: camera.position.clone().sub(M).divideScalar(RM), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: 1 });
+        sol.update({ sol: V(1, 0, 0), camara: camera.position.clone(), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: f.fundido ?? 1 });
+        merc.update({ sol: M.clone().negate().normalize(), camara: camera.position.clone().sub(M).divideScalar(RM), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: f.fundido ?? 1 });
         minaU.uMina.value = tl.get('mina', p);
         riel.u.uRiel.value = tl.get('riel', p) * tl.get('rioOn', p);
         rielM.u.uRiel.value = riel.u.uRiel.value;

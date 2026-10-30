@@ -541,13 +541,13 @@ export const vela: Escena = {
         haz.u.uDesde.value.copy(casa.position).add(V(0, 0, 3.2));
         const camC = camera.position.clone().sub(casa.position);
         sol.u.uBrillo.value = 2.2 * (1 - 0.86 * THREE.MathUtils.smoothstep(camC.length(), 2.6, 3.9));
-        sol.update({ sol: V(1, 0, 0), camara: camC, focal: f.focal, dpr: f.dpr, tiempo: t, presencia: 1 });
+        sol.update({ sol: V(1, 0, 0), camara: camC, focal: f.focal, dpr: f.dpr, tiempo: t, presencia: f.fundido ?? 1 });
         enjambre.u.uCam.value.copy(camC);
         const camA = camera.position.clone().sub(alfa.position);
         A.u.uBrillo.value = 2.6;
         B.u.uBrillo.value = 1.4;
-        A.update({ sol: V(1, 0, 0), camara: camA.clone().divideScalar(1.22), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: 1 });
-        B.update({ sol: V(1, 0, 0), camara: camA.clone().sub(B.group.position).divideScalar(0.86), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: 1 });
+        A.update({ sol: V(1, 0, 0), camara: camA.clone().divideScalar(1.22), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: f.fundido ?? 1 });
+        B.update({ sol: V(1, 0, 0), camara: camA.clone().sub(B.group.position).divideScalar(0.86), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: f.fundido ?? 1 });
         // (at the very end both stars are far behind: not drawn, so the hand-over to the galaxy,
         // which rescales this world, never blows their glow up)
         const ultimo = p > tl.length - 1.0;

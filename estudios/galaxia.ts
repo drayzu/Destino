@@ -428,7 +428,7 @@ export const galaxia: Escena = {
       tl,
       listo: vivo.listo,
       entrada: { pos: Q.clone(), escala: D0 / 9 },
-      salida: { pos: UNA.clone(), escala: camFin.pos.distanceTo(UNA) / 21 },
+      salida: { pos: UNA.clone(), escala: camFin.pos.distanceTo(UNA) / 200 },
       relevoMaxPx: 3,
       escalera: false,
       cuenta(p) {

@@ -295,7 +295,7 @@ export const solTrabajado: Escena = {
         const enc = tl.get('encoge', p);
         sol.group.scale.setScalar(1 - 0.12 * enc);
         sol.u.uBrillo.value = 2.2 * (1 - 0.86 * afuera) * (1 - 0.15 * enc);
-        sol.update({ sol: V(1, 0, 0), camara: camL.clone().divideScalar(1 - 0.12 * enc), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: 1 });
+        sol.update({ sol: V(1, 0, 0), camara: camL.clone().divideScalar(1 - 0.12 * enc), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: f.fundido ?? 1 });
         enjambre.u.uCam.value.copy(camL);
         enjambre.u.uIR.value = tl.get('ir', p);
         const solV = movil.position.clone().applyMatrix4(camera.matrixWorldInverse);
