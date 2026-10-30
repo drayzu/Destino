@@ -152,15 +152,102 @@ function venusDatos(sol: THREE.Vector3): MateriaData {
   }
   const t1 = Y.clone().cross(sol).normalize();
   const t2 = sol.clone().cross(t1);
-  // The parasol: a thin film (faint), its rim ours (teal), between Venus and the Sun.
-  for (let i = 0; i < 26000; i++) {
-    const borde = r() < 0.22;
+  // The parasol's rim, ours (teal), between Venus and the Sun (its film is a membrane: parasolMalla).
+  for (let i = 0; i < 6000; i++) {
+    const borde = true;
     const q = borde ? 1.3 + gauss(r) * 0.006 : Math.sqrt(r()) * 1.3;
     const fi = r() * Math.PI * 2;
     const p = sol.clone().multiplyScalar(2.2).addScaledVector(t1, Math.cos(fi) * q).addScaledVector(t2, Math.sin(fi) * q);
     b.push(p.x, p.y, p.z, borde ? TEAL : new THREE.Color(0.7, 0.85, 0.9), borde ? 0.004 : 0.006, borde ? 0.32 : 0.05, { kind: 2 });
   }
   return b.data();
+}
+
+/**
+ * The parasol as a membrane (Venus' own units: Venus is 1, the Sun along `sol`): a disc 1.3 across
+ * at 2.2 towards the Sun. Its sunward face shines with the light it turns away (rings and struts);
+ * its face towards Venus is dark.
+ */
+function parasolMalla(sol: THREE.Vector3) {
+  const g = new THREE.CircleGeometry(1.3, 160);
+  g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(V(0, 0, 1), sol));
+  g.translate(sol.x * 2.2, sol.y * 2.2, sol.z * 2.2);
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uOn: { value: 0 }, uFundido: { value: 1 }, uSol: { value: sol.clone() } },
+    vertexShader: /* glsl */ `
+      varying vec3 vL;
+      void main() {
+        vL = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uOn, uFundido;
+      uniform vec3 uSol;
+      varying vec3 vL;
+      float raya(float x, float w) {
+        float d = abs(fract(x + 0.5) - 0.5);
+        float fw = max(fwidth(x), 1e-6);
+        return 1.0 - smoothstep(w - fw, w + fw, d);
+      }
+      void main() {
+        vec3 c = vL - uSol * 2.2;
+        float r = length(c) / 1.3;
+        vec3 t1 = normalize(cross(uSol, vec3(0.0, 1.0, 0.0)));
+        vec3 t2 = cross(uSol, t1);
+        float fi = atan(dot(c, t2), dot(c, t1));
+        float aros = raya(r * 9.0, 0.04);
+        float varas = raya(fi / 6.2831853 * 16.0, 0.02);
+        vec3 col;
+        float a;
+        if (gl_FrontFacing) {
+          // Facing the Sun: the light it turns away, warm.
+          col = vec3(1.0, 0.86, 0.6) * (0.16 + 0.08 * (1.0 - r)) + vec3(1.0, 0.92, 0.75) * (aros * 0.12 + varas * 0.1);
+          a = 0.9;
+        } else {
+          // Facing Venus: its shadow side, dark; the struts barely there.
+          col = vec3(0.02, 0.022, 0.026) + vec3(0.3, 0.34, 0.38) * (aros * 0.06 + varas * 0.06);
+          a = 0.94;
+        }
+        gl_FragColor = vec4(col * uOn * uFundido, a * uOn * uFundido);
+      }
+    `,
+    side: THREE.DoubleSide,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
+  });
+  const m = new THREE.Mesh(g, mat);
+  m.renderOrder = 3;
+  m.frustumCulled = false;
+  return { mesh: m, u: mat.uniforms };
+}
+
+/**
+ * Sunlight on its way to Venus (Venus' units), as a fine rain of light flowing from the Sun: what
+ * meets the parasol stops there, so behind it a cylinder of shadow reaches down to Venus; the rest
+ * goes past, or ends on Venus' clouds. `aOff`: where across the beam; `aKind`: its phase.
+ */
+function luzVenusDatos() {
+  const b = materiaBuilder(141);
+  const off: number[] = [];
+  // (each grain a short streak: a few points one behind the other)
+  for (let i = 0; i < 9000; i++) {
+    // (a thick sheet through the axis, edge-on to the side the camera looks from: there the
+    // parasol's shadow shows as a dark band down to Venus)
+    const fase = b.r();
+    const x = gauss(b.r) * 0.28;
+    const y = (b.r() * 2 - 1) * 2.6;
+    const luz = 0.3 + 0.3 * b.r();
+    for (let k = 0; k < 4; k++) {
+      b.push(0, 0, 0, new THREE.Color(1.0, 0.9, 0.7), 0.008, luz * (1 - k * 0.22), { kind: fase - k * 0.0035 });
+      off.push(x, y);
+    }
+  }
+  return { data: b.data(), off: new Float32Array(off) };
 }
 
 /** The asteroid belt, with the sparks of its mines; and the first glints of a swarm by the Sun. */
@@ -291,6 +378,29 @@ export const sistema: Escena = {
       venusG,
     );
     venusN.u.uFuente.value = 0.4;
+    const parasol = parasolMalla(solVenus);
+    venusG.add(parasol.mesh);
+    const lv = luzVenusDatos();
+    const luzVenus = add(
+      materia(lv.data, {
+        pre: /* glsl */ `attribute vec2 aOff; uniform vec3 uSol, uT1, uT2; uniform float uLuz, uSombra;`,
+        move: /* glsl */ `
+          // Down the beam from the Sun's side, each grain a short streak of its phase.
+          float fase = fract(aKind + uTime * 0.09);
+          float a = 6.0 - fase * 9.0;
+          p = uSol * a + uT1 * aOff.x + uT2 * aOff.y;
+          float rr = length(aOff);
+          // Stopped by the parasol (behind it, its shadow); ended on Venus.
+          float tapa = uSombra * step(rr, 1.3) * step(a, 2.2);
+          float hunde = step(rr, 1.0) * step(a, sqrt(max(0.0, 1.0 - rr * rr)));
+          em *= uLuz * (1.0 - tapa) * (1.0 - hunde) * smoothstep(0.0, 0.1, fase) * (1.0 - smoothstep(0.85, 1.0, fase));
+        `,
+        uniforms: { uSol: { value: solVenus.clone() }, uT1: { value: Y.clone().cross(solVenus).normalize() }, uT2: { value: solVenus.clone().cross(Y.clone().cross(solVenus).normalize()) }, uLuz: { value: 0 }, uSombra: { value: 0 } },
+        extra: { aOff: [lv.off, 2] },
+      }),
+      venusG,
+    );
+    luzVenus.u.uFuente.value = 0.4;
     const cinturon = add(
       materia(cinturonDatos(), {
         pre: /* glsl */ `uniform float uTodo;`,
@@ -569,7 +679,7 @@ export const sistema: Escena = {
           const lejos = camL.length() > 400;
           x.c.group.visible = !lejos || x.R > 0.3;
           // Venus under the parasol: its day side dims.
-          x.c.update({ sol: solL, camara: camL, focal: f.focal, dpr: f.dpr, tiempo: t, presencia: x.c === venus ? 1 - 0.6 * tl.get('sombra', p) : 1 });
+          x.c.update({ sol: solL, camara: camL, focal: f.focal, dpr: f.dpr, tiempo: t, presencia: x.c === venus ? 1 - 0.86 * tl.get('sombra', p) : 1 });
         }
         const lejosDe = (q: THREE.Vector3, d0: number, k = 1) => Math.min(1, Math.pow(d0 / Math.max(1e-6, camera.position.distanceTo(q)), k));
         cil.update(tl.get('cil', p) * lejosDe(C, 5, 2), agCil, camera.position);
@@ -579,6 +689,10 @@ export const sistema: Escena = {
         marteN.u.uCamL.value.copy(camera.position).sub(MA).divideScalar(RMA);
         venusN.u.uVen.value = tl.get('ven', p);
         venusN.u.uSombra.value = tl.get('sombra', p);
+        parasol.u.uOn.value = tl.get('sombra', p);
+        luzVenus.u.uSombra.value = tl.get('sombra', p);
+        luzVenus.u.uLuz.value = tl.get('ven', p) * (1 - tl.get('todo', p));
+        luzVenus.u.uSizeUnit.value = RV;
         venusN.u.uCamL.value.copy(camera.position).sub(VE).divideScalar(RV);
         cinturon.u.uTodo.value = tl.get('todo', p);
         const mapa = tl.get('mapa', p);
