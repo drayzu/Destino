@@ -342,8 +342,8 @@ export const galaxia: Escena = {
     tl.with(1.2, { lw: 1 });
     tl.with(14.6, { ch: 1 }, EASE.sine);
     tl.with(14.6, { ld: LOG0 + DECADAS + 0.5 }, EASE.sine);
-    luego(1.2, 1.6, { ...Cn(S) });
-    luego(2.6, 2.6, { lw: 0 });
+    luego(1.0, 1.4, { ...Cn(S) });
+    luego(1.8, 2.4, { lw: 0 });
     tl.to(15.0, { az: 172, el: 30 });
 
     // The reveal: far back, the bubble spreads over the galaxy.
