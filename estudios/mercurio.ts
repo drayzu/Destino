@@ -32,7 +32,7 @@ const RA = 18;
 const RB = 3.0;
 const PHI0 = THREE.MathUtils.degToRad(205);
 const PHI = 1.45;
-const RM = 0.42;
+export const RM = 0.42;
 
 /** The river's path (a logarithmic spiral from Mercury down to the swarm), s = 0..1. */
 function camino(s: number, out = V()) {
@@ -48,7 +48,10 @@ const N_T = (() => {
   const n = Y.clone().cross(D).normalize();
   return n.dot(T) < 0 ? n.negate() : n;
 })();
-const M = T.clone().addScaledVector(N_T, -RM);
+export const M = T.clone().addScaledVector(N_T, -RM);
+
+/** Where the scene leaves the camera: far away, the Sun an ember in its swarm (scene 13 starts here). */
+export const LEJOS = V(Math.sin(PHI0 + PHI * 0.86 + 0.7), 0.35, Math.cos(PHI0 + PHI * 0.86 + 0.7)).multiplyScalar(160);
 
 function rigDe(pos: THREE.Vector3) {
   const a = angulos(pos);
@@ -103,6 +106,40 @@ function enjambreDatos(n: number) {
     O.push(R, th, 0.05 * Math.pow(3 / R, 1.5));
   }
   return { data: b.data(), U: new Float32Array(U), W: new Float32Array(W), O: new Float32Array(O) };
+}
+
+/** The swarm as a cloud (scene 12 and the Sun's, scene 13, use the same one, so they meet without a seam). */
+export function enjambreNube(teal: boolean): Nube {
+  const ed = enjambreDatos(380000);
+  const enjambre = materia(ed.data, {
+        pre: /* glsl */ `
+          attribute vec3 aU, aV, aO;
+          uniform vec3 uCam, uBase;
+          uniform float uCubre, uIR;
+        `,
+        move: /* glsl */ `
+          float th = aO.y + aO.z * uTime;
+          p = (aU * cos(th) + aV * sin(th)) * aO.x;
+          vec3 rh = normalize(p);
+          vec3 tilt = vec3(fract(seed * 13.1), fract(seed * 71.7), fract(seed * 37.3)) - 0.5;
+          vec3 wob = vec3(sin(uTime * 0.6 + seed * 91.0), cos(uTime * 0.5 + seed * 53.0), sin(uTime * 0.4 + seed * 17.0));
+          vec3 Nf = normalize(-rh + tilt * 0.55 + wob * 0.1);
+          vec3 Vv = normalize(uCam - p);
+          float frente = step(0.0, dot(Nf, Vv));
+          float g = pow(max(dot(reflect(rh, Nf), Vv), 0.0), 90.0);
+          float on = step(aDelay, uCubre);
+          em = uBase * (0.35 + 0.65 * frente) + vec3(1.0, 0.95, 0.86) * g * 4.0 * frente;
+          em += vec3(0.42, 0.09, 0.025) * uIR * (1.0 - 0.6 * frente);
+          em *= on;
+          occ = 0.92 * on;
+        `,
+        uniforms: { uCam: { value: V() }, uBase: { value: teal ? TEAL.clone().multiplyScalar(0.16) : new THREE.Color(0.02, 0.022, 0.028) }, uCubre: { value: 0 }, uIR: { value: 0 } },
+        extra: { aU: [ed.U, 3], aV: [ed.W, 3], aO: [ed.O, 3] },
+      });
+  enjambre.u.uInk.value = 1;
+  enjambre.u.uFuente.value = 0.25;
+  enjambre.points.renderOrder = 10;
+  return enjambre;
 }
 
 const MINA = {
@@ -194,37 +231,7 @@ export const mercurio: Escena = {
     );
     rio.u.uFuente.value = 0.15;
 
-    const ed = enjambreDatos(380000);
-    const enjambre = add(
-      materia(ed.data, {
-        pre: /* glsl */ `
-          attribute vec3 aU, aV, aO;
-          uniform vec3 uCam, uBase;
-          uniform float uCubre, uIR;
-        `,
-        move: /* glsl */ `
-          float th = aO.y + aO.z * uTime;
-          p = (aU * cos(th) + aV * sin(th)) * aO.x;
-          vec3 rh = normalize(p);
-          vec3 tilt = vec3(fract(seed * 13.1), fract(seed * 71.7), fract(seed * 37.3)) - 0.5;
-          vec3 wob = vec3(sin(uTime * 0.6 + seed * 91.0), cos(uTime * 0.5 + seed * 53.0), sin(uTime * 0.4 + seed * 17.0));
-          vec3 Nf = normalize(-rh + tilt * 0.55 + wob * 0.1);
-          vec3 Vv = normalize(uCam - p);
-          float frente = step(0.0, dot(Nf, Vv));
-          float g = pow(max(dot(reflect(rh, Nf), Vv), 0.0), 90.0);
-          float on = step(aDelay, uCubre);
-          em = uBase * (0.35 + 0.65 * frente) + vec3(1.0, 0.95, 0.86) * g * 4.0 * frente;
-          em += vec3(0.42, 0.09, 0.025) * uIR * (1.0 - 0.6 * frente);
-          em *= on;
-          occ = 0.92 * on;
-        `,
-        uniforms: { uCam: { value: V() }, uBase: { value: teal ? TEAL.clone().multiplyScalar(0.16) : new THREE.Color(0.02, 0.022, 0.028) }, uCubre: { value: 0 }, uIR: { value: 0 } },
-        extra: { aU: [ed.U, 3], aV: [ed.W, 3], aO: [ed.O, 3] },
-      }),
-      10,
-    );
-    enjambre.u.uInk.value = 1;
-    enjambre.u.uFuente.value = 0.25;
+    const enjambre = add(enjambreNube(teal), 10);
 
     const listo = Promise.all([sol.listo, merc.listo]);
 
@@ -248,7 +255,7 @@ export const mercurio: Escena = {
     // Off the river, outside the swarm, the Sun ahead; then far away.
     const c5 = rigDe(V(Math.sin(PHI0 + PHI * 0.86), 0.32, Math.cos(PHI0 + PHI * 0.86)).multiplyScalar(6.4));
     const c6 = rigDe(V(Math.sin(PHI0 + PHI * 0.86 + 0.5), 0.3, Math.cos(PHI0 + PHI * 0.86 + 0.5)).multiplyScalar(5.6));
-    const lejos = rigDe(V(Math.sin(PHI0 + PHI * 0.86 + 0.7), 0.35, Math.cos(PHI0 + PHI * 0.86 + 0.7)).multiplyScalar(160));
+    const lejos = rigDe(LEJOS);
     tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, ...c0, yaw: 0, pitch: -40, roll: 0, fov: 40, mm: 0, ms: 0, lw: 0, sc: 0, mina: 0, riel: 0, rio: 0, rioOn: 1, cubre: 0, ir: 0 });
 
     tl.label('mina').caption(4.8, 'Desarmar Mercurio', 'Para el enjambre hace falta materia. Máquinas que se copian deshacen Mercurio en menos de una vida.');
@@ -283,6 +290,8 @@ export const mercurio: Escena = {
     return {
       tl,
       listo,
+      entrada: { pos: M.clone(), escala: RM },
+      salida: { pos: V(), escala: 1 },
       escalera: false,
       cuenta(p) {
         if (p < tl.at('catapulta')) return potencia(16.6);

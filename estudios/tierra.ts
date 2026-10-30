@@ -481,6 +481,7 @@ export const tierraNoche: Escena = {
       tl,
       listo,
       entrada: { pos: V(), escala: 1 },
+      salida: { pos: V(), escala: 1 },
       escalera: false,
       cuenta(p) {
         const anio = tl.get('anio', p);
