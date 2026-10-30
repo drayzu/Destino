@@ -6,7 +6,8 @@ import { TEAL, potencia } from './remake';
 import { aplicarToma, toma } from './rig';
 import { crearChispa, montar, type Camino } from './chispa';
 import { S, brazo, galaxiaDatos, polvoDatos } from './apertura';
-import type { Rotulo } from './placa';
+import { cuantas, enfocarMarcas, marcas, nombres, type Nombre } from './revelar';
+import type { Cuenta, Rotulo } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
 
 /**
@@ -195,6 +196,21 @@ export const galaxia: Escena = {
     );
 
     // ---------------------------------------------------------------- the moments (GUION.md 36–42)
+    // Revealing: home ringed in teal, its name a moment (the galaxy names itself).
+    const aroSol = add(marcas([{ pos: S, R: 0, color: new THREE.Color(1.0, 0.94, 0.82), nuestro: true }]), root, 40);
+    const NOMBRES: Nombre[] = [
+      { pos: S, texto: 'Sol', nuestro: true },
+    ];
+    /** How many stars a bubble this wide holds (units of this galaxy: ~830 light years). */
+    const estrellasEn = (r: number) => {
+      const A: [number, number][] = [[-2.3, 0.3], [-1.22, 3.3], [-0.22, 6.3], [0.78, 8.5], [1.53, 11], [2.08, 11.6]];
+      const x = THREE.MathUtils.clamp(Math.log10(Math.max(r, 0.005)), A[0][0], A[A.length - 1][0]);
+      let i = 0;
+      while (x > A[i + 1][0]) i++;
+      return Math.pow(10, THREE.MathUtils.mapLinear(x, A[i][0], A[i + 1][0], A[i][1], A[i + 1][1]));
+    };
+    let alcanceR = 0.005;
+
     const tl = new Timeline();
     const luego = (off: number, dur: number, v: Record<string, number>) => {
       tl.wait(off);
@@ -221,7 +237,7 @@ export const galaxia: Escena = {
       const t = THREE.MathUtils.smoothstep(sv - 1 - i, 0, 1);
       return out.copy(paradas[i]).lerp(paradas[i + 1], t);
     };
-    tl.set({ ...Cn(Q), ox: 0, oy: 0, oz: 0, az: 120, el: 10, ld: Math.log10(D0), yaw: 90, pitch: -90, roll: 0, fov: 40, bur: 0, ir: 0, gal: 1, zoo: 0, callan: 0, calla: 0, filtro: 0, una: 0, ch: 0, lw: 0, tit: 0 });
+    tl.set({ ...Cn(Q), ox: 0, oy: 0, oz: 0, az: 120, el: 10, ld: Math.log10(D0), yaw: 90, pitch: -90, roll: 0, fov: 40, bur: 0, ir: 0, gal: 1, zoo: 0, callan: 0, calla: 0, filtro: 0, una: 0, ch: 0, lw: 0, tit: 0, mapa: 0, nombres: 0 });
 
     // Copied from star to star: the camera rides one branch, the stars it touches turn ours.
     tl.label('burbuja').caption(6.4, 'La burbuja', 'Sondas que se copian en cada estrella que tocan. Aunque vayan lento, el movimiento de las estrellas las reparte.');
@@ -229,13 +245,18 @@ export const galaxia: Escena = {
     tl.to(6.4, { ch: 1 });
 
     // The reveal: far back, the bubble spreads over the galaxy.
-    tl.label('freno').caption(5.8, 'La luz pone el freno', 'La luz tarda cien mil años en cruzar la galaxia. Desde aquí, el tiempo se mide en millones de años.');
+    tl.label('freno').caption(7.8, 'La luz pone el freno', 'La luz tarda cien mil años en cruzar la galaxia. Desde aquí, el tiempo se mide en millones de años.');
     tl.with(1.4, { lw: 0, ...Cn(paradas[0]), ld: -0.6, az: 150, el: 20 });
     luego(1.6, 4.2, { bur: 34 });
     luego(2.2, 2.6, { ...Cn(S.clone().lerp(G, 0.45)) });
+    luego(3.4, 1.6, { mapa: 1 });
+    luego(4.4, 1.4, { nombres: 1 });
     tl.to(5.8, { ld: 1.7, el: 40, az: 180 });
+    tl.to(2.0, { az: 186 });
 
     tl.label('tipo').caption(5.4, 'Tipo III', 'Toda la luz de una galaxia: tipo III. Se vería oscura y tibia. Ninguna de las que revisamos es así.');
+    luego(0.4, 1.0, { nombres: 0 });
+    luego(3.4, 1.4, { mapa: 0 });
     tl.with(2.4, { bur: 120 });
     luego(2.6, 2.2, { ir: 1 });
     tl.to(5.4, { ...Cn(G), ld: 2.02, el: 62, az: 210 });
@@ -285,9 +306,15 @@ export const galaxia: Escena = {
       salida: { pos: UNA.clone(), escala: camFin.pos.distanceTo(UNA) / 21 },
       escalera: false,
       cuenta(p) {
-        if (p < tl.at('burbuja')) return potencia(27.4);
-        if (p < tl.at('tipo')) return potencia(27.4 + (tl.get('bur', p) / 34) * 6);
-        return potencia(37);
+        const c: Cuenta = p < tl.at('burbuja') ? potencia(27.4) : p < tl.at('tipo') ? potencia(27.4 + (tl.get('bur', p) / 34) * 6) : potencia(37);
+        // How far we reach: the stars inside the bubble, then the whole galaxy.
+        const toda = tl.at('tipo') + 2.4;
+        c.alcance = p < toda ? cuantas(Math.max(2, estrellasEn(alcanceR)), 'estrella', 'estrellas') : 'la galaxia';
+        c.nuevo = p >= toda ? 1 - THREE.MathUtils.smoothstep(p, toda, toda + 1.8) : 0;
+        return c;
+      },
+      placa(g, f) {
+        nombres(g, f, NOMBRES, tl.get('nombres', f.p));
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);
@@ -307,6 +334,8 @@ export const galaxia: Escena = {
         camera.updateMatrixWorld();
 
         estrellas.u.uBur.value = Math.max(tl.get('bur', p), p < tl.at('freno') + 2 ? chispa.pos.distanceTo(S) + 0.2 : 0);
+        // The reach counts from where the spark has been (the bubble's own edge once it spreads).
+        alcanceR = Math.max(tl.get('bur', p), p < tl.at('freno') + 2 ? chispa.pos.distanceTo(S) : 0);
         estrellas.u.uIR.value = tl.get('ir', p);
         estrellas.u.uCamG.value.copy(camera.position);
         polvo.u.uCamG.value.copy(camera.position);
@@ -320,6 +349,7 @@ export const galaxia: Escena = {
         callan.u.uCalla.value = tl.get('calla', p);
         filtro.u.uOn.value = tl.get('filtro', p);
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
+        enfocarMarcas(aroSol, f.dpr, tl.get('mapa', p));
         estrellas.u.uMaxPx.value = 3.2 * f.dpr;
         zoo.u.uSizeUnit.value = zooG.scale.x;
         callan.u.uSizeUnit.value = callanG.scale.x;

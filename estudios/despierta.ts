@@ -385,8 +385,8 @@ export const despierta: Escena = {
         if (p < tl.at('nervios')) return { pisos: ['10', '-12'], unidad: 'W', linea: 'una célula', h: 1 };
         if (p < tl.at('cerebro')) return { pisos: ['10', '-3'], unidad: 'W', linea: 'nervios', h: 1 };
         if (p < tl.at('ocho')) return { pisos: ['20'], unidad: 'W', linea: 'un cerebro, como el tuyo', h: 1 };
-        if (p < tl.at('maquinas')) return potencia(11.2, 'todos los cerebros · ');
-        return potencia(13.28, '2026 · ');
+        if (p < tl.at('maquinas')) return { ...potencia(11.2, 'todos los cerebros · '), alcance: '1 mundo' };
+        return { ...potencia(13.28, '2026 · '), alcance: '1 mundo' };
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);

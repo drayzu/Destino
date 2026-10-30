@@ -231,7 +231,7 @@ export const estrella: Escena = {
       salida: { pos: V(), escala: 12 },
       escalera: false,
       cuenta() {
-        return potencia(37);
+        return { ...potencia(37), alcance: 'la galaxia' };
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);

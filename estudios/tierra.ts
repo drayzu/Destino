@@ -585,10 +585,9 @@ export const tierraNoche: Escena = {
       escalera: false,
       cuenta(p) {
         const anio = tl.get('anio', p);
-        if (p < tl.at('luces')) return potencia(13.28, '2026 · ');
-        if (p < tl.at('hoy')) return potencia(lpDe(anio), `${Math.round(anio)} · `);
-        if (p < tl.at('calor')) return potencia(13.28, '2026 · hoy · ');
-        return potencia(tl.get('lp2', p));
+        const c = p < tl.at('luces') ? potencia(13.28, '2026 · ') : p < tl.at('hoy') ? potencia(lpDe(anio), `${Math.round(anio)} · `) : p < tl.at('calor') ? potencia(13.28, '2026 · hoy · ') : potencia(tl.get('lp2', p));
+        // How far we reach: one world, ours.
+        return { ...c, alcance: '1 mundo' };
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);

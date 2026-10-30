@@ -8,7 +8,8 @@ import { aplicarToma, toma } from './rig';
 import { crearChispa, type Camino } from './chispa';
 import { LEJOS, enjambreNube } from './mercurio';
 import { angulos } from './rig';
-import type { Rotulo } from './placa';
+import { enfocarMarcas, marcas, nombres, trazo, type Nombre } from './revelar';
+import type { Cuenta, Rotulo } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
 
 /**
@@ -148,6 +149,24 @@ export const vela: Escena = {
     B.group.position.set(6.5, 1.2, 4);
     alfa.add(A.group, B.group);
 
+    // Revealing: both stars ours, ringed, and the route between them.
+    const aroSol = add(marcas([{ pos: V(), R: 0, color: TEAL, nuestro: true, aro: 84, sinPunto: true }]), casa, 40);
+    const aroAlfa = add(
+      marcas([
+        { pos: V(), R: 0, color: TEAL, nuestro: true, aro: 40, sinPunto: true },
+        { pos: B.group.position.clone(), R: 0, color: TEAL, nuestro: true, aro: 30, sinPunto: true },
+      ]),
+      alfa,
+      40,
+    );
+    const ruta = add(trazo(), root, 4);
+    const medio = V();
+    const NOMBRES: Nombre[] = [
+      { pos: casa.position, texto: 'Sol', nuestro: true, aire: 30 },
+      { pos: alfa.position, texto: 'Alfa Centauri', nuestro: true, aire: 8 },
+      { pos: medio, texto: '4,4 años luz', lado: 'n', aire: -6 },
+    ];
+
     const cielo = add(materia(cieloDatos()), root, 1);
     cielo.u.uFuente.value = 1;
     const velaG = new THREE.Group();
@@ -220,7 +239,7 @@ export const vela: Escena = {
       tl.wait(-off);
     };
     // Where the Sun's scene leaves the camera (sol.ts, «tipo»): relative to the Sun, here S0.
-    tl.set({ cx: S0.x, cy: S0.y, cz: S0.z, ox: 0, oy: 0, oz: 0, az: angulos(LEJOS).az + 150, el: 30, ld: 2.2, yaw: 90, pitch: -90, roll: 0, fov: 34, haz: 0, lsol: Math.log10(14), lcen: 4.5, beta: 0, polvo: 0, abre: 1, luzA: 0, nave: 0, tu: 0, nz: -3, eco: 0, ecoS: 0, chH: 0, salta: 0 });
+    tl.set({ cx: S0.x, cy: S0.y, cz: S0.z, ox: 0, oy: 0, oz: 0, az: angulos(LEJOS).az + 150, el: 30, ld: 2.2, yaw: 90, pitch: -90, roll: 0, fov: 34, haz: 0, lsol: Math.log10(14), lcen: 4.5, beta: 0, polvo: 0, abre: 1, luzA: 0, nave: 0, tu: 0, nz: -3, eco: 0, ecoS: 0, chH: 0, salta: 0, mapa: 0, nombres: 0 });
 
     tl.label('velas').caption(5.6, 'Velas de luz', 'Para ir a otra estrella, un láser empuja una vela de pocos gramos. En minutos va a un quinto de la luz.');
     tl.with(1.2, { cx: 0, cy: 0, cz: 0 });
@@ -248,8 +267,22 @@ export const vela: Escena = {
     luego(3.0, 2.0, { polvo: 0 });
     tl.to(6.0, { az: 160, el: 16, ld: -0.6, fov: 50 });
 
-    // Something enormous passes, slowly.
-    tl.label('nave').caption(6.2, 'Naves que son mundos', 'El viaje dura siglos. Quien llega es nieto de los nietos de quien salió: alguien como tú, que nunca vio la Tierra.');
+    // The reveal: out until both stars fit, the Sun drawn near (short), ours, with the route between
+    // them; the names a moment; then back in to the sail, where something enormous passes.
+    const MEDIO = V(-1.5, -2.6, -29);
+    tl.label('nave').caption(15.6, 'Naves que son mundos', 'El viaje dura siglos. Quien llega es nieto de los nietos de quien salió: alguien como tú, que nunca vio la Tierra.');
+    tl.with(1.0, { beta: 0 });
+    tl.with(3.6, { lsol: Math.log10(80) });
+    luego(0.2, 4.2, { ld: Math.log10(150), el: 22, az: 96, fov: 34 });
+    luego(1.8, 2.6, { cx: MEDIO.x, cy: MEDIO.y, cz: MEDIO.z });
+    luego(2.6, 2.0, { mapa: 1 });
+    luego(4.0, 1.4, { nombres: 1 });
+    tl.wait(5.0);
+    tl.to(3.2, { az: 90 });
+    tl.with(1.0, { nombres: 0 });
+    luego(0.4, 1.4, { mapa: 0 });
+    luego(1.2, 4.0, { lsol: 4.2 });
+    luego(0.4, 2.4, { cx: 0, cy: 0, cz: 0 });
     tl.with(1.6, { nave: 1 });
     luego(2.0, 1.4, { salta: 1 });
     luego(3.2, 1.0, { tu: 1 });
@@ -265,8 +298,15 @@ export const vela: Escena = {
       salida: { pos: V(0.9, 0.1, 0.2), escala: 0.05 },
       escalera: false,
       cuenta(p) {
-        if (p < tl.at('nave')) return potencia(26.7, 'vela · ');
-        return potencia(27.4);
+        const c: Cuenta = p < tl.at('nave') ? potencia(26.7, 'vela · ') : potencia(27.4);
+        // How far we reach: the second star once the sail brakes there.
+        const dos = tl.at('freno') + 3.4;
+        c.alcance = p < dos ? '1 estrella' : '2 estrellas';
+        c.nuevo = p >= dos ? 1 - THREE.MathUtils.smoothstep(p, dos, dos + 1.8) : 0;
+        return c;
+      },
+      placa(g, f) {
+        nombres(g, f, NOMBRES, tl.get('nombres', f.p));
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);
@@ -308,6 +348,8 @@ export const vela: Escena = {
         velaG.scale.setScalar(0.02 * tl.get('abre', p));
         velaN.u.uSizeUnit.value = velaG.scale.x;
         velaN.u.uLuzA.value = tl.get('luzA', p);
+        // From afar the sail is a speck, not a lamp.
+        velaN.u.uGain.value = Math.min(1, 2 / Math.max(1e-6, camera.position.length()));
         haz.u.uHaz.value = tl.get('haz', p);
         naveG.position.set(0.9, 0.1, 0.2 + tl.get('nz', p));
         // The spark: along the beam from the swarm into the sail, then on the sail, then a jump to the ship.
@@ -325,6 +367,13 @@ export const vela: Escena = {
         nave.u.uNave.value = tl.get('nave', p);
         tu.u.uGain.value = tl.get('tu', p) * (1 + 0.25 * Math.sin(t * 1.5)) * tl.get('nave', p);
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
+        const mapa = tl.get('mapa', p);
+        enfocarMarcas(aroSol, f.dpr, mapa);
+        enfocarMarcas(aroAlfa, f.dpr, mapa);
+        ruta.u.uOn.value = mapa;
+        ruta.u.uA.value.copy(casa.position).add(V(0, 0, 3.6));
+        ruta.u.uB.value.copy(alfa.position).add(V(0, 0, -1.6));
+        medio.copy(ruta.u.uA.value).lerp(ruta.u.uB.value, 0.5);
         cielo.u.uMaxPx.value = 2.6 * f.dpr;
         polvo.u.uMaxPx.value = 3 * f.dpr;
       },

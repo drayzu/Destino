@@ -170,8 +170,7 @@ export const solTrabajado: Escena = {
       salida: { pos: fin.clone(), escala: 1 },
       escalera: false,
       cuenta(p) {
-        if (p < tl.at('tipo')) return potencia(25.6);
-        return potencia(26.58);
+        return { ...(p < tl.at('tipo') ? potencia(25.6) : potencia(26.58)), alcance: '1 estrella' };
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);

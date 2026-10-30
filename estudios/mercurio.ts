@@ -6,7 +6,9 @@ import { mercurio as mercurioHorizontes, sol as solHorizontes } from '../src/hor
 import { TEAL, potencia } from './remake';
 import { angulos, aplicarToma, toma } from './rig';
 import { crearChispa, type Camino } from './chispa';
-import type { Rotulo } from './placa';
+import { COLOR, E, MA, RE, RMA, RV, VE } from './interior';
+import { enfocarMarcas, marcas, nombres, orbitas, type Nombre } from './revelar';
+import type { Cuenta, Rotulo } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
 
 /**
@@ -234,6 +236,25 @@ export const mercurio: Escena = {
 
     const enjambre = add(enjambreNube(teal), 10);
 
+    // Revealing: the orbits, the worlds as marks (all ours), and the Sun itself ours now, ringed.
+    const orbs = add(orbitas([{ r: M.length() }, { r: VE.length() }, { r: E.length() }, { r: Math.hypot(MA.x, MA.z), y: MA.y }]));
+    const lasMarcas = add(
+      marcas([
+        { pos: E, R: RE, color: COLOR.tierra, nuestro: true },
+        { pos: MA, R: RMA, color: COLOR.marte, nuestro: true },
+        { pos: VE, R: RV, color: COLOR.venus, nuestro: true },
+        { pos: M, R: RM, color: COLOR.mercurio, nuestro: true },
+        { pos: V(), R: 0, color: TEAL, nuestro: true, aro: 96, sinPunto: true },
+      ]),
+    );
+    const NOMBRES: Nombre[] = [
+      { pos: V(), texto: 'Sol · el enjambre', nuestro: true, aire: 40 },
+      { pos: E, texto: 'Tierra', nuestro: true },
+      { pos: MA, texto: 'Marte', nuestro: true },
+      { pos: VE, texto: 'Venus', nuestro: true, lado: 'o' },
+      { pos: M, texto: 'Mercurio', nuestro: true, lado: 'o' },
+    ];
+
     const listo = Promise.all([sol.listo, merc.listo]);
 
     // ---------------------------------------------------------------- the moments (GUION.md 25–28)
@@ -257,7 +278,7 @@ export const mercurio: Escena = {
     const c5 = rigDe(V(Math.sin(PHI0 + PHI * 0.86), 0.32, Math.cos(PHI0 + PHI * 0.86)).multiplyScalar(6.4));
     const c6 = rigDe(V(Math.sin(PHI0 + PHI * 0.86 + 0.5), 0.3, Math.cos(PHI0 + PHI * 0.86 + 0.5)).multiplyScalar(5.6));
     const lejos = rigDe(LEJOS);
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, ...c0, yaw: 0, pitch: -40, roll: 0, fov: 40, mm: 0, ms: 0, lw: 0, sc: 0, mina: 0, riel: 0, rio: 0, rioOn: 1, cubre: 0, ir: 0 });
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, ...c0, yaw: 0, pitch: -40, roll: 0, fov: 40, mm: 0, ms: 0, lw: 0, sc: 0, mina: 0, riel: 0, rio: 0, rioOn: 1, cubre: 0, ir: 0, mapa: 0, nombres: 0 });
 
     tl.label('mina').caption(4.8, 'Desarmar Mercurio', 'Para el enjambre hace falta materia. Máquinas que se copian deshacen Mercurio en menos de una vida.');
     luego(0.3, 4.4, { mina: 0.62 });
@@ -278,9 +299,15 @@ export const mercurio: Escena = {
     tl.to(1.8, { ...c5, lw: 0, ms: 1 });
     tl.to(2.4, { ...c6 });
 
-    tl.label('lejos').caption(5.0, 'Visto desde lejos', 'Desde otra estrella, un Sol así se vería débil y tibio. Así buscamos a otros. Hasta ahora, nadie.');
+    // The reveal: far out, the whole system ours, the Sun dim in its swarm; the names a moment; still.
+    tl.label('lejos').caption(8.0, 'Visto desde lejos', 'Desde otra estrella, un Sol así se vería débil y tibio. Así buscamos a otros. Hasta ahora, nadie.');
     luego(0.6, 3.4, { ir: 1, rioOn: 0 });
+    luego(2.6, 2.2, { mapa: 1 });
+    luego(4.2, 1.4, { nombres: 1 });
     tl.to(5.0, { ...lejos, fov: 30 });
+    luego(1.6, 1.2, { nombres: 0 });
+    luego(1.8, 1.2, { mapa: 0 });
+    tl.wait(3.0);
 
     // The spark: from where scene 10 left it over Mercury, to the rail's end (ch 0..1), along the river
     // just ahead of the camera (1..2), and round the Sun among the collectors (2..3).
@@ -306,9 +333,15 @@ export const mercurio: Escena = {
       salida: { pos: V(), escala: 1 },
       escalera: false,
       cuenta(p) {
-        if (p < tl.at('catapulta')) return potencia(16.6);
-        if (p < tl.at('pared')) return potencia(17.4);
-        return potencia(18 + 8.58 * tl.get('cubre', p));
+        const c: Cuenta = p < tl.at('catapulta') ? potencia(16.6) : p < tl.at('pared') ? potencia(17.4) : potencia(18 + 8.58 * tl.get('cubre', p));
+        // How far we reach: the five worlds, then the Sun itself, once the swarm closes.
+        const sol1 = tl.at('pared') + 5.4;
+        c.alcance = p < sol1 ? '5 mundos' : '1 estrella';
+        c.nuevo = p >= sol1 ? 1 - THREE.MathUtils.smoothstep(p, sol1, sol1 + 1.8) : 0;
+        return c;
+      },
+      placa(g, f) {
+        nombres(g, f, NOMBRES, tl.get('nombres', f.p));
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);
@@ -356,6 +389,9 @@ export const mercurio: Escena = {
         rio.u.uOcc.value.set(mercV.x, mercV.y, mercV.z, RM);
         riel.u.uOcc.value.set(mercV.x, mercV.y, mercV.z, RM * 0.998);
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
+        const mapa = tl.get('mapa', p);
+        orbs.u.uOn.value = mapa;
+        enfocarMarcas(lasMarcas, f.dpr, mapa);
         void q;
       },
       dispose() {},
