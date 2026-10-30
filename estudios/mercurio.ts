@@ -6,10 +6,11 @@ import { mercurio as mercurioHorizontes, sol as solHorizontes } from '../src/hor
 import { TEAL, potencia, anioEn } from './remake';
 import { angulos, aplicarToma, toma } from './rig';
 import { crearChispa, type Camino } from './chispa';
-import { COLOR, E, MA, RE, RMA, RV, VE } from './interior';
+import { COLOR, E, MA, RE, RMA, RV, VE, M, RM, RA, RB, PHI0, PHI, RIEL_A, enRiel, caminoRio as camino, T_RIO as T, D_RIO as D, N_RIO as N_T } from './interior';
 import { enfocarMarcas, marcas, nombres, orbitas, type Nombre } from './revelar';
 import type { Cuenta, Rotulo } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
+import { suelo, vueloInterior } from './vuelo';
 
 /**
  * Study B of the remake: scenes 11 and 12 of ESCALETA.md, «Mercurio se deshace» and «El enjambre»
@@ -31,27 +32,7 @@ import type { Escena, Frame, Instancia } from './tipos';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const Y = V(0, 1, 0);
-const RA = 18;
-const RB = 3.0;
-const PHI0 = THREE.MathUtils.degToRad(205);
-const PHI = 1.45;
-export const RM = 0.42;
-
-/** The river's path (a logarithmic spiral from Mercury down to the swarm), s = 0..1. */
-function camino(s: number, out = V()) {
-  const r = RA * Math.pow(RB / RA, s);
-  const ph = PHI0 + PHI * s;
-  return out.set(Math.sin(ph) * r, 0, Math.cos(ph) * r);
-}
-
-/** Where the river leaves Mercury, which way, and where Mercury is. */
-const T = camino(0);
-const D = camino(0.002).sub(T).normalize();
-const N_T = (() => {
-  const n = Y.clone().cross(D).normalize();
-  return n.dot(T) < 0 ? n.negate() : n;
-})();
-export const M = T.clone().addScaledVector(N_T, -RM);
+// (Mercury's place, its rail and its river: interior.ts, shared with the flight that brings the spark here)
 
 /** Where the scene leaves the camera: far away, the Sun an ember in its swarm (scene 13 starts here). */
 export const LEJOS = V(Math.sin(PHI0 + PHI * 0.86 + 0.7), 0.35, Math.cos(PHI0 + PHI * 0.86 + 0.7)).multiplyScalar(160);
@@ -76,11 +57,6 @@ function rielDatos() {
 }
 
 /** Where on the rail (v: 0 at its start, 1 at its end, where the river leaves), and a little above it. */
-const RIEL_A = 1.15;
-function enRiel(v: number, alto = 0, out = V()) {
-  const a = (1 - Math.min(Math.max(v, 0), 1)) * RIEL_A;
-  return out.copy(N_T).multiplyScalar(Math.cos(a)).addScaledVector(D, -Math.sin(a)).multiplyScalar(RM * 1.004 + alto).add(M);
-}
 /** How many loads are on the rail at once, and how fast they go (cycles a second). */
 const CARGAS = 5;
 const CADENCIA = 0.16;
@@ -272,7 +248,7 @@ export function enjambreNube(teal: boolean): Nube {
 }
 
 const MINA = {
-  pre: /* glsl */ `uniform vec3 uSem, uTeal; uniform float uMina;`,
+  pre: /* glsl */ `uniform vec3 uSem, uTeal; uniform float uMina, uLejos;`,
   glsl: /* glsl */ `
     float a = acos(clamp(dot(n, uSem), -1.0, 1.0)) / 3.14159265;
     float on = step(0.0005, uMina);
@@ -283,7 +259,9 @@ const MINA = {
     float nodo = smoothstep(0.38, 0.5, min(g.x, g.y));
     float luz = step(0.9, hp);
     alb *= mix(1.0, 0.32, dentro);
-    extra += uTeal * (dentro * (malla * 0.16 + nodo * 0.9 + luz * 0.12) + borde * 1.2);
+    // (its grid of machines reads from afar; skimming the ground on the rail, only their dark ground
+    // and the front where they advance)
+    extra += uTeal * (dentro * (malla * 0.16 + nodo * 0.9 + luz * 0.12) * uLejos + borde * 1.2 * (0.35 + 0.65 * uLejos));
   `,
 };
 
@@ -308,7 +286,7 @@ export const mercurio: Escena = {
     root.add(sol.group);
     sol.u.uBrillo.value = 2.2;
 
-    const minaU = { uSem: { value: M.clone().normalize().addScaledVector(Y, 0.15).normalize() }, uTeal: { value: TEAL.clone() }, uMina: { value: 0 } };
+    const minaU = { uSem: { value: M.clone().normalize().addScaledVector(Y, 0.15).normalize() }, uTeal: { value: TEAL.clone() }, uMina: { value: 0 }, uLejos: { value: 1 } };
     const merc = mercurioHorizontes(base, { giro: 0, superficie: { ...MINA, uniforms: minaU } });
     merc.group.position.copy(M);
     merc.group.scale.setScalar(RM);
@@ -423,24 +401,25 @@ export const mercurio: Escena = {
     const c3 = rigDe(fuera(0.04));
     // Off the river, outside the swarm, the Sun ahead; then far away.
     const lejos = rigDe(LEJOS);
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, ...c0, yaw: 0, pitch: -40, roll: 0, fov: 40, mm: 0, ms: 0, lw: 0, sc: 0, lr: 0, cv: 0, vel: 0, sw: 0, swA: 0, swR: 0, swE: 0, swK: 0, swF: 40, mina: 0, riel: 0, rio: 0, rioOn: 1, cubre: 0, ir: 0, mapa: 0, nombres: 0 });
-
-    tl.label('mina').caption(4.8, 'Desarmar Mercurio', 'Para el enjambre hace falta materia. Máquinas que se copian deshacen Mercurio en menos de una vida.');
-    luego(0.3, 4.4, { mina: 0.62 });
-    tl.to(4.8, { ...c1 });
-
-    // The rail lights up along its length; the camera comes down by its start, gets on a load and
-    // rides it as the coils fire, faster and faster, off the end of the rail into the river of rock.
-    tl.label('catapulta').caption(8.2, 'La catapulta', 'Sin aire que frene, un riel lanza la roca al espacio. Vamos en una carga.');
-    tl.with(1.6, { riel: 1 });
+    // The spark comes on from the system's act in mid air (vuelo.ts: one flight), and the camera
+    // chasing it with it: across to Mercury, down onto its rail as onto the Moon's, fired along it as
+    // the coils light (the loads fly with it), and down the river of rock towards the Sun; then round
+    // the Sun among the collectors (the orbit below takes it over).
+    const vuelo = vueloInterior();
+    const T_C = vuelo.tauDe('corte');
+    const T_M0 = vuelo.tauDe('merc0') - T_C;
+    const T_RIO = vuelo.tauDe('rio1') - T_C;
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, ...c0, yaw: 0, pitch: -40, roll: 0, fov: 44, vel: 0, sw: 0, swA: 0, swR: 0, swE: 0, swK: 0, swF: 40, mina: 0, riel: 0, rio: 0, rioOn: 1, cubre: 0, ir: 0, mapa: 0, nombres: 0 });
+    tl.wait(T_M0 - 4.4);
+    tl.label('mina').caption(3.2, 'Desarmar Mercurio', 'Para el enjambre hace falta materia. Máquinas que se copian deshacen Mercurio en menos de una vida.');
+    luego(0, 4.4, { mina: 0.62 });
+    // (the rail lights before the spark comes down onto it)
+    luego(1.2, 1.6, { riel: 1 });
+    tl.wait(3.4);
+    const P_PARED = T_RIO - 3.4;
+    tl.label('catapulta').caption(P_PARED - (T_M0 - 1.0) - 0.2, 'La catapulta', 'Sin aire que frene, un riel lanza la roca al espacio. Vamos en una carga.');
     luego(0.5, 5.0, { rio: 0.55 });
-    tl.to(1.8, { ...c2, mm: 1 });
-    tl.with(1.0, { lr: 1, fov: 50 });
-    tl.to(3.4, { cv: 1 }, (x) => x * x);
-    // Beside the river, carried along it: the grains stream past below, the Sun ahead.
-    // (one ride hands over to the other while the load still flies: the two weights add to one)
-    luego(-0.5, 2.6, { lr: 0, lw: 1 });
-    tl.to(3.0, { ...c3, sc: 0.04, fov: 40 });
+    tl.wait(P_PARED - tl.at('catapulta'));
 
     // The river carries the camera into the swarm's shell; off it, round the Sun among the
     // collectors (they cross its face, dark; they flash as they turn their light to us); and out
@@ -489,19 +468,20 @@ export const mercurio: Escena = {
       clave(fin, { swA: A_FIN, swR: Math.log10(LEJOS.length()), swE: E_L, swK: 0, swF: 30 });
     }
 
-    // The spark: from where scene 10 left it over Mercury, to the rail's end (ch 0..1), along the river
-    // just ahead of the camera (1..2), and round the Sun among the collectors (2..3).
-    const llega = M.clone().add(V(0, 0.25, 0));
-    const inicioRiel = enRiel(0, 0.004);
-    const caminoCh: Camino = (sv, out) => {
-      if (sv <= 1) return out.copy(llega).lerp(inicioRiel, THREE.MathUtils.smoothstep(Math.max(0, sv), 0, 1));
-      if (sv <= 2) return enRiel(sv - 1, 0.004, out);
-      if (sv <= 3) return camino(Math.min(1, sv - 2), out).addScaledVector(Y, 0.02 * THREE.MathUtils.smoothstep(sv - 2, 0, 0.05)).addScaledVector(N_T, 0.004 * (1 - THREE.MathUtils.smoothstep(sv - 2, 0, 0.05)));
-      // (round the Sun with the camera, a little ahead of it, the same way)
-      const q = tl.at('pared') + 3.4 + (sv - 3) * 8;
+    // The spark: the flight (on from the system's act), then round the Sun with the camera, a little
+    // ahead of it, the same way (blended where the river's end meets the orbit).
+    const orbitaEn = (q: number, out: THREE.Vector3) => {
       const a = tl.get('swA', q) + 0.05 + 0.37 * THREE.MathUtils.smoothstep(q, tl.at('pared') + 3.4, tl.at('pared') + 6.4);
       const R = THREE.MathUtils.lerp(3.2, 3.02, THREE.MathUtils.smoothstep(q, tl.at('pared') + 3.4, tl.at('pared') + 6.4));
-      return out.set(Math.sin(a) * R, 0.02 + 0.12 * Math.sin((sv - 3) * 2.2), Math.cos(a) * R);
+      return out.set(Math.sin(a) * R, 0.02 + 0.12 * Math.sin(((q - tl.at('pared') - 3.4) / 8) * 2.2), Math.cos(a) * R);
+    };
+    const tmpO = V();
+    const caminoCh: Camino = (sv, out) => {
+      const tSw = tl.at('pared') + 3.4;
+      vuelo.camino(T_C + sv, out);
+      const k = THREE.MathUtils.smoothstep(sv, tSw - 0.5, tSw + 0.7);
+      if (k > 0) out.lerp(orbitaEn(sv, tmpO), k);
+      return out;
     };
     const chispa = crearChispa();
     root.add(chispa.nube.points);
@@ -516,16 +496,20 @@ export const mercurio: Escena = {
       listo,
       entrada: { pos: M.clone(), escala: RM },
       salida: { pos: V(), escala: 1 },
+      // (the system's act hands the flight over in mid air: its camera is already where this one is)
+      continuo: true,
       escalera: false,
       efectos(p) {
-        return { vel: tl.get('vel', p) };
+        const rap = vuelo.velEn(T_C + p, V()).length() * (1 - tl.get('sw', p));
+        return { vel: Math.max(0.14 * THREE.MathUtils.smoothstep(rap, 4, 12), tl.get('vel', p)) };
       },
       cuenta(p) {
         const c: Cuenta = p < tl.at('catapulta') ? potencia(16.6) : p < tl.at('pared') ? potencia(17.4) : potencia(18 + 8.58 * tl.get('cubre', p));
         // How far we reach: the five worlds, then the Sun itself, once the swarm closes.
         const sol1 = tl.at('pared') + 5.4;
-        c.alcance = p < sol1 ? '5 mundos' : '1 estrella';
-        c.nuevo = p >= sol1 ? 1 - THREE.MathUtils.smoothstep(p, sol1, sol1 + 1.8) : 0;
+        c.alcance = p < T_M0 ? '4 mundos' : p < sol1 ? '5 mundos' : '1 estrella';
+        const desde = p >= sol1 ? sol1 : p >= T_M0 ? T_M0 : -1e9;
+        c.nuevo = 1 - THREE.MathUtils.smoothstep(p, desde, desde + 1.8);
         return c;
       },
       placa(g, f) {
@@ -533,7 +517,7 @@ export const mercurio: Escena = {
       },
       anio(p) {
         const a = (l: string) => tl.at(l);
-        return anioEn(p, [[0, 2066], [a('catapulta'), 2068], [a('pared'), 2070], [a('lejos'), 2085], [tl.length, 2090]]);
+        return anioEn(p, [[0, 2058], [a('catapulta'), 2063], [a('pared'), 2070], [a('lejos'), 2085], [tl.length, 2090]]);
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);
@@ -544,41 +528,12 @@ export const mercurio: Escena = {
         const t = f.time;
         camera.near = 1e-4;
         camera.far = 2000;
-        // Where it looks: Mercury, the rail's end ahead, the river ahead, the Sun.
-        const sc = tl.get('sc', p);
-        camino(Math.min(1, sc + 0.16), adelante).lerp(V(), 0.25);
-        const mm = tl.get('mm', p);
-        const ms = tl.get('ms', p);
-        const lw = tl.get('lw', p);
-        const objetivo = M.clone().lerp(M.clone().lerp(T, 0.5).addScaledVector(D, 1.6), mm);
-        objetivo.lerp(adelante, lw);
-        objetivo.lerp(V(), ms);
-        aqui.copy(fuera(sc));
-        // The spark: to the rail while it fires, then just ahead of the camera on the river, then in the swarm.
-        const cv = tl.get('cv', p);
-        const lr = tl.get('lr', p);
-        const llegaA = THREE.MathUtils.clamp((p - tl.at('mina') - 1) / (tl.at('catapulta') + 1.8 - tl.at('mina') - 1), 0, 1);
-        const chP = p < tl.at('pared') + 3.4 ? llegaA + cv + Math.min(1, sc + 0.035 * lw) : 3 + (p - tl.at('pared') - 3.4) / 8;
-        chispa.update(caminoCh, chP, chP > 1 && chP < 3 ? 0.0012 : 0.01, 1, 0, camera.position, f.focal, f.dpr, f.time);
-        // On the load: just behind and above it, looking down the rail (the coils streaming by, the
-        // end of the rail and the sky ahead); handed over to the river ride as it launches.
-        let lugarP = aqui;
-        let lugarW = lw;
-        let arribaR: THREE.Vector3 | undefined;
-        if (lr > 0.0005) {
-          const rad = enRiel(cv, 0).sub(M).normalize();
-          const railCam = enRiel(cv - 0.06, 0.032).addScaledVector(rad, 0.0);
-          // (ahead along the rail, and past its end along the way the river leaves: never at the
-          // camera's own place)
-          const delante = cv + 0.3;
-          const railMira = delante <= 1 ? enRiel(delante, 0.0) : enRiel(1, 0).addScaledVector(D, (delante - 1) * RIEL_A * RM * 1.2);
-          const w = lr / Math.max(1e-6, lr + lw);
-          lugarP = aqui.clone().lerp(railCam, w);
-          lugarW = Math.max(lw, lr, Math.min(1, lr + lw));
-          objetivo.lerp(railMira, lr);
-          // (on the rail, «up» is Mercury's own: away from its ground)
-          arribaR = Y.clone().lerp(rad, lr).normalize();
-        }
+        // The chase (vuelo.ts), on from the system's act just as it left it.
+        const lugarP = V();
+        const objetivo = V();
+        const Tv = vuelo.seguir(T_C + p, lugarP, objetivo);
+        suelo(lugarP);
+        chispa.update(caminoCh, p, 0.0065, 1, 0, camera.position, f.focal, f.dpr, f.time);
         // Round the Sun (see the orbit's keys): taking over from the river, then the whole way.
         const sw = tl.get('sw', p);
         if (sw > 0.0005) {
@@ -589,11 +544,10 @@ export const mercurio: Escena = {
           // (the gaze on the Sun, turned a little ahead: the Sun to one side, the way ahead open)
           const ahead = V(Math.sin(A + 0.9), 0, Math.cos(A + 0.9)).multiplyScalar(R * 0.8);
           const mira = V().lerp(ahead, tl.get('swK', p));
-          lugarP = lugarP.clone().lerp(orbita, sw);
-          lugarW = Math.max(lugarW, sw);
+          lugarP.lerp(orbita, sw);
           objetivo.lerp(mira, sw);
         }
-        aplicarToma(camera, toma(tl, p, tm, { punto: objetivo, peso: 1, arriba: arribaR }, { punto: lugarP, peso: lugarW }));
+        aplicarToma(camera, toma(tl, p, tm, { punto: objetivo, peso: 1, arriba: Y, delante: Tv.multiplyScalar(1 - sw) }, { punto: lugarP, peso: 1 }));
         if (sw > 0.0005) camera.fov = THREE.MathUtils.lerp(camera.fov, tl.get('swF', p), sw);
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
@@ -604,6 +558,7 @@ export const mercurio: Escena = {
         sol.update({ sol: V(1, 0, 0), camara: camera.position.clone(), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: f.fundido ?? 1 });
         merc.update({ sol: M.clone().negate().normalize(), camara: camera.position.clone().sub(M).divideScalar(RM), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: f.fundido ?? 1 });
         minaU.uMina.value = tl.get('mina', p);
+        minaU.uLejos.value = 0.3 + 0.7 * THREE.MathUtils.smoothstep(camera.position.distanceTo(M) / RM, 1.9, 4.0);
         riel.u.uRiel.value = tl.get('riel', p) * tl.get('rioOn', p);
         rielM.u.uRiel.value = riel.u.uRiel.value;
         rielM.u.uTime.value = t;

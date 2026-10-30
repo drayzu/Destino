@@ -329,21 +329,24 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
   inst.update(f);
   if (enRelevo && prev) {
     // The camera: from where the last act left it to where this act wants it, turning round our
-    // entrada and moving through distance in log (worlds of very different sizes meet here).
-    const ancla = inst.entrada!.pos;
-    const v0 = camA.pos.clone().sub(ancla);
-    const v1 = camera.position.clone().sub(ancla);
-    const l0 = Math.max(v0.length(), 1e-9);
-    const l1 = Math.max(v1.length(), 1e-9);
-    const q = new THREE.Quaternion().setFromUnitVectors(v0.clone().divideScalar(l0), v1.clone().divideScalar(l1));
-    const dir = v0.clone().divideScalar(l0).applyQuaternion(new THREE.Quaternion().slerp(q, k));
-    camera.position.copy(ancla).addScaledVector(dir, Math.exp(Math.log(l0) + (Math.log(l1) - Math.log(l0)) * k));
-    // Orientation: the same turn as the position (so the anchor stays where it was on the screen),
-    // plus the roll that is left between the two views, spread over the relay.
-    const qB = camera.quaternion.clone();
-    const twist = q.clone().multiply(camA.quat).invert().multiply(qB);
-    camera.quaternion.copy(new THREE.Quaternion().slerp(q, k).multiply(camA.quat).multiply(new THREE.Quaternion().slerp(twist, k)));
-    camera.fov = camA.fov + (camera.fov - camA.fov) * k;
+    // entrada and moving through distance in log (worlds of very different sizes meet here). (Not
+    // when the last act hands over in mid flight: this act's camera is already there.)
+    if (!inst.continuo) {
+      const ancla = inst.entrada!.pos;
+      const v0 = camA.pos.clone().sub(ancla);
+      const v1 = camera.position.clone().sub(ancla);
+      const l0 = Math.max(v0.length(), 1e-9);
+      const l1 = Math.max(v1.length(), 1e-9);
+      const q = new THREE.Quaternion().setFromUnitVectors(v0.clone().divideScalar(l0), v1.clone().divideScalar(l1));
+      const dir = v0.clone().divideScalar(l0).applyQuaternion(new THREE.Quaternion().slerp(q, k));
+      camera.position.copy(ancla).addScaledVector(dir, Math.exp(Math.log(l0) + (Math.log(l1) - Math.log(l0)) * k));
+      // Orientation: the same turn as the position (so the anchor stays where it was on the screen),
+      // plus the roll that is left between the two views, spread over the relay.
+      const qB = camera.quaternion.clone();
+      const twist = q.clone().multiply(camA.quat).invert().multiply(qB);
+      camera.quaternion.copy(new THREE.Quaternion().slerp(q, k).multiply(camA.quat).multiply(new THREE.Quaternion().slerp(twist, k)));
+      camera.fov = camA.fov + (camera.fov - camA.fov) * k;
+    }
     // The light: the last act's fades as this one's comes up (they add, so the sum holds).
     const c = smooth(clamp((p - 0.05) / (RELEVO * 0.8), 0, 1));
     fundir(prev.grupo, 1 - c, escalaPrev, prev.inst!.relevoMaxPx ?? 0);

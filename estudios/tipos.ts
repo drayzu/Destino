@@ -36,6 +36,9 @@ export interface Instancia {
   entrada?: Ancla;
   /** Journey: while it hands over, its points no bigger than this many px (its far stars, seen at the next act's scale, would swell). */
   relevoMaxPx?: number;
+  /** The act before it hands over in mid flight, its camera already where this act's is: the relay
+   * blends only the light, not the camera. */
+  continuo?: boolean;
   /** Journey: what this act ends on (the next act's `entrada` lands here). */
   salida?: Ancla;
   /** Places the camera and moves the world (before rendering). */
