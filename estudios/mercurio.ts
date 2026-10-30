@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Timeline } from './timeline';
+import { EASE, Timeline } from './timeline';
 import { enfocar, materia, materiaBuilder, type Nube } from './motor/materia';
 import { gauss } from './motor/math';
 import { mercurio as mercurioHorizontes, sol as solHorizontes } from '../src/horizontes';
@@ -71,6 +71,109 @@ function rielDatos() {
     const a = t * 1.15;
     const p = N_T.clone().multiplyScalar(Math.cos(a)).addScaledVector(D, -Math.sin(a)).multiplyScalar(RM * 1.004).add(M);
     b.push(p.x, p.y + gauss(b.r) * 0.0012, p.z, TEAL, 0.0032, 0.8, { kind: t });
+  }
+  return b.data();
+}
+
+/** Where on the rail (v: 0 at its start, 1 at its end, where the river leaves), and a little above it. */
+const RIEL_A = 1.15;
+function enRiel(v: number, alto = 0, out = V()) {
+  const a = (1 - Math.min(Math.max(v, 0), 1)) * RIEL_A;
+  return out.copy(N_T).multiplyScalar(Math.cos(a)).addScaledVector(D, -Math.sin(a)).multiplyScalar(RM * 1.004 + alto).add(M);
+}
+/** How many loads are on the rail at once, and how fast they go (cycles a second). */
+const CARGAS = 5;
+const CADENCIA = 0.16;
+
+/**
+ * The rail (a mass driver) as a structure: a strip along the arc with its two rails, and coils
+ * across it every few metres that fire as each load passes, faster and faster towards its end.
+ * Mercury hides what is behind it (`uOcc`, as the points do).
+ */
+function rielMalla() {
+  const n = 360;
+  const pos: number[] = [];
+  const uv: number[] = [];
+  const idx: number[] = [];
+  const lado = N_T.clone().cross(D).normalize();
+  const ancho = 0.011;
+  for (let i = 0; i <= n; i++) {
+    const v = i / n;
+    const c = enRiel(v, 0.0006);
+    for (const k of [0, 1]) {
+      const p = c.clone().addScaledVector(lado, (k - 0.5) * ancho);
+      pos.push(p.x, p.y, p.z);
+      uv.push(k, v);
+    }
+    if (i < n) idx.push(2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 1, 2 * i + 3, 2 * i + 2);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uRiel: { value: 0 }, uTime: { value: 0 }, uFundido: { value: 1 }, uOcc: { value: new THREE.Vector4() } },
+    vertexShader: /* glsl */ `
+      varying vec2 vUv;
+      varying vec3 vV;
+      void main() {
+        vUv = uv;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vV = mv.xyz;
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uRiel, uTime, uFundido;
+      uniform vec4 uOcc;
+      varying vec2 vUv;
+      varying vec3 vV;
+      float raya(float x, float w) {
+        float d = abs(fract(x + 0.5) - 0.5);
+        float fw = max(fwidth(x), 1e-6);
+        return 1.0 - smoothstep(w - fw, w + fw, d);
+      }
+      void main() {
+        // Behind Mercury: hidden.
+        vec3 ray = normalize(vV);
+        float tt = dot(uOcc.xyz, ray);
+        if (uOcc.w > 0.0 && tt > 0.0 && length(vV) > tt && length(uOcc.xyz - ray * tt) < uOcc.w) discard;
+        float v = vUv.y;
+        // Built from its start: it lights up along its length as it comes on.
+        if (v > uRiel * 1.05) discard;
+        float rieles = raya(vUv.x * 1.0 - 0.18, 0.04) + raya(vUv.x * 1.0 - 0.82, 0.04);
+        float bobina = raya(v * 140.0, 0.045);
+        // Each load: where it is now (it accelerates: v = phase²), and the coils round it fire.
+        float fuego = 0.0;
+        for (int k = 0; k < ${CARGAS}; k++) {
+          float fase = fract(uTime * ${CADENCIA.toFixed(3)} + float(k) / ${CARGAS.toFixed(1)});
+          float vk = fase * fase;
+          fuego += exp(-pow((v - vk) / 0.012, 2.0)) + 0.35 * exp(-max(0.0, vk - v) / 0.04) * step(v, vk) * step(0.02, vk - v);
+        }
+        vec3 col = vec3(0.02, 0.024, 0.028) + vec3(0.42, 0.95, 0.85) * rieles * 0.6 + vec3(0.5, 0.56, 0.62) * bobina * 0.1;
+        col += vec3(0.6, 1.0, 0.92) * bobina * fuego * 1.1 + vec3(0.42, 0.95, 0.85) * rieles * fuego * 0.6;
+        gl_FragColor = vec4(col * uFundido, 0.7 * uFundido);
+      }
+    `,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
+  });
+  const m = new THREE.Mesh(g, mat);
+  m.renderOrder = 6;
+  m.frustumCulled = false;
+  return { mesh: m, u: mat.uniforms };
+}
+
+/** The loads on the rail: bright capsules, each at its phase, accelerating to the end. */
+function cargasDatos() {
+  const b = materiaBuilder(33);
+  for (let k = 0; k < CARGAS; k++) {
+    for (let i = 0; i < 40; i++) b.push(gauss(b.r) * 0.0012, gauss(b.r) * 0.0012, (b.r() - 0.5) * 0.006, i < 8 ? 0xffffff : TEAL, 0.0016, i < 8 ? 1.6 : 0.6, { kind: k / CARGAS });
   }
   return b.data();
 }
@@ -208,6 +311,27 @@ export const mercurio: Escena = {
       }),
     );
     riel.u.uFuente.value = 0.25;
+    riel.points.visible = false;
+    const rielM = rielMalla();
+    root.add(rielM.mesh);
+    // (the loads ride the rail in the rail's own frame: along the arc, each by its phase)
+    const cargas = add(
+      materia(cargasDatos(), {
+        pre: /* glsl */ `uniform float uRiel; uniform vec3 uM, uN, uD; uniform float uR;`,
+        move: /* glsl */ `
+          float fase = fract(uTime * ${CADENCIA.toFixed(3)} + aKind);
+          float vv = fase * fase;
+          float a = (1.0 - vv) * ${RIEL_A.toFixed(3)};
+          vec3 rad = uN * cos(a) - uD * sin(a);
+          vec3 tg = normalize(uN * sin(a) + uD * cos(a));
+          vec3 lado = normalize(cross(rad, tg));
+          p = uM + rad * (uR + 0.0016) + tg * position.z + lado * position.x + rad * position.y;
+          em *= uRiel * smoothstep(0.0, 0.05, fase) * step(vv, uRiel);
+        `,
+        uniforms: { uRiel: { value: 0 }, uM: { value: M.clone() }, uN: { value: N_T.clone() }, uD: { value: D.clone() }, uR: { value: RM * 1.004 } },
+      }),
+    );
+    cargas.u.uFuente.value = 0.6;
 
     const rd = rioDatos(90000);
     const rio = add(
@@ -278,18 +402,24 @@ export const mercurio: Escena = {
     const c5 = rigDe(V(Math.sin(PHI0 + PHI * 0.86), 0.32, Math.cos(PHI0 + PHI * 0.86)).multiplyScalar(6.4));
     const c6 = rigDe(V(Math.sin(PHI0 + PHI * 0.86 + 0.5), 0.3, Math.cos(PHI0 + PHI * 0.86 + 0.5)).multiplyScalar(5.6));
     const lejos = rigDe(LEJOS);
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, ...c0, yaw: 0, pitch: -40, roll: 0, fov: 40, mm: 0, ms: 0, lw: 0, sc: 0, mina: 0, riel: 0, rio: 0, rioOn: 1, cubre: 0, ir: 0, mapa: 0, nombres: 0 });
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, ...c0, yaw: 0, pitch: -40, roll: 0, fov: 40, mm: 0, ms: 0, lw: 0, sc: 0, lr: 0, cv: 0, mina: 0, riel: 0, rio: 0, rioOn: 1, cubre: 0, ir: 0, mapa: 0, nombres: 0 });
 
     tl.label('mina').caption(4.8, 'Desarmar Mercurio', 'Para el enjambre hace falta materia. Máquinas que se copian deshacen Mercurio en menos de una vida.');
     luego(0.3, 4.4, { mina: 0.62 });
     tl.to(4.8, { ...c1 });
 
-    tl.label('catapulta').caption(5.4, 'La catapulta', 'Sin aire que frene, un riel lanza la roca al espacio. Vamos en una carga.');
-    tl.with(1.2, { riel: 1 });
-    luego(0.5, 3.4, { rio: 0.55 });
-    tl.to(2.6, { ...c2, mm: 1 });
+    // The rail lights up along its length; the camera comes down by its start, gets on a load and
+    // rides it as the coils fire, faster and faster, off the end of the rail into the river of rock.
+    tl.label('catapulta').caption(8.2, 'La catapulta', 'Sin aire que frene, un riel lanza la roca al espacio. Vamos en una carga.');
+    tl.with(1.6, { riel: 1 });
+    luego(0.5, 5.0, { rio: 0.55 });
+    tl.to(1.8, { ...c2, mm: 1 });
+    tl.with(1.0, { lr: 1, fov: 50 });
+    tl.to(3.4, { cv: 1 }, EASE.in);
     // Beside the river, carried along it: the grains stream past below, the Sun ahead.
-    tl.to(2.8, { ...c3, lw: 1, sc: 0.04 });
+    // (one ride hands over to the other: the two weights always add to one)
+    tl.with(1.4, { lr: 0, lw: 1 });
+    tl.to(3.0, { ...c3, sc: 0.04, fov: 40 });
 
     tl.label('pared').caption(7.6, 'La pared que tapa el Sol', 'No es una cáscara: es un enjambre, cada colector en su órbita. Desde afuera, el Sol se va apagando.');
     luego(0, 3.6, { rio: 1 });
@@ -312,11 +442,13 @@ export const mercurio: Escena = {
     // The spark: from where scene 10 left it over Mercury, to the rail's end (ch 0..1), along the river
     // just ahead of the camera (1..2), and round the Sun among the collectors (2..3).
     const llega = M.clone().add(V(0, 0.25, 0));
+    const inicioRiel = enRiel(0, 0.004);
     const caminoCh: Camino = (sv, out) => {
-      if (sv <= 1) return out.copy(llega).lerp(T, Math.max(0, sv));
-      if (sv <= 2) return camino(Math.min(1, sv - 1), out).addScaledVector(Y, 0.02);
-      const a = PHI0 + PHI + (sv - 2) * 2.2;
-      return out.set(Math.sin(a) * 3.1, 0.2 * Math.sin((sv - 2) * 5), Math.cos(a) * 3.1);
+      if (sv <= 1) return out.copy(llega).lerp(inicioRiel, THREE.MathUtils.smoothstep(Math.max(0, sv), 0, 1));
+      if (sv <= 2) return enRiel(sv - 1, 0.004, out);
+      if (sv <= 3) return camino(Math.min(1, sv - 2), out).addScaledVector(Y, 0.02 * THREE.MathUtils.smoothstep(sv - 2, 0, 0.05)).addScaledVector(N_T, 0.004 * (1 - THREE.MathUtils.smoothstep(sv - 2, 0, 0.05)));
+      const a = PHI0 + PHI + (sv - 3) * 2.2;
+      return out.set(Math.sin(a) * 3.1, 0.2 * Math.sin((sv - 3) * 5), Math.cos(a) * 3.1);
     };
     const chispa = crearChispa();
     root.add(chispa.nube.points);
@@ -367,9 +499,28 @@ export const mercurio: Escena = {
         objetivo.lerp(V(), ms);
         aqui.copy(fuera(sc));
         // The spark: to the rail while it fires, then just ahead of the camera on the river, then in the swarm.
-        const chP = p < tl.at('catapulta') + 1.2 ? THREE.MathUtils.clamp((p - tl.at('mina') - 1) / (tl.at('catapulta') + 1.2 - tl.at('mina') - 1), 0, 1) : p < tl.at('pared') + 3.4 ? 1 + Math.min(1, sc + 0.035) : 2 + (p - tl.at('pared') - 3.4) / 8;
-        chispa.update(caminoCh, chP, chP > 1 && chP < 2 ? 0.0012 : 0.01, 1, 0, camera.position, f.focal, f.dpr, f.time);
-        aplicarToma(camera, toma(tl, p, tm, { punto: objetivo, peso: 1 }, { punto: aqui, peso: lw }));
+        const cv = tl.get('cv', p);
+        const lr = tl.get('lr', p);
+        const llegaA = THREE.MathUtils.clamp((p - tl.at('mina') - 1) / (tl.at('catapulta') + 1.8 - tl.at('mina') - 1), 0, 1);
+        const chP = p < tl.at('pared') + 3.4 ? llegaA + cv + Math.min(1, sc + 0.035 * lw) : 3 + (p - tl.at('pared') - 3.4) / 8;
+        chispa.update(caminoCh, chP, chP > 1 && chP < 3 ? 0.0012 : 0.01, 1, 0, camera.position, f.focal, f.dpr, f.time);
+        // On the load: just behind and above it, looking down the rail (the coils streaming by, the
+        // end of the rail and the sky ahead); handed over to the river ride as it launches.
+        let lugarP = aqui;
+        let lugarW = lw;
+        let arribaR: THREE.Vector3 | undefined;
+        if (lr > 0.0005) {
+          const rad = enRiel(cv, 0).sub(M).normalize();
+          const railCam = enRiel(cv - 0.06, 0.032).addScaledVector(rad, 0.0);
+          const railMira = enRiel(cv + 0.3, 0.0);
+          const w = lr / Math.max(1e-6, lr + lw);
+          lugarP = aqui.clone().lerp(railCam, w);
+          lugarW = Math.max(lw, lr, Math.min(1, lr + lw));
+          objetivo.lerp(railMira, lr);
+          // (on the rail, «up» is Mercury's own: away from its ground)
+          arribaR = Y.clone().lerp(rad, lr).normalize();
+        }
+        aplicarToma(camera, toma(tl, p, tm, { punto: objetivo, peso: 1, arriba: arribaR }, { punto: lugarP, peso: lugarW }));
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
 
@@ -380,6 +531,9 @@ export const mercurio: Escena = {
         merc.update({ sol: M.clone().negate().normalize(), camara: camera.position.clone().sub(M).divideScalar(RM), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: 1 });
         minaU.uMina.value = tl.get('mina', p);
         riel.u.uRiel.value = tl.get('riel', p) * tl.get('rioOn', p);
+        rielM.u.uRiel.value = riel.u.uRiel.value;
+        rielM.u.uTime.value = t;
+        cargas.u.uRiel.value = riel.u.uRiel.value;
         rio.u.uRio.value = tl.get('rio', p);
         rio.u.uRioOn.value = tl.get('rioOn', p);
         enjambre.u.uCubre.value = tl.get('cubre', p);
@@ -392,6 +546,8 @@ export const mercurio: Escena = {
         enjambre.u.uOcc.value.set(solV.x, solV.y, solV.z, 1.0);
         rio.u.uOcc.value.set(mercV.x, mercV.y, mercV.z, RM);
         riel.u.uOcc.value.set(mercV.x, mercV.y, mercV.z, RM * 0.998);
+        rielM.u.uOcc.value.set(mercV.x, mercV.y, mercV.z, RM * 0.998);
+        cargas.u.uOcc.value.set(mercV.x, mercV.y, mercV.z, RM * 0.998);
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
         const mapa = tl.get('mapa', p);
         orbs.u.uOn.value = mapa;

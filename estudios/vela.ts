@@ -5,7 +5,7 @@ import { gauss } from './motor/math';
 import { sol as solH } from '../src/horizontes';
 import { TEAL, potencia, puntoTu, anioEn } from './remake';
 import { aplicarToma, toma } from './rig';
-import { crearChispa, type Camino } from './chispa';
+import { crearChispa, montar, type Camino } from './chispa';
 import { LEJOS, enjambreNube } from './mercurio';
 import { angulos } from './rig';
 import { enfocarMarcas, marcas, nombres, trazo, type Nombre } from './revelar';
@@ -295,6 +295,9 @@ export const vela: Escena = {
       return a;
     });
     const A_TU = 1.15;
+    /** Where in the ring the spark comes in from the spine (between two spokes). */
+    const A_ENTRA = A_TU - 0.95;
+    const Yv = V(0, 1, 0);
     const tu = add(puntoTu(V(Math.cos(A_TU) * 0.1285, Math.sin(A_TU) * 0.1285, ANILLO), 0.0012), naveG, 7);
     const chispa = crearChispa();
     root.add(chispa.nube.points);
@@ -313,7 +316,7 @@ export const vela: Escena = {
       tl.wait(-off);
     };
     // Where the Sun's scene leaves the camera (sol.ts, «tipo»): relative to the Sun, here S0.
-    tl.set({ cx: S0.x, cy: S0.y, cz: S0.z, ox: 0, oy: 0, oz: 0, az: angulos(LEJOS).az + 150, el: 30, ld: 2.2, yaw: 90, pitch: -90, roll: 0, fov: 34, haz: 0, lsol: Math.log10(14), lcen: 4.5, beta: 0, polvo: 0, abre: 1, luzA: 0, nave: 0, tu: 0, nz: -3, eco: 0, ecoS: 0, chH: 0, salta: 0, mapa: 0, nombres: 0, dentro: 0, vuelo: 0, ecoN: 0 });
+    tl.set({ cx: S0.x, cy: S0.y, cz: S0.z, ox: 0, oy: 0, oz: 0, az: angulos(LEJOS).az + 150, el: 30, ld: 2.2, yaw: 90, pitch: -90, roll: 0, fov: 34, haz: 0, lsol: Math.log10(14), lcen: 4.5, beta: 0, polvo: 0, abre: 1, luzA: 0, nave: 0, tu: 0, nz: -3, eco: 0, ecoS: 0, chH: 0, salta: 0, mapa: 0, nombres: 0, ecoN: 0, lw: 0, adentro: 0, sube: 0 });
 
     tl.label('velas').caption(5.6, 'Velas de luz', 'Para ir a otra estrella, un láser empuja una vela de pocos gramos. En minutos va a un quinto de la luz.');
     tl.with(1.2, { cx: 0, cy: 0, cz: 0 });
@@ -363,14 +366,17 @@ export const vela: Escena = {
     tl.with(1.6, { nave: 1 });
     tl.to(5.2, { nz: 0.6, cx: 0.9, cy: 0.1, cz: 0.2, az: 120, el: 10, ld: -0.35, fov: 40 });
     tl.to(2.4, { az: 142, el: 16, ld: -0.6 });
-    // The spark jumps to it, and the camera goes after it into a ring: the land inside curves up
-    // ahead and overhead; among its lights, someone.
+    // The spark jumps to it, across to its spine, and the camera goes after it: in among the spokes
+    // of a ring, down through its glass roof, and low over its land (the land curving up ahead and
+    // overhead) to someone among its lights. Then up again, looking down on them, and back out.
     luego(-0.4, 1.8, { salta: 1 });
-    tl.to(3.6, { dentro: 1, fov: 58 });
-    luego(1.2, 1.2, { tu: 1 });
-    tl.to(4.4, { vuelo: 1 });
+    luego(0.2, 1.8, { lw: 1, fov: 54 });
+    tl.to(7.6, { adentro: 1 });
+    luego(-2.0, 1.4, { tu: 1 });
+    tl.to(1.8, { sube: 1, fov: 50 });
     // And back out of the ring: the ship among the stars again, where the galaxy takes over.
-    tl.to(2.8, { dentro: 0, fov: 40, az: 150, el: 14, ld: -0.45 });
+    tl.with(2.6, { lw: 0 });
+    tl.to(2.8, { fov: 40, az: 150, el: 14, ld: -0.45 });
 
     const tm = toma(tl, 0);
     const velV = V();
@@ -408,33 +414,48 @@ export const vela: Escena = {
         const t = f.time;
         camera.near = 1e-5;
         camera.far = 30000;
-        aplicarToma(camera, toma(tl, p, tm));
-        // Inside the ring: low over its floor, looking along it as it curves up ahead, «up» towards
-        // the spine; the ring turns slowly under the camera.
-        const dentro = tl.get('dentro', p);
-        if (dentro > 0.0005) {
-          const k = dentro * dentro * (3 - 2 * dentro);
-          const a = A_TU - 0.55 + 0.35 * tl.get('vuelo', p);
-          const naveP = V(0.9, 0.1, 0.2 + tl.get('nz', p));
-          const Yv = new THREE.Vector3(0, 1, 0);
-          const local = (ang: number, rr: number) => V(Math.cos(ang) * rr, Math.sin(ang) * rr, ANILLO).applyAxisAngle(Yv, 0.15).add(naveP);
-          const pA = camera.position.clone();
-          const qA = camera.quaternion.clone();
-          const pos = local(a, 0.1195);
-          camera.position.copy(pos);
-          camera.up.copy(V(-Math.cos(a), -Math.sin(a), 0).applyAxisAngle(Yv, 0.15));
-          camera.lookAt(local(a + 0.7, 0.1255));
-          const qB = camera.quaternion.clone();
-          camera.position.lerpVectors(pA, pos, k);
-          camera.quaternion.slerpQuaternions(qA, qB, k);
-          camera.fov = THREE.MathUtils.lerp(camera.fov, 62, k);
-        }
+        // (where home is now: the Sun falls behind in logarithm)
+        const dSol = Math.pow(10, tl.get('lsol', p));
+        casa.position.set(S0.x * (dSol / 14), S0.y * (dSol / 14), -dSol);
+        // The spark's way (GUION.md v2, 32–35): along the beam into the sail (0..1); across to the
+        // ship's spine (1..2); then into the ring (2..3): in among its spokes, down through its glass
+        // roof, low over the land to «tú». Inside, everything turns with the ring.
+        const ag = t * GIRO_ANILLO;
+        const naveP = V(0.9, 0.1, 0.2 + tl.get('nz', p));
+        const enAnillo = (ang: number, rr: number, out: THREE.Vector3, z = ANILLO) => out.set(Math.cos(ang + ag) * rr, Math.sin(ang + ag) * rr, z).applyAxisAngle(Yv, 0.15).add(naveP);
+        const desde = casa.position.clone().add(V(0, 0, 3.2));
+        const enVela = V(0, 0, 0.004);
+        const hub = enAnillo(A_ENTRA, 0.035, V(), ANILLO + 0.012);
+        const arco = enVela.clone().lerp(hub, 0.5).add(V(0, 0.09, 0));
+        const angIn = (w: number) => A_ENTRA + (A_TU - A_ENTRA) * THREE.MathUtils.smoothstep(w, 0.08, 1);
+        const caminoCh: Camino = (sv, out) => {
+          if (sv <= 1) return out.copy(desde).lerp(enVela, Math.max(0, sv) ** 0.5);
+          if (sv <= 2) {
+            const k = sv - 1;
+            return out.copy(enVela).multiplyScalar((1 - k) * (1 - k)).addScaledVector(arco, 2 * (1 - k) * k).addScaledVector(hub, k * k);
+          }
+          const w = Math.min(1, sv - 2);
+          const baja = THREE.MathUtils.smoothstep(w, 0, 0.32);
+          const rr = 0.035 + (0.1222 - 0.035) * baja + (0.1279 - 0.1222) * THREE.MathUtils.smoothstep(w, 0.86, 1);
+          return enAnillo(angIn(w), rr, out, ANILLO + 0.012 * (1 - baja));
+        };
+        const chS = Math.min(1, tl.get('chH', p)) + tl.get('salta', p) + tl.get('adentro', p);
+        const lw = tl.get('lw', p);
+        if (lw > 0.0005) {
+          // Riding it: «up» is the ship's way while it jumps, then towards the spine inside the ring
+          // (away from the land below); at the end the camera lifts towards the spine, looking down.
+          const kIn = THREE.MathUtils.smoothstep(chS, 1.85, 2.3);
+          const radial = V(Math.cos(angIn(Math.max(0, chS - 2)) + ag), Math.sin(angIn(Math.max(0, chS - 2)) + ag), 0).applyAxisAngle(Yv, 0.15);
+          const arriba = Yv.clone().lerp(radial.clone().negate(), kIn).normalize();
+          // (inside, looking well ahead, where the land rises; high enough to see it as land)
+          const alto = THREE.MathUtils.lerp(0.012, 0.0075, kIn) + 0.006 * THREE.MathUtils.smoothstep(chS, 2.84, 3) + 0.07 * tl.get('sube', p);
+          const m = montar(caminoCh, chS, 0.05, THREE.MathUtils.lerp(0.12, 0.5, kIn), alto, arriba, 0.035, false, 0.05);
+          aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: lw, arriba: m.arriba, delante: m.delante }, { punto: m.lugar, peso: lw }));
+        } else aplicarToma(camera, toma(tl, p, tm));
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
 
         // The Sun falls behind and Alpha Centauri comes up ahead, both in logarithm.
-        const dSol = Math.pow(10, tl.get('lsol', p));
-        casa.position.set(S0.x * (dSol / 14), S0.y * (dSol / 14), -dSol);
         const dCen = Math.pow(10, tl.get('lcen', p));
         alfa.position.set(-3, 1.5, dCen);
         haz.u.uDesde.value.copy(casa.position).add(V(0, 0, 3.2));
@@ -467,13 +488,8 @@ export const vela: Escena = {
         membrana.u.uGain.value = velaN.u.uGain.value;
         membrana.u.uTime.value = t;
         naveG.position.set(0.9, 0.1, 0.2 + tl.get('nz', p));
-        // The spark: along the beam from the swarm into the sail, then on the sail, then a jump to the ship.
-        const desde = casa.position.clone().add(V(0, 0, 3.2));
-        const enVela = V(0, 0, 0.004);
-        const enNave = V(Math.cos(A_TU + 0.05) * 0.12, Math.sin(A_TU + 0.05) * 0.12, ANILLO).applyAxisAngle(new THREE.Vector3(0, 0, 1), t * GIRO_ANILLO).applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.15).add(naveG.position);
-        const caminoCh: Camino = (sv, out) => (sv <= 1 ? out.copy(desde).lerp(enVela, Math.max(0, sv) ** 0.5) : out.copy(enVela).lerp(enNave, Math.min(1, sv - 1)));
-        const chS = Math.min(1, tl.get('chH', p)) + tl.get('salta', p);
-        chispa.update(caminoCh, chS, 0.004, 1, 0, camera.position, f.focal, f.dpr, f.time);
+        // (the wake shorter inside the ring, where the way is short)
+        chispa.update(caminoCh, chS, chS > 2 ? 0.0012 : 0.004, 1, 0, camera.position, f.focal, f.dpr, f.time);
         // The echo home: from the sail back towards the Sun, slow.
         // (slow, and in sight: it crawls back towards home while the camera watches from the side)
         const haciaCasa = casa.position.clone().sub(enVela).normalize();
@@ -482,7 +498,8 @@ export const vela: Escena = {
         naveG.scale.setScalar(1);
         naveG.rotation.y = 0.15;
         nave.u.uNave.value = tl.get('nave', p);
-        for (const [k, a] of anillos.entries()) a.update(tl.get('nave', p), t * GIRO_ANILLO, RINGS[k] === ANILLO ? tl.get('dentro', p) : 0);
+        const dentroR = lw * THREE.MathUtils.smoothstep(chS, 2.2, 2.4) * (1 - 0.8 * tl.get('sube', p));
+        for (const [k, a] of anillos.entries()) a.update(tl.get('nave', p), ag, RINGS[k] === ANILLO ? dentroR : 0);
         tu.u.uGain.value = tl.get('tu', p) * (1 + 0.25 * Math.sin(t * 1.5)) * tl.get('nave', p);
         tu.points.rotation.z = t * GIRO_ANILLO;
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
