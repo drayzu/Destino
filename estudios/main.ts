@@ -18,6 +18,8 @@ import { solTrabajado } from './sol';
 import { vela } from './vela';
 import { galaxia } from './galaxia';
 import { estrella } from './estrella';
+import { cosmos } from './cosmos';
+import { final } from './final';
 
 /**
  * Destino's remake, phase 0: three studies of the new look (BIBLIA.md, ESCALETA.md, 29 Oct 2026),
@@ -30,7 +32,7 @@ import { estrella } from './estrella';
  */
 
 // In the order of the journey (ESCALETA.md: scenes 6–7, 11–12, 18–19).
-const ESCENAS: Escena[] = [apertura, despierta, tierraNoche, sistema, mercurio, solTrabajado, vela, galaxia, estrella];
+const ESCENAS: Escena[] = [apertura, despierta, tierraNoche, sistema, mercurio, solTrabajado, vela, galaxia, estrella, cosmos, final];
 const PX_PER_BEAT = 520;
 
 const params = new URLSearchParams(location.search);

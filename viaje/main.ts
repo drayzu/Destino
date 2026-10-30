@@ -18,6 +18,8 @@ import { solTrabajado } from '../estudios/sol';
 import { vela } from '../estudios/vela';
 import { galaxia } from '../estudios/galaxia';
 import { estrella } from '../estudios/estrella';
+import { cosmos } from '../estudios/cosmos';
+import { final } from '../estudios/final';
 
 /**
  * Destino, the remake: the journey. One scroll through the scenes of ESCALETA.md, built with the
@@ -44,6 +46,8 @@ const ACTOS: [Escena, number][] = [
   [vela, 0],
   [galaxia, 0],
   [estrella, 1],
+  [cosmos, 0],
+  [final, 0],
 ];
 /** Beats before the first act (the title is inside act I now). */
 const PORTADA = 0;

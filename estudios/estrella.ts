@@ -217,6 +217,7 @@ export const estrella: Escena = {
       tl,
       listo,
       entrada: { pos: V(), escala: 1 },
+      salida: { pos: V(), escala: 12 },
       escalera: false,
       cuenta() {
         return potencia(37);
