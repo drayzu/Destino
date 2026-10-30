@@ -59,6 +59,16 @@ export function dibujarEstelas(g: CanvasRenderingContext2D, camera: THREE.Perspe
     if (luz < 0.01) continue;
     const parpadeo = c.titila > 0 ? 1 - c.titila + c.titila * (0.15 + 0.85 * ((((Math.sin(Math.floor(c.time * 9) * 12.9898) * 43758.5453) % 1) + 1) % 1 > 0.45 ? 1 : 0)) : 1;
     const mw = c.nube.points.matrixWorld;
+    // (a world in the way hides the wake behind it, as it hides the spark's head: its centre in
+    // view space and its radius, set by the act)
+    const oc = c.nube.u.uOcc.value as THREE.Vector4;
+    const tapado = (v: THREE.Vector3) => {
+      if (oc.w <= 0) return false;
+      const L = v.length();
+      const t = (oc.x * v.x + oc.y * v.y + oc.z * v.z) / L;
+      if (t <= 0 || L <= t) return false;
+      return Math.hypot(oc.x - (v.x / L) * t, oc.y - (v.y / L) * t, oc.z - (v.z / L) * t) < oc.w;
+    };
     // The head's depth: the wake fades where it comes nearer the camera than part of it.
     tmpE.set(c.estela[0], c.estela[1], c.estela[2]).applyMatrix4(mw).applyMatrix4(camera.matrixWorldInverse);
     const dCab = -tmpE.z;
@@ -68,7 +78,7 @@ export function dibujarEstelas(g: CanvasRenderingContext2D, camera: THREE.Perspe
     for (let i = 0; i < n; i++) {
       tmpE.set(c.estela[i * 3], c.estela[i * 3 + 1], c.estela[i * 3 + 2]).applyMatrix4(mw).applyMatrix4(camera.matrixWorldInverse);
       const d = -tmpE.z;
-      if (d <= camera.near * 2) break;
+      if (d <= camera.near * 2 || tapado(tmpE)) break;
       tmpV.copy(tmpE).applyMatrix4(camera.projectionMatrix);
       xs[m] = (tmpV.x * 0.5 + 0.5) * W;
       ys[m] = (0.5 - tmpV.y * 0.5) * H;
