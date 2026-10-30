@@ -147,6 +147,95 @@ export function galaxiaDatos(): MateriaData {
   return b.data();
 }
 
+/**
+ * The galaxy's diffuse light, not points (Diego, 30 Oct: «no podrías no hacerla solo de puntos?»):
+ * a disc that glows as a photograph of a spiral does, under its stars: a warm bulge and bar, the
+ * arms a soft blue-white haze, patchy, with dust lanes darkening their inner edges as a shading,
+ * not as black lines; nothing seen edge-on (the stars carry that). The same arms as the points.
+ */
+export function galaxiaBrillo() {
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uGal: { value: 0 }, uFundido: { value: 1 }, uKW: { value: KW }, uBar: { value: 0.45 } },
+    vertexShader: /* glsl */ `
+      varying vec3 vL;
+      varying vec3 vV;
+      varying vec3 vN;
+      void main() {
+        vL = position;
+        vN = normalize(normalMatrix * vec3(0.0, 1.0, 0.0));
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vV = mv.xyz;
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uGal, uFundido, uKW, uBar;
+      varying vec3 vL;
+      varying vec3 vV;
+      varying vec3 vN;
+      float brazo(float R, float j) {
+        return uKW * (1.0 + 0.07 * j) * log(R / 4.0) + j * 3.14159265 + 0.32 * sin(R * 0.17 + j * 1.9) + 0.14 * sin(R * 0.53 + j * 4.1);
+      }
+      float angDif(float a, float b) {
+        float d = mod(a - b + 3.14159265, 6.2831853);
+        return abs(d - 3.14159265);
+      }
+      float h21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float ruido(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        vec2 u = f * f * (3.0 - 2.0 * f);
+        return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), u.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), u.x), u.y);
+      }
+      void main() {
+        float R = length(vL.xz);
+        if (R < 0.05) R = 0.05;
+        float th = atan(vL.x, vL.z);
+        // The arms (the two major and two minor ones of the points), patchy along their length.
+        float A = 0.0;
+        float lane = 0.0;
+        for (int k = 0; k < 4; k++) {
+          float j = k == 0 ? 0.0 : k == 1 ? 1.0 : k == 2 ? 0.5 : 1.5;
+          float peso = k < 2 ? 1.0 : 0.5;
+          float w = k < 2 ? 2.6 + 0.065 * R : 1.7;
+          float fin = smoothstep(3.0, 7.0, R) * (1.0 - smoothstep(k < 2 ? 30.0 : 22.0, k < 2 ? 50.0 : 36.0, R));
+          float d = angDif(th, brazo(R, j)) * R;
+          // (broken along its length: bright stretches, gaps)
+          float parche = max(0.0, 0.45 + 0.8 * sin(R * 0.41 + j * 2.3) * sin(R * 0.23 + j * 0.7 + 1.1)) * (0.3 + 1.2 * ruido(vec2(R * 0.35 + j * 17.0, j * 3.0)));
+          A = max(A, peso * fin * parche * exp(-(d * d) / (2.0 * w * w)));
+          float dl = angDif(th, brazo(R, j) - 0.22) * R;
+          if (k < 2) lane = max(lane, fin * exp(-(dl * dl) / (2.0 * 0.9 * 0.9)));
+        }
+        float grumo = 0.25 + 1.6 * pow(ruido(vL.xz / 4.0 + 3.0) * ruido(vL.xz / 1.8 - 1.0), 1.3);
+        // The bulge and the bar, warm.
+        float cb = cos(uBar);
+        float sb = sin(uBar);
+        vec2 b = vec2(vL.x * cb + vL.z * sb, -vL.x * sb + vL.z * cb);
+        float bulbo = exp(-R / 2.2) * 1.4 + exp(-(b.x * b.x / 18.0 + b.y * b.y / 2.4)) * 0.6;
+        float disco = exp(-R / 13.0) * 0.12;
+        vec3 col = vec3(1.0, 0.8, 0.55) * bulbo + vec3(0.62, 0.72, 1.0) * A * grumo * 0.24 * (0.6 + 0.4 * smoothstep(6.0, 26.0, R)) + vec3(0.9, 0.82, 0.75) * disco;
+        col *= 1.0 - 0.65 * lane;
+        // Seen face-on, the haze; edge-on, nothing (the stars carry it).
+        float cara = smoothstep(0.08, 0.5, abs(dot(normalize(vN), normalize(vV))));
+        gl_FragColor = vec4(col * cara * 0.55 * uGal * uFundido, 0.0);
+      }
+    `,
+    side: THREE.DoubleSide,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
+  });
+  const g = new THREE.PlaneGeometry(120, 120, 1, 1);
+  g.rotateX(-Math.PI / 2);
+  const m = new THREE.Mesh(g, mat);
+  m.renderOrder = -1;
+  m.frustumCulled = false;
+  return { mesh: m, u: mat.uniforms };
+}
+
 /** Dust along the inner edges of the arms: points that hide what is behind them (the dark lanes). */
 export function polvoDatos(): MateriaData {
   const b = materiaBuilder(73);
@@ -273,7 +362,10 @@ export const apertura: Escena = {
     );
     estrellas.u.uFuente.value = 0.55;
     const polvo = add(materia(polvoDatos(), { pre: `uniform float uGal; uniform vec3 uCamG;`, move: `occ *= uGal * smoothstep(1.0, 4.0, length(p - uCamG));`, uniforms: { uGal: { value: 0 }, uCamG: { value: V() } } }), galaxia, 2);
-    polvo.u.uInk.value = 1;
+    // (the dust a soft shading now, not black lines: the haze below carries the lanes)
+    polvo.u.uInk.value = 0.22;
+    const brillo = galaxiaBrillo();
+    galaxia.add(brillo.mesh);
 
     const locales = add(materia(localesDatos(), { pre: `uniform float uLoc;`, move: `em *= uLoc;`, uniforms: { uLoc: { value: 0 } } }), galaxia, 3);
     locales.u.uFuente.value = 0.8;
@@ -459,6 +551,7 @@ export const apertura: Escena = {
         const gal = tl.get('gal', p);
         estrellas.u.uGal.value = gal;
         polvo.u.uGal.value = gal;
+        brillo.u.uGal.value = gal;
         estrellas.u.uOla.value = tl.get('ola', p);
         estrellas.u.uOlaOn.value = tl.get('olaOn', p);
         // The stars round the Sun: on with the sky, gone once the camera is far from them.

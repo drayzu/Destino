@@ -7,7 +7,7 @@ import { TEAL, potencia, anioEn } from './remake';
 import { angulos, aplicarToma, toma } from './rig';
 import { tierra as tierraH } from '../src/horizontes';
 import { crearChispa, montar, type Camino } from './chispa';
-import { S, brazo, galaxiaDatos, polvoDatos } from './apertura';
+import { S, brazo, galaxiaBrillo, galaxiaDatos, polvoDatos } from './apertura';
 import { cuantas, enfocarMarcas, marcas, nombres, type Nombre } from './revelar';
 import type { Cuenta, Rotulo } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
@@ -166,7 +166,9 @@ export const galaxia: Escena = {
     );
     estrellas.u.uFuente.value = 0.55;
     const polvo = add(materia(polvoDatos(), { pre: `uniform float uGal; uniform vec3 uCamG;`, move: `occ *= uGal * smoothstep(1.0, 4.0, length(p - uCamG));`, uniforms: { uGal: { value: 1 }, uCamG: { value: V() } } }), root, 2);
-    polvo.u.uInk.value = 1;
+    polvo.u.uInk.value = 0.22;
+    const brillo = galaxiaBrillo();
+    root.add(brillo.mesh);
 
     // A point that keeps a few pixels: the ship, and the single star at the end.
     const punto = (col: THREE.Color, luz: number) => {
@@ -491,6 +493,7 @@ export const galaxia: Escena = {
         if (zooG.visible) vivo.update({ sol: SOL_ZOO, camara: camera.position.clone().sub(ZOO).divideScalar(R_ZOO), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: zooOn });
         vigias.u.uOn.value = zooOn;
         polvo.u.uGal.value = 1 - Math.max(zooOn, tl.get('filtro', p));
+        brillo.u.uGal.value = estrellas.u.uGal.value * (1 - tl.get('ir', p)) * (1 - Math.max(zooOn, tl.get('filtro', p)));
         solZoo.u.uGain.value = zooOn;
         solZoo.u.uSizeUnit.value = px(9, solZoo.points.position);
         const callOn = tl.get('callan', p);
