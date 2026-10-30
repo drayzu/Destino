@@ -436,9 +436,11 @@ function frame(now: number) {
   if (frozen !== null) P = frozen;
   else {
     let siguiente = damp(P, target, 4.2, dt);
-    // By hand, the film follows a flick no faster than it can be seen.
+    // By hand, the film follows a flick no faster than it can be seen; but when the hand has gone far
+    // ahead (the scrollbar dragged, a long fling), it gives way more and more, so it never lags long.
     if (ritmo && pagina && !autoplay) {
-      const tope = pagina.en(ritmo.tope, P) * dt;
+      const lejos = Math.max(0, Math.abs(target - P) - 1.5);
+      const tope = pagina.en(ritmo.tope, P) * (1 + lejos * lejos * 0.6) * dt;
       siguiente = P + clamp(siguiente - P, -tope, tope);
     }
     P = siguiente;
@@ -512,6 +514,10 @@ const api = {
   },
   get total() {
     return TOTAL;
+  },
+  /** Debug: where the film is (beats) and where the hand wants it. */
+  get P() {
+    return { P, target, alto: spacer.style.height };
   },
   /** Debug: measures the whole pace now; the scroll it takes, the autoplay's minutes, and where the camera changes most. */
   ritmo() {
