@@ -36,7 +36,8 @@ function guardar(): Plugin {
 export default defineConfig({
   base: './',
   plugins: [guardar()],
-  server: { port: 5197 },
+  // (a worktree may borrow node_modules from the main checkout: let its files through)
+  server: { port: 5197, fs: { allow: ['.', '../civilizacion/node_modules'] } },
   build: {
     rollupOptions: {
       input: {
