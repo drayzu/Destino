@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { materia, materiaBuilder, type Nube } from './motor/materia';
-import { gauss } from './motor/math';
 
 /**
  * A world that turns (an O'Neill cylinder), drawn as surfaces of light rather than a cloud of points
@@ -126,11 +125,16 @@ const TIERRA = /* glsl */ `
     float bruma = 1.0 - exp(-max(d - tIn, 0.0) / (uLC * 0.7));
     vec3 aire = vec3(0.42, 0.52, 0.64);
     if (mod(k, 2.0) > 0.5) {
-      // A window: the stars through it, and the sunlight the mirrors send in, a soft glow.
-      float borde = smoothstep(0.0, 0.08, u) * smoothstep(1.0, 0.92, u);
-      float marco = raya(vL.z / uLC * 36.0, 0.04) * 0.12;
-      vec3 luz = vec3(0.95, 0.92, 0.82) * 0.10 * borde + vec3(0.5, 0.56, 0.62) * marco;
-      gl_FragColor = vec4(luz * uOn * uFundido, 0.0);
+      // A window, from inside: a strip of sky, the sunlight the mirrors send in, brightest along its
+      // middle, through the same air as the land (so far off it is haze too); a few fine frames.
+      float centro = 1.0 - abs(u - 0.5) * 2.0;
+      vec3 cielo = mix(vec3(0.42, 0.55, 0.72), vec3(0.92, 0.94, 0.9), pow(centro, 2.2));
+      float marco = raya(vL.z / uLC * 12.0, 0.015) * 0.18;
+      vec3 luz = cielo * (0.24 + 0.12 * centro) * (1.0 - marco);
+      luz = mix(luz, aire * 0.6, bruma * 0.6);
+      // (only from inside: from outside, the glass shows the land of the far side through it)
+      float dentroT = (1.0 - smoothstep(uRC * 0.9, uRC * 1.05, length(uCamL.xy))) * (1.0 - smoothstep(uLC * 0.5, uLC * 0.5 + 0.05, abs(uCamL.z)));
+      gl_FragColor = vec4(luz * dentroT * uOn * uFundido, dentroT * uOn * uFundido);
       return;
     }
     vec3 campo = paisaje(vec2(u * TERCIO * uRC, vL.z), u, v, k * 13.7, TERCIO * uRC, uLC);
@@ -205,8 +209,7 @@ const ESPEJO = /* glsl */ `
     float a = 0.35 + 0.3 * fres + marco;
     // (from inside, through the windows, only their backs: dim, the stars mostly through)
     float dentro = (1.0 - smoothstep(uRC * 0.9, uRC * 1.05, length(uCamL.xy))) * (1.0 - smoothstep(uLC * 0.5, uLC * 0.5 + 0.05, abs(uCamL.z)));
-    col *= mix(1.0, 0.3, dentro);
-    a *= mix(1.0, 0.45, dentro);
+    if (dentro > 0.5) discard;
     gl_FragColor = vec4(col * uOn * uFundido, clamp(a, 0.0, 1.0) * uOn * uFundido);
   }
 `;
@@ -281,15 +284,43 @@ export function crearCilindro(RC: number, LC: number): Cilindro {
     espejo.renderOrder = 0;
     giro.add(espejo);
   }
-  // Clouds in the middle, between the land and the axis.
+  // Clouds: a thin shell of soft cloud a little above the land, wisps and gaps, drifting with the
+  // world (from below, the land shows through its gaps; from the axis, the land under a veil).
+  const nubeG = new THREE.CylinderGeometry(RC * 0.8, RC * 0.8, LC * 0.92, 200, 24, true);
+  nubeG.rotateX(Math.PI / 2);
+  const nubeM = new THREE.Mesh(
+    nubeG,
+    new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader: VERT,
+      fragmentShader: /* glsl */ `
+        ${COMUN}
+        void main() {
+          float fi = atan(vL.y, vL.x);
+          vec2 q = vec2(fi * 6.0, vL.z / uLC * 22.0);
+          float n = fbm(q) * 0.65 + fbm(q * 2.7 + 3.0) * 0.35;
+          float nube = smoothstep(0.52, 0.74, n);
+          // (thinner towards the end walls)
+          nube *= smoothstep(0.5, 0.42, abs(vL.z / uLC));
+          float d = length(vV);
+          vec3 col = vec3(0.96, 0.97, 1.0) * (0.55 + 0.35 * n);
+          gl_FragColor = vec4(col * nube * 0.5 * uOn * uFundido, nube * 0.6 * uOn * uFundido);
+        }
+      `,
+      side: THREE.DoubleSide,
+      transparent: true,
+      depthTest: true,
+      depthWrite: false,
+      blending: THREE.CustomBlending,
+      blendSrc: THREE.OneFactor,
+      blendDst: THREE.OneMinusSrcAlphaFactor,
+    }),
+  );
+  nubeM.renderOrder = 0;
+  giro.add(nubeM);
+  // (the clouds of points are no longer drawn; kept empty for whoever focuses them)
   const b = materiaBuilder(133);
-  const r = b.r;
-  for (let k = 0; k < 46; k++) {
-    const fi = r() * Math.PI * 2;
-    const q = RC * (0.42 + r() * 0.2);
-    const z = (r() - 0.5) * LC * 0.85;
-    for (let i = 0; i < 220; i++) b.push(Math.cos(fi) * q + gauss(r) * 0.005, Math.sin(fi) * q + gauss(r) * 0.005, z + gauss(r) * 0.011, 0xffffff, 0.0016, 0.16, { kind: 3 });
-  }
+  b.push(0, 0, 0, 0xffffff, 0.0001, 0);
   const nubes = materia(b.data(), {
     pre: /* glsl */ `uniform float uCil;`,
     move: /* glsl */ `em *= uCil;`,
