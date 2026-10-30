@@ -135,7 +135,15 @@ export const estrella: Escena = {
         pre: /* glsl */ `uniform float uCapas, uBits, uPiensa, uSale, uFrio;`,
         move: /* glsl */ `
           float kc = aKind;
-          float on = smoothstep(kc, kc + 0.8, uCapas * 5.0);
+          // Each shell is built from three places outwards: fronts that sweep over it, bright where
+          // they pass.
+          vec3 dd = normalize(p);
+          float ang = min(min(acos(clamp(dot(dd, vec3(0.28, 0.93, 0.19)), -1.0, 1.0)), acos(clamp(dot(dd, vec3(-0.83, -0.31, 0.46)), -1.0, 1.0))), acos(clamp(dot(dd, vec3(0.42, -0.59, -0.69)), -1.0, 1.0))) / 2.0;
+          ang += 0.05 * fract(seed * 13.7);
+          float hecho = (uCapas * 5.0 - kc) * 1.25;
+          float on = smoothstep(ang, ang + 0.03, hecho);
+          float frente = exp(-pow((hecho - ang) / 0.035, 2.0)) * step(0.0, hecho);
+          em += vec3(1.0, 0.92, 0.8) * frente * 2.0;
           // Its computers blink: faster the colder the shell.
           float rate = (1.0 + 1.7 * kc) * uPiensa;
           float cel = floor(uTime * rate + seed * 50.0);
@@ -176,6 +184,43 @@ export const estrella: Escena = {
     red.u.uSpread.value = 1.4;
     red.u.uFuente.value = 0.3;
 
+    // The heat each shell gives to the next: a rain of light rising from one to the other, from the
+    // colour of the hotter to the colour of the colder.
+    const fb = materiaBuilder(71);
+    const huecoF: number[] = [];
+    const colaF: number[] = [];
+    for (let i = 0; i < 30000; i++) {
+      const [x, y, z] = fb.onSphere();
+      // Most of it in the gap the camera goes into (between the third and the fourth).
+      const k = fb.r() < 0.65 ? 2 : Math.floor(fb.r() * 4);
+      const fase = fb.r();
+      // Each drop a short streak: a head and a fading tail below it.
+      for (let j = 0; j < 5; j++) {
+        fb.push(x, y, z, COLORES[k].clone().lerp(COLORES[k + 1], 0.5), 0.005, 0.6, { kind: k });
+        huecoF.push(fase);
+        colaF.push(j);
+      }
+    }
+    const flujo = add(
+      materia(fb.data(), {
+        pre: /* glsl */ `attribute float aFase, aCola; uniform float uFlujo; uniform float uR[5]; uniform vec3 uC[5];`,
+        move: /* glsl */ `
+          int kk = int(aKind + 0.5);
+          float r0 = kk == 0 ? uR[0] : kk == 1 ? uR[1] : kk == 2 ? uR[2] : uR[3];
+          float r1 = kk == 0 ? uR[1] : kk == 1 ? uR[2] : kk == 2 ? uR[3] : uR[4];
+          vec3 c0 = kk == 0 ? uC[0] : kk == 1 ? uC[1] : kk == 2 ? uC[2] : uC[3];
+          vec3 c1 = kk == 0 ? uC[1] : kk == 1 ? uC[2] : kk == 2 ? uC[3] : uC[4];
+          float sube = fract(uTime * 0.12 + aFase) - aCola * 0.03;
+          p = normalize(position) * mix(r0, r1, sube);
+          em = mix(vec3(1.0, 0.9, 0.75), mix(c0, c1, sube), 0.4) * 1.4 * (1.0 - aCola / 5.0) * smoothstep(0.0, 0.12, sube) * (1.0 - smoothstep(0.82, 1.0, sube)) * uFlujo;
+        `,
+        uniforms: { uFlujo: { value: 0 }, uR: { value: RADIOS.slice() }, uC: { value: COLORES.map((c) => c.clone()) } },
+        extra: { aFase: [new Float32Array(huecoF), 1], aCola: [new Float32Array(colaF), 1] },
+      }),
+    );
+    flujo.u.uSpread.value = 0;
+    flujo.u.uFuente.value = 0.4;
+
     const listo = sol.listo;
 
     // ---------------------------------------------------------------- the moments (GUION.md 43–46)
@@ -185,21 +230,25 @@ export const estrella: Escena = {
       tl.with(dur, v);
       tl.wait(-off);
     };
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 18, el: 16, ld: 1.32, yaw: 90, pitch: -90, roll: 0, fov: 40, capas: 0, bits: 0, piensa: 0, forma: 0, sale: 0, red: 0, tu: 0, expande: 0, frio: 0 });
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 18, el: 16, ld: 1.32, yaw: 90, pitch: -90, roll: 0, fov: 40, capas: 0, bits: 0, piensa: 0, forma: 0, sale: 0, red: 0, tu: 0, expande: 0, frio: 0, flujo: 0 });
 
-    tl.label('estrella').caption(5.0, 'Pensar con una estrella', 'Hacia adentro: envolver una estrella en capas de computadoras, y ponerla a pensar.');
-    luego(0.3, 4.4, { capas: 1 });
-    luego(2.6, 2.2, { bits: 1, piensa: 1 });
-    tl.to(5.0, { az: 34, el: 14, ld: 1.1 });
+    tl.label('estrella').caption(8.0, 'Pensar con una estrella', 'Hacia adentro: envolver una estrella en capas de computadoras, y ponerla a pensar.');
+    luego(0.3, 7.0, { capas: 1 });
+    luego(4.6, 2.4, { bits: 1, piensa: 1 });
+    tl.to(4.0, { az: 32, el: 22, ld: 1.22 });
+    tl.to(4.0, { az: 44, el: 14, ld: 1.1 });
 
     // In through the shells, to the gap between the third and the fourth; then the gaze lifts to the
     // curved walls: the hot floor below, the cold ceiling above.
-    tl.label('frio').caption(5.4, 'El frío piensa más', 'Cada capa vive del calor de la anterior. Y cuanto más fría, más barato le sale pensar.');
+    tl.label('frio').caption(8.0, 'El frío piensa más', 'Cada capa vive del calor de la anterior. Y cuanto más fría, más barato le sale pensar.');
+    luego(0.6, 2.4, { flujo: 1 });
     tl.to(3.2, { az: 52, el: 9, ld: 0.63, fov: 50 });
     tl.to(2.2, { az: 58, pitch: -18, yaw: 70 });
+    tl.to(2.6, { az: 63, pitch: -12, yaw: 76 });
 
     tl.label('materia').caption(6.0, 'Dejar de ser materia', 'Una mente así ya no necesita cuerpo: es cálculo. De ti quedaría la forma en que piensas.');
     luego(0.2, 3.6, { forma: 1, sale: 1, red: 1 });
+    luego(0.4, 2.0, { flujo: 0.25 });
     luego(2.8, 1.0, { tu: 1 });
     tl.to(6.0, { az: 63, pitch: -10, yaw: 80 });
 
@@ -260,6 +309,7 @@ export const estrella: Escena = {
         capas.u.uPiensa.value = tl.get('piensa', p);
         capas.u.uSale.value = tl.get('sale', p);
         capas.u.uFrio.value = tl.get('frio', p);
+        flujo.u.uFlujo.value = tl.get('flujo', p) * (1 - tl.get('frio', p));
         red.u.uK.value = tl.get('forma', p);
         red.u.uRed.value = tl.get('red', p);
         red.u.uFrioR.value = tl.get('frio', p);
