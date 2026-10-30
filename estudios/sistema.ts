@@ -7,8 +7,9 @@ import { HORIZONTE, TEAL, caraHacia, dirLatLon, potencia } from './remake';
 import { angulos, aplicarToma, toma } from './rig';
 import { crearChispa, montar, type Camino } from './chispa';
 import { CARA } from './tierra';
+import { enfocarMarcas, marcas, orbitas, rotularMapa, type RotuloMapa } from './revelar';
 import { M, RM } from './mercurio';
-import type { Rotulo } from './placa';
+import type { Cuenta, Rotulo } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
 
 /**
@@ -225,8 +226,13 @@ function cinturonDatos(): MateriaData {
 export const sistema: Escena = {
   id: 'sistema',
   nombre: 'III · El sistema solar trabaja',
-  estilos: [{ key: '1', nombre: 'Guion', nota: 'El cilindro por fuera y por dentro, Marte con sus espejos y cúpulas, todo a la vez, Venus y sus ciudades.' }],
-  montar(stage): Instancia {
+  // The study of «revelar» (30 Oct): three ways to show, once an act, everything we reach.
+  estilos: [
+    { key: '1', nombre: 'Potencias de diez', nota: 'Revelar: la cámara suelta la chispa y se aleja de un tirón, década tras década, hasta que cabe todo lo nuestro. Venus queda como un punto.' },
+    { key: '2', nombre: 'Mirar atrás', nota: 'Revelar: la cámara se queda con la chispa, pero se da vuelta y ve lo que deja atrás: Venus, la Tierra, Marte, los hilos.' },
+    { key: '3', nombre: 'El mapa', nota: 'Revelar: la cámara sube hasta mirar desde arriba, como una lámina: las órbitas, los nombres, lo nuestro en verde agua.' },
+  ],
+  montar(stage, estilo): Instancia {
     const root = stage.root;
     const { camera } = stage;
     stage.bloom.strength = 0.7;
@@ -370,6 +376,28 @@ export const sistema: Escena = {
       marteVenus: hilo(llegaMarte, VE.clone().add(V(0.2, 0.45, 0.3)), 9000, 0.05, 0.08),
     };
     for (const h of Object.values(hilos)) add(h.nube);
+
+    // Revealing: the orbits, a mark on each world (ours ringed in teal; Mercury's ring when the spark gets there).
+    const orbs = add(orbitas([{ r: M.length() }, { r: VE.length() }, { r: E.length() }, { r: Math.hypot(MA.x, MA.z), y: MA.y }]));
+    const AZUL = new THREE.Color(0.45, 0.68, 1.0);
+    const nuestras = add(
+      marcas([
+        { pos: E, R: RE, color: AZUL, nuestro: true },
+        { pos: MA, R: RMA, color: new THREE.Color(1.0, 0.52, 0.32), nuestro: true },
+        { pos: VE, R: RV, color: new THREE.Color(1.0, 0.88, 0.62), nuestro: true },
+      ]),
+    );
+    const mercMarca = add(marcas([{ pos: M, R: RM, color: new THREE.Color(0.78, 0.74, 0.7) }]));
+    const mercAro = add(marcas([{ pos: M, R: RM, color: new THREE.Color(0.78, 0.74, 0.7), nuestro: true }]));
+    const ROTULOS: RotuloMapa[] = [
+      { pos: V(), texto: 'Sol', dx: -34, dy: 30 },
+      { pos: M, texto: 'Mercurio', dx: -40, dy: -26 },
+      { pos: VE, texto: 'Venus · ciudades en las nubes', dx: -30, dy: -40, nuestro: true },
+      { pos: E, texto: 'Tierra · el anillo', dx: 26, dy: -44, nuestro: true },
+      { pos: C, texto: 'Un mundo que gira', dx: 34, dy: 62, nuestro: true },
+      { pos: MA, texto: 'Marte · cúpulas', dx: 30, dy: -34, nuestro: true },
+      { pos: enOrbita(61, 120), texto: 'El cinturón · minas', dx: 22, dy: -24 },
+    ];
     const listo = Promise.all(cuerpos.map((x) => x.c.listo).concat(sol.listo));
 
     // ---------------------------------------------------------------- the moments (GUION.md 20–24)
@@ -401,6 +429,10 @@ export const sistema: Escena = {
       return p1.sub(p0).normalize();
     })();
     const ladoM = eM.clone().multiplyScalar(eM.dot(D) > 0 ? -1 : 1);
+    // The reveal: everything ours in one frame (centred between the Sun and Mars).
+    const CMAPA = V(20, 0, -14);
+    // Looking back (way 2): towards where the spark comes from.
+    const ATRAS = VE.clone().add(E).add(MA).multiplyScalar(1 / 3);
     const c0Merc = M.clone().addScaledVector(ladoM.clone().addScaledVector(Y, 0.3).addScaledVector(rM, 0.25).normalize(), 1.75);
 
     // The spark's way (GUION.md v2, 22–26): from the Earth's ring to the cylinder (ch 0..1), along its
@@ -414,7 +446,7 @@ export const sistema: Escena = {
       if (sv <= 4) return hilos.marteVenus.arco.en(sv - 3, out);
       return hilos.venusMerc.arco.en(Math.min(1, sv - 4), out);
     };
-    tl.set({ ...Cn(E), ox: 0, oy: 0, oz: 0, az: fin7.az, el: fin7.el, ld: Math.log10(23 * RE), yaw: 90, pitch: -90, roll: 0, fov: 34, mw: 0, lw: 0, ch: 0, on: 1, cil: 0, mar: 0, todo: 0, ven: 0, sombra: 0, anillo: 1, h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0, vel: 0 });
+    tl.set({ ...Cn(E), ox: 0, oy: 0, oz: 0, az: fin7.az, el: fin7.el, ld: Math.log10(23 * RE), yaw: 90, pitch: -90, roll: 0, fov: 34, mw: 0, lw: 0, ch: 0, on: 1, cil: 0, mar: 0, todo: 0, ven: 0, sombra: 0, anillo: 1, h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0, vel: 0, mapa: 0, nombres: 0, vuelta: 0 });
 
     // From the ring, a beam carries the spark to a world that turns, seen from outside.
     tl.label('giran').caption(5.4, 'Mundos que giran', 'Para vivir lejos de la Tierra hacen falta mundos que giren: el giro hace de gravedad.');
@@ -448,15 +480,47 @@ export const sistema: Escena = {
     tl.to(3.6, { ...rel(VE, VE.clone().addScaledVector(solVenus.clone().applyAxisAngle(Y, D2R(-30)).addScaledVector(Y, 0.18).normalize(), RV * 1.12)), pitch: -12, yaw: 60, fov: 48 });
 
     // The reveal: all the inner system woven with threads, the spark one point on its way to Mercury.
-    tl.label('todo').caption(6.4, 'Todo a la vez', 'Todo ocurre a la vez: la Luna lanza roca, se minan los asteroides y, cerca del Sol, crece un enjambre.');
+    const TODO = 'Todo ocurre a la vez: la Luna lanza roca, se minan los asteroides y, cerca del Sol, crece un enjambre.';
+    tl.label('todo').caption(9.6, 'Todo a la vez', TODO);
     tl.with(1.6, { todo: 1, h3: 1, h4: 1, h5: 1, ven: 0 });
-    luego(1.0, 2.0, { ...Cn(V()) });
-    luego(0.6, 5.2, { ch: 5 });
-    tl.to(3.4, { az: 150, el: 52, ld: Math.log10(105), pitch: -90, yaw: 90, fov: 36 });
+    const llegaM = estilo === 1 ? 11.0 : 8.0;
+    luego(0.4, llegaM - 0.4, { ch: 5 });
+    if (estilo === 0) {
+      // Powers of ten: straight down at Venus, then out decade after decade (a little speed blur for
+      // the vertigo); the centre slides to the whole once the distance is there. Then still.
+      tl.with(1.4, { pitch: -90, yaw: 90 });
+      luego(0.3, 4.6, { ld: Math.log10(105), el: 50, az: -30, fov: 36 });
+      luego(0.9, 1.4, { vel: 0.35 });
+      luego(2.3, 1.6, { vel: 0 });
+      luego(2.6, 2.4, { ...Cn(CMAPA) });
+      luego(2.2, 2.0, { mapa: 1 });
+      tl.wait(4.9);
+      tl.to(3.6, { az: -24 });
+    } else if (estilo === 1) {
+      // Looking back: on the spark again as it leaves Venus; the camera swings round ahead of it and
+      // looks back at everything it leaves; then turns forward again.
+      tl.with(1.6, { lw: 1, mw: 1, fov: 44 });
+      luego(1.4, 3.4, { vuelta: 1, fov: 60 });
+      luego(2.4, 2.0, { mapa: 1 });
+      // (Out of sight while it rides: the rig waits where Mercury's scene starts.)
+      luego(2.0, 0.5, { ...Cn(M), ...rel(M, c0Merc), pitch: -90, yaw: 90 });
+      tl.wait(7.8);
+      tl.to(2.0, { vuelta: 0, fov: 44 });
+    } else {
+      // The map: up until it looks straight down, like a plate (the orbits, the names); then still.
+      tl.with(1.4, { pitch: -90, yaw: 90 });
+      luego(0.3, 4.4, { ld: Math.log10(80), el: 89.5, az: 0, fov: 36 });
+      luego(2.4, 2.4, { ...Cn(CMAPA) });
+      luego(2.0, 2.0, { mapa: 1 });
+      luego(3.6, 1.4, { nombres: 1 });
+      tl.wait(5.0);
+      tl.to(3.6, { az: 2 });
+    }
     // And down to Mercury, where its scene starts.
-    tl.with(1.2, { ...Cn(M) });
+    tl.with(1.2, { ...Cn(M), mapa: 0, nombres: 0 });
     luego(1.6, 1.4, { todo: 0.3, h3: 0.3, h4: 0.3 });
-    tl.to(3.0, { ...rel(M, c0Merc), fov: 40 });
+    if (estilo === 1) tl.to(2.6, { lw: 0, mw: 0, fov: 40 });
+    else tl.to(3.0, { ...rel(M, c0Merc), fov: 40 });
 
     const chispa = crearChispa();
     root.add(chispa.nube.points);
@@ -474,13 +538,20 @@ export const sistema: Escena = {
         return { vel: tl.get('vel', p) };
       },
       cuenta(p) {
-        if (p < tl.at('marte')) return potencia(16.3);
-        if (p < tl.at('todo')) return potencia(16.5);
-        return potencia(16.7);
+        const c: Cuenta = p < tl.at('marte') ? potencia(16.3) : p < tl.at('todo') ? potencia(16.5) : potencia(16.7);
+        // How far we reach: a world more each time the spark gets to one.
+        const pasos = [tl.at('giran') + 4.6, tl.at('marte') + 3.2, tl.at('venus') + 3.4, tl.at('todo') + llegaM - 0.1];
+        const n = pasos.filter((x) => p >= x).length;
+        c.alcance = n === 0 ? '1 mundo' : `${n + 1} mundos`;
+        c.nuevo = n > 0 ? 1 - THREE.MathUtils.smoothstep(p, pasos[n - 1], pasos[n - 1] + 1.8) : 0;
+        return c;
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);
         return c ? { capitulo: 'III · El sistema solar trabaja', name: c.name, fact: c.fact } : null;
+      },
+      placa(g, f) {
+        rotularMapa(g, f, ROTULOS, tl.get('nombres', f.p), 'El sistema solar interior');
       },
       update(f: Frame) {
         const p = f.p;
@@ -496,6 +567,27 @@ export const sistema: Escena = {
         mira.copy(m.mira);
         const centro = V(tl.get('cx', p), tl.get('cy', p), tl.get('cz', p));
         if (lw < 0.999) mira.lerp(centro, 1 - lw);
+        // Way 2: round from behind the spark to ahead of it, raised, looking back past it.
+        const vuelta = tl.get('vuelta', p);
+        if (vuelta > 0.0005) {
+          const aqui = caminoCh(ch, V());
+          const tg = caminoCh(ch + 0.01, V()).sub(aqui).normalize();
+          const lado = Y.clone().cross(tg).normalize();
+          const th = Math.PI * vuelta;
+          const dist = 0.5 + 2.0 * vuelta;
+          const giro = tg.clone().multiplyScalar(-Math.cos(th)).addScaledVector(lado, Math.sin(th)).multiplyScalar(dist).addScaledVector(Y, 0.04 + 1.5 * vuelta);
+          const w = Math.min(1, vuelta * 6);
+          lugar.lerp(aqui.clone().add(giro), w);
+          // The gaze: through the spark, then (ahead of it) level out to 12° down and turn a little
+          // towards what it leaves, so the spark sits low in the frame and the system fills the rest.
+          const aSpark = aqui.clone().sub(lugar);
+          const hor = aSpark.clone().setY(0).normalize();
+          const haciaAtras = ATRAS.clone().sub(lugar).setY(0).normalize();
+          hor.lerp(haciaAtras, 0.4 * vuelta).normalize();
+          const baja = THREE.MathUtils.lerp(Math.atan2(-aSpark.y, Math.hypot(aSpark.x, aSpark.z)), THREE.MathUtils.degToRad(12), vuelta);
+          const gaze = hor.multiplyScalar(Math.cos(baja)).addScaledVector(Y, -Math.sin(baja));
+          mira.copy(lugar).addScaledVector(gaze, 10);
+        }
         aplicarToma(camera, toma(tl, p, tm, { punto: mira, peso: mw }, { punto: lugar, peso: lw }));
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
@@ -510,7 +602,8 @@ export const sistema: Escena = {
           x.c.group.visible = !lejos || x.R > 0.3;
           x.c.update({ sol: solL, camara: camL, focal: f.focal, dpr: f.dpr, tiempo: t, presencia: 1 });
         }
-        cilindro.u.uCil.value = tl.get('cil', p);
+        const lejosDe = (q: THREE.Vector3, d0: number, k = 1) => Math.min(1, Math.pow(d0 / Math.max(1e-6, camera.position.distanceTo(q)), k));
+        cilindro.u.uCil.value = tl.get('cil', p) * lejosDe(C, 5, 2);
         chispa.update(caminoCh, ch, enCil ? 0.0025 : 0.0012, tl.get('on', p), 0, camera.position, f.focal, f.dpr, t);
         hilos.marteVenus.nube.u.uOn.value = Math.max(tl.get('h6', p), tl.get('todo', p));
         marteN.u.uMar.value = tl.get('mar', p);
@@ -519,17 +612,27 @@ export const sistema: Escena = {
         venusN.u.uSombra.value = tl.get('sombra', p);
         venusN.u.uCamL.value.copy(camera.position).sub(VE).divideScalar(RV);
         cinturon.u.uTodo.value = tl.get('todo', p);
+        const mapa = tl.get('mapa', p);
+        orbs.u.uOn.value = mapa;
         marteN.u.uSizeUnit.value = RMA;
         venusN.u.uSizeUnit.value = RV;
         anillo.u.uSizeUnit.value = RE;
-        anillo.u.uGain.value = tl.get('anillo', p);
+        anillo.u.uGain.value = tl.get('anillo', p) * lejosDe(E, 10, 1);
         hilos.tierraCil.nube.u.uOn.value = tl.get('h1', p);
         hilos.cilMarte.nube.u.uOn.value = Math.max(tl.get('h2', p), tl.get('todo', p));
         for (const h of [hilos.luna, hilos.cinturon, hilos.venus]) h.nube.u.uOn.value = Math.max(tl.get('h3', p), tl.get('todo', p));
         hilos.mercurio.nube.u.uOn.value = tl.get('h4', p);
         hilos.venusMerc.nube.u.uOn.value = tl.get('h5', p);
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
-        for (const h of Object.values(hilos)) h.nube.u.uMaxPx.value = 3 * f.dpr;
+        // Mercury's ring once the spark is there.
+        const llego = THREE.MathUtils.smoothstep(ch, 4.9, 5.0);
+        enfocarMarcas(nuestras, f.dpr, mapa);
+        enfocarMarcas(mercMarca, f.dpr, mapa * (1 - llego));
+        enfocarMarcas(mercAro, f.dpr, mapa * llego);
+        for (const h of Object.values(hilos)) {
+          h.nube.u.uMaxPx.value = 3 * f.dpr;
+          h.nube.u.uGain.value = lejosDe(h.arco.c, 14, 0.9);
+        }
         cinturon.u.uMaxPx.value = 3 * f.dpr;
       },
       dispose() {},

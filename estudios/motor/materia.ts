@@ -118,6 +118,8 @@ export interface MateriaOpts {
   extra?: Record<string, [Float32Array, number]>;
   /** Square points instead of round ones. */
   cuadro?: boolean;
+  /** A fragment shader of its own (it gets `vEm` and `vOcc`, and any varying `pre` declares). */
+  frag?: string;
 }
 
 export type Nube = ReturnType<typeof materia>;
@@ -149,7 +151,7 @@ export function materia(data: MateriaData, o: MateriaOpts = {}) {
   };
   const mat = new THREE.ShaderMaterial({
     vertexShader: VERT(o.pre ?? '', o.move ?? '', o.post ?? ''),
-    fragmentShader: o.cuadro ? FRAG_CUADRO : FRAG,
+    fragmentShader: o.frag ?? (o.cuadro ? FRAG_CUADRO : FRAG),
     uniforms: { ...u, ...(o.uniforms ?? {}) },
     transparent: true,
     depthTest: false,
