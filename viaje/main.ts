@@ -228,7 +228,7 @@ addEventListener('keydown', (ev) => {
   if (k === 'l') switchLang();
 });
 let leido = '';
-let marcaOn = !params.has('limpio');
+let marcaOn = params.has('marca');
 addEventListener('keydown', (ev) => {
   if (!ev.metaKey && !ev.ctrlKey && !ev.altKey && ev.key.toLowerCase() === 'm') marcaOn = !marcaOn;
 });
@@ -446,8 +446,8 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
     leer.textContent = dicho;
   }
   outroEl.classList.toggle('is-in', !fixed && (inst.outro?.(p) ?? 0) > 0.5);
-  // While the work is being reviewed: the beat, small, bottom right, so a moment can be named by its
-  // number («193.4»). M hides it; ?limpio starts without it. (Off before publishing.)
+  // For reviewing: the beat, small, bottom right, so a moment can be named by its number («193.4»).
+  // Off unless ?marca; M toggles it.
   if (marcaOn && !fixed) {
     g.save();
     g.font = FONT.mono(11 * u);
