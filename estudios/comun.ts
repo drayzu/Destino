@@ -107,7 +107,7 @@ export const logLerp = (a: number, b: number, t: number) => Math.exp(Math.log(a)
  * of field galaxies. `aFrom` holds each point's knot (for scenes that pull matter in); the second
  * array is a uniform random place in the ball for each point (for scenes that dissolve it).
  */
-export function redCosmica(seed: number, nodos = 90, col = (t: number, out: THREE.Color) => out.setRGB(1, 0.92 - 0.12 * t, 0.78 - 0.2 * t)) {
+export function redCosmica(seed: number, nodos = 90, col = (t: number, out: THREE.Color) => out.setRGB(1, 0.92 - 0.12 * t, 0.78 - 0.2 * t), espirales = false) {
   const b = materiaBuilder(seed);
   const r = b.r;
   const g = () => (r() + r() + r() + r() - 2) * 0.866;
@@ -125,7 +125,26 @@ export function redCosmica(seed: number, nodos = 90, col = (t: number, out: THRE
     azar.push(a * q, e * q, o * q);
   };
   for (const n of ns) {
-    for (let k = 0; k < 80; k++) punto(n.x + g() * 0.022, n.y + g() * 0.022, n.z + g() * 0.022, n, 0.1, 0.006, 0.6);
+    if (espirales) {
+      // A spiral galaxy: a bright bulge, two arms in a tilted disc.
+      const [ex, ey, ez] = b.onSphere();
+      const eje = V(ex, ey, ez);
+      const t1 = V(0, 1, 0).cross(eje).normalize();
+      if (t1.lengthSq() < 1e-6) t1.set(1, 0, 0);
+      const t2 = eje.clone().cross(t1);
+      const R = 0.014 + r() * 0.01;
+      const giro = r() * Math.PI * 2;
+      for (let k = 0; k < 300; k++) {
+        if (k < 70) {
+          punto(n.x + g() * R * 0.18, n.y + g() * R * 0.18, n.z + g() * R * 0.18, n, 0, 0.004, 1.0);
+          continue;
+        }
+        const q = Math.sqrt(r()) * R;
+        const brazo = (k % 2) * Math.PI + giro + Math.log(q / R + 0.05) * 2.4 + g() * 0.35;
+        const pp = n.clone().addScaledVector(t1, Math.cos(brazo) * q).addScaledVector(t2, Math.sin(brazo) * q).addScaledVector(eje, g() * R * 0.05);
+        punto(pp.x, pp.y, pp.z, n, 0.15 + 0.4 * (q / R), 0.003, 0.55);
+      }
+    } else for (let k = 0; k < 80; k++) punto(n.x + g() * 0.022, n.y + g() * 0.022, n.z + g() * 0.022, n, 0.1, 0.006, 0.6);
     const cerca = ns.filter((m) => m !== n).sort((a, z) => a.distanceTo(n) - z.distanceTo(n)).slice(0, 3);
     for (const m of cerca) {
       const kk = Math.round(m.distanceTo(n) * 230);
