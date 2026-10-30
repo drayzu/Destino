@@ -201,10 +201,13 @@ function enjambreDatos(n: number) {
   const v = V();
   for (let i = 0; i < n; i++) {
     const [x, y, z] = b.onSphere();
-    const nrm = v.set(x, y, z).clone();
+    // (a sixth of them in a dense band of low orbits round the equator, where the camera flies
+    // among them: the nearest pass large)
+    const banda = i % 6 === 0;
+    const nrm = banda ? V(gauss(b.r) * 0.12, b.r() < 0.5 ? 1 : -1, gauss(b.r) * 0.12).normalize() : v.set(x, y, z).clone();
     const u = Math.abs(nrm.y) < 0.9 ? Y.clone().cross(nrm).normalize() : V(1, 0, 0).cross(nrm).normalize();
     const w = nrm.clone().cross(u);
-    const R = Math.sqrt(2.5 * 2.5 + b.r() * (3.6 * 3.6 - 2.5 * 2.5));
+    const R = banda ? 2.75 + b.r() * 0.5 : Math.sqrt(2.5 * 2.5 + b.r() * (3.6 * 3.6 - 2.5 * 2.5));
     const th = b.r() * Math.PI * 2;
     b.push(Math.cos(th) * R * u.x + Math.sin(th) * R * w.x, Math.cos(th) * R * u.y + Math.sin(th) * R * w.y, Math.cos(th) * R * u.z + Math.sin(th) * R * w.z, 0xffffff, 0.011 + b.r() * 0.008, 1, { delay: b.r(), ink: 1 });
     U.push(u.x, u.y, u.z);
@@ -222,6 +225,7 @@ export function enjambreNube(teal: boolean): Nube {
           attribute vec3 aU, aV, aO;
           uniform vec3 uCam, uBase;
           uniform float uCubre, uIR;
+          varying float vAng;
         `,
         move: /* glsl */ `
           float th = aO.y + aO.z * uTime;
@@ -238,6 +242,23 @@ export function enjambreNube(teal: boolean): Nube {
           em += vec3(0.42, 0.09, 0.025) * uIR * (1.0 - 0.6 * frente);
           em *= on;
           occ = 0.92 * on;
+          vAng = seed * 6.2831853 + uTime * (fract(seed * 7.3) - 0.5) * 0.6;
+        `,
+        // (each collector a flat panel: a square, turned its own way, its rim a little brighter)
+        frag: /* glsl */ `
+          varying vec3 vEm;
+          varying float vOcc;
+          varying float vAng;
+          void main() {
+            vec2 c = gl_PointCoord - 0.5;
+            float ca = cos(vAng);
+            float sa = sin(vAng);
+            c = vec2(ca * c.x - sa * c.y, sa * c.x + ca * c.y) * vec2(1.0, 1.45);
+            float m = max(abs(c.x), abs(c.y));
+            float f = 1.0 - smoothstep(0.27, 0.33, m);
+            float borde = smoothstep(0.2, 0.3, m) * f;
+            gl_FragColor = vec4(vEm * f * (0.85 + 0.6 * borde), vOcc * f);
+          }
         `,
         uniforms: { uCam: { value: V() }, uBase: { value: teal ? TEAL.clone().multiplyScalar(0.16) : new THREE.Color(0.02, 0.022, 0.028) }, uCubre: { value: 0 }, uIR: { value: 0 } },
         extra: { aU: [ed.U, 3], aV: [ed.W, 3], aO: [ed.O, 3] },
@@ -399,10 +420,15 @@ export const mercurio: Escena = {
     const fuera = (sv: number) => camino(sv).addScaledVector(Y, 0.08).addScaledVector(Y.clone().cross(camino(sv + 0.001).sub(camino(sv)).normalize()), 0.05);
     const c3 = rigDe(fuera(0.04));
     // Off the river, outside the swarm, the Sun ahead; then far away.
+    // Inside the shell, round the Sun: where the river leaves the camera, and further round.
+    const enOrbitaSol = (ang: number, r: number, y: number) => V(Math.sin(ang) * r, y, Math.cos(ang) * r);
+    const angRio = PHI0 + PHI * 0.93;
+    const dentroA = rigDe(enOrbitaSol(angRio + 0.25, 3.05, 0.35));
+    const dentroB = rigDe(enOrbitaSol(angRio + 1.25, 2.9, -0.25));
     const c5 = rigDe(V(Math.sin(PHI0 + PHI * 0.86), 0.32, Math.cos(PHI0 + PHI * 0.86)).multiplyScalar(6.4));
     const c6 = rigDe(V(Math.sin(PHI0 + PHI * 0.86 + 0.5), 0.3, Math.cos(PHI0 + PHI * 0.86 + 0.5)).multiplyScalar(5.6));
     const lejos = rigDe(LEJOS);
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, ...c0, yaw: 0, pitch: -40, roll: 0, fov: 40, mm: 0, ms: 0, lw: 0, sc: 0, lr: 0, cv: 0, mina: 0, riel: 0, rio: 0, rioOn: 1, cubre: 0, ir: 0, mapa: 0, nombres: 0 });
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, ...c0, yaw: 0, pitch: -40, roll: 0, fov: 40, mm: 0, ms: 0, lw: 0, sc: 0, lr: 0, cv: 0, vel: 0, mina: 0, riel: 0, rio: 0, rioOn: 1, cubre: 0, ir: 0, mapa: 0, nombres: 0 });
 
     tl.label('mina').caption(4.8, 'Desarmar Mercurio', 'Para el enjambre hace falta materia. Máquinas que se copian deshacen Mercurio en menos de una vida.');
     luego(0.3, 4.4, { mina: 0.62 });
@@ -421,13 +447,22 @@ export const mercurio: Escena = {
     tl.with(1.4, { lr: 0, lw: 1 });
     tl.to(3.0, { ...c3, sc: 0.04, fov: 40 });
 
-    tl.label('pared').caption(7.6, 'La pared que tapa el Sol', 'No es una cáscara: es un enjambre, cada colector en su órbita. Desde afuera, el Sol se va apagando.');
+    // The river carries the camera into the swarm's shell; off it, round the Sun among the
+    // collectors (they cross its face, dark; they flash as they turn their light to us); and out
+    // through the shell as it closes: from outside, the Sun goes out behind it.
+    tl.label('pared').caption(12.6, 'La pared que tapa el Sol', 'No es una cáscara: es un enjambre, cada colector en su órbita. Desde afuera, el Sol se va apagando.');
     luego(0, 3.6, { rio: 1 });
-    tl.to(3.4, { sc: 0.7 });
-    // Off the river: outside the swarm, round the Sun, while it closes.
-    luego(-0.6, 6.0, { cubre: 1 });
-    tl.to(1.8, { ...c5, lw: 0, ms: 1 });
-    tl.to(2.4, { ...c6 });
+    luego(0.4, 6.4, { cubre: 0.8 });
+    tl.to(4.2, { sc: 0.93 });
+    luego(-1.2, 1.4, { vel: 0.3 });
+    // (the gaze settles on the Sun first, still on the river; then the camera leaves the river)
+    luego(-0.8, 1.0, { ms: 1 });
+    tl.with(1.8, { lw: 0, ...dentroA, fov: 52 });
+    luego(1.4, 1.4, { vel: 0 });
+    tl.to(3.6, { ...dentroB });
+    luego(0.4, 3.0, { cubre: 1 });
+    tl.to(2.2, { ...c5, ms: 1, fov: 40 });
+    tl.to(2.6, { ...c6 });
 
     // The reveal: far out, the whole system ours, the Sun dim in its swarm; the names a moment; still.
     tl.label('lejos').caption(8.0, 'Visto desde lejos', 'Desde otra estrella, un Sol así se vería débil y tibio. Así buscamos a otros. Hasta ahora, nadie.');
@@ -464,6 +499,9 @@ export const mercurio: Escena = {
       entrada: { pos: M.clone(), escala: RM },
       salida: { pos: V(), escala: 1 },
       escalera: false,
+      efectos(p) {
+        return { vel: tl.get('vel', p) };
+      },
       cuenta(p) {
         const c: Cuenta = p < tl.at('catapulta') ? potencia(16.6) : p < tl.at('pared') ? potencia(17.4) : potencia(18 + 8.58 * tl.get('cubre', p));
         // How far we reach: the five worlds, then the Sun itself, once the swarm closes.
@@ -549,6 +587,8 @@ export const mercurio: Escena = {
         rielM.u.uOcc.value.set(mercV.x, mercV.y, mercV.z, RM * 0.998);
         cargas.u.uOcc.value.set(mercV.x, mercV.y, mercV.z, RM * 0.998);
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
+        // (among the collectors, the nearest pass large)
+        enjambre.u.uMaxPx.value = 70 * f.dpr;
         const mapa = tl.get('mapa', p);
         orbs.u.uOn.value = mapa;
         enfocarMarcas(lasMarcas, f.dpr, mapa);
