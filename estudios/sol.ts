@@ -27,6 +27,8 @@ const PLASMA = new THREE.Color(1.0, 0.62, 0.28);
 /** Which way the mirror pushes (it sits on this side, the Sun moves away from it). */
 const EMPUJE = V(-1, 0, 0.25).normalize();
 const R_ESPEJO = 7.5;
+/** How far ahead of the spark the orbiting camera goes round (radians): the spark keeps to the left. */
+const ADELANTO = THREE.MathUtils.degToRad(26);
 
 /** The jets off the poles: grains with a phase (`aKind`), a pole (`aDelay` < 0.5 south) and a place across (`aOff`); and the rings that gather them. */
 function chorrosDatos() {
@@ -212,16 +214,21 @@ export const solTrabajado: Escena = {
     const lejos = angulos(LEJOS);
     const MUEVE = 3.2;
     const fin = EMPUJE.clone().multiplyScalar(MUEVE);
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: lejos.az, el: lejos.el, ld: Math.log10(LEJOS.length()), yaw: 90, pitch: -90, roll: 0, fov: 30, ir: 1, vida: 0, encoge: 0, esp: 0, mueve: 0, satura: 0 });
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: lejos.az, el: lejos.el, ld: Math.log10(LEJOS.length()), yaw: 90, pitch: -90, roll: 0, fov: 30, ir: 1, vida: 0, encoge: 0, esp: 0, mueve: 0, satura: 0, orb: 0, oR: Math.log10(8), oEl: 12 });
 
     tl.label('vida').caption(7.4, 'Alargar la vida del Sol', 'Una estrella también se cuida: con menos masa arde más despacio, y vive más.');
     tl.with(2.0, { ir: 0 });
     luego(1.2, 2.4, { vida: 1 });
     luego(3.6, 3.0, { encoge: 1 });
+    // The orbit: the camera goes round the Sun at the spark's pace, a little ahead of it, so the
+    // spark stays in the left of the frame, going right, the Sun and all that works on it behind.
+    luego(0.4, 3.6, { orb: 1 });
+    luego(0, 7.4, { oR: Math.log10(6.4), oEl: 20 });
     tl.to(3.6, { az: lejos.az + 30, el: 14, ld: Math.log10(12), fov: 40 });
     // (up beside the north jet: the matter lifted off the pole, gathered by our ring)
     tl.to(3.8, { az: lejos.az + 62, el: 44, ld: Math.log10(6.2) });
 
+    luego(0, 7.6, { oR: Math.log10(11.5), oEl: 10 });
     tl.label('mover').caption(7.6, 'Mover el Sol', 'Y se puede mover: un espejo le devuelve parte de su luz y lo empuja, despacio.');
     tl.with(2.4, { esp: 1 });
     luego(2.8, 4.8, { mueve: MUEVE, cx: fin.x, cy: fin.y, cz: fin.z });
@@ -232,6 +239,7 @@ export const solTrabajado: Escena = {
     tl.to(4.2, { az: abierto + 12, el: 20, ld: Math.log10(21) });
 
     tl.label('tipo').caption(5.6, 'Tipo II', 'Toda la luz del Sol: tipo II. Y la estrella ya no alcanza.');
+    luego(0.4, 4.2, { orb: 0 });
     luego(1.0, 2.4, { satura: 1 });
     luego(1.6, 3.0, { ir: 1 });
     tl.to(5.6, { az: lejos.az + 150, el: 30, ld: 2.2, fov: 34 });
@@ -258,10 +266,19 @@ export const solTrabajado: Escena = {
         const t = f.time;
         camera.near = 1e-4;
         camera.far = 4000;
-        aplicarToma(camera, toma(tl, p, tm));
+        const mueve0 = tl.get('mueve', p);
+        const centro = EMPUJE.clone().multiplyScalar(mueve0);
+        const orb = tl.get('orb', p);
+        if (orb > 0.0005) {
+          const A = p * 0.18 * 2.2 + ADELANTO;
+          const R = Math.pow(10, tl.get('oR', p));
+          const el = THREE.MathUtils.degToRad(tl.get('oEl', p));
+          const sitio = centro.clone().add(V(Math.sin(A) * Math.cos(el), Math.sin(el), Math.cos(A) * Math.cos(el)).multiplyScalar(R));
+          aplicarToma(camera, toma(tl, p, tm, { punto: centro, peso: orb }, { punto: sitio, peso: orb }));
+        } else aplicarToma(camera, toma(tl, p, tm));
         // The spark keeps going round among the collectors; at type II it has nowhere left to go: it flickers.
-        const camM = camera.position.clone().sub(EMPUJE.clone().multiplyScalar(tl.get('mueve', p)));
-        chispa.update(caminoCh, p * 0.18 * (1 + 1.5 * tl.get('satura', p)), 0.01, 1, tl.get('satura', p), camM, f.focal, f.dpr, f.time);
+        const camM = camera.position.clone().sub(EMPUJE.clone().multiplyScalar(mueve0));
+        chispa.update(caminoCh, p * 0.18, 0.01, 1, tl.get('satura', p), camM, f.focal, f.dpr, f.time);
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
 
