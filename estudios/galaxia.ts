@@ -4,6 +4,7 @@ import { enfocar, materia, materiaBuilder, type MateriaData, type Nube } from '.
 import { gauss } from './motor/math';
 import { TEAL, potencia } from './remake';
 import { aplicarToma, toma } from './rig';
+import { crearChispa, montar, type Camino } from './chispa';
 import { S, brazo, galaxiaDatos, polvoDatos } from './apertura';
 import type { Rotulo } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
@@ -202,15 +203,37 @@ export const galaxia: Escena = {
     };
     const Cn = (v: THREE.Vector3) => ({ cx: v.x, cy: v.y, cz: v.z });
     const D0 = 0.0006;
-    tl.set({ ...Cn(Q), ox: 0, oy: 0, oz: 0, az: 120, el: 10, ld: Math.log10(D0), yaw: 90, pitch: -90, roll: 0, fov: 40, bur: 0, ir: 0, gal: 1, zoo: 0, callan: 0, calla: 0, filtro: 0, una: 0 });
+    // The spark's way (GUION.md v2, 39–45): copied from star to star outward from the ship (ch 0..1);
+    // then to each encounter (2, 3, 4) and to the single star at the edge (5).
+    const fuera = S.clone().setY(0).normalize();
+    const lado = V(0, 1, 0).cross(fuera).normalize();
+    const saltos = new THREE.CatmullRomCurve3([
+      Q.clone(),
+      Q.clone().addScaledVector(fuera, 0.25).addScaledVector(lado, 0.12).add(V(0, 0.02, 0)),
+      Q.clone().addScaledVector(fuera, 0.7).addScaledVector(lado, -0.1).add(V(0, -0.03, 0)),
+      Q.clone().addScaledVector(fuera, 1.3).addScaledVector(lado, 0.3).add(V(0, 0.04, 0)),
+      Q.clone().addScaledVector(fuera, 2.2).addScaledVector(lado, 0.1).add(V(0, 0.0, 0)),
+    ]);
+    const paradas = [saltos.getPoint(1), ZOO.clone().add(V(0.002, 0.0006, 0.001)), CALLAN.clone().add(V(0.004, 0.002, 0)), FILTRO.clone().add(V(0.004, 0.0012, 0.001)), UNA.clone().add(V(-0.0006, 0, 0))];
+    const caminoCh: Camino = (sv, out) => {
+      if (sv <= 1) return out.copy(saltos.getPoint(Math.max(0, sv)));
+      const i = Math.min(Math.floor(sv - 1), paradas.length - 2);
+      const t = THREE.MathUtils.smoothstep(sv - 1 - i, 0, 1);
+      return out.copy(paradas[i]).lerp(paradas[i + 1], t);
+    };
+    tl.set({ ...Cn(Q), ox: 0, oy: 0, oz: 0, az: 120, el: 10, ld: Math.log10(D0), yaw: 90, pitch: -90, roll: 0, fov: 40, bur: 0, ir: 0, gal: 1, zoo: 0, callan: 0, calla: 0, filtro: 0, una: 0, ch: 0, lw: 0, tit: 0 });
 
-    tl.label('freno').caption(5.4, 'La luz pone el freno', 'La luz tarda cien mil años en cruzar la galaxia. Desde aquí, el tiempo se mide en millones de años.');
-    luego(2.4, 2.6, { ...Cn(S.clone().lerp(G, 0.35)) });
-    tl.to(5.4, { ld: 1.75, el: 46, az: 150 });
+    // Copied from star to star: the camera rides one branch, the stars it touches turn ours.
+    tl.label('burbuja').caption(6.4, 'La burbuja', 'Sondas que se copian en cada estrella que tocan. Aunque vayan lento, el movimiento de las estrellas las reparte.');
+    tl.with(1.2, { lw: 1 });
+    tl.to(6.4, { ch: 1 });
 
-    tl.label('burbuja').caption(5.8, 'La burbuja', 'Sondas que se copian en cada estrella que tocan. Aunque vayan lento, el movimiento de las estrellas las reparte.');
-    tl.with(5.8, { bur: 34 });
-    tl.to(5.8, { ...Cn(S.clone().lerp(G, 0.5)), ld: 1.62, el: 34, az: 185 });
+    // The reveal: far back, the bubble spreads over the galaxy.
+    tl.label('freno').caption(5.8, 'La luz pone el freno', 'La luz tarda cien mil años en cruzar la galaxia. Desde aquí, el tiempo se mide en millones de años.');
+    tl.with(1.4, { lw: 0, ...Cn(paradas[0]), ld: -0.6, az: 150, el: 20 });
+    luego(1.6, 4.2, { bur: 34 });
+    luego(2.2, 2.6, { ...Cn(S.clone().lerp(G, 0.45)) });
+    tl.to(5.8, { ld: 1.7, el: 40, az: 180 });
 
     tl.label('tipo').caption(5.4, 'Tipo III', 'Toda la luz de una galaxia: tipo III. Se vería oscura y tibia. Ninguna de las que revisamos es así.');
     tl.with(2.4, { bur: 120 });
@@ -221,6 +244,7 @@ export const galaxia: Escena = {
     tl.label('zoo').caption(5.4, 'El zoológico', '¿Por qué no vemos a nadie? Quizá alguien nos vio y nos dejó tranquilos. Al pasar, nosotros también dejamos un mundo vivo en paz.');
     tl.with(1.2, { ...Cn(ZOO), ir: 0.35 });
     luego(1.4, 1.4, { zoo: 1 });
+    luego(0.4, 2.0, { ch: 2 });
     tl.to(3.2, { ld: Math.log10(0.004), el: 14, az: 250 });
     tl.to(2.2, { ld: Math.log10(0.0032), az: 275 });
 
@@ -228,6 +252,7 @@ export const galaxia: Escena = {
     luego(0.6, 1.0, { zoo: 0 });
     luego(0.6, 1.6, { ...Cn(CALLAN) });
     luego(1.6, 1.2, { callan: 1 });
+    luego(0.6, 2.4, { ch: 3 });
     luego(2.6, 2.0, { calla: 1 });
     tl.to(2.0, { ld: 0.5, el: 20, az: 300 });
     tl.to(3.0, { ld: Math.log10(0.016), el: 10, az: 320 });
@@ -236,16 +261,22 @@ export const galaxia: Escena = {
     luego(0.4, 1.0, { callan: 0, calla: 0 });
     luego(0.6, 1.6, { ...Cn(FILTRO) });
     luego(1.6, 1.4, { filtro: 1 });
+    luego(0.6, 2.4, { ch: 4 });
+    luego(3.0, 1.8, { tit: 1 });
     tl.to(2.0, { ld: 0.5, el: 22, az: 340 });
     tl.to(3.4, { ld: Math.log10(0.0045), el: 12, az: 370 });
 
     tl.label('borde').caption(5.8, 'El borde y el silencio', 'Llegamos al borde, y vuelve la pregunta del principio: ¿dónde están todos? Quizá se fueron hacia adentro.');
     luego(0.4, 1.2, { filtro: 0 });
     luego(0.8, 2.0, { ...Cn(UNA), una: 1 });
+    luego(0.2, 0.6, { tit: 0 });
+    luego(0.8, 3.0, { ch: 5 });
     luego(0.4, 2.4, { ir: 0 });
     tl.to(2.6, { ld: 0.9, el: 8, az: 395 });
     tl.to(3.2, { ld: Math.log10(0.0021), el: 4, az: 410 });
 
+    const chispa = crearChispa();
+    root.add(chispa.nube.points);
     const tm = toma(tl, 0);
     const camFin = toma(tl, tl.length);
     return {
@@ -267,17 +298,21 @@ export const galaxia: Escena = {
         const t = f.time;
         camera.near = 1e-8;
         camera.far = 2000;
-        aplicarToma(camera, toma(tl, p, tm));
+        const ch = tl.get('ch', p);
+        const lw = tl.get('lw', p);
+        const m = montar(caminoCh, ch, 0.03, 0.06, 0.02);
+        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: lw }, { punto: m.lugar, peso: lw }));
+        chispa.update(caminoCh, ch, 0.0015, 1, tl.get('tit', p), camera.position, f.focal, f.dpr, f.time);
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
 
-        estrellas.u.uBur.value = tl.get('bur', p);
+        estrellas.u.uBur.value = Math.max(tl.get('bur', p), p < tl.at('freno') + 2 ? chispa.pos.distanceTo(S) + 0.2 : 0);
         estrellas.u.uIR.value = tl.get('ir', p);
         estrellas.u.uCamG.value.copy(camera.position);
         polvo.u.uCamG.value.copy(camera.position);
         const px = (n: number, en: THREE.Vector3) => (n * camera.position.distanceTo(en)) / f.focal;
         nave.u.uSizeUnit.value = px(6, Q);
-        nave.u.uGain.value = 1 - THREE.MathUtils.smoothstep(p, tl.at('burbuja') - 0.5, tl.at('burbuja') + 1);
+        nave.u.uGain.value = 0;
         una.u.uSizeUnit.value = px(7, UNA);
         una.u.uGain.value = tl.get('una', p);
         zoo.u.uOn.value = tl.get('zoo', p);

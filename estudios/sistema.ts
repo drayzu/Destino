@@ -5,6 +5,7 @@ import { gauss } from './motor/math';
 import { luna as lunaH, marte as marteH, mercurio as mercurioH, sol as solH, tierra as tierraH, venus as venusH } from '../src/horizontes';
 import { HORIZONTE, TEAL, caraHacia, dirLatLon, potencia } from './remake';
 import { angulos, aplicarToma, toma } from './rig';
+import { crearChispa, montar, type Camino } from './chispa';
 import { CARA } from './tierra';
 import { M, RM } from './mercurio';
 import type { Rotulo } from './placa';
@@ -366,6 +367,7 @@ export const sistema: Escena = {
       venus: hilo(E, VE, 9000, 0.06, 0.1),
       mercurio: hilo(M, enOrbita(3.2, 220), 9000, 0.05, 0.05),
       venusMerc: hilo(VE.clone().add(V(0, 0.3, 0)), M.clone().add(V(0, 0.25, 0)), 9000, 0.05, 0.06),
+      marteVenus: hilo(llegaMarte, VE.clone().add(V(0.2, 0.45, 0.3)), 9000, 0.05, 0.08),
     };
     for (const h of Object.values(hilos)) add(h.nube);
     const listo = Promise.all(cuerpos.map((x) => x.c.listo).concat(sol.listo));
@@ -401,59 +403,76 @@ export const sistema: Escena = {
     const ladoM = eM.clone().multiplyScalar(eM.dot(D) > 0 ? -1 : 1);
     const c0Merc = M.clone().addScaledVector(ladoM.clone().addScaledVector(Y, 0.3).addScaledVector(rM, 0.25).normalize(), 1.75);
 
-    tl.set({ ...Cn(E), ox: 0, oy: 0, oz: 0, az: fin7.az, el: fin7.el, ld: Math.log10(23 * RE), yaw: 90, pitch: -90, roll: 0, fov: 34, mw: 0, lw: 0, enRuta: 0, scC: 0, scR: 0, cil: 0, mar: 0, todo: 0, ven: 0, sombra: 0, anillo: 1, h1: 0, h2: 0, h3: 0, h4: 0, h5: 0 });
+    // The spark's way (GUION.md v2, 22–26): from the Earth's ring to the cylinder (ch 0..1), along its
+    // axis (1..2), on the thread to Mars (2..3), on to Venus (3..4), and to Mercury (4..5).
+    const entradaCil = C.clone().addScaledVector(EJE, LC / 2 + 0.25);
+    const cilPath0 = (sv: number, out: THREE.Vector3) => out.copy(C).addScaledVector(EJE, LC / 2 + 0.25 - sv * (LC + 0.55));
+    const caminoCh: Camino = (sv, out) => {
+      if (sv <= 1) return hilos.tierraCil.arco.en(Math.max(0, sv), out).lerp(entradaCil, THREE.MathUtils.smoothstep(sv, 0.85, 1));
+      if (sv <= 2) return cilPath0(sv - 1, out);
+      if (sv <= 3) return hilos.cilMarte.arco.en(sv - 2, out);
+      if (sv <= 4) return hilos.marteVenus.arco.en(sv - 3, out);
+      return hilos.venusMerc.arco.en(Math.min(1, sv - 4), out);
+    };
+    tl.set({ ...Cn(E), ox: 0, oy: 0, oz: 0, az: fin7.az, el: fin7.el, ld: Math.log10(23 * RE), yaw: 90, pitch: -90, roll: 0, fov: 34, mw: 0, lw: 0, ch: 0, on: 1, cil: 0, mar: 0, todo: 0, ven: 0, sombra: 0, anillo: 1, h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0, vel: 0 });
 
-    tl.label('giran').caption(5.0, 'Mundos que giran', 'Para vivir lejos de la Tierra hacen falta mundos que giren: el giro hace de gravedad.');
+    // From the ring, a beam carries the spark to a world that turns, seen from outside.
+    tl.label('giran').caption(5.4, 'Mundos que giran', 'Para vivir lejos de la Tierra hacen falta mundos que giren: el giro hace de gravedad.');
     tl.with(1.4, { cil: 1, h1: 1 });
     tl.with(1.3, { ...Cn(C) });
-    tl.to(5.0, { ...rel(C, C.clone().addScaledVector(vistaCil, 1.25)), fov: 40 });
+    luego(0.6, 4.4, { ch: 1 });
+    tl.to(5.4, { ...rel(C, C.clone().addScaledVector(vistaCil, 1.25)), fov: 40 });
 
-    // In through the sunward cap, along the axis, out the shaded end.
+    // In through the sunward cap with it, along the axis, out the shaded end.
     const entrada = C.clone().addScaledVector(EJE, LC / 2 + 0.6);
     tl.label('dentro').caption(5.6, 'Un mundo por dentro', 'Adentro, el paisaje sube por los lados y pasa por arriba.');
-    tl.to(1.6, { ...rel(C, entrada) });
+    tl.to(1.4, { ...rel(C, entrada) });
     tl.to(0.9, { lw: 1, mw: 1 });
     luego(1.6, 1.4, { h2: 1 });
-    tl.to(3.1, { scC: 1 });
+    tl.to(3.3, { ch: 2 });
 
+    // On the thread to Mars; mirrors over its pole, domes that light up.
     tl.label('marte').caption(6.0, 'Calentar Marte', 'Unos espejos pueden calentar Marte, pero su aire nunca será como el nuestro: viviríamos bajo cúpulas.');
-    tl.with(1.2, { enRuta: 1 });
     luego(0.6, 2.4, { mar: 1 });
-    tl.to(3.0, { scR: 1 });
+    tl.to(3.0, { ch: 3, vel: 0.3 });
     tl.with(0.8, { ...Cn(MA) });
-    tl.to(3.0, { lw: 0, mw: 0, ...rel(MA, MA.clone().add(V(0.25, -0.38, 0.62))), fov: 40 });
+    tl.to(3.0, { lw: 0, mw: 0, vel: 0, ...rel(MA, MA.clone().add(V(0.25, -0.38, 0.62))), fov: 40 });
 
-    tl.label('todo').caption(5.4, 'Hacia el Sol', 'Todo ocurre a la vez: la Luna lanza roca, se minan los asteroides y, cerca del Sol, crece un enjambre.');
-    tl.with(2.0, { todo: 1, h3: 1, h4: 1, h5: 1 });
-    luego(1.6, 2.4, { ...Cn(V()) });
-    tl.to(5.4, { az: 150, el: 48, ld: Math.log10(105), fov: 36 });
-
-    tl.label('venus').caption(6.4, 'Venus, a la sombra', 'Venus es un horno, pero en lo alto de sus nubes el aire es templado: ahí pueden flotar ciudades.');
-    tl.with(1.4, { ...Cn(VE) });
+    // Across to Venus (the spark on its thread, seen going), into its clouds.
+    tl.label('venus').caption(6.6, 'Venus, a la sombra', 'Venus es un horno, pero en lo alto de sus nubes el aire es templado: ahí pueden flotar ciudades.');
+    tl.with(0.6, { h6: 1 });
+    luego(0.2, 3.0, { ch: 4 });
+    tl.with(1.6, { ...Cn(VE) });
     luego(1.6, 2.0, { ven: 1, sombra: 1 });
-    luego(2.4, 2.0, { todo: 0 });
     tl.to(3.0, { ...rel(VE, VE.clone().addScaledVector(solVenus.clone().applyAxisAngle(Y, D2R(-55)).addScaledVector(Y, 0.3).normalize(), 0.62)), fov: 40 });
-    tl.to(3.4, { ...rel(VE, VE.clone().addScaledVector(solVenus.clone().applyAxisAngle(Y, D2R(-30)).addScaledVector(Y, 0.18).normalize(), RV * 1.12)), pitch: -12, yaw: 60, fov: 48 });
+    tl.to(3.6, { ...rel(VE, VE.clone().addScaledVector(solVenus.clone().applyAxisAngle(Y, D2R(-30)).addScaledVector(Y, 0.18).normalize(), RV * 1.12)), pitch: -12, yaw: 60, fov: 48 });
 
-    // On to Mercury: up from the clouds, over to where its scene starts.
-    tl.label('aMercurio').caption(3.6, 'Venus, a la sombra', 'Venus es un horno, pero en lo alto de sus nubes el aire es templado: ahí pueden flotar ciudades.');
-    tl.with(1.0, { h5: 0, ven: 0 });
-    tl.with(1.6, { mw: 1 });
-    luego(0.6, 1.6, { ...Cn(M) });
-    tl.to(3.6, { ...rel(M, c0Merc), pitch: -90, yaw: 90, fov: 40 });
+    // The reveal: all the inner system woven with threads, the spark one point on its way to Mercury.
+    tl.label('todo').caption(6.4, 'Todo a la vez', 'Todo ocurre a la vez: la Luna lanza roca, se minan los asteroides y, cerca del Sol, crece un enjambre.');
+    tl.with(1.6, { todo: 1, h3: 1, h4: 1, h5: 1, ven: 0 });
+    luego(1.0, 2.0, { ...Cn(V()) });
+    luego(0.6, 5.2, { ch: 5 });
+    tl.to(3.4, { az: 150, el: 52, ld: Math.log10(105), pitch: -90, yaw: 90, fov: 36 });
+    // And down to Mercury, where its scene starts.
+    tl.with(1.2, { ...Cn(M) });
+    luego(1.6, 1.4, { todo: 0.3, h3: 0.3, h4: 0.3 });
+    tl.to(3.0, { ...rel(M, c0Merc), fov: 40 });
 
+    const chispa = crearChispa();
+    root.add(chispa.nube.points);
     const tm = toma(tl, 0);
     const lugar = V();
     const mira = V();
-    const tmp = V();
     const inv = new THREE.Quaternion();
-    const cilPath = (sv: number, out: THREE.Vector3) => out.copy(C).addScaledVector(EJE, LC / 2 + 0.25 - sv * (LC + 0.55));
     return {
       tl,
       listo,
       entrada: { pos: E.clone(), escala: RE },
       salida: { pos: M.clone(), escala: RM },
       escalera: false,
+      efectos(p) {
+        return { vel: tl.get('vel', p) };
+      },
       cuenta(p) {
         if (p < tl.at('marte')) return potencia(16.3);
         if (p < tl.at('todo')) return potencia(16.5);
@@ -468,19 +487,15 @@ export const sistema: Escena = {
         const t = f.time;
         camera.near = 1e-5;
         camera.far = 3000;
-        // Carried: along the cylinder's axis, then along the thread to Mars; looking ahead, or at the place it heads to.
-        const enRuta = tl.get('enRuta', p);
-        cilPath(tl.get('scC', p), lugar);
-        if (enRuta > 0) lugar.lerp(hilos.cilMarte.arco.en(tl.get('scR', p) * 0.97, tmp).addScaledVector(Y, 0.02), enRuta);
-        const adelanteCil = cilPath(Math.min(1.2, tl.get('scC', p) + 0.3), V());
-        const adelanteRuta = hilos.cilMarte.arco.en(Math.min(1, tl.get('scR', p) * 0.97 + 0.06), V());
-        mira.copy(adelanteCil).lerp(adelanteRuta, enRuta);
-        // Off the thread, the gaze goes to the place the rig is centred on.
-        const centro = V(tl.get('cx', p), tl.get('cy', p), tl.get('cz', p));
+        const ch = tl.get('ch', p);
         const lw = tl.get('lw', p);
         const mw = tl.get('mw', p);
+        const enCil = ch > 1 && ch <= 2;
+        const m = montar(caminoCh, ch, enCil ? 0.08 : 0.025, enCil ? 0.25 : 0.06, enCil ? 0.0 : 0.04);
+        lugar.copy(m.lugar);
+        mira.copy(m.mira);
+        const centro = V(tl.get('cx', p), tl.get('cy', p), tl.get('cz', p));
         if (lw < 0.999) mira.lerp(centro, 1 - lw);
-        if (p > tl.at('aMercurio')) mira.lerp(M, THREE.MathUtils.smoothstep(p, tl.at('aMercurio'), tl.at('aMercurio') + 1.2));
         aplicarToma(camera, toma(tl, p, tm, { punto: mira, peso: mw }, { punto: lugar, peso: lw }));
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
@@ -496,6 +511,8 @@ export const sistema: Escena = {
           x.c.update({ sol: solL, camara: camL, focal: f.focal, dpr: f.dpr, tiempo: t, presencia: 1 });
         }
         cilindro.u.uCil.value = tl.get('cil', p);
+        chispa.update(caminoCh, ch, enCil ? 0.0025 : 0.0012, tl.get('on', p), 0, camera.position, f.focal, f.dpr, t);
+        hilos.marteVenus.nube.u.uOn.value = Math.max(tl.get('h6', p), tl.get('todo', p));
         marteN.u.uMar.value = tl.get('mar', p);
         marteN.u.uCamL.value.copy(camera.position).sub(MA).divideScalar(RMA);
         venusN.u.uVen.value = tl.get('ven', p);

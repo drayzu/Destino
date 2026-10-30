@@ -6,6 +6,7 @@ import { ease } from './comun';
 import { FONT, ink, VIOLETA, type Cuenta, type Rotulo } from './placa';
 import { TEAL, potencia } from './remake';
 import { aplicarToma, toma } from './rig';
+import { crearChispa, montar, type Camino } from './chispa';
 import type { Escena, Frame, Instancia } from './tipos';
 
 /**
@@ -32,7 +33,7 @@ const PHI_SOL = brazo(R_SOL, 0) + Math.PI / 2 + 0.25;
 export const S = V(Math.sin(PHI_SOL) * R_SOL, 0.02, Math.cos(PHI_SOL) * R_SOL);
 /** A neighbourhood a little way from the Sun, where the camera flies among stars with planets. */
 const P = S.clone().add(V(0.09, 0.006, -0.07));
-const R_VOZ = 0.1;
+const R_VOZ = P.distanceTo(S);
 
 function angDif(a: number, b: number) {
   const d = (((a - b) % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
@@ -248,6 +249,8 @@ export const apertura: Escena = {
       return n;
     };
     const sol = add(punto(new THREE.Color(1.0, 0.86, 0.55), 2.2), galaxia, 5);
+    const chispa = crearChispa();
+    galaxia.add(chispa.nube.points);
     const tu = add(punto(TEAL, 2.4), galaxia, 6);
 
     // ---------------------------------------------------------------- the moments (GUION.md 1–9)
@@ -260,22 +263,29 @@ export const apertura: Escena = {
     const C = (v: THREE.Vector3) => ({ cx: v.x, cy: v.y, cz: v.z });
     const G = V();
     const hacia = (a: THREE.Vector3, b: THREE.Vector3, t: number) => a.clone().lerp(b, t);
-    tl.set({ ...C(S), ox: 0, oy: 0, oz: 0, az: 0, el: 4, ld: -3.3, yaw: 90, pitch: -90, roll: 0, fov: 40, tu: 1, cue: 1, voz: 0, vozOn: 1, cielo: 0, gal: 0, titulo: 0, vatios: 0, giro: 0, pla: 0, vaso: 0, ola: 0, olaOn: 0, solp: 0, luzSol: 0 });
+    // The spark's way (galaxy frame): out from the Sun with our radio to the neighbourhood P (s 0..1),
+    // a loop among its stars with planets (1..2), and back to the yellow star (2..3).
+    const lazo = new THREE.CatmullRomCurve3([P.clone(), P.clone().add(V(0.007, 0.001, 0.004)), P.clone().add(V(0.004, -0.0015, 0.011)), P.clone().add(V(-0.006, 0.001, 0.008)), P.clone().add(V(-0.002, 0.0005, 0.001))]);
+    const camino: Camino = (sv, out) => {
+      if (sv <= 1) return out.copy(S).lerp(P, Math.max(sv, -0.3));
+      if (sv <= 2) return out.copy(lazo.getPoint(sv - 1));
+      const fin = lazo.getPoint(1);
+      const t = Math.min(sv - 2, 1);
+      return out.copy(fin).lerp(S, t);
+    };
+    tl.set({ ...C(P), ox: 0, oy: 0, oz: 0, az: 0, el: 4, ld: -1.2, yaw: 90, pitch: -90, roll: 0, fov: 42, tu: 0, cue: 0, voz: 0, vozOn: 1, cielo: 0.4, gal: 0.4, titulo: 0, vatios: 0, giro: 0, pla: 0, vaso: 0, ola: 0, olaOn: 0, solp: 0, luzSol: 0, sc: 0, lw: 1, on: 1, tit: 0 });
 
-    tl.label('pensamiento').caption(3.4, 'Un pensamiento', 'Estás pensando. Eso cuesta unos veinte vatios.');
-    luego(0.5, 1.4, { cue: 0 });
-    tl.wait(3.4);
+    // Riding the front of our radio, out from the Sun; the stars round it pass.
+    tl.label('voz').caption(5.0, 'Nuestra voz', 'Lo que pensamos, lo decimos. Hace un siglo que nuestra radio sale de aquí.');
+    tl.with(5.0, { voz: 1, sc: 1 });
+    luego(0.4, 3.0, { cielo: 1, gal: 1 });
+    tl.wait(5.0);
 
-    tl.label('voz').caption(4.4, 'Nuestra voz', 'Y lo que pensamos, lo decimos. Hace un siglo que nuestra radio sale de aquí.');
-    tl.with(4.4, { voz: 1 });
-    luego(0.8, 3.2, { cielo: 1, gal: 1 });
-    tl.to(4.4, { ld: -0.62, el: 9, az: 14 });
-
-    // Pulling out, the centre moves late (while the camera is far enough for it not to swing); diving
-    // in, it moves first, so it is on the target before the distance gets small.
-    tl.label('cien').caption(4.2, 'Cien mil años luz', 'Pero la galaxia mide cien mil años luz. Toda nuestra voz cabe en un punto.');
-    luego(1.8, 2.4, { ...C(hacia(S, G, 0.55)) });
-    tl.to(4.2, { ld: 2.02, el: 56, az: 34 });
+    // Off the spark, far back: the galaxy, the bubble a point.
+    tl.label('cien').caption(4.4, 'Cien mil años luz', 'Pero la galaxia mide cien mil años luz. Toda nuestra voz cabe en un punto.');
+    tl.with(1.2, { lw: 0, ld: -1.1, az: 20, el: 10 });
+    luego(1.8, 2.6, { ...C(hacia(P, G, 0.55)) });
+    tl.to(4.4, { ld: 2.02, el: 56, az: 34 });
 
     tl.label('luz').caption(4.6, 'Toda esa luz', '');
     luego(0.5, 1.2, { titulo: 1 });
@@ -285,34 +295,42 @@ export const apertura: Escena = {
     tl.to(4.6, { ...C(G), ld: 1.98, el: 60, az: 52, giro: 0.4 });
 
     tl.label('alguien').caption(3.8, '¿Hay alguien más?', 'Cientos de miles de millones de estrellas. Hasta donde sabemos, nadie usa su luz.');
-    tl.to(3.8, { ...C(hacia(G, S, 0.75)), ld: 1.15, el: 24, az: 80, giro: 0.5 });
+    tl.to(3.8, { ...C(hacia(G, P, 0.75)), ld: 1.15, el: 24, az: 80, giro: 0.5 });
 
-    tl.label('planetas').caption(4.8, 'Planetas por todas partes', 'Y planetas no faltan: al menos uno por estrella. Muchos, donde podría haber agua.');
+    // Down to the spark again: it flies among stars with planets, and the camera with it.
+    tl.label('planetas').caption(5.6, 'Planetas por todas partes', 'Y planetas no faltan: al menos uno por estrella. Muchos, donde podría haber agua.');
     tl.with(1.1, { ...C(P) });
     tl.to(2.4, { ld: -2.1, el: 10, az: 96 });
     luego(-0.6, 1.6, { pla: 1 });
-    tl.to(2.4, { ld: -2.4, el: 4, az: 150 });
+    tl.with(1.0, { lw: 0.85 });
+    tl.to(3.2, { sc: 2 });
 
     tl.label('escuchado').caption(4.4, 'Lo que hemos escuchado', 'Llevamos décadas escuchando. Es como sacar un vaso de agua del mar y decir que no hay peces.');
+    tl.with(1.4, { lw: 0, ld: -2.0, az: 150, el: 6 });
     luego(0.2, 1.2, { pla: 0 });
     luego(2.2, 1.4, { vaso: 1 });
     luego(0.3, 2.6, { ...C(S) });
     tl.to(4.4, { ld: -0.72, el: 14, az: 172 });
 
+    // The silence: the wave of what should be there, and nothing; the spark flickers.
     tl.label('silencio').caption(5.0, 'El silencio', 'Una sola civilización habría tenido tiempo de llenar la galaxia miles de veces. ¿Dónde están todos?');
     luego(0.4, 1.0, { vaso: 0 });
     luego(1.0, 1.8, { ...C(hacia(S, G, 0.6)) });
     tl.to(2.6, { ld: 1.95, el: 52, az: 200 });
     luego(-0.6, 0.4, { olaOn: 1 });
     luego(-0.4, 2.6, { ola: 1 });
+    luego(1.0, 1.4, { tit: 1 });
     tl.to(2.4, { az: 214 });
-    luego(-0.4, 1.0, { olaOn: 0 });
+    luego(-0.4, 1.0, { olaOn: 0, tit: 0 });
 
-    tl.label('amarilla').caption(4.6, 'Una estrella amarilla', 'No lo sabemos. Pero podemos imaginar cómo crecería una, empezando por la nuestra.');
+    // The leap: the spark dives to one yellow star, the camera behind it, and its light fills the frame.
+    tl.label('amarilla').caption(5.0, 'Una estrella amarilla', 'No lo sabemos. Pero podemos imaginar cómo crecería una, empezando por la nuestra.');
     luego(0.6, 2.4, { solp: 1 });
-    tl.with(1.8, { ...C(S) });
-    luego(3.4, 1.2, { luzSol: 1 });
-    tl.to(4.6, { ld: -3.5, el: 6, az: 236 });
+    tl.with(1.8, { ...C(lazo.getPoint(1)) });
+    tl.to(2.6, { ld: -2.2, el: 8, az: 236 });
+    tl.with(1.0, { lw: 1 });
+    luego(1.4, 1.2, { luzSol: 1 });
+    tl.to(2.4, { sc: 3 });
     tl.label('fin');
 
     const tm = toma(tl, 0);
@@ -320,11 +338,12 @@ export const apertura: Escena = {
     const Sw = V();
     return {
       tl,
+      entrada: { pos: S.clone(), escala: 0.004 },
       salida: { pos: S.clone(), escala: Math.pow(10, -3.5) },
       escalera: false,
       cuenta(p): Cuenta | null {
         if (p < tl.at('luz')) {
-          const linea = p < tl.at('voz') + 1.2 ? 'tú, pensando' : 'nuestra radio · 100 años luz';
+          const linea = 'nuestra radio · 100 años luz';
           return { pisos: ['20'], unidad: 'W', linea, h: 1 };
         }
         if (p < tl.at('alguien')) {
@@ -348,10 +367,15 @@ export const apertura: Escena = {
         galaxia.rotation.y = tl.get('giro', p);
         galaxia.updateMatrixWorld(true);
         // The rig works in the galaxy's frame: its centre turns with it.
-        aplicarToma(camera, toma(tl, p, tm));
+        const sc = tl.get('sc', p);
+        const m = montar(camino, sc, sc < 1.05 ? 0.04 : sc < 2.05 ? 0.06 : 0.05, sc < 1.05 ? 0.12 : 0.1, sc < 1.05 ? 0.0006 : 0.0004);
+        const lw = tl.get('lw', p);
+        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: lw }, { punto: m.lugar, peso: lw }));
         camera.position.applyAxisAngle(V(0, 1, 0), galaxia.rotation.y);
         camera.up.applyAxisAngle(V(0, 1, 0), galaxia.rotation.y);
         camera.lookAt(camera.position.clone().add(tm.dir.clone().applyAxisAngle(V(0, 1, 0), galaxia.rotation.y)));
+        const camG0 = camera.position.clone().applyAxisAngle(V(0, 1, 0), -galaxia.rotation.y);
+        chispa.update(camino, sc, sc < 1.05 ? 0.002 : 0.003, tl.get('on', p), tl.get('tit', p), camG0, f.focal, f.dpr, t);
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
 
@@ -367,8 +391,8 @@ export const apertura: Escena = {
         locales.u.uLoc.value = tl.get('cielo', p) * (1 - ease(1.2, 5, dSol));
         vecinas.u.uPla.value = tl.get('pla', p);
         // The bubble grows with the distance until it reaches its hundred light years, so it always fits.
-        voz.u.uR.value = tl.get('vaso', p) > 0.001 ? R_VOZ * 0.03 : Math.min(R_VOZ, 0.28 * dSol) * ease(0, 0.35, tl.get('voz', p));
-        voz.u.uOn.value = Math.min(1, tl.get('voz', p) * 3) * tl.get('vozOn', p) * (1 - ease(0.4, 3, dSol)) + tl.get('vaso', p) * 1.6;
+        voz.u.uR.value = tl.get('vaso', p) > 0.001 ? R_VOZ * 0.03 : Math.max(1e-5, Math.min(sc, 1) * R_VOZ);
+        voz.u.uOn.value = Math.min(1, tl.get('voz', p) * 4) * tl.get('vozOn', p) * (1 - ease(0.4, 3, dSol)) + tl.get('vaso', p) * 1.6;
         // The two points keep a few pixels whatever the distance.
         const px = (n: number) => (n * dSol) / f.focal;
         tu.points.position.copy(S).add(V(px(9), px(2), 0));

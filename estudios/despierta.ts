@@ -8,7 +8,8 @@ import { tierra as tierraHorizontes } from '../src/horizontes';
 import { FONT, ink, type Cuenta, type Rotulo } from './placa';
 import { TEAL, caraHacia, potencia, puntoTu } from './remake';
 import { aplicarToma, toma } from './rig';
-import { CARA, SOL, luces } from './tierra';
+import { CARA, SOL, S_CAIRO, luces, montarTierra, rutaTierra } from './tierra';
+import { crearChispa, montar, type Camino } from './chispa';
 import type { Escena, Frame, Instancia } from './tipos';
 
 /**
@@ -61,13 +62,14 @@ function celulaDatos(): MateriaData {
 }
 
 /** The net: a bell of radial nerves and a ring at its rim, with fine threads between; `aKind` 0 nerve, 1 fine, 2 tentacle; `aDelay` how far along. */
+const campana = (t: number, a: number) => {
+  const ph = t * 1.35;
+  return V(Math.sin(ph) * Math.cos(a), Math.cos(ph) * 0.75 - 0.2, Math.sin(ph) * Math.sin(a)).multiplyScalar(1.1);
+};
+
 function redNerviosaDatos(): MateriaData {
   const b = materiaBuilder(103);
   const r = b.r;
-  const campana = (t: number, a: number) => {
-    const ph = t * 1.35;
-    return V(Math.sin(ph) * Math.cos(a), Math.cos(ph) * 0.75 - 0.2, Math.sin(ph) * Math.sin(a)).multiplyScalar(1.1);
-  };
   for (let k = 0; k < 16; k++) {
     const a = (k / 16) * Math.PI * 2;
     for (let i = 0; i < 700; i++) {
@@ -307,39 +309,67 @@ export const despierta: Escena = {
       tl.with(dur, v);
       tl.wait(-off);
     };
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: -20, el: 14, ld: 0.18, yaw: 90, pitch: -90, roll: 0, fov: 40, blanco: 1, agua: 1, cel: 1, mar: 1, toque: 0, ner: 0, crece: 0.3, cor: 0, red: 0, forma: 0, tu: 0, tierra: 0, maq: 0 });
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: -20, el: 14, ld: 0.18, yaw: 90, pitch: -90, roll: 0, fov: 40, blanco: 1, agua: 1, cel: 1, mar: 1, toque: 0, ner: 0, crece: 0.3, cor: 0, red: 0, forma: 0, tu: 0, tierra: 0, maq: 0, sc: 0, lw: 0, on: 0, vel: 0 });
 
-    tl.label('celula').caption(4.4, 'Una célula que reacciona', 'Antes de pensar, la materia aprendió a reaccionar. Empezó en el mar, con una célula.');
+    // The first spark: the light touches the cell, and something goes round inside it.
+    tl.label('celula').caption(4.6, 'Una célula que reacciona', 'Antes de pensar, la materia aprendió a reaccionar. Empezó en el mar, con una célula.');
     tl.with(1.4, { blanco: 0 });
     luego(1.6, 1.4, { toque: 1 });
-    tl.to(4.4, { az: 10, el: 10, ld: 0.12 });
+    luego(1.9, 0.6, { on: 1 });
+    luego(1.9, 2.7, { sc: 1 });
+    tl.to(4.6, { az: 10, el: 10, ld: 0.12 });
 
-    tl.label('nervios').caption(4.6, 'Nervios', 'Después, unas células empezaron a pasarse chispas. Con ellas, un cuerpo entero reacciona a la vez.');
+    // It jumps from cell to cell along a nerve of the bell, and the camera goes with it.
+    tl.label('nervios').caption(5.0, 'Nervios', 'Después, unas células empezaron a pasarse chispas. Con ellas, un cuerpo entero reacciona a la vez.');
     tl.with(1.6, { cel: 0, toque: 0 });
-    luego(0.3, 3.4, { ner: 1, crece: 1 });
-    tl.to(4.6, { az: 40, el: 24, ld: 0.52 });
+    luego(0.3, 2.4, { ner: 1, crece: 1 });
+    tl.to(1.6, { az: 40, el: 24, ld: 0.52 });
+    tl.with(0.8, { lw: 0.85 });
+    tl.to(3.4, { sc: 2 });
 
-    // The net folds into a brain, and the camera goes in.
-    tl.label('cerebro').caption(5.4, 'Un cerebro', 'Lo más complejo que conocemos, y funciona con veinte vatios. Como el tuyo, ahora.');
-    tl.with(2.0, { ner: 0, cor: 1, red: 1, mar: 0, agua: 0 });
-    luego(2.8, 1.0, { tu: 1 });
+    // The net folds into a brain; the spark goes in, among neurons, to the point.
+    tl.label('cerebro').caption(5.8, 'Un cerebro', 'Lo más complejo que conocemos, y funciona con veinte vatios. Como el tuyo, ahora.');
+    tl.with(2.0, { ner: 0, cor: 1, red: 1, mar: 0, agua: 0, lw: 0 });
+    luego(1.4, 2.6, { sc: 3, lw: 0.8 });
+    luego(3.8, 1.0, { tu: 1 });
     tl.to(2.4, { az: 96, el: 16, ld: 0.42 });
-    tl.to(3.0, { az: 104, el: 10, ld: -0.42, fov: 46 });
+    tl.to(3.4, { az: 104, el: 10, ld: -0.42, fov: 46 });
 
-    // Out of the brain backwards: its network lays itself over the night Earth.
-    tl.label('ocho').caption(5.0, 'Ocho mil millones de cerebros', 'Están ahí, donde de noche hay luz. Todos juntos piensan con menos del uno por ciento de lo que gastamos.');
+    // Out of the brain: its network lays itself over the night Earth, and the spark runs on it, city to city.
+    tl.label('ocho').caption(6.0, 'Ocho mil millones de cerebros', 'Están ahí, donde de noche hay luz. Todos juntos piensan con menos del uno por ciento de lo que gastamos.');
     tl.with(1.0, { tu: 0 });
     luego(0.4, 2.2, { cor: 0 });
-    luego(0.8, 3.4, { forma: 1, tierra: 1 });
-    tl.to(5.0, { az: 12, el: 9, ld: 0.74, fov: 34 });
+    luego(0.4, 3.0, { forma: 1, tierra: 1 });
+    tl.with(1.2, { lw: 1, fov: 40 });
+    tl.to(1.8, { sc: 3.4, vel: 0.2 });
+    tl.to(4.2, { sc: 4 + S_CAIRO / 4, vel: 0.2 });
 
-    tl.label('maquinas').caption(4.4, 'Las máquinas que piensan', 'Y ahora pensamos también fuera de la cabeza. Las máquinas que piensan crecen cada año.');
-    luego(0.6, 2.6, { maq: 1 });
-    tl.wait(4.4);
-
-    // «Tú»: in front of the camera, inside the brain.
     const tm = toma(tl, tl.at('cerebro') + 4.6);
-    const tu = add(puntoTu(tm.pos.clone().addScaledVector(tm.dir, 0.12), 0.006));
+    const tuPos = tm.pos.clone().addScaledVector(tm.dir, 0.12);
+    const tu = add(puntoTu(tuPos, 0.006));
+    const qT = caraHacia(CARA.lat, CARA.lon);
+    const londres = rutaTierra(0).applyQuaternion(qT);
+    const enCerebro = new THREE.CatmullRomCurve3([campana(1, Math.PI / 2).multiplyScalar(1), V(0.35, 0.25, 0.3), V(-0.1, 0.1, 0.15), tuPos.clone()]);
+    /**
+     * The spark's way: a loop inside the cell (0..1), down a nerve of the bell and round its rim
+     * (1..2), through the brain to «tú» (2..3), out to London (3..3.4), and over the Earth to Cairo
+     * (3.4.., in the route's own s, scaled 1:4).
+     */
+    const camino: Camino = (sv, out) => {
+      if (sv <= 1) {
+        const a = Math.max(sv, 0) * Math.PI * 4;
+        return out.set(Math.cos(a) * 0.2, 0.05 * Math.sin(a * 1.5), Math.sin(a) * 0.2);
+      }
+      if (sv <= 2) {
+        const t = sv - 1;
+        return t < 0.7 ? out.copy(campana(0.08 + (t / 0.7) * 0.92, 0)) : out.copy(campana(1, ((t - 0.7) / 0.3) * (Math.PI / 2)));
+      }
+      if (sv <= 3) return out.copy(enCerebro.getPoint(sv - 2));
+      if (sv <= 3.4) return out.copy(tuPos).lerp(londres, (sv - 3) / 0.4);
+      return rutaTierra((sv - 3.4) * (S_CAIRO / (S_CAIRO / 4 + 0.6)), out).applyQuaternion(qT);
+    };
+    const chispa = crearChispa();
+    root.add(chispa.nube.points);
     const solL = V();
     const camL = V();
     const inv = new THREE.Quaternion();
@@ -347,6 +377,9 @@ export const despierta: Escena = {
       tl,
       listo,
       salida: { pos: V(), escala: 1 },
+      efectos(p) {
+        return { vel: tl.get('vel', p) };
+      },
       escalera: false,
       cuenta(p): Cuenta | null {
         if (p < tl.at('nervios')) return { pisos: ['10', '-12'], unidad: 'W', linea: 'una célula', h: 1 };
@@ -364,7 +397,18 @@ export const despierta: Escena = {
         const t = f.time;
         camera.near = 1e-4;
         camera.far = 200;
-        aplicarToma(camera, toma(tl, p, tm));
+        const sc = tl.get('sc', p);
+        const lw = tl.get('lw', p);
+        // Riding the spark; over the Earth, the same ride as scene 6 starts with (so they meet exactly).
+        let m: { lugar: THREE.Vector3; mira: THREE.Vector3 };
+        if (sc > 3.4) {
+          const rs = (sc - 3.4) * (S_CAIRO / (S_CAIRO / 4 + 0.6));
+          m = montarTierra(rs);
+          m.lugar.applyQuaternion(qT);
+          m.mira.applyQuaternion(qT);
+        } else m = montar(camino, sc, 0.05, 0.08, 0.04);
+        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: lw }, { punto: m.lugar, peso: lw }));
+        chispa.update(camino, sc, sc > 3.4 ? 0.0004 : 0.0025, tl.get('on', p), 0, camera.position, f.focal, f.dpr, f.time);
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
 

@@ -9,6 +9,7 @@ import { FONDOS } from './motor/pantalla';
 import { createStage, liberar } from './stage';
 import { cuenta, escalera, marca } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
+import { mente } from './mente';
 import { apertura } from './apertura';
 import { despierta } from './despierta';
 import { tierraNoche } from './tierra';
@@ -32,7 +33,7 @@ import { final } from './final';
  */
 
 // In the order of the journey (ESCALETA.md: scenes 6–7, 11–12, 18–19).
-const ESCENAS: Escena[] = [apertura, despierta, tierraNoche, sistema, mercurio, solTrabajado, vela, galaxia, estrella, cosmos, final];
+const ESCENAS: Escena[] = [mente, apertura, despierta, tierraNoche, sistema, mercurio, solTrabajado, vela, galaxia, estrella, cosmos, final];
 const PX_PER_BEAT = 520;
 
 const params = new URLSearchParams(location.search);
@@ -133,6 +134,9 @@ function step(now: number, dt: number, at: number) {
   // The focal length before the scene moves the camera (the scene may change the fov; it is read again below).
   f.focal = H / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
   inst.update(f);
+  const ef = inst.efectos?.(at) ?? {};
+  stage.finish.uniforms.uCalor.value = ef.calor ?? 0;
+  stage.finish.uniforms.uVel.value = ef.vel ?? 0;
   if (!fixed && !calm.matches) {
     mouse.x = damp(mouse.x, mouseTarget.x, 3, dt);
     mouse.y = damp(mouse.y, mouseTarget.y, 3, dt);

@@ -5,6 +5,7 @@ import { gauss } from './motor/math';
 import { sol as solH } from '../src/horizontes';
 import { TEAL, potencia } from './remake';
 import { angulos, aplicarToma, toma } from './rig';
+import { crearChispa, type Camino } from './chispa';
 import { LEJOS, enjambreNube } from './mercurio';
 import type { Rotulo } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
@@ -102,6 +103,12 @@ export const solTrabajado: Escena = {
     const sol = solH({ puntos: 300000, corona: 140000 });
     movil.add(sol.group);
     const enjambre = add(enjambreNube(false), movil, 10);
+    const chispa = crearChispa();
+    movil.add(chispa.nube.points);
+    const caminoCh: Camino = (sv, out) => {
+      const a = sv * 2.2;
+      return out.set(Math.sin(a) * 3.1, 0.25 * Math.sin(sv * 3.1), Math.cos(a) * 3.1);
+    };
     enjambre.u.uCubre.value = 1;
 
     const cd = chorrosDatos();
@@ -138,7 +145,7 @@ export const solTrabajado: Escena = {
     const lejos = angulos(LEJOS);
     const MUEVE = 3.2;
     const fin = EMPUJE.clone().multiplyScalar(MUEVE);
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: lejos.az, el: lejos.el, ld: Math.log10(LEJOS.length()), yaw: 90, pitch: -90, roll: 0, fov: 30, ir: 1, vida: 0, encoge: 0, esp: 0, mueve: 0 });
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: lejos.az, el: lejos.el, ld: Math.log10(LEJOS.length()), yaw: 90, pitch: -90, roll: 0, fov: 30, ir: 1, vida: 0, encoge: 0, esp: 0, mueve: 0, satura: 0 });
 
     tl.label('vida').caption(5.6, 'Alargar la vida del Sol', 'Una estrella también se cuida: con menos masa arde más despacio, y vive más.');
     tl.with(2.0, { ir: 0 });
@@ -152,6 +159,7 @@ export const solTrabajado: Escena = {
     tl.to(6.0, { az: lejos.az + 110, el: 24, ld: Math.log10(21) });
 
     tl.label('tipo').caption(5.0, 'Tipo II', 'Toda la luz del Sol: tipo II. Y la estrella ya no alcanza.');
+    luego(1.0, 2.4, { satura: 1 });
     luego(1.6, 3.0, { ir: 1 });
     tl.to(5.0, { az: lejos.az + 150, el: 30, ld: 2.2, fov: 34 });
 
@@ -175,6 +183,9 @@ export const solTrabajado: Escena = {
         camera.near = 1e-4;
         camera.far = 4000;
         aplicarToma(camera, toma(tl, p, tm));
+        // The spark keeps going round among the collectors; at type II it has nowhere left to go: it flickers.
+        const camM = camera.position.clone().sub(EMPUJE.clone().multiplyScalar(tl.get('mueve', p)));
+        chispa.update(caminoCh, p * 0.18 * (1 + 1.5 * tl.get('satura', p)), 0.01, 1, tl.get('satura', p), camM, f.focal, f.dpr, f.time);
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
 

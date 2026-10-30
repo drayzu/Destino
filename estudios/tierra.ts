@@ -7,6 +7,7 @@ import { tierra as tierraHorizontes } from '../src/horizontes';
 import { CIUDADES } from './ciudades';
 import { HORIZONTE, INFERNO, TEAL, caraHacia, dirLatLon, potencia, puntoTu } from './remake';
 import { angulos, aplicarToma, toma } from './rig';
+import { crearChispa, montar, type Chispa } from './chispa';
 import type { Rotulo } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
 
@@ -38,6 +39,53 @@ const TU_EN = { lat: 22.5, lon: 37.5 };
 /** The Sun, behind the Earth and to the left: a thin day crescent on the left limb. */
 export const SOL = V(-0.62, 0.22, -0.75).normalize();
 const ALTO = 11;
+
+/**
+ * The spark's way over the night Earth (the Earth's own frame, unit sphere): city to city in scene
+ * 5 (s 0..4, London to Cairo), then here under the Red Sea and the Arabian Sea in a cable to Mumbai,
+ * and into a data centre (s 4..9). Each stretch is one unit of s. [lat, lon, height in radii].
+ */
+const PASOS: [number, number, number][] = [
+  [51.5, -0.1, 0.016],
+  [48.9, 2.35, 0.012],
+  [41.9, 12.5, 0.012],
+  [37.98, 23.7, 0.012],
+  [30.0, 31.2, 0.01],
+  [21.5, 38.6, 0.0006],
+  [12.8, 45.0, -0.0008],
+  [16.0, 60.0, -0.0008],
+  [19.0, 72.6, 0.0006],
+  [19.1, 72.9, 0.006],
+];
+/** s where scene 5 hands the spark over (Cairo), and where the cable runs. */
+export const S_CAIRO = 4;
+export function rutaTierra(sv: number, out = V()) {
+  const n = PASOS.length - 1;
+  const sc = Math.min(Math.max(sv, 0), n);
+  const i = Math.min(Math.floor(sc), n - 1);
+  const t = sc - i;
+  const a = dirLatLon(PASOS[i][0], PASOS[i][1]);
+  const b = dirLatLon(PASOS[i + 1][0], PASOS[i + 1][1]);
+  const w = a.angleTo(b);
+  const sw = Math.sin(w) || 1;
+  out.copy(a).multiplyScalar(Math.sin((1 - t) * w) / sw).addScaledVector(b, Math.sin(t * w) / sw);
+  const h = PASOS[i][2] + (PASOS[i + 1][2] - PASOS[i][2]) * t + (PASOS[i][2] > 0.005 && PASOS[i + 1][2] > 0.005 ? 0.012 * Math.sin(Math.PI * t) : 0);
+  return out.normalize().multiplyScalar(1 + h);
+}
+/** The camera riding the spark over the Earth (its own frame): behind, a little above, looking ahead. */
+export function montarTierra(sv: number) {
+  return montar((x, o) => rutaTierra(x, o), sv, 0.08, 0.22, 0.012, rutaTierra(sv).normalize());
+}
+/** Where the data centre is, and the cities its copies go to. */
+const DC = [19.1, 72.9];
+const COPIAS: [number, number][] = [
+  [1.35, 103.8],
+  [25.2, 55.3],
+  [-1.3, 36.8],
+  [28.6, 77.2],
+  [13.1, 80.3],
+  [24.9, 67.0],
+];
 const HALO = new THREE.Color(0.35, 0.58, 1.0);
 const HALO_IR = new THREE.Color(1.0, 0.36, 0.12);
 const GEO = 6.6;
@@ -415,6 +463,44 @@ export const tierraNoche: Escena = {
     anillo.u.uFuente.value = 0.35;
     const tu = add(puntoTu(tuPos, 0.008));
 
+    // The spark, the submarine cable it takes, the data centre, and the copies that leave it.
+    const chispa = crearChispa();
+    earth.add(chispa.nube.points);
+    const cableB = materiaBuilder(311);
+    for (let i = 0; i < 9000; i++) {
+      const sv = 5 + cableB.r() * 3;
+      const q = rutaTierra(sv).normalize().multiplyScalar(0.9994);
+      cableB.push(q.x, q.y, q.z, TEAL, 0.0006, 0.45);
+    }
+    const cableMar = add(materia(cableB.data(), { pre: `uniform float uOn;`, move: `em *= uOn;`, uniforms: { uOn: { value: 0 } } }));
+    cableMar.u.uFuente.value = 0.5;
+    const dcB = materiaBuilder(313);
+    {
+      const c = dirLatLon(DC[0], DC[1]);
+      const t1 = V(0, 1, 0).cross(c).normalize();
+      const t2 = c.clone().cross(t1);
+      for (let i = 0; i < 16; i++)
+        for (let j = 0; j < 16; j++)
+          for (let k = 0; k < 3; k++) {
+            const q = c.clone().multiplyScalar(1.0005 + k * 0.0004).addScaledVector(t1, (i / 15 - 0.5) * 0.008).addScaledVector(t2, (j / 15 - 0.5) * 0.008);
+            dcB.push(q.x, q.y, q.z, new THREE.Color(0.72, 0.86, 1.0), 0.0003, 0.7, { kind: dcB.r() });
+          }
+    }
+    const centro = add(materia(dcB.data(), { pre: `uniform float uOn;`, move: `em *= uOn * (0.6 + 0.8 * step(0.5, fract(aKind * 7.0 + uTime * 2.0)));`, uniforms: { uOn: { value: 0 } } }));
+    centro.u.uFuente.value = 0.6;
+    const copias: { ch: Chispa; a: THREE.Vector3; b: THREE.Vector3 }[] = COPIAS.map(([la, lo]) => {
+      const ch = crearChispa();
+      earth.add(ch.nube.points);
+      return { ch, a: dirLatLon(DC[0], DC[1]), b: dirLatLon(la, lo) };
+    });
+    const arcoCopia = (c: { a: THREE.Vector3; b: THREE.Vector3 }) => (sv: number, out: THREE.Vector3) => {
+      const t = THREE.MathUtils.clamp(sv, 0, 1);
+      const w = c.a.angleTo(c.b);
+      const sw = Math.sin(w) || 1;
+      out.copy(c.a).multiplyScalar(Math.sin((1 - t) * w) / sw).addScaledVector(c.b, Math.sin(t * w) / sw);
+      return out.normalize().multiplyScalar(1.006 + 0.02 * Math.sin(Math.PI * t));
+    };
+
     let lucesN: Nube | null = null;
     const listo = (async () => {
       const img = await mapaTierra();
@@ -434,11 +520,25 @@ export const tierraNoche: Escena = {
       tl.with(dur, v, e);
       tl.wait(-off);
     };
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 12, el: 9, ld: 0.74, yaw: 90, pitch: -90, roll: 0, fov: 34, anio: 1800, tu: 0, wipe: -1.4, warm: 0, ir: 0, presencia: 1, alto: 1, ind: 0, ani: 0, lw: 0, lh: 1, lp2: 13.28 });
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 12, el: 9, ld: 0.74, yaw: 90, pitch: -90, roll: 0, fov: 40, anio: 2026, tu: 0, wipe: -1.4, warm: 0, ir: 0, presencia: 1, alto: 1, ind: 0, ani: 0, lw: 0, lh: 1, lp2: 13.28, rs: S_CAIRO, rw: 1, on: 1, cable: 0, dc: 0, copias: 0, vel: 0.2 });
 
-    tl.label('luces').caption(3.8, 'Doscientos años de luces', 'En doscientos años encendimos el planeta: primero de a poco, después de golpe.');
-    luego(0.3, 3.3, { anio: 2026 });
-    tl.to(3.8, { az: 3, el: 5, ld: 0.64 });
+    tl.label('otroLado').caption(5.0, 'Al otro lado del mundo', 'Lo que piensa uno, en un instante lo sabe el otro lado del mundo.');
+    tl.with(0.8, { cable: 1 });
+    tl.to(1.0, { rs: S_CAIRO + 1, vel: 0.35 });
+    tl.to(3.2, { rs: S_CAIRO + 4, vel: 0.5 });
+    tl.to(0.8, { rs: S_CAIRO + 4.6, vel: 0.15 });
+
+    tl.label('maquinas').caption(5.0, 'Las máquinas que piensan', 'Y ahora pensamos también fuera de la cabeza. Las máquinas que piensan crecen cada año.');
+    tl.with(1.2, { dc: 1, cable: 0 });
+    tl.to(1.6, { rs: S_CAIRO + 5, vel: 0 });
+    luego(0.2, 2.6, { copias: 1 });
+    // Off the spark, up and away: the whole night side.
+    tl.to(3.4, { rw: 0, fov: 34 });
+
+    tl.label('luces').caption(4.4, 'Doscientos años de luces', 'En doscientos años encendimos el planeta: primero de a poco, después de golpe.');
+    tl.with(0.8, { dc: 0, on: 0 });
+    tl.to(0.9, { anio: 1800, az: 8, el: 7, ld: 0.7 });
+    tl.to(3.5, { anio: 2026, az: 3, el: 5, ld: 0.64 });
 
     tl.label('hoy').caption(3.6, 'Hoy', 'Hoy usamos diecinueve billones de vatios. Unos pocos encienden la pantalla en que miras esto.');
     luego(0.4, 0.9, { tu: 1 });
@@ -485,6 +585,7 @@ export const tierraNoche: Escena = {
       escalera: false,
       cuenta(p) {
         const anio = tl.get('anio', p);
+        if (p < tl.at('luces')) return potencia(13.28, '2026 · ');
         if (p < tl.at('hoy')) return potencia(lpDe(anio), `${Math.round(anio)} · `);
         if (p < tl.at('calor')) return potencia(13.28, '2026 · hoy · ');
         return potencia(tl.get('lp2', p));
@@ -498,8 +599,18 @@ export const tierraNoche: Escena = {
         const t = f.time;
         camera.near = 1e-4;
         camera.far = 400;
+        // Riding the spark over the Earth (its frame turned into the world's), or the rig's own shot.
+        const rs = tl.get('rs', p);
+        const rw = tl.get('rw', p);
         const mira = { punto: cW.clone().multiplyScalar(tl.get('lh', p)), peso: tl.get('lw', p) };
-        aplicarToma(camera, toma(tl, p, tm, mira));
+        let lugarR: { punto: THREE.Vector3; peso: number } | undefined;
+        if (rw > 0.001) {
+          const m = montarTierra(rs);
+          mira.punto.copy(m.mira.applyQuaternion(earth.quaternion));
+          mira.peso = rw;
+          lugarR = { punto: m.lugar.applyQuaternion(earth.quaternion), peso: rw };
+        }
+        aplicarToma(camera, toma(tl, p, tm, mira, lugarR));
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
         earth.updateMatrixWorld();
@@ -508,6 +619,11 @@ export const tierraNoche: Escena = {
         solL.copy(SOL).applyQuaternion(inv);
         camL.copy(camera.position).applyQuaternion(inv);
         planeta.update({ sol: solL, camara: camL, focal: f.focal, dpr: f.dpr, tiempo: t, presencia: tl.get('presencia', p) });
+        chispa.update((x, o) => rutaTierra(x, o), rs, 0.0011, tl.get('on', p), 0, camL, f.focal, f.dpr, t);
+        cableMar.u.uOn.value = tl.get('cable', p);
+        centro.u.uOn.value = tl.get('dc', p);
+        const cp = tl.get('copias', p);
+        for (const c of copias) c.ch.update(arcoCopia(c), cp, 0.012, cp > 0.01 && cp < 0.999 ? 1 : 0, 0, camL, f.focal, f.dpr, t);
 
         const ir = tl.get('ir', p);
         const wipe = ir > 0 ? tl.get('wipe', p) : -2;
@@ -537,6 +653,9 @@ export const tierraNoche: Escena = {
         centroV.set(0, 0, 0).applyMatrix4(camera.matrixWorldInverse);
         for (const n of [cable, carga, anillo]) n.u.uOcc.value.set(centroV.x, centroV.y, centroV.z, 1.0);
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
+      },
+      efectos(p) {
+        return { vel: tl.get('vel', p), calor: tl.get('warm', p) * tl.get('ir', p) * 0.9 };
       },
       placa(g, f) {
         // The curtain's edge while it sweeps.

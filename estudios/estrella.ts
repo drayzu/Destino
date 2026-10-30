@@ -4,7 +4,8 @@ import { enfocar, materia, materiaBuilder, type MateriaData, type Nube } from '.
 import { gauss } from './motor/math';
 import { sol as solHorizontes } from '../src/horizontes';
 import { TEAL, potencia, puntoTu } from './remake';
-import { aplicarToma, toma } from './rig';
+import { aplicarToma, toma, type Toma } from './rig';
+import { crearChispa, type Camino } from './chispa';
 import type { Rotulo } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
 
@@ -211,6 +212,16 @@ export const estrella: Escena = {
     const tm = toma(tl, tl.at('materia') + 4);
     const tuPos = tm.pos.clone().addScaledVector(tm.dir, 0.42).addScaledVector(tm.up, -0.05);
     const tu = add(puntoTu(tuPos, 0.02), redG);
+    // The spark: a little ahead of the camera on its way in (where the camera will be, nearer the star);
+    // in the network it goes to its knot, where «tú» lights.
+    const chispa = crearChispa();
+    root.add(chispa.nube.points);
+    const tmp: Toma = toma(tl, 0);
+    const caminoCh: Camino = (sv, out) => {
+      const enRed = THREE.MathUtils.smoothstep(sv, tl.at('materia') + 1.0, tl.at('materia') + 3.6);
+      out.copy(toma(tl, Math.max(0, sv), tmp).pos).multiplyScalar(0.84);
+      return out.lerp(tuPos, enRed);
+    };
     tu.u.uSpread.value = 0;
 
     return {
@@ -232,6 +243,7 @@ export const estrella: Escena = {
         camera.near = 1e-3;
         camera.far = 500;
         aplicarToma(camera, toma(tl, p, tm));
+        chispa.update(caminoCh, p, 0.03, 1 - THREE.MathUtils.smoothstep(p, tl.at('materia') + 3.4, tl.at('materia') + 4.2), 0, camera.position, f.focal, f.dpr, f.time);
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
 

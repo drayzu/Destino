@@ -7,6 +7,7 @@ import { ease, redCosmica } from './comun';
 import { FONT, ink, type Cuenta, type Rotulo } from './placa';
 import { TEAL, potencia, puntoTu } from './remake';
 import { aplicarToma, toma } from './rig';
+import { crearChispa, type Camino } from './chispa';
 import type { Escena, Frame, Instancia } from './tipos';
 
 /**
@@ -141,14 +142,15 @@ export const final: Escena = {
       tl.wait(-off);
     };
     const Cn = (v: THREE.Vector3) => ({ cx: v.x, cy: v.y, cz: v.z });
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 240, el: 16, ld: Math.log10(400), yaw: 90, pitch: -90, roll: 0, fov: 40, hoyo: 1, anillo: 0, mente: 0, periodo: 1, tuM: 0, apagaM: 0, bur: 0, rb: 0, luz: 0, red: 0, tu: 0, apaga: 0, tarjeta: 0, baja: 0 });
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 240, el: 16, ld: Math.log10(400), yaw: 90, pitch: -90, roll: 0, fov: 40, hoyo: 1, anillo: 0, mente: 0, periodo: 1, tuM: 0, apagaM: 0, bur: 0, rb: 0, luz: 0, red: 0, tu: 0, apaga: 0, tarjeta: 0, baja: 0, chs: 0, chOn: 0 });
 
     tl.label('centrales').caption(5.6, 'Las últimas centrales', 'Cuando las estrellas se apagan, quedan los agujeros negros. Todavía se puede sacar energía de su giro.');
     luego(1.6, 2.0, { anillo: 1 });
     tl.to(5.6, { ld: Math.log10(70), el: 9, az: 262 });
 
     tl.label('contados').caption(6.6, 'Pensamientos contados', 'Al universo le quedan pensamientos contados. Este que tienes ahora es uno de ellos.');
-    tl.with(1.2, { mente: 1 });
+    tl.with(1.2, { mente: 1, chOn: 1 });
+    tl.with(6.6, { chs: 1 });
     luego(0.6, 1.0, { tuM: 1 });
     luego(0.4, 5.0, { periodo: 6 });
     luego(5.0, 1.2, { apagaM: 1 });
@@ -159,6 +161,7 @@ export const final: Escena = {
     tl.label('crear').caption(5.4, 'Crear un universo', 'La última obra posible: una burbuja que crece hasta ser un universo propio. Hoy no sabemos hacerlo.');
     tl.with(2.0, { hoyo: 0, anillo: 0, mente: 0, tuM: 0 });
     luego(0.8, 1.0, { bur: 1 });
+    luego(0.6, 3.0, { chs: 2 });
     luego(1.0, 4.2, { rb: 1 });
     luego(0.4, 1.6, { ...Cn(NACE) });
     tl.to(5.4, { ld: Math.log10(26), el: 12, az: 330 });
@@ -172,7 +175,8 @@ export const final: Escena = {
     tl.label('alguien').caption(6.2, 'Alguien', 'En miles de millones de años, en algún rincón de ahí adentro, algo va a pensar por primera vez. Como tú, ahora.');
     tl.with(3.2, { red: 1 });
     luego(1.6, 2.4, { ...Cn(rinconW), baja: 1 });
-    luego(3.6, 1.4, { tu: 1 });
+    luego(0.6, 3.4, { chs: 3 });
+    luego(3.6, 1.4, { tu: 1, chOn: 0 });
     tl.to(6.2, { ld: Math.log10(0.5), el: 6, az: 365 });
 
     tl.label('nuestro').caption(6.0, '¿Y el nuestro?', '¿Y si alguien hizo también el nuestro?');
@@ -180,6 +184,9 @@ export const final: Escena = {
     luego(3.2, 1.6, { tarjeta: 1 });
     tl.to(6.0, { ld: Math.log10(0.6), az: 368 });
 
+    const chispa = crearChispa();
+    root.add(chispa.nube.points);
+    const junto = MENTE.clone().add(V(1.6, 0.3, 0.6));
     const tm = toma(tl, 0);
     const sky = new THREE.Matrix3();
     return {
@@ -206,6 +213,13 @@ export const final: Escena = {
         camera.near = 1e-4;
         camera.far = 5000;
         aplicarToma(camera, toma(tl, p, tm));
+        // The spark: beside the last mind (0..1, it waits there), into the bubble (1..2), down to its corner (2..3).
+        const caminoCh: Camino = (sv, out) => {
+          if (sv <= 1) return out.copy(junto).add(V(Math.sin(sv * 9) * 0.3, Math.cos(sv * 7) * 0.2, 0));
+          if (sv <= 2) return out.copy(junto).lerp(NACE, THREE.MathUtils.smoothstep(sv - 1, 0, 1));
+          return out.copy(NACE).lerp(rinconW, THREE.MathUtils.smoothstep(sv - 2, 0, 1));
+        };
+        chispa.update(caminoCh, tl.get('chs', p), 0.01, tl.get('chOn', p), 0, camera.position, f.focal, f.dpr, f.time);
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
         hoyo.update({ camera, center: V(), normal: N_DISCO, rs: 1, sky, time: t, alpha: tl.get('hoyo', p) });

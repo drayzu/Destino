@@ -42,6 +42,8 @@ export interface Instancia {
   rotulo(p: number): Rotulo | null;
   /** False: no ladder. */
   escalera?: boolean;
+  /** The film's effects at beat p: the air trembling with heat, light streaking with speed (0..1). */
+  efectos?(p: number): { calor?: number; vel?: number };
   /** Resolves when the scene has everything it loads (maps). */
   listo?: Promise<unknown>;
   dispose(): void;

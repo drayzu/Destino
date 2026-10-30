@@ -5,6 +5,7 @@ import { redCosmica } from './comun';
 import { FONT, ink, type Rotulo } from './placa';
 import { TEAL, potencia } from './remake';
 import { aplicarToma, toma } from './rig';
+import { crearChispa, type Camino } from './chispa';
 import type { Escena, Frame, Instancia } from './tipos';
 
 /**
@@ -154,17 +155,19 @@ export const cosmos: Escena = {
       tl.with(dur, v);
       tl.wait(-off);
     };
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 80, el: 20, ld: Math.log10(3.7), yaw: 90, pitch: -90, roll: 0, fov: 40, sondas: 0, seis: 0, exp: 0, hor: 0, bur: 0, otras: 0, vacia: 0, oro: 0 });
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 80, el: 20, ld: Math.log10(3.7), yaw: 90, pitch: -90, roll: 0, fov: 40, sondas: 0, seis: 0, exp: 0, hor: 0, bur: 0, otras: 0, vacia: 0, oro: 0, prog: 0, tit: 0 });
 
     tl.label('seis').caption(5.8, 'La eternidad en seis horas', 'O hacia afuera: con la luz de una estrella, en seis horas salen sondas a todas las galaxias alcanzables.');
     luego(0.8, 4.0, { sondas: HOR, bur: HOR * 0.85 });
+    luego(0.6, 5.0, { prog: 0.55 });
     luego(1.2, 1.2, { seis: 1 });
     luego(4.4, 1.2, { seis: 0 });
     tl.to(5.8, { az: 110, el: 24, ld: Math.log10(2.4) });
 
     tl.label('prisa').caption(5.8, 'La prisa', 'Hay que apurarse: las galaxias se alejan cada vez más rápido, y las que cruzan el horizonte ya no se alcanzan.');
     tl.with(1.4, { hor: 1 });
-    luego(0.6, 5.0, { exp: 1 });
+    luego(0.6, 5.0, { exp: 1, prog: 0.72 });
+    luego(2.4, 2.4, { tit: 1 });
     tl.to(5.8, { az: 140, el: 28, ld: Math.log10(3.3) });
 
     tl.label('tocan').caption(5.6, 'Las expansivas se tocan', 'Si otras se expanden igual, las burbujas se tocan, y cada una se queda con su parte del cielo.');
@@ -176,11 +179,26 @@ export const cosmos: Escena = {
     tl.to(4.8, { az: 200, el: 26, ld: Math.log10(4.6) });
 
     tl.label('horizonte').caption(6.0, 'El horizonte', 'Lo que se lleva la energía oscura no vuelve. Lo que podemos tocar ya no crece: se vacía.');
-    luego(0.4, 3.6, { vacia: 1, hor: 0.4 });
+    luego(0.4, 3.6, { vacia: 1, hor: 0.4, tit: 0 });
+    luego(0.6, 3.6, { prog: 0 });
     luego(2.4, 2.0, { oro: 1 });
     tl.to(2.6, { az: 220, el: 20, ld: Math.log10(2.4) });
     tl.to(3.4, { az: 240, el: 16, ld: Math.log10(0.05) });
 
+    // The spark: out on a probe towards one galaxy within reach (its knot, in the web's frame).
+    const meta = (() => {
+      let mejor = V(0.5, 0.1, 0.3);
+      for (let k = 0; k < n; k += 97) {
+        const g = V(pos[k * 3], pos[k * 3 + 1], pos[k * 3 + 2]).multiplyScalar(1.6);
+        if (g.length() > HOR * 0.7 && g.length() < HOR * 0.95 && g.y > 0) {
+          mejor = g;
+          break;
+        }
+      }
+      return mejor;
+    })();
+    const chispa = crearChispa();
+    root.add(chispa.nube.points);
     const tm = toma(tl, 0);
     return {
       tl,
@@ -202,6 +220,11 @@ export const cosmos: Escena = {
         camera.near = 1e-5;
         camera.far = 100;
         aplicarToma(camera, toma(tl, p, tm));
+        // Where it is: along the way to its galaxy (which the swell carries off), and home again at the end.
+        const expC = tl.get('exp', p);
+        const caminoCh: Camino = (sv, out) => out.copy(meta).multiplyScalar((1 + expC * 1.4) * Math.max(0, sv));
+        const prog = tl.get('prog', p);
+        chispa.update(caminoCh, prog, 0.01, 1 - tl.get('oro', p), tl.get('tit', p), camera.position, f.focal, f.dpr, f.time);
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
         const exp = tl.get('exp', p);

@@ -20,6 +20,8 @@ const FinishShader = {
     uGrain: { value: 0.022 },
     uVignette: { value: 0.55 },
     uFringe: { value: 0.012 },
+    uCalor: { value: 0 },
+    uVel: { value: 0 },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -27,14 +29,26 @@ const FinishShader = {
   `,
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse;
-    uniform float uTime, uGrain, uVignette, uFringe;
+    uniform float uTime, uGrain, uVignette, uFringe, uCalor, uVel;
     uniform vec2 uRes;
     varying vec2 vUv;
     float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
     void main() {
-      vec2 c = vUv - 0.5;
-      vec2 off = c * dot(c, c) * uFringe;
-      vec3 col = vec3(texture2D(tDiffuse, vUv + off).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - off).b);
+      vec2 uv = vUv;
+      // Heat: the air trembles (a wall).
+      uv += uCalor * 0.0035 * vec2(sin(uv.y * 70.0 + uTime * 5.0) + 0.5 * sin(uv.y * 23.0 - uTime * 3.1), cos(uv.x * 55.0 + uTime * 4.3));
+      vec2 c = uv - 0.5;
+      vec2 off = c * dot(c, c) * (uFringe + uVel * 0.05);
+      vec3 col = vec3(texture2D(tDiffuse, uv + off).r, texture2D(tDiffuse, uv).g, texture2D(tDiffuse, uv - off).b);
+      // Speed: light streaks out from the middle of the frame.
+      if (uVel > 0.001) {
+        vec3 acc = col;
+        for (int i = 1; i < 10; i++) {
+          float k = float(i) / 10.0;
+          acc += texture2D(tDiffuse, 0.5 + c * (1.0 - k * 0.09 * uVel)).rgb * (1.0 - k * 0.6);
+        }
+        col = mix(col, acc / 6.4, clamp(uVel, 0.0, 1.0));
+      }
       float v = smoothstep(0.95, 0.2, length(c * vec2(uRes.x / uRes.y, 1.0)));
       col *= mix(1.0, v, uVignette);
       col += (hash(vUv * uRes + fract(uTime * 7.0) * 311.0) - 0.5) * uGrain;

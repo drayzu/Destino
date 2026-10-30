@@ -5,6 +5,7 @@ import { gauss } from './motor/math';
 import { mercurio as mercurioHorizontes, sol as solHorizontes } from '../src/horizontes';
 import { TEAL, potencia } from './remake';
 import { angulos, aplicarToma, toma } from './rig';
+import { crearChispa, type Camino } from './chispa';
 import type { Rotulo } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
 
@@ -281,6 +282,17 @@ export const mercurio: Escena = {
     luego(0.6, 3.4, { ir: 1, rioOn: 0 });
     tl.to(5.0, { ...lejos, fov: 30 });
 
+    // The spark: from where scene 10 left it over Mercury, to the rail's end (ch 0..1), along the river
+    // just ahead of the camera (1..2), and round the Sun among the collectors (2..3).
+    const llega = M.clone().add(V(0, 0.25, 0));
+    const caminoCh: Camino = (sv, out) => {
+      if (sv <= 1) return out.copy(llega).lerp(T, Math.max(0, sv));
+      if (sv <= 2) return camino(Math.min(1, sv - 1), out).addScaledVector(Y, 0.02);
+      const a = PHI0 + PHI + (sv - 2) * 2.2;
+      return out.set(Math.sin(a) * 3.1, 0.2 * Math.sin((sv - 2) * 5), Math.cos(a) * 3.1);
+    };
+    const chispa = crearChispa();
+    root.add(chispa.nube.points);
     const tm = toma(tl, 0);
     const q = V();
     const solV = V();
@@ -317,6 +329,9 @@ export const mercurio: Escena = {
         objetivo.lerp(adelante, lw);
         objetivo.lerp(V(), ms);
         aqui.copy(fuera(sc));
+        // The spark: to the rail while it fires, then just ahead of the camera on the river, then in the swarm.
+        const chP = p < tl.at('catapulta') + 1.2 ? THREE.MathUtils.clamp((p - tl.at('mina') - 1) / (tl.at('catapulta') + 1.2 - tl.at('mina') - 1), 0, 1) : p < tl.at('pared') + 3.4 ? 1 + Math.min(1, sc + 0.035) : 2 + (p - tl.at('pared') - 3.4) / 8;
+        chispa.update(caminoCh, chP, chP > 1 && chP < 2 ? 0.0012 : 0.01, 1, 0, camera.position, f.focal, f.dpr, f.time);
         aplicarToma(camera, toma(tl, p, tm, { punto: objetivo, peso: 1 }, { punto: aqui, peso: lw }));
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();

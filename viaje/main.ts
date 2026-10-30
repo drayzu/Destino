@@ -9,6 +9,7 @@ import { FONDOS } from '../estudios/motor/pantalla';
 import { createStage, type Stage } from '../estudios/stage';
 import { cuenta, escalera, FONT, ink, VIOLETA } from '../estudios/placa';
 import type { Ancla, Escena, Frame, Instancia } from '../estudios/tipos';
+import { mente } from '../estudios/mente';
 import { apertura } from '../estudios/apertura';
 import { despierta } from '../estudios/despierta';
 import { tierraNoche } from '../estudios/tierra';
@@ -37,6 +38,7 @@ import { final } from '../estudios/final';
  */
 
 const ACTOS: [Escena, number][] = [
+  [mente, 0],
   [apertura, 0],
   [despierta, 0],
   [tierraNoche, 0],
@@ -289,6 +291,9 @@ function step(now: number, dt: number, at: number) {
       if (!enRelevo && t.escena.id !== 'agujero') stage.renderer.toneMappingExposure = t.film.exposure;
     }
   }
+  const ef = inst.efectos?.(p) ?? {};
+  stage.finish.uniforms.uCalor.value = ef.calor ?? 0;
+  stage.finish.uniforms.uVel.value = ef.vel ?? 0;
   if (!fixed && !calm.matches) {
     mouse.x = damp(mouse.x, mouseTarget.x, 3, dt);
     mouse.y = damp(mouse.y, mouseTarget.y, 3, dt);

@@ -5,6 +5,7 @@ import { gauss } from './motor/math';
 import { sol as solH } from '../src/horizontes';
 import { TEAL, potencia, puntoTu } from './remake';
 import { aplicarToma, toma } from './rig';
+import { crearChispa, type Camino } from './chispa';
 import { LEJOS, enjambreNube } from './mercurio';
 import { angulos } from './rig';
 import type { Rotulo } from './placa';
@@ -204,6 +205,10 @@ export const vela: Escena = {
     );
     nave.u.uFuente.value = 0.4;
     const tu = add(puntoTu(V(0.02, 0.135, 0.1), 0.006), naveG, 7);
+    const chispa = crearChispa();
+    root.add(chispa.nube.points);
+    const eco = crearChispa();
+    root.add(eco.nube.points);
 
     const listo = Promise.all([sol.listo, A.listo, B.listo]);
 
@@ -215,11 +220,12 @@ export const vela: Escena = {
       tl.wait(-off);
     };
     // Where the Sun's scene leaves the camera (sol.ts, «tipo»): relative to the Sun, here S0.
-    tl.set({ cx: S0.x, cy: S0.y, cz: S0.z, ox: 0, oy: 0, oz: 0, az: angulos(LEJOS).az + 150, el: 30, ld: 2.2, yaw: 90, pitch: -90, roll: 0, fov: 34, haz: 0, lsol: Math.log10(14), lcen: 4.5, beta: 0, polvo: 0, abre: 1, luzA: 0, nave: 0, tu: 0, nz: -3 });
+    tl.set({ cx: S0.x, cy: S0.y, cz: S0.z, ox: 0, oy: 0, oz: 0, az: angulos(LEJOS).az + 150, el: 30, ld: 2.2, yaw: 90, pitch: -90, roll: 0, fov: 34, haz: 0, lsol: Math.log10(14), lcen: 4.5, beta: 0, polvo: 0, abre: 1, luzA: 0, nave: 0, tu: 0, nz: -3, eco: 0, ecoS: 0, chH: 0, salta: 0 });
 
     tl.label('velas').caption(5.6, 'Velas de luz', 'Para ir a otra estrella, un láser empuja una vela de pocos gramos. En minutos va a un quinto de la luz.');
     tl.with(1.2, { cx: 0, cy: 0, cz: 0 });
     luego(1.4, 1.2, { haz: 1 });
+    luego(1.6, 1.6, { chH: 1 });
     tl.to(3.0, { az: 28, el: 12, ld: -1.1, fov: 46 });
     luego(0.2, 2.6, { lsol: 2.6, polvo: 1 });
     tl.to(2.6, { az: 40, el: 10, ld: -1.2 });
@@ -230,6 +236,12 @@ export const vela: Escena = {
     tl.to(2.6, { az: 120, el: 8, ld: -1.15, fov: 60 });
     tl.to(3.2, { az: 178, el: 6, ld: -1.25, fov: 66 });
 
+    // The wall: light is slow. An echo goes home, so slowly the camera slows with it.
+    tl.label('lenta').caption(6.0, 'La luz es lenta', 'Cada mensaje a casa tarda más de cuatro años. Allá solo saben de nosotros lo que fuimos.');
+    tl.with(0.8, { eco: 1 });
+    tl.with(6.0, { ecoS: 1 });
+    tl.to(6.0, { az: 200, el: 12, ld: -1.0, fov: 54 });
+
     tl.label('freno').caption(6.0, 'Frenar con su luz', 'Al llegar no hay con qué frenar. Una vela más grande usa la luz de la estrella como freno.');
     tl.with(3.6, { lcen: 1.35, beta: 0.03 });
     luego(1.4, 2.4, { abre: 5, luzA: 1 });
@@ -239,6 +251,7 @@ export const vela: Escena = {
     // Something enormous passes, slowly.
     tl.label('nave').caption(6.2, 'Naves que son mundos', 'El viaje dura siglos. Quien llega es nieto de los nietos de quien salió: alguien como tú, que nunca vio la Tierra.');
     tl.with(1.6, { nave: 1 });
+    luego(2.0, 1.4, { salta: 1 });
     luego(3.2, 1.0, { tu: 1 });
     tl.to(6.2, { nz: 0.6, cx: 0.9, cy: 0.1, cz: 0.2, az: 120, el: 10, ld: -0.35, fov: 40 });
 
@@ -297,6 +310,16 @@ export const vela: Escena = {
         velaN.u.uLuzA.value = tl.get('luzA', p);
         haz.u.uHaz.value = tl.get('haz', p);
         naveG.position.set(0.9, 0.1, 0.2 + tl.get('nz', p));
+        // The spark: along the beam from the swarm into the sail, then on the sail, then a jump to the ship.
+        const desde = casa.position.clone().add(V(0, 0, 3.2));
+        const enVela = V(0, 0, 0.004);
+        const enNave = naveG.position.clone().add(V(0.02, 0.135, 0.1));
+        const caminoCh: Camino = (sv, out) => (sv <= 1 ? out.copy(desde).lerp(enVela, Math.max(0, sv) ** 0.5) : out.copy(enVela).lerp(enNave, Math.min(1, sv - 1)));
+        const chS = Math.min(1, tl.get('chH', p)) + tl.get('salta', p);
+        chispa.update(caminoCh, chS, 0.004, 1, 0, camera.position, f.focal, f.dpr, f.time);
+        // The echo home: from the sail back towards the Sun, slow.
+        const caminoEco: Camino = (sv, out) => out.copy(enVela).lerp(casa.position, Math.max(0, sv) * 0.25);
+        eco.update(caminoEco, tl.get('ecoS', p), 0.002, tl.get('eco', p) * (1 - tl.get('salta', p)), 0, camera.position, f.focal, f.dpr, f.time);
         naveG.scale.setScalar(1);
         naveG.rotation.y = 0.15;
         nave.u.uNave.value = tl.get('nave', p);
