@@ -116,6 +116,69 @@ function velaMembrana() {
   return { mesh: m, u: mat.uniforms };
 }
 
+/**
+ * Interstellar dust streaming past, as fine streaks of light (not dots): each a short line along
+ * the way, longer the faster we go, fading at both ends of the stretch round the sail.
+ */
+function polvoLineas() {
+  const n = 1400;
+  const pos = new Float32Array(n * 2 * 3);
+  const off = new Float32Array(n * 2 * 2);
+  const fase = new Float32Array(n * 2);
+  const cola = new Float32Array(n * 2);
+  let seed = 193;
+  const r = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  for (let i = 0; i < n; i++) {
+    const a = r() * Math.PI * 2;
+    const q = 0.03 + Math.sqrt(r()) * 0.6;
+    const f = r();
+    for (let k = 0; k < 2; k++) {
+      off[(i * 2 + k) * 2] = Math.cos(a) * q;
+      off[(i * 2 + k) * 2 + 1] = Math.sin(a) * q;
+      fase[i * 2 + k] = f;
+      cola[i * 2 + k] = k;
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('aOff', new THREE.BufferAttribute(off, 2));
+  g.setAttribute('aFase', new THREE.BufferAttribute(fase, 1));
+  g.setAttribute('aCola', new THREE.BufferAttribute(cola, 1));
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uPolvo: { value: 0 }, uVel: { value: 0.4 }, uTime: { value: 0 }, uFundido: { value: 1 } },
+    vertexShader: /* glsl */ `
+      attribute vec2 aOff;
+      attribute float aFase, aCola;
+      uniform float uVel, uTime;
+      varying float vLuz;
+      void main() {
+        float zz = fract(aFase - uTime * uVel) * 4.0 - 2.0;
+        float largo = 0.01 + uVel * 0.18;
+        vec3 p = vec3(aOff.x, aOff.y, zz + aCola * largo);
+        vLuz = (1.0 - aCola) * (1.0 - smoothstep(1.2, 2.0, abs(zz)));
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uPolvo, uFundido;
+      varying float vLuz;
+      void main() {
+        gl_FragColor = vec4(vec3(0.72, 0.8, 0.9) * vLuz * 0.55 * uPolvo * uFundido, 0.0);
+      }
+    `,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
+  });
+  const lineas = new THREE.LineSegments(g, mat);
+  lineas.frustumCulled = false;
+  lineas.renderOrder = 3;
+  return { lineas, u: mat.uniforms };
+}
+
 /** Interstellar dust that streams past (`aKind` phase; `aOff` place round the path). */
 function polvoDatos() {
   const b = materiaBuilder(193);
@@ -269,6 +332,9 @@ export const vela: Escena = {
       3,
     );
     polvo.u.uFuente.value = 0.6;
+    polvo.points.visible = false;
+    const polvoL = polvoLineas();
+    root.add(polvoL.lineas);
     const naveG = new THREE.Group();
     root.add(naveG);
     const nave = add(
@@ -324,13 +390,14 @@ export const vela: Escena = {
     luego(1.6, 1.6, { chH: 1 });
     tl.to(3.0, { az: 28, el: 12, ld: -1.1, fov: 46 });
     luego(0.2, 2.6, { lsol: 2.6, polvo: 1 });
-    tl.to(2.6, { az: 40, el: 10, ld: -1.2 });
+    // (the camera turns one way all through this act: never back on itself)
+    tl.to(2.6, { az: 20, el: 10, ld: -1.2 });
 
     tl.label('quinto').caption(5.8, 'A un quinto de la luz', 'Veinte años hasta Alfa Centauri. A esta velocidad el cielo se deforma: adelante, azul; atrás, rojo.');
     tl.with(1.0, { haz: 0 });
     tl.with(3.0, { beta: 0.2, lsol: 4.2 });
-    tl.to(2.6, { az: 120, el: 8, ld: -1.15, fov: 60 });
-    tl.to(3.2, { az: 178, el: 6, ld: -1.25, fov: 66 });
+    tl.to(2.6, { az: -60, el: 8, ld: -1.15, fov: 60 });
+    tl.to(3.2, { az: -182, el: 6, ld: -1.25, fov: 66 });
 
     // The wall: light is slow. An echo goes home, so slowly the camera slows with it.
     tl.label('lenta').caption(6.0, 'La luz es lenta', 'Cada mensaje a casa tarda más de cuatro años. Allá solo saben de nosotros lo que fuimos.');
@@ -338,13 +405,13 @@ export const vela: Escena = {
     tl.with(6.0, { ecoS: 1 });
     luego(1.6, 1.2, { ecoN: 1 });
     luego(5.2, 1.0, { ecoN: 0 });
-    tl.to(6.0, { az: 250, el: 12, ld: -0.42, fov: 46 });
+    tl.to(6.0, { az: -200, el: 12, ld: -0.42, fov: 46 });
 
     tl.label('freno').caption(6.0, 'Frenar con su luz', 'Al llegar no hay con qué frenar. Una vela más grande usa la luz de la estrella como freno.');
     tl.with(3.6, { lcen: 1.35, beta: 0.03 });
     luego(1.4, 2.4, { abre: 5, luzA: 1 });
     luego(3.0, 2.0, { polvo: 0 });
-    tl.to(6.0, { az: 160, el: 16, ld: -0.6, fov: 50 });
+    tl.to(6.0, { az: -218, el: 16, ld: -0.6, fov: 50 });
 
     // The reveal: out until both stars fit, the Sun drawn near (short), ours, with the route between
     // them; the names a moment; then back in to the sail, where something enormous passes.
@@ -352,20 +419,20 @@ export const vela: Escena = {
     tl.label('nave').caption(27.6, 'Naves que son mundos', 'El viaje dura siglos. Quien llega es nieto de los nietos de quien salió: alguien como tú, que nunca vio la Tierra.');
     tl.with(1.0, { beta: 0 });
     tl.with(3.6, { lsol: Math.log10(80) });
-    luego(0.2, 4.2, { ld: Math.log10(150), el: 22, az: 96, fov: 34 });
+    luego(0.2, 4.2, { ld: Math.log10(150), el: 22, az: -264, fov: 34 });
     luego(1.8, 2.6, { cx: MEDIO.x, cy: MEDIO.y, cz: MEDIO.z });
     luego(2.6, 2.0, { mapa: 1 });
     luego(4.0, 1.4, { nombres: 1 });
     tl.wait(5.0);
-    tl.to(3.2, { az: 90 });
+    tl.to(3.2, { az: -270 });
     tl.with(1.0, { nombres: 0 });
     luego(0.4, 1.4, { mapa: 0 });
     luego(1.2, 4.0, { lsol: 4.2 });
     luego(0.4, 2.4, { cx: 0, cy: 0, cz: 0 });
     // The ship passes the sail, slowly: its shield, its turning rings, the lights along its spine.
     tl.with(1.6, { nave: 1 });
-    tl.to(5.2, { nz: 0.6, cx: 0.9, cy: 0.1, cz: 0.2, az: 120, el: 10, ld: -0.35, fov: 40 });
-    tl.to(2.4, { az: 142, el: 16, ld: -0.6 });
+    tl.to(5.2, { nz: 0.6, cx: 0.9, cy: 0.1, cz: 0.2, az: -300, el: 10, ld: -0.35, fov: 40 });
+    tl.to(2.4, { az: -318, el: 16, ld: -0.6 });
     // The spark jumps to it, across to its spine, and the camera goes after it: in among the spokes
     // of a ring, down through its glass roof, and low over its land (the land curving up ahead and
     // overhead) to someone among its lights. Then up again, looking down on them, and back out.
@@ -376,7 +443,7 @@ export const vela: Escena = {
     tl.to(1.8, { sube: 1, fov: 50 });
     // And back out of the ring: the ship among the stars again, where the galaxy takes over.
     tl.with(2.6, { lw: 0 });
-    tl.to(2.8, { fov: 40, az: 150, el: 14, ld: -0.45 });
+    tl.to(2.8, { fov: 40, az: -328, el: 14, ld: -0.45 });
 
     const tm = toma(tl, 0);
     const velV = V();
@@ -477,6 +544,9 @@ export const vela: Escena = {
         cielo.u.uVelV.value.copy(velV);
         polvo.u.uPolvo.value = tl.get('polvo', p);
         polvo.u.uVel.value = 0.15 + beta * 4;
+        polvoL.u.uPolvo.value = tl.get('polvo', p);
+        polvoL.u.uVel.value = 0.15 + beta * 4;
+        polvoL.u.uTime.value = t;
         velaG.scale.setScalar(0.02 * tl.get('abre', p));
         velaN.u.uSizeUnit.value = velaG.scale.x;
         velaN.u.uLuzA.value = tl.get('luzA', p);

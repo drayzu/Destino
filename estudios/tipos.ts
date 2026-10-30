@@ -32,6 +32,8 @@ export interface Instancia {
   tl: Timeline;
   /** Journey: what this act starts from (it lands on the last act's `salida`). */
   entrada?: Ancla;
+  /** Journey: while it hands over, its points no bigger than this many px (its far stars, seen at the next act's scale, would swell). */
+  relevoMaxPx?: number;
   /** Journey: what this act ends on (the next act's `entrada` lands here). */
   salida?: Ancla;
   /** Places the camera and moves the world (before rendering). */

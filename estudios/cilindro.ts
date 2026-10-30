@@ -133,7 +133,8 @@ const TIERRA = /* glsl */ `
       vec3 luz = cielo * (0.24 + 0.12 * centro) * (1.0 - marco);
       luz = mix(luz, aire * 0.6, bruma * 0.6);
       // (only from inside: from outside, the glass shows the land of the far side through it)
-      float dentroT = (1.0 - smoothstep(uRC * 0.9, uRC * 1.05, length(uCamL.xy))) * (1.0 - smoothstep(uLC * 0.5, uLC * 0.5 + 0.05, abs(uCamL.z)));
+      // (fading in over the whole approach to the door, not at the moment the camera crosses it)
+      float dentroT = (1.0 - smoothstep(uRC * 0.9, uRC * 1.4, length(uCamL.xy))) * (1.0 - smoothstep(uLC * 0.5 - 0.05, uLC * 0.5 + 0.7, abs(uCamL.z)));
       gl_FragColor = vec4(luz * dentroT * uOn * uFundido, dentroT * uOn * uFundido);
       return;
     }
@@ -208,8 +209,9 @@ const ESPEJO = /* glsl */ `
     vec3 col = vec3(0.025, 0.035, 0.05) + vec3(0.35, 0.42, 0.5) * fres * 0.35 + vec3(0.9, 0.88, 0.8) * brillo + vec3(0.5, 0.56, 0.62) * (marco * 0.6 + vetas * 0.15);
     float a = 0.35 + 0.3 * fres + marco;
     // (from inside, through the windows, only their backs: dim, the stars mostly through)
-    float dentro = (1.0 - smoothstep(uRC * 0.9, uRC * 1.05, length(uCamL.xy))) * (1.0 - smoothstep(uLC * 0.5, uLC * 0.5 + 0.05, abs(uCamL.z)));
-    if (dentro > 0.5) discard;
+    float dentro = (1.0 - smoothstep(uRC * 0.9, uRC * 1.4, length(uCamL.xy))) * (1.0 - smoothstep(uLC * 0.5 - 0.05, uLC * 0.5 + 0.7, abs(uCamL.z)));
+    col *= 1.0 - dentro;
+    a *= 1.0 - dentro;
     gl_FragColor = vec4(col * uOn * uFundido, clamp(a, 0.0, 1.0) * uOn * uFundido);
   }
 `;

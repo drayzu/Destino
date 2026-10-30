@@ -427,6 +427,7 @@ export const galaxia: Escena = {
       listo: vivo.listo,
       entrada: { pos: Q.clone(), escala: D0 / 9 },
       salida: { pos: UNA.clone(), escala: camFin.pos.distanceTo(UNA) / 21 },
+      relevoMaxPx: 3,
       escalera: false,
       cuenta(p) {
         // The power: the light of every star reached (two at first, the whole galaxy at the end).

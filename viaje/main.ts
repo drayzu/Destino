@@ -241,11 +241,12 @@ const RELEVO = 1.8;
 
 /** Shows `k` of a group's light (the points' uFundido, the black hole's alpha, the backgrounds on or
  * off) and tells its points the world's scale `escala` (their sizes follow it). */
-function fundir(grupo: THREE.Object3D, k: number, escala = 1) {
+function fundir(grupo: THREE.Object3D, k: number, escala = 1, maxPx = 0) {
   grupo.traverse((o) => {
     const un = ((o as THREE.Mesh).material as THREE.ShaderMaterial | undefined)?.uniforms;
     if (o.renderOrder === -100) o.visible = k > 0.3;
     if (!un) return;
+    if (maxPx > 0 && un.uMaxPx) un.uMaxPx.value = Math.min(un.uMaxPx.value, maxPx * stage.dpr);
     if (un.uEscalaMundo) un.uEscalaMundo.value = escala;
     if (un.uFundido) un.uFundido.value = k;
     else if (un.uAlpha) un.uAlpha.value *= k;
@@ -343,7 +344,7 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
     camera.fov = camA.fov + (camera.fov - camA.fov) * k;
     // The light: the last act's fades as this one's comes up (they add, so the sum holds).
     const c = smooth(clamp((p - 0.05) / (RELEVO * 0.8), 0, 1));
-    fundir(prev.grupo, 1 - c, escalaPrev);
+    fundir(prev.grupo, 1 - c, escalaPrev, prev.inst!.relevoMaxPx ?? 0);
     fundir(t.grupo, c);
     const fa = prev.film!;
     const fb = t.film!;
