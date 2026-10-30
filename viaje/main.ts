@@ -10,6 +10,7 @@ import { createStage, type Stage } from '../estudios/stage';
 import { cuenta, escalera, FONT, ink, VIOLETA } from '../estudios/placa';
 import type { Ancla, Escena, Frame, Instancia } from '../estudios/tipos';
 import { apertura } from '../estudios/apertura';
+import { despierta } from '../estudios/despierta';
 import { tierraNoche } from '../estudios/tierra';
 import { mercurio } from '../estudios/mercurio';
 import { estrella } from '../estudios/estrella';
@@ -31,6 +32,7 @@ import { estrella } from '../estudios/estrella';
 
 const ACTOS: [Escena, number][] = [
   [apertura, 0],
+  [despierta, 0],
   [tierraNoche, 0],
   [mercurio, 0],
   [estrella, 1],

@@ -10,6 +10,7 @@ import { createStage, liberar } from './stage';
 import { cuenta, escalera, marca } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
 import { apertura } from './apertura';
+import { despierta } from './despierta';
 import { tierraNoche } from './tierra';
 import { mercurio } from './mercurio';
 import { estrella } from './estrella';
@@ -25,7 +26,7 @@ import { estrella } from './estrella';
  */
 
 // In the order of the journey (ESCALETA.md: scenes 6–7, 11–12, 18–19).
-const ESCENAS: Escena[] = [apertura, tierraNoche, mercurio, estrella];
+const ESCENAS: Escena[] = [apertura, despierta, tierraNoche, mercurio, estrella];
 const PX_PER_BEAT = 520;
 
 const params = new URLSearchParams(location.search);

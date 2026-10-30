@@ -1,5 +1,6 @@
 // Evaluates an expression in a study page (headless Chrome, with the GPU) and prints the result.
 //   node tools/eval.mjs mercurio 1 "estudio.camara(9.4)"
+//   node tools/eval.mjs viaje 0 "viaje.tramos()"  (the journey page)
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -31,9 +32,9 @@ ws.addEventListener('message', (e) => {
 });
 const send = (method, params = {}) => new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 await send('Runtime.enable');
-await send('Page.navigate', { url: `http://localhost:${PUERTO}/estudios/index.html?m=${m}&s=${s}&debug&cap=1600x900` });
+await send('Page.navigate', { url: m === 'viaje' ? `http://localhost:${PUERTO}/viaje/index.html?debug&cap=1600x900` : `http://localhost:${PUERTO}/estudios/index.html?m=${m}&s=${s}&debug&cap=1600x900` });
 await sleep(3000);
-const r = await send('Runtime.evaluate', { awaitPromise: true, returnByValue: true, expression: `(async () => { await estudio.inst?.listo; return JSON.stringify(await (${expr})); })()` });
+const r = await send('Runtime.evaluate', { awaitPromise: true, returnByValue: true, expression: m === 'viaje' ? `(async () => { await viaje.listo(); return JSON.stringify(await (${expr})); })()` : `(async () => { await estudio.inst?.listo; return JSON.stringify(await (${expr})); })()` });
 console.log(r.result?.result?.value ?? JSON.stringify(r.result?.exceptionDetails ?? r));
 await send('Browser.close');
 chrome.kill();

@@ -31,12 +31,12 @@ import type { Escena, Frame, Instancia } from './tipos';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 /** The face turned to the camera at first, and where the elevator stands (on the equator, East Africa). */
-const CARA = { lat: 24, lon: 36 };
+export const CARA = { lat: 24, lon: 36 };
 const CABLE = { lat: 0, lon: 37 };
 /** Where «tú» is: in the middle of the face, on the dark of the Red Sea between the lights (a city's core would drown it). */
 const TU_EN = { lat: 22.5, lon: 37.5 };
 /** The Sun, behind the Earth and to the left: a thin day crescent on the left limb. */
-const SOL = V(-0.62, 0.22, -0.75).normalize();
+export const SOL = V(-0.62, 0.22, -0.75).normalize();
 const ALTO = 11;
 const HALO = new THREE.Color(0.35, 0.58, 1.0);
 const HALO_IR = new THREE.Color(1.0, 0.36, 0.12);
@@ -101,7 +101,7 @@ const centros = CIUDADES.map(([la, lo, pop]) => {
  * roads between neighbours, and (way 1) the dust of small towns over the land near them. `aDat`:
  * the year it lights, the kind (0 city, 1 town, 2 road), how far along its road, a phase.
  */
-function luces(img: ImageData, red: boolean): { data: MateriaData; dat: Float32Array } {
+export function luces(img: ImageData, red: boolean): { data: MateriaData; dat: Float32Array } {
   const b = materiaBuilder(red ? 21 : 11);
   const r = b.r;
   const dat: number[] = [];
@@ -480,6 +480,7 @@ export const tierraNoche: Escena = {
     return {
       tl,
       listo,
+      entrada: { pos: V(), escala: 1 },
       escalera: false,
       cuenta(p) {
         const anio = tl.get('anio', p);

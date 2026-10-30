@@ -260,7 +260,7 @@ export const apertura: Escena = {
     const C = (v: THREE.Vector3) => ({ cx: v.x, cy: v.y, cz: v.z });
     const G = V();
     const hacia = (a: THREE.Vector3, b: THREE.Vector3, t: number) => a.clone().lerp(b, t);
-    tl.set({ ...C(S), ox: 0, oy: 0, oz: 0, az: 0, el: 4, ld: -3.3, yaw: 90, pitch: -90, roll: 0, fov: 40, tu: 1, cue: 1, voz: 0, vozOn: 1, cielo: 0, gal: 0, titulo: 0, vatios: 0, giro: 0, pla: 0, vaso: 0, ola: 0, olaOn: 0, solp: 0 });
+    tl.set({ ...C(S), ox: 0, oy: 0, oz: 0, az: 0, el: 4, ld: -3.3, yaw: 90, pitch: -90, roll: 0, fov: 40, tu: 1, cue: 1, voz: 0, vozOn: 1, cielo: 0, gal: 0, titulo: 0, vatios: 0, giro: 0, pla: 0, vaso: 0, ola: 0, olaOn: 0, solp: 0, luzSol: 0 });
 
     tl.label('pensamiento').caption(3.4, 'Un pensamiento', 'Estás pensando. Eso cuesta unos veinte vatios.');
     luego(0.5, 1.4, { cue: 0 });
@@ -311,6 +311,7 @@ export const apertura: Escena = {
     tl.label('amarilla').caption(4.6, 'Una estrella amarilla', 'No lo sabemos. Pero podemos imaginar cómo crecería una, empezando por la nuestra.');
     luego(0.6, 2.4, { solp: 1 });
     tl.with(1.8, { ...C(S) });
+    luego(3.4, 1.2, { luzSol: 1 });
     tl.to(4.6, { ld: -3.5, el: 6, az: 236 });
     tl.label('fin');
 
@@ -387,6 +388,17 @@ export const apertura: Escena = {
       },
       placa(g, f) {
         const u = f.u;
+        // The yellow star's light fills the frame (scene 4 opens inside it).
+        const ls = tl.get('luzSol', f.p);
+        if (ls > 0.002) {
+          g.save();
+          const grad = g.createRadialGradient(f.W / 2, f.H / 2, 0, f.W / 2, f.H / 2, Math.max(f.W, f.H) * (0.1 + 0.9 * ls));
+          grad.addColorStop(0, `rgba(255,246,230,${Math.min(1, ls * 1.4)})`);
+          grad.addColorStop(1, `rgba(255,246,230,${ls * ls})`);
+          g.fillStyle = grad;
+          g.fillRect(0, 0, f.W, f.H);
+          g.restore();
+        }
         // «Desliza para empezar», under the point.
         const cue = tl.get('cue', f.p);
         if (cue > 0.01) {
