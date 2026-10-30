@@ -26,8 +26,11 @@ import type { Escena, Frame, Instancia } from './tipos';
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const PITCH = THREE.MathUtils.degToRad(13);
 const KW = 1 / Math.tan(PITCH);
-/** Where arm j's centre is at radius R. */
-export const brazo = (R: number, j: number) => KW * Math.log(R / 4) + j * Math.PI;
+/**
+ * Where arm j's centre is at radius R: a log spiral, but not a perfect one (Diego, 30 Oct: «galaxia
+ * muy perfecta»): its winding wanders with radius, each arm its own way.
+ */
+export const brazo = (R: number, j: number) => KW * (1 + 0.07 * j) * Math.log(R / 4) + j * Math.PI + 0.32 * Math.sin(R * 0.17 + j * 1.9) + 0.14 * Math.sin(R * 0.53 + j * 4.1);
 /** The Sun: 26 kly out, between the two main arms. */
 const R_SOL = 26;
 const PHI_SOL = brazo(R_SOL, 0) + Math.PI / 2 + 0.25;
@@ -35,6 +38,26 @@ export const S = V(Math.sin(PHI_SOL) * R_SOL, 0.02, Math.cos(PHI_SOL) * R_SOL);
 /** A neighbourhood a little way from the Sun, where the camera flies among stars with planets. */
 const P = S.clone().add(V(0.09, 0.006, -0.07));
 const R_VOZ = P.distanceTo(S);
+
+/** A smooth 2D noise (0..1), two octaves: the disc is clumpy, not even. */
+function ruido2(x: number, y: number) {
+  const h = (i: number, j: number) => {
+    const v = Math.sin(i * 127.1 + j * 311.7) * 43758.5453;
+    return v - Math.floor(v);
+  };
+  const capa = (x: number, y: number) => {
+    const i = Math.floor(x);
+    const j = Math.floor(y);
+    const fx = x - i;
+    const fy = y - j;
+    const ux = fx * fx * (3 - 2 * fx);
+    const uy = fy * fy * (3 - 2 * fy);
+    const a = h(i, j) + (h(i + 1, j) - h(i, j)) * ux;
+    const b = h(i, j + 1) + (h(i + 1, j + 1) - h(i, j + 1)) * ux;
+    return a + (b - a) * uy;
+  };
+  return 0.65 * capa(x, y) + 0.35 * capa(x * 2.3 + 5.1, y * 2.3 + 1.7);
+}
 
 function angDif(a: number, b: number) {
   const d = (((a - b) % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
@@ -50,17 +73,50 @@ export function galaxiaDatos(): MateriaData {
   const AZUL = new THREE.Color(0.58, 0.72, 1.0);
   const ROSA = new THREE.Color(1.0, 0.45, 0.66);
   const ORO = new THREE.Color(1.0, 0.72, 0.38);
+  // Patchy along each arm: brighter stretches and gaps (a smooth noise of radius).
+  const parche = (R: number, j: number) => Math.max(0.12, 0.5 + 0.6 * Math.sin(R * 0.41 + j * 2.3) * Math.sin(R * 0.23 + j * 0.7 + 1.1));
+  // The two major arms, two minor ones between them (weaker, shorter, thinner), and the short spur
+  // the Sun lives in (Orion's).
+  const brazos: { j: number; ancho: (R: number) => number; peso: number; R0: number; R1: number }[] = [
+    { j: 0, ancho: (R) => 2.6 + 0.06 * R, peso: 1, R0: 3, R1: 54 },
+    { j: 1, ancho: (R) => 2.4 + 0.07 * R, peso: 1, R0: 3, R1: 50 },
+    { j: 0.5, ancho: () => 1.8, peso: 0.55, R0: 7, R1: 40 },
+    { j: 1.5, ancho: () => 1.6, peso: 0.45, R0: 9, R1: 34 },
+  ];
+  const espolon = (R: number) => PHI_SOL - 0.25 + 0.9 * Math.log(R / R_SOL);
+  // Feathers: short spurs leaving the arms outwards, more steeply wound.
+  const plumas = Array.from({ length: 22 }, (_, k) => {
+    const j = [0, 1, 0.5, 1.5][k % 4];
+    const R0 = 8 + r() * 34;
+    return { j, R0, R1: R0 + 3 + r() * 5, a0: brazo(R0, j), paso: 0.9 + r() * 0.8 };
+  });
   let n = 0;
   while (n < 760000) {
     const R = 2.5 - 11 * Math.log(1 - r() * 0.985);
     if (R > 54) continue;
     const th = r() * Math.PI * 2;
     let A = 0;
-    for (let j = 0; j < 2; j++) {
-      const d = angDif(th, brazo(R, j)) * R;
-      A = Math.max(A, Math.exp(-(d * d) / (2 * 3.2 * 3.2)));
+    for (const a of brazos) {
+      if (R < a.R0 || R > a.R1) continue;
+      const fin = THREE.MathUtils.smoothstep(R, a.R0, a.R0 + 3) * (1 - THREE.MathUtils.smoothstep(R, a.R1 - 6, a.R1));
+      const d = angDif(th, brazo(R, a.j)) * R;
+      const w = a.ancho(R);
+      A = Math.max(A, a.peso * fin * parche(R, a.j) * Math.exp(-(d * d) / (2 * w * w)));
     }
-    if (r() > 0.38 + 0.62 * A) continue;
+    for (const pl of plumas) {
+      if (R < pl.R0 || R > pl.R1) continue;
+      const d = angDif(th, pl.a0 + pl.paso * Math.log(R / pl.R0)) * R;
+      A = Math.max(A, 0.42 * Math.sin(((R - pl.R0) / (pl.R1 - pl.R0)) * Math.PI) * Math.exp(-(d * d) / (2 * 0.8 * 0.8)));
+    }
+    if (R > 21 && R < 31) {
+      const d = angDif(th, espolon(R)) * R;
+      A = Math.max(A, 0.45 * Math.sin(((R - 21) / 10) * Math.PI) * Math.exp(-(d * d) / (2 * 1.1 * 1.1)));
+    }
+    // (and the whole disc clumpy: star clouds and gaps)
+    const x0 = Math.sin(th) * R;
+    const z0 = Math.cos(th) * R;
+    const grumo = 0.25 + 1.1 * Math.pow(ruido2(x0 / 6 + 3, z0 / 6 - 2), 1.5);
+    if (r() > (0.3 + 0.7 * A) * grumo) continue;
     n++;
     const h = gauss(r) * (0.12 + 0.012 * R);
     const joven = A > 0.5 && r() < 0.35;
@@ -69,9 +125,12 @@ export function galaxiaDatos(): MateriaData {
     b.push(Math.sin(th) * R, h, Math.cos(th) * R, c, 0.012, joven ? 0.42 : 0.1 + r() * 0.14, { kind: R });
   }
   // Pink knots where stars are born, strung along the arms.
-  for (let k = 0; k < 900; k++) {
+  for (let k = 0; k < 700; k++) {
     const R = 5 + r() * 40;
-    const th = brazo(R, r() < 0.5 ? 0 : 1) + gauss(r) * 0.05;
+    const j = [0, 1, 0, 1, 0.5, 1.5][Math.floor(r() * 6)];
+    // (in clusters along the arms, not a dotted line)
+    const th = brazo(R, j) + gauss(r) * 0.11;
+    if (r() > parche(R, j) * parche(R, j)) continue;
     const cx = Math.sin(th) * R;
     const cz = Math.cos(th) * R;
     for (let i = 0; i < 22; i++) b.push(cx + gauss(r) * 0.22, gauss(r) * 0.08, cz + gauss(r) * 0.22, ROSA, 0.012, 0.45, { kind: R });
@@ -94,7 +153,10 @@ export function polvoDatos(): MateriaData {
   const r = b.r;
   for (let i = 0; i < 110000; i++) {
     const R = 4 + r() * 34;
-    const th = brazo(R, r() < 0.5 ? 0 : 1) - 0.22 + gauss(r) * 0.06;
+    const j = r() < 0.5 ? 0 : 1;
+    const th = brazo(R, j) - 0.22 + gauss(r) * 0.06;
+    // (in patches, broken here and there)
+    if (ruido2(R * 0.35 + j * 7, j * 3.3) < 0.42) continue;
     b.push(Math.sin(th) * R + gauss(r) * 0.3, gauss(r) * 0.05, Math.cos(th) * R + gauss(r) * 0.3, 0x000000, 0.14, 0, { ink: 0.5, kind: R });
   }
   return b.data();
