@@ -467,10 +467,11 @@ export const tierraNoche: Escena = {
     const chispa = crearChispa();
     earth.add(chispa.nube.points);
     const cableB = materiaBuilder(311);
-    for (let i = 0; i < 9000; i++) {
+    // A fine line on the sea floor, not a tube: many small points.
+    for (let i = 0; i < 40000; i++) {
       const sv = 5 + cableB.r() * 3;
       const q = rutaTierra(sv).normalize().multiplyScalar(0.9994);
-      cableB.push(q.x, q.y, q.z, TEAL, 0.0006, 0.45);
+      cableB.push(q.x, q.y, q.z, TEAL, 0.00012, 0.28);
     }
     const cableMar = add(materia(cableB.data(), { pre: `uniform float uOn;`, move: `em *= uOn;`, uniforms: { uOn: { value: 0 } } }));
     cableMar.u.uFuente.value = 0.5;
@@ -479,11 +480,15 @@ export const tierraNoche: Escena = {
       const c = dirLatLon(DC[0], DC[1]);
       const t1 = V(0, 1, 0).cross(c).normalize();
       const t2 = c.clone().cross(t1);
-      for (let i = 0; i < 16; i++)
-        for (let j = 0; j < 16; j++)
+      // Halls of racks: rows of small lights with aisles between them, three floors.
+      for (let fila = 0; fila < 22; fila++)
+        for (let i = 0; i < 60; i++)
           for (let k = 0; k < 3; k++) {
-            const q = c.clone().multiplyScalar(1.0005 + k * 0.0004).addScaledVector(t1, (i / 15 - 0.5) * 0.008).addScaledVector(t2, (j / 15 - 0.5) * 0.008);
-            dcB.push(q.x, q.y, q.z, new THREE.Color(0.72, 0.86, 1.0), 0.0003, 0.7, { kind: dcB.r() });
+            const x = (i / 59 - 0.5) * 0.009;
+            const y = (fila / 21 - 0.5) * 0.007 + (fila % 2) * 0.00012;
+            const q = c.clone().multiplyScalar(1.0004 + k * 0.00025).addScaledVector(t1, x).addScaledVector(t2, y);
+            const col = dcB.r() < 0.1 ? new THREE.Color(0.44, 0.89, 0.76) : new THREE.Color(0.72, 0.86, 1.0);
+            dcB.push(q.x, q.y, q.z, col, 0.00006, 0.6, { kind: dcB.r() });
           }
     }
     const centro = add(materia(dcB.data(), { pre: `uniform float uOn;`, move: `em *= uOn * (0.6 + 0.8 * step(0.5, fract(aKind * 7.0 + uTime * 2.0)));`, uniforms: { uOn: { value: 0 } } }));
@@ -659,6 +664,11 @@ export const tierraNoche: Escena = {
         centroV.set(0, 0, 0).applyMatrix4(camera.matrixWorldInverse);
         for (const n of [cable, carga, anillo]) n.u.uOcc.value.set(centroV.x, centroV.y, centroV.z, 1.0);
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
+        // Close up, the cable and the racks stay fine points.
+        cableMar.u.uMaxPx.value = 3 * f.dpr;
+        centro.u.uMaxPx.value = 4 * f.dpr;
+        // Flying low over the towns: their lights stay points, not blurred discs.
+        if (lucesN) lucesN.u.uMaxPx.value = 7 * f.dpr;
       },
       efectos(p) {
         return { vel: tl.get('vel', p), calor: tl.get('warm', p) * tl.get('ir', p) * 0.9 };
