@@ -502,6 +502,9 @@ export const sistema: Escena = {
         venusN.u.uSombra.value = tl.get('sombra', p);
         venusN.u.uCamL.value.copy(camera.position).sub(VE).divideScalar(RV);
         cinturon.u.uTodo.value = tl.get('todo', p);
+        marteN.u.uSizeUnit.value = RMA;
+        venusN.u.uSizeUnit.value = RV;
+        anillo.u.uSizeUnit.value = RE;
         anillo.u.uGain.value = tl.get('anillo', p);
         hilos.tierraCil.nube.u.uOn.value = tl.get('h1', p);
         hilos.cilMarte.nube.u.uOn.value = Math.max(tl.get('h2', p), tl.get('todo', p));

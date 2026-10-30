@@ -15,6 +15,7 @@ import { tierraNoche } from '../estudios/tierra';
 import { sistema } from '../estudios/sistema';
 import { mercurio } from '../estudios/mercurio';
 import { solTrabajado } from '../estudios/sol';
+import { vela } from '../estudios/vela';
 import { estrella } from '../estudios/estrella';
 
 /**
@@ -39,6 +40,7 @@ const ACTOS: [Escena, number][] = [
   [sistema, 0],
   [mercurio, 0],
   [solTrabajado, 0],
+  [vela, 0],
   [estrella, 1],
 ];
 /** Beats before the first act (the title is inside act I now). */
