@@ -12,7 +12,9 @@ import { TEAL } from './remake';
  */
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
-const ESTELA = 56;
+/** Points in the wake (as long as it always was: 56 points `paso` apart, now closer together). */
+const ESTELA = 96;
+const LARGO = 55;
 
 export type Camino = (s: number, out: THREE.Vector3) => THREE.Vector3;
 
@@ -27,27 +29,68 @@ export interface Chispa {
   update(camino: Camino, s: number, paso: number, on: number, titila: number, camPos: THREE.Vector3, focal: number, dpr: number, time: number): void;
 }
 
+/**
+ * Still points, as Diego chose (a stroke had too many glitches), but finer: a white heart with a
+ * small four-pointed glint and a teal halo; a wake of close points that reads as one thread, from
+ * pale to deep teal, each one its size in pixels wherever it is (so where the wake runs towards the
+ * camera it does not swell into blobs) and fading near the camera; a faint shimmer along it.
+ * `aKind`: 2 the heart, 1 the halo, 0 the wake (`aDelay`: how far down it).
+ */
 export function crearChispa(): Chispa {
   const b = materiaBuilder(7);
-  // Head (white at its heart), its halo, and the wake.
-  b.push(0, 0, 0, new THREE.Color(0.85, 1.0, 0.95), 6, 2.6);
-  b.push(0, 0, 0, TEAL, 26, 0.16);
+  b.push(0, 0, 0, new THREE.Color(0.92, 1.0, 0.97), 7, 2.8, { kind: 2 });
+  b.push(0, 0, 0, TEAL, 30, 0.2, { kind: 1 });
+  const palido = new THREE.Color(0.8, 1.0, 0.94);
+  const c = new THREE.Color();
   for (let i = 0; i < ESTELA; i++) {
     const t = i / (ESTELA - 1);
-    b.push(0, 0, 0, TEAL, 5 * (1 - t) + 1, 1.4 * Math.pow(1 - t, 1.6));
+    c.copy(palido).lerp(TEAL, Math.min(1, t * 1.6));
+    b.push(0, 0, 0, c, 1, 1.5 * Math.pow(1 - t, 1.5), { kind: 0, delay: t });
   }
   const data = b.data();
   // Sizes and light without the builder's random spread: the spark is exact.
-  data.size[0] = 6;
-  data.size[1] = 26;
-  for (let i = 0; i < ESTELA; i++) data.size[i + 2] = 5 * (1 - i / (ESTELA - 1)) + 1;
+  data.size[0] = 7;
+  data.size[1] = 30;
+  for (let i = 0; i < ESTELA; i++) {
+    const t = i / (ESTELA - 1);
+    data.size[i + 2] = 4.2 * (1 - t) + 1.1;
+  }
   const nube = materia(data, {
-    pre: /* glsl */ `uniform float uOn, uTitila;`,
+    pre: /* glsl */ `uniform float uOn, uTitila, uDCab; varying float vKind;`,
     move: /* glsl */ `
       float parpadeo = mix(1.0, 0.15 + 0.85 * step(0.45, fract(sin(floor(uTime * 9.0) * 12.9898) * 43758.5453)), uTitila);
       em *= uOn * parpadeo;
+      // (a faint shimmer running down the wake)
+      if (aKind < 0.5) em *= 0.8 + 0.35 * sin(aDelay * 40.0 - uTime * 7.0);
+      vKind = aKind;
     `,
-    uniforms: { uOn: { value: 1 }, uTitila: { value: 0 } },
+    post: /* glsl */ `
+      // Each point its size in pixels where it is (not swelling as the wake comes near the camera),
+      // and the wake fading as it does.
+      float dd = max(-mv.z, 1e-14);
+      if (aKind < 0.5) {
+        sz *= dd / max(uDCab, 1e-14);
+        float cerca = smoothstep(0.3, 0.75, dd / max(uDCab, 1e-14));
+        em *= cerca;
+      }
+    `,
+    frag: /* glsl */ `
+      varying vec3 vEm;
+      varying float vOcc;
+      varying float vKind;
+      void main() {
+        vec2 c = gl_PointCoord - 0.5;
+        float r2 = dot(c, c);
+        float f = exp(-r2 * 14.0);
+        if (vKind > 1.5) {
+          // The heart: a soft core, and a small four-pointed glint.
+          float cruz = exp(-abs(c.x) * 60.0) * exp(-abs(c.y) * 5.0) + exp(-abs(c.y) * 60.0) * exp(-abs(c.x) * 5.0);
+          f = exp(-r2 * 30.0) + 0.45 * cruz;
+        }
+        gl_FragColor = vec4(vEm * f, vOcc * f);
+      }
+    `,
+    uniforms: { uOn: { value: 1 }, uTitila: { value: 0 }, uDCab: { value: 1 } },
   });
   nube.u.uSpread.value = 0;
   nube.u.uFuente.value = 1;
@@ -63,8 +106,9 @@ export function crearChispa(): Chispa {
       camino(s, pos);
       posAttr.setXYZ(0, pos.x, pos.y, pos.z);
       posAttr.setXYZ(1, pos.x, pos.y, pos.z);
+      const p2 = (paso * LARGO) / (ESTELA - 1);
       for (let i = 0; i < ESTELA; i++) {
-        camino(s - i * paso, tmp);
+        camino(s - i * p2, tmp);
         posAttr.setXYZ(i + 2, tmp.x, tmp.y, tmp.z);
       }
       posAttr.needsUpdate = true;
@@ -73,6 +117,7 @@ export function crearChispa(): Chispa {
       enfocar(nube, focal, dpr, time);
       // Sizes are pixels: the unit is the world size of one pixel at the spark's distance.
       nube.u.uSizeUnit.value = (d / focal) * dpr;
+      nube.u.uDCab.value = d;
       nube.u.uMaxPx.value = 64 * dpr;
       nube.u.uOn.value = on;
       nube.u.uTitila.value = titila;

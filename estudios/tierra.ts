@@ -565,7 +565,7 @@ export const tierraNoche: Escena = {
     tl.to(3.4, { rw: 0, fov: 34 });
 
     tl.label('luces').caption(4.4, 'Doscientos años de luces', 'En doscientos años encendimos el planeta: primero de a poco, después de golpe.');
-    tl.with(0.8, { dc: 0, on: 0 });
+    tl.with(1.8, { dc: 0, on: 0 });
     tl.to(0.9, { anio: 1800, az: 8, el: 7, ld: 0.7 });
     tl.to(3.5, { anio: 2026, az: 3, el: 5, ld: 0.64 });
 
@@ -660,7 +660,9 @@ export const tierraNoche: Escena = {
         cableMar.u.uOn.value = tl.get('cable', p);
         centro.u.uOn.value = tl.get('dc', p);
         const cp = tl.get('copias', p);
-        for (const c of copias) c.ch.update(arcoCopia(c), cp, 0.012, cp > 0.01 && cp < 0.999 ? 1 : 0, 0, camL, f.focal, f.dpr, t);
+        // (each copy stays lit where it arrives, and they all fade together with the data centre)
+        const enc = THREE.MathUtils.smoothstep(cp, 0.0, 0.04) * tl.get('dc', p);
+        for (const c of copias) c.ch.update(arcoCopia(c), cp, 0.012, enc, 0, camL, f.focal, f.dpr, t);
 
         const ir = tl.get('ir', p);
         const wipe = ir > 0 ? tl.get('wipe', p) : -2;

@@ -6,7 +6,7 @@ import { luna as lunaH, marte as marteH, mercurio as mercurioH, sol as solH, tie
 import { HORIZONTE, TEAL, caraHacia, dirLatLon, potencia, anioEn } from './remake';
 import { angulos, aplicarToma, toma } from './rig';
 import { crearChispa, montar, type Camino } from './chispa';
-import { CARA } from './tierra';
+import { CARA, SOL as SOL_TIERRA } from './tierra';
 import { COLOR, E, MA, RE, RMA, RV, VE, enOrbita } from './interior';
 import { enfocarMarcas, marcas, nombres, orbitas, type Nombre } from './revelar';
 import { M, RM } from './mercurio';
@@ -671,15 +671,21 @@ export const sistema: Escena = {
         camera.updateMatrixWorld();
 
         sol.update({ sol: V(1, 0, 0), camara: camera.position.clone(), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: 1 });
+        // Coming from the Earth's own scene: its light comes at first from where that scene had the
+        // Sun, turning slowly to where the Sun is here (the night side turns away, as the Earth
+        // would); the Moon comes up out of the dark.
+        const llega = THREE.MathUtils.smoothstep(p, 1.2, 5.0);
+        const solTierra = SOL_TIERRA.clone().lerp(E.clone().negate().normalize(), llega).normalize();
         for (const x of cuerpos) {
           inv.copy(x.q).invert();
-          const solL = x.g.position.clone().negate().normalize().applyQuaternion(inv);
+          const solL = (x.c === tierra ? solTierra.clone() : x.g.position.clone().negate().normalize()).applyQuaternion(inv);
           const camL = camera.position.clone().sub(x.g.position).divideScalar(x.R).applyQuaternion(inv);
           // Far bodies are a few pixels: skip their fine points.
           const lejos = camL.length() > 400;
           x.c.group.visible = !lejos || x.R > 0.3;
           // Venus under the parasol: its day side dims.
-          x.c.update({ sol: solL, camara: camL, focal: f.focal, dpr: f.dpr, tiempo: t, presencia: x.c === venus ? 1 - 0.86 * tl.get('sombra', p) : 1 });
+          const presencia = x.c === venus ? 1 - 0.86 * tl.get('sombra', p) : x.c === luna ? THREE.MathUtils.smoothstep(p, 1.6, 4.2) : 1;
+          x.c.update({ sol: solL, camara: camL, focal: f.focal, dpr: f.dpr, tiempo: t, presencia });
         }
         const lejosDe = (q: THREE.Vector3, d0: number, k = 1) => Math.min(1, Math.pow(d0 / Math.max(1e-6, camera.position.distanceTo(q)), k));
         cil.update(tl.get('cil', p) * lejosDe(C, 5, 2), agCil, camera.position);

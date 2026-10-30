@@ -227,6 +227,10 @@ addEventListener('keydown', (ev) => {
   if (k === 'l') switchLang();
 });
 let leido = '';
+let marcaOn = !params.has('limpio');
+addEventListener('keydown', (ev) => {
+  if (!ev.metaKey && !ev.ctrlKey && !ev.altKey && ev.key.toLowerCase() === 'm') marcaOn = !marcaOn;
+});
 const mouse = new THREE.Vector2();
 const mouseTarget = new THREE.Vector2();
 addEventListener('pointermove', (ev) => mouseTarget.set((ev.clientX / innerWidth) * 2 - 1, -((ev.clientY / innerHeight) * 2 - 1)));
@@ -438,6 +442,20 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
     leer.textContent = dicho;
   }
   outroEl.classList.toggle('is-in', !fixed && (inst.outro?.(p) ?? 0) > 0.5);
+  // While the work is being reviewed: the beat, small, bottom right, so a moment can be named by its
+  // number («193.4»). M hides it; ?limpio starts without it. (Off before publishing.)
+  if (marcaOn && !fixed) {
+    g.save();
+    g.font = FONT.mono(11 * u);
+    g.letterSpacing = `${1 * u}px`;
+    g.textAlign = 'right';
+    g.textBaseline = 'alphabetic';
+    g.fillStyle = ink(0.5);
+    g.shadowColor = 'rgba(0,0,0,0.9)';
+    g.shadowBlur = 8 * u;
+    g.fillText(at.toFixed(1), W - 30 * u, H - 24 * u);
+    g.restore();
+  }
   if (c && inst.escalera !== false) escalera(g, u, W, H, c.h, (c.a ?? 1) * vis);
 }
 
