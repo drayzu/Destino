@@ -1,3 +1,4 @@
+import { logDepth } from './motor/logdepth';
 import * as THREE from 'three';
 import { materia, materiaBuilder, type Nube } from './motor/materia';
 
@@ -237,7 +238,7 @@ export function crearCilindro(RC: number, LC: number): Cilindro {
   grupo.add(giro);
   const uniforms = { uOn: { value: 0 }, uFundido: { value: 1 }, uRC: { value: RC }, uLC: { value: LC }, uCamL: { value: new THREE.Vector3() } };
   const mat = (frag: string, side: THREE.Side, vert = VERT, depthWrite = true) =>
-    new THREE.ShaderMaterial({
+    logDepth(new THREE.ShaderMaterial({
       uniforms,
       vertexShader: vert,
       fragmentShader: frag,
@@ -250,7 +251,7 @@ export function crearCilindro(RC: number, LC: number): Cilindro {
       blendDst: THREE.OneMinusSrcAlphaFactor,
       blendSrcAlpha: THREE.OneFactor,
       blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
-    });
+    }));
   // The tube, axis along +Z.
   const tubo = new THREE.CylinderGeometry(RC, RC, LC, 240, 48, true);
   tubo.rotateX(Math.PI / 2);
@@ -292,7 +293,7 @@ export function crearCilindro(RC: number, LC: number): Cilindro {
   nubeG.rotateX(Math.PI / 2);
   const nubeM = new THREE.Mesh(
     nubeG,
-    new THREE.ShaderMaterial({
+    logDepth(new THREE.ShaderMaterial({
       uniforms,
       vertexShader: VERT,
       fragmentShader: /* glsl */ `
@@ -316,7 +317,7 @@ export function crearCilindro(RC: number, LC: number): Cilindro {
       blending: THREE.CustomBlending,
       blendSrc: THREE.OneFactor,
       blendDst: THREE.OneMinusSrcAlphaFactor,
-    }),
+    })),
   );
   nubeM.renderOrder = 0;
   giro.add(nubeM);
@@ -444,7 +445,7 @@ export function crearAnillo(R: number, W: number, H: number, semilla = 1, detall
     uSemilla: { value: semilla * 7.3 },
   };
   const mat = (frag: string, side: THREE.Side, vert = VERT_N, depthWrite = true) =>
-    new THREE.ShaderMaterial({
+    logDepth(new THREE.ShaderMaterial({
       uniforms,
       vertexShader: vert,
       fragmentShader: frag,
@@ -457,7 +458,7 @@ export function crearAnillo(R: number, W: number, H: number, semilla = 1, detall
       blendDst: THREE.OneMinusSrcAlphaFactor,
       blendSrcAlpha: THREE.OneFactor,
       blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
-    });
+    }));
   const seg = Math.round(240 * detalle);
   const banda = new THREE.CylinderGeometry(R, R, W, seg, 4, true);
   banda.rotateX(Math.PI / 2);

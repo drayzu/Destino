@@ -1,3 +1,4 @@
+import { logDepth } from './motor/logdepth';
 import * as THREE from 'three';
 import { Timeline } from './timeline';
 import { enfocar, materia, materiaBuilder, type MateriaData, type Nube } from './motor/materia';
@@ -64,7 +65,7 @@ function espejoMalla() {
   const ang = THREE.MathUtils.degToRad(55);
   const g = new THREE.SphereGeometry(R_ESPEJO, 160, 56, 0, Math.PI * 2, 0, ang);
   g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(Y, EMPUJE.clone().negate()));
-  const mat = new THREE.ShaderMaterial({
+  const mat = logDepth(new THREE.ShaderMaterial({
     uniforms: { uEsp: { value: 0 }, uFundido: { value: 1 }, uEje: { value: EMPUJE.clone().negate() }, uR: { value: R_ESPEJO } },
     vertexShader: /* glsl */ `
       varying vec3 vL;
@@ -131,7 +132,7 @@ function espejoMalla() {
     blending: THREE.CustomBlending,
     blendSrc: THREE.OneFactor,
     blendDst: THREE.OneMinusSrcAlphaFactor,
-  });
+  }));
   const m = new THREE.Mesh(g, mat);
   m.renderOrder = 2;
   return { mesh: m, u: mat.uniforms };

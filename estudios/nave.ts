@@ -1,3 +1,4 @@
+import { logDepth } from './motor/logdepth';
 import * as THREE from 'three';
 
 /**
@@ -101,7 +102,7 @@ const PENACHO = /* glsl */ `
     float rim = clamp(1.0 - abs(dot(normalize(vN), normalize(-vV))), 0.0, 1.0);
     float luz = pow(t, 2.4) * (0.35 + 0.65 * pow(1.0 - rim, 1.5)) * (0.85 + 0.15 * sin(uTime * 23.0 + t * 40.0));
     // (faint, and fading where it comes near the camera, so flying past it never floods the frame)
-    luz = clamp(luz, 0.0, 4.0) * smoothstep(0.08, 0.45, length(vV));
+    luz = clamp(luz, 0.0, 4.0) * smoothstep(0.2, 0.7, length(vV));
     gl_FragColor = vec4(vec3(0.62, 0.78, 1.0) * luz * 0.22 * uOn * uFundido, 0.0);
   }
 `;
@@ -115,7 +116,7 @@ export function crearNaveMalla(anillos: number[], R: number): NaveMalla {
   const grupo = new THREE.Group();
   const uniforms = { uOn: { value: 0 }, uFundido: { value: 1 }, uTime: { value: 0 } };
   const mat = (frag: string, extra: Record<string, THREE.IUniform> = {}, aditivo = false, side: THREE.Side = THREE.FrontSide) =>
-    new THREE.ShaderMaterial({
+    logDepth(new THREE.ShaderMaterial({
       uniforms: { ...uniforms, ...extra },
       vertexShader: VERT,
       fragmentShader: frag,
@@ -126,7 +127,7 @@ export function crearNaveMalla(anillos: number[], R: number): NaveMalla {
       blending: THREE.CustomBlending,
       blendSrc: THREE.OneFactor,
       blendDst: THREE.OneMinusSrcAlphaFactor,
-    });
+    }));
   const hull = (rejilla: [number, number]) => mat(CASCO, { uRejilla: { value: new THREE.Vector2(...rejilla) } });
 
   // The spine.

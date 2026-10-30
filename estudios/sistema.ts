@@ -1,3 +1,4 @@
+import { logDepth } from './motor/logdepth';
 import * as THREE from 'three';
 import { Timeline } from './timeline';
 import { enfocar, materia, materiaBuilder, type MateriaData, type Nube } from './motor/materia';
@@ -177,7 +178,7 @@ function marteLuz() {
   haz.renderOrder = 6;
   const aire = new THREE.Mesh(
     new THREE.SphereGeometry(1.07, 96, 48),
-    new THREE.ShaderMaterial({
+    logDepth(new THREE.ShaderMaterial({
       uniforms: { uAire: { value: 0 }, uFundido: { value: 1 }, uSol: { value: new THREE.Vector3(1, 0, 0) } },
       vertexShader: /* glsl */ `
         varying vec3 vN;
@@ -211,7 +212,7 @@ function marteLuz() {
       blending: THREE.CustomBlending,
       blendSrc: THREE.OneFactor,
       blendDst: THREE.OneMinusSrcAlphaFactor,
-    }),
+    })),
   );
   aire.renderOrder = 5;
   return { haz, aire };

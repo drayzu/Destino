@@ -1,3 +1,4 @@
+import { logDepth } from './motor/logdepth';
 import * as THREE from 'three';
 import { Timeline } from './timeline';
 import { enfocar, materia, materiaBuilder, type MateriaData, type Nube } from './motor/materia';
@@ -30,7 +31,7 @@ import type { Escena, Frame, Instancia } from './tipos';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const RADIOS = [1.8, 2.6, 3.6, 4.9, 6.5];
-const COLORES = [new THREE.Color(1.0, 0.78, 0.5), new THREE.Color(1.0, 0.55, 0.2), new THREE.Color(1.0, 0.28, 0.08), new THREE.Color(0.78, 0.12, 0.05), new THREE.Color(0.5, 0.09, 0.16)];
+const COLORES = [new THREE.Color(1.0, 0.78, 0.5), new THREE.Color(1.0, 0.55, 0.2), new THREE.Color(1.0, 0.3, 0.09), new THREE.Color(0.85, 0.16, 0.06), new THREE.Color(0.6, 0.1, 0.08)];
 const LUCES = [0.5, 0.48, 0.44, 0.38, 0.3];
 const PUNTOS = [50000, 70000, 95000, 125000, 165000];
 const AZUL = new THREE.Color(0.42, 0.62, 1.0);
@@ -103,6 +104,100 @@ function redDatos(): { data: MateriaData; dat: Float32Array; nodos: THREE.Vector
   return { data: b.data(), dat: new Float32Array(dat), nodos };
 }
 
+/**
+ * The shells as surfaces of computers (Diego, 30 Oct: the old Destino's cubes and blinking were more
+ * striking): each shell a sphere tiled in square panels (a cube-sphere grid, even everywhere), the
+ * colour of its temperature, with gaps between some tiles through which the hotter shells inside
+ * glow. Built by fronts sweeping from three places; once thinking, the tiles blink (faster the
+ * colder the shell) and waves of computation sweep across each shell. The third and fourth give
+ * their tiles to the network; then all cools to black.
+ */
+function capaMalla(k: number) {
+  const R = RADIOS[k];
+  const mat = logDepth(new THREE.ShaderMaterial({
+    uniforms: {
+      uK: { value: k },
+      uN: { value: Math.round(46 * (R / RADIOS[0])) },
+      uBrillo: { value: [1.0, 0.85, 0.7, 0.55, 0.42][k] },
+      uColor: { value: COLORES[k].clone() },
+      uHueco: { value: [0.04, 0.1, 0.16, 0.22, 0.3][k] },
+      uCapas: { value: 0 },
+      uBits: { value: 0 },
+      uPiensa: { value: 0 },
+      uSale: { value: 0 },
+      uFrio: { value: 0 },
+      uTime: { value: 0 },
+      uFundido: { value: 1 },
+    },
+    vertexShader: /* glsl */ `
+      varying vec3 vL;
+      void main() {
+        vL = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uK, uN, uHueco, uCapas, uBits, uPiensa, uSale, uFrio, uTime, uFundido, uBrillo;
+      uniform vec3 uColor;
+      varying vec3 vL;
+      float h21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      void main() {
+        vec3 d = normalize(vL);
+        vec3 a = abs(d);
+        float cara;
+        vec2 uv;
+        if (a.x >= a.y && a.x >= a.z) { cara = d.x > 0.0 ? 0.0 : 1.0; uv = d.yz / a.x; }
+        else if (a.y >= a.z) { cara = d.y > 0.0 ? 2.0 : 3.0; uv = d.xz / a.y; }
+        else { cara = d.z > 0.0 ? 4.0 : 5.0; uv = d.xy / a.z; }
+        // (equal-angle: the tiles the same size over the whole face)
+        uv = atan(uv) * 1.2732395;
+        vec2 g = (uv * 0.5 + 0.5) * uN;
+        vec2 id = floor(g);
+        vec2 fr = fract(g);
+        vec2 tid = id + vec2(cara * 97.0, cara * 31.0) + uK * 13.1;
+        float h = h21(tid);
+        // Some tiles missing: through the gaps, the hotter shells inside.
+        if (h < uHueco) discard;
+        // The third and fourth give their tiles to the network.
+        if (uK > 1.5 && uK < 3.5 && h21(tid + 5.0) < uSale * 0.8) discard;
+        // Built by fronts from three places.
+        float ang = min(min(acos(clamp(dot(d, vec3(0.28, 0.93, 0.19)), -1.0, 1.0)), acos(clamp(dot(d, vec3(-0.83, -0.31, 0.46)), -1.0, 1.0))), acos(clamp(dot(d, vec3(0.42, -0.59, -0.69)), -1.0, 1.0))) / 2.0;
+        ang += 0.04 * h;
+        float hecho = (uCapas * 5.0 - uK) * 1.25;
+        if (hecho < ang) discard;
+        float frente = exp(-pow((hecho - ang) / 0.04, 2.0));
+        // The tile's edge: a dark seam.
+        float m = min(min(fr.x, 1.0 - fr.x), min(fr.y, 1.0 - fr.y));
+        float fw = max(fwidth(g.x), 1e-5) * 1.2;
+        float cuerpo = smoothstep(0.06, 0.06 + fw, m);
+        // Thinking: each tile blinks (faster the colder the shell), and waves sweep across the shell.
+        float rate = (1.0 + 1.7 * uK) * uPiensa;
+        float cel = floor(uTime * rate + h * 50.0);
+        float bit = step(0.55, fract(sin(cel * 12.9898 + h * 78.233) * 43758.5453));
+        float w1 = sin(dot(d, normalize(vec3(0.3, 1.0, 0.2))) * (14.0 + 3.0 * uK) - uTime * 1.4 + uK);
+        float w2 = sin(dot(d, normalize(vec3(-0.8, 0.1, 0.6))) * (20.0 + 2.0 * uK) - uTime * 1.9);
+        float ola = smoothstep(0.82, 1.0, w1) + smoothstep(0.88, 1.0, w2);
+        float luz = 0.16 + uBits * (0.45 * bit + 1.1 * ola * (0.4 + 0.6 * bit));
+        vec3 col = (uColor * luz * cuerpo + uColor * 0.025) * uBrillo;
+        col += vec3(1.0, 0.92, 0.8) * frente * 0.55;
+        col *= 1.0 - uFrio;
+        gl_FragColor = vec4(col * uFundido, uFundido * (1.0 - uFrio * 0.9));
+      }
+    `,
+    side: THREE.DoubleSide,
+    transparent: true,
+    depthTest: true,
+    depthWrite: true,
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
+  }));
+  const m = new THREE.Mesh(new THREE.SphereGeometry(R, 160, 96), mat);
+  // (inner first: an outer shell covers what it hides, its gaps show what is inside)
+  m.renderOrder = 20 + k;
+  return { mesh: m, u: mat.uniforms };
+}
+
 export const estrella: Escena = {
   id: 'estrella',
   nombre: 'C · Pensar con una estrella',
@@ -158,6 +253,10 @@ export const estrella: Escena = {
     );
     capas.u.uSpread.value = 0;
     capas.u.uFuente.value = 0.35;
+    // (the shells are surfaces now: capaMalla; the points stay for the way 'Cuadros' alone)
+    capas.points.visible = false;
+    const mallas = RADIOS.map((_, k) => capaMalla(k));
+    for (const m of mallas) root.add(m.mesh);
 
     const rd = redDatos();
     const redG = new THREE.Group();
@@ -183,6 +282,7 @@ export const estrella: Escena = {
     );
     red.u.uSpread.value = 1.4;
     red.u.uFuente.value = 0.3;
+    red.points.renderOrder = 30;
 
     // The heat each shell gives to the next: a rain of light rising from one to the other, from the
     // colour of the hotter to the colour of the colder.
@@ -220,6 +320,7 @@ export const estrella: Escena = {
     );
     flujo.u.uSpread.value = 0;
     flujo.u.uFuente.value = 0.4;
+    flujo.points.renderOrder = 30;
 
     const listo = sol.listo;
 
@@ -265,6 +366,7 @@ export const estrella: Escena = {
     // in the network it goes to its knot, where «tú» lights.
     const chispa = crearChispa();
     root.add(chispa.nube.points);
+    tu.points.renderOrder = 31;
     const tmp: Toma = toma(tl, 0);
     const caminoCh: Camino = (sv, out) => {
       const enRed = THREE.MathUtils.smoothstep(sv, tl.at('materia') + 1.0, tl.at('materia') + 3.6);
@@ -309,6 +411,14 @@ export const estrella: Escena = {
         capas.u.uPiensa.value = tl.get('piensa', p);
         capas.u.uSale.value = tl.get('sale', p);
         capas.u.uFrio.value = tl.get('frio', p);
+        for (const m of mallas) {
+          m.u.uCapas.value = cap;
+          m.u.uBits.value = tl.get('bits', p);
+          m.u.uPiensa.value = tl.get('piensa', p);
+          m.u.uSale.value = tl.get('sale', p);
+          m.u.uFrio.value = tl.get('frio', p);
+          m.u.uTime.value = t;
+        }
         flujo.u.uFlujo.value = tl.get('flujo', p) * (1 - tl.get('frio', p));
         red.u.uK.value = tl.get('forma', p);
         red.u.uRed.value = tl.get('red', p);
