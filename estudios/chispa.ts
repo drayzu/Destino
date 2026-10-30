@@ -19,7 +19,7 @@ const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 /** Joints along the wake. */
 const TRAZO = 120;
 /** The wake's length, in the `paso` callers give (it was 56 points `paso` apart; a stroke reads longer). */
-const LARGO = 40;
+const LARGO = 48;
 
 export type Camino = (s: number, out: THREE.Vector3) => THREE.Vector3;
 
@@ -33,6 +33,13 @@ export interface Chispa {
    */
   update(camino: Camino, s: number, paso: number, on: number, titila: number, camPos: THREE.Vector3, focal: number, dpr: number, time: number): void;
 }
+
+const EJE_Y = new THREE.Vector3(0, 1, 0);
+const EJE_X = new THREE.Vector3(1, 0, 0);
+const tmpT = new THREE.Vector3();
+const tmpN1 = new THREE.Vector3();
+const tmpN2 = new THREE.Vector3();
+const tmpR = new THREE.Vector3();
 
 const PARPADEO = /* glsl */ `mix(1.0, 0.15 + 0.85 * step(0.45, fract(sin(floor(uTime * 9.0) * 12.9898) * 43758.5453)), uTitila)`;
 
@@ -62,7 +69,7 @@ function crearTrazo() {
     uniforms: {
       uFocal: { value: 1000 },
       uDpr: { value: 1 },
-      uAncho: { value: 1.7 },
+      uAncho: { value: 2.4 },
       uOn: { value: 1 },
       uTitila: { value: 0 },
       uTime: { value: 0 },
@@ -95,8 +102,8 @@ function crearTrazo() {
         vT = aT;
         // Bright at the head, gone at the tail; and gone where it comes near the camera (closer
         // than a part of the head's distance), so riding behind it we never see it run under us.
-        float cerca = smoothstep(0.45 * uCerca, 0.95 * uCerca, -mv.z);
-        vLuz = pow(1.0 - aT, 1.8) * 0.8 * uOn * ${PARPADEO} * uGain * uFundido * cerca;
+        float cerca = smoothstep(0.15 * uCerca, 0.5 * uCerca, -mv.z);
+        vLuz = pow(1.0 - aT, 1.3) * 1.1 * uOn * ${PARPADEO} * uGain * uFundido * cerca;
         if (c.w <= 0.0 || cp.w <= 0.0 || cn.w <= 0.0 || vLuz < 1e-4) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
       }
     `,
@@ -110,6 +117,8 @@ function crearTrazo() {
         gl_FragColor = vec4(col * vLuz * halo, 0.0);
       }
     `,
+    // (the strip's winding on screen flips with the way it runs: both faces)
+    side: THREE.DoubleSide,
     transparent: true,
     depthTest: false,
     depthWrite: false,
@@ -166,6 +175,24 @@ export function crearChispa(): Chispa {
       trazo.mesh.position.copy(pos);
       const paso2 = (paso * LARGO) / (TRAZO - 1);
       for (let i = 0; i < TRAZO; i++) j[i].copy(camino(s - i * paso2, tmp)).sub(pos);
+      // The tail curls round its own way, wider towards its end, turning slowly: seen from behind
+      // (the camera chasing it) it opens as a swirl instead of collapsing into the head; from the
+      // side it waves. Its width is a share of the camera's distance, so it reads the same at
+      // every scale.
+      // (each joint's width a share of its own distance to the camera, so near it the curl stays small on screen)
+      const rel = tmpR.copy(camPos).sub(pos);
+      for (let i = TRAZO - 1; i >= 1; i--) {
+        const amp = 0.035 * Math.max(1e-12, rel.distanceTo(j[i]));
+        const tg = tmpT.copy(j[i - 1]).sub(j[Math.min(TRAZO - 1, i + 1)]);
+        if (tg.lengthSq() < 1e-40) continue;
+        tg.normalize();
+        const n1 = tmpN1.crossVectors(tg, Math.abs(tg.y) < 0.9 ? EJE_Y : EJE_X).normalize();
+        const n2 = tmpN2.crossVectors(tg, n1);
+        const t = i / (TRAZO - 1);
+        const fase = t * Math.PI * 2 * 1.6 - time * 2.4;
+        const a = amp * Math.pow(t, 1.25);
+        j[i].addScaledVector(n1, Math.cos(fase) * a).addScaledVector(n2, Math.sin(fase) * a);
+      }
       for (let i = 0; i < TRAZO; i++) {
         const a = j[Math.max(0, i - 1)];
         const c = j[Math.min(TRAZO - 1, i + 1)];
