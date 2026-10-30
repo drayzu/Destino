@@ -9,6 +9,7 @@ import { FONDOS } from './motor/pantalla';
 import { createStage, liberar } from './stage';
 import { cuenta, escalera, marca } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
+import { apertura } from './apertura';
 import { tierraNoche } from './tierra';
 import { mercurio } from './mercurio';
 import { estrella } from './estrella';
@@ -18,13 +19,13 @@ import { estrella } from './estrella';
  * each in two or three ways so Diego can choose. The bench is Infinito's. The page scroll is time;
  * nothing else moves the camera.
  *
- * URL: ?m=tierra|mercurio|estrella &s=1..3 (the way) &p=beat (start there) &ver=beat (freeze)
+ * URL: ?m=apertura|tierra|mercurio|estrella &s=1..3 (the way) &p=beat (start there) &ver=beat (freeze)
  * &cap=1600x900 (render at that size, for captures) &clean. `?debug` leaves `estudio` in the
  * console: `estudio.hoja('docs/estudios/x.jpg', [beats], cols, width)` saves a contact sheet.
  */
 
 // In the order of the journey (ESCALETA.md: scenes 6–7, 11–12, 18–19).
-const ESCENAS: Escena[] = [tierraNoche, mercurio, estrella];
+const ESCENAS: Escena[] = [apertura, tierraNoche, mercurio, estrella];
 const PX_PER_BEAT = 520;
 
 const params = new URLSearchParams(location.search);

@@ -45,6 +45,7 @@ export default defineConfig({
         sistema: 'prototypes/sistema.html',
         estudios: 'prototypes/estudios.html',
         remake: 'estudios/index.html',
+        viaje: 'viaje/index.html',
       },
     },
   },
