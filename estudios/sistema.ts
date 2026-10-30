@@ -770,9 +770,7 @@ export const sistema: Escena = {
     luego(3.9, 0.8, { ch: 2.75 });
     luego(4.7, 3.0, { ch: 2.9 });
     luego(7.7, 2.0, { ch: 3 });
-    luego(5.0, 1.2, { md: 0 });
     luego(5.0, 4.0, { aire: 1 });
-    luego(8.8, 1.6, { md: 0.4 });
     tl.wait(10.4);
 
     // Back on the spark as it leaves for Venus, Venus ahead; then off it: Venus in the parasol's
@@ -877,7 +875,12 @@ export const sistema: Escena = {
         const kc = THREE.MathUtils.smoothstep(ch, 0.9, 1.12) * (1 - THREE.MathUtils.smoothstep(ch, 1.9, 2.1));
         // (inside, «up» is towards the axis, away from the land below)
         const arribaC = Y.clone().lerp(suelo(V()).negate(), kc).normalize();
-        const m = montar(caminoCh, ch, THREE.MathUtils.lerp(0.025, 0.07, kc), THREE.MathUtils.lerp(0.06, 0.25, kc), THREE.MathUtils.lerp(0.04 + 0.2 * tl.get('md', p), 0.02, kc), arribaC);
+        // (past the cylinder the way is smooth curves whose stretches go at very different paces in s,
+        // a few worlds' widths at Mars, tens between worlds: little averaging there, or it reaches far
+        // ahead of the spark; and lower over the worlds, where it passes close)
+        const fino = THREE.MathUtils.smoothstep(ch, 2.4, 2.65);
+        const suaveM = THREE.MathUtils.lerp(Math.max(THREE.MathUtils.lerp(0.025, 0.07, kc), THREE.MathUtils.lerp(0.06, 0.25, kc) * 0.35) * 1.4, 0.006, fino);
+        const m = montar(caminoCh, ch, THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.025, 0.07, kc), 0.012, fino), THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.06, 0.25, kc), 0.03, fino), THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.04 + 0.2 * tl.get('md', p), 0.02, kc), 0.03, fino), arribaC, suaveM, false, suaveM * 1.6);
         lugar.copy(m.lugar);
         mira.copy(m.mira);
         const centro = V(tl.get('cx', p), tl.get('cy', p), tl.get('cz', p));
@@ -886,10 +889,15 @@ export const sistema: Escena = {
         if (md > 0.001) {
           // (the cylinder while going round it; Mars on the way there; then Venus, and behind it the
           // parasol, so the eclipse is in the frame; then the city)
-          const objetivo = ch < 1.2 ? C.clone() : ch < 2.9 ? MA.clone() : VE.clone();
+          // (sliding from one to the next: Mars stays in the gaze as the spark leaves it)
+          const objetivo = C.clone().lerp(MA, THREE.MathUtils.smoothstep(ch, 1.0, 1.5)).lerp(VE, THREE.MathUtils.smoothstep(ch, 2.93, 3.25));
           objetivo.lerp(PARASOL_C, tl.get('mdV', p) * (1 - THREE.MathUtils.smoothstep(ch, 3.82, 3.9)));
           if (ch > 3.85) objetivo.lerp(CIUDAD, THREE.MathUtils.smoothstep(ch, 3.85, 3.96));
-          mira.lerp(objetivo, md);
+          // (a world the camera has passed, behind it now, lets the gaze go: it turns to look as it
+          // passes, never back over its shoulder)
+          const aSpark = mira.clone().sub(lugar).normalize();
+          const aObj = objetivo.clone().sub(lugar).normalize();
+          mira.lerp(objetivo, md * THREE.MathUtils.smoothstep(aSpark.dot(aObj), -0.15, 0.55));
         }
         const mc = tl.get('mc', p);
         if (mc > 0.001) {
@@ -937,7 +945,8 @@ export const sistema: Escena = {
         parasol.u.uOcc.value.set(vV.x, vV.y, vV.z, RV * 1.04);
         parasol.u.uDetras.value = THREE.MathUtils.smoothstep(camera.position.clone().sub(VE).normalize().dot(SOL_V.clone().negate()), 0.92, 0.995);
         luzVenus.u.uSombra.value = tl.get('sombra', p);
-        luzVenus.u.uLuz.value = tl.get('ven', p) * (1 - tl.get('todo', p));
+        // (only near Venus: from afar the sheet of light would read as a box round it)
+        luzVenus.u.uLuz.value = tl.get('ven', p) * (1 - tl.get('todo', p)) * (1 - THREE.MathUtils.smoothstep(camera.position.distanceTo(VE), 1.0, 2.2));
         luzVenus.u.uSizeUnit.value = RV;
         venusN.u.uCamL.value.copy(camera.position).sub(VE).divideScalar(RV);
         cinturon.u.uTodo.value = tl.get('todo', p);
