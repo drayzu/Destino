@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { Timeline } from './timeline';
+import { EASE, Timeline } from './timeline';
+import { DECADAS, LOG0, crearBurbuja, frente } from './burbuja';
 import { enfocar, materia, materiaBuilder, type MateriaData, type Nube } from './motor/materia';
 import { gauss } from './motor/math';
 import { TEAL, potencia } from './remake';
@@ -309,43 +310,44 @@ export const galaxia: Escena = {
     const D0 = 0.0006;
     // The spark's way (GUION.md v2, 39–45): copied from star to star outward from the ship (ch 0..1);
     // then to each encounter (2, 3, 4) and to the single star at the edge (5).
-    const fuera = S.clone().setY(0).normalize();
-    const lado = V(0, 1, 0).cross(fuera).normalize();
-    const saltos = new THREE.CatmullRomCurve3([
-      Q.clone(),
-      Q.clone().addScaledVector(fuera, 0.25).addScaledVector(lado, 0.12).add(V(0, 0.02, 0)),
-      Q.clone().addScaledVector(fuera, 0.7).addScaledVector(lado, -0.1).add(V(0, -0.03, 0)),
-      Q.clone().addScaledVector(fuera, 1.3).addScaledVector(lado, 0.3).add(V(0, 0.04, 0)),
-      Q.clone().addScaledVector(fuera, 2.2).addScaledVector(lado, 0.1).add(V(0, 0.0, 0)),
-    ]);
+    const burb = crearBurbuja(S, ZOO.clone().sub(S).setY(0));
+    add(burb.estrellas, root, 3);
+    add(burb.hilos, root, 3);
     // (Where the camera ends up at each, so the spark waits in sight: among the probes, in the
     // cluster where its call starts, among the dead collectors; and beside the single star.)
     const dirDe = (az: number, el: number) => V(Math.cos(D2R(el)) * Math.sin(D2R(az)), Math.sin(D2R(el)), Math.cos(D2R(el)) * Math.cos(D2R(az)));
     const AZ_ZOO = 250;
     const AZ_FIL = 385;
     const paradas = [
-      saltos.getPoint(1),
+      burb.hoja.clone(),
       ZOO.clone().addScaledVector(dirDe(AZ_ZOO + 30, 10), R_ZOO * 3.4).add(V(0, R_ZOO * 0.5, 0)),
       CALLAN.clone().addScaledVector(ORIGEN_LLAMADA, R_CALLAN),
       FILTRO.clone().addScaledVector(dirDe(AZ_FIL + 8, 7), R_FILTRO * 3.6).add(V(0, R_FILTRO * 0.3, 0)),
       UNA.clone().add(V(-0.0006, 0, 0)),
     ];
     const caminoCh: Camino = (sv, out) => {
-      if (sv <= 1) return out.copy(saltos.getPoint(Math.max(0, sv)));
+      if (sv <= 1) return burb.rama(sv, out);
       const i = Math.min(Math.floor(sv - 1), paradas.length - 2);
       const t = THREE.MathUtils.smoothstep(sv - 1 - i, 0, 1);
       return out.copy(paradas[i]).lerp(paradas[i + 1], t);
     };
-    tl.set({ ...Cn(Q), ox: 0, oy: 0, oz: 0, az: 120, el: 10, ld: Math.log10(D0), yaw: 90, pitch: -90, roll: 0, fov: 40, bur: 0, ir: 0, gal: 1, zoo: 0, callan: 0, calla: 0, filtro: 0, una: 0, ch: 0, lw: 0, tit: 0, mapa: 0, nombres: 0, llama: 0 });
+    tl.set({ ...Cn(Q), ox: 0, oy: 0, oz: 0, az: 120, el: 10, ld: LOG0 + 0.5, yaw: 90, pitch: -90, roll: 0, fov: 40, bur: 0, ir: 0, gal: 1, zoo: 0, callan: 0, calla: 0, filtro: 0, una: 0, ch: 0, lw: 0, tit: 0, mapa: 0, nombres: 0, llama: 0 });
 
     // Copied from star to star: the camera rides one branch, the stars it touches turn ours.
-    tl.label('burbuja').caption(6.4, 'La burbuja', 'Sondas que se copian en cada estrella que tocan. Aunque vayan lento, el movimiento de las estrellas las reparte.');
+    // From star to star: the probes copy themselves at each star they reach and go on to the ones
+    // around it, a network that branches like an organism. The camera rides one branch, then lets
+    // go and pulls back at the very pace of the front (both in logarithm): at every scale, from a
+    // few light years to thousands, the same network growing.
+    tl.label('burbuja').caption(15.0, 'La burbuja', 'Sondas que se copian en cada estrella que tocan. Aunque vayan lento, el movimiento de las estrellas las reparte.');
     tl.with(1.2, { lw: 1 });
-    tl.to(6.4, { ch: 1 });
+    tl.with(14.6, { ch: 1 }, EASE.sine);
+    tl.with(14.6, { ld: LOG0 + DECADAS + 0.5 }, EASE.sine);
+    luego(1.2, 1.6, { ...Cn(S) });
+    luego(2.6, 2.6, { lw: 0 });
+    tl.to(15.0, { az: 172, el: 30 });
 
     // The reveal: far back, the bubble spreads over the galaxy.
     tl.label('freno').caption(7.8, 'La luz pone el freno', 'La luz tarda cien mil años en cruzar la galaxia. Desde aquí, el tiempo se mide en millones de años.');
-    tl.with(1.4, { lw: 0, ...Cn(paradas[0]), ld: -0.6, az: 150, el: 20 });
     luego(1.6, 4.2, { bur: 34 });
     luego(2.2, 2.6, { ...Cn(S.clone().lerp(G, 0.45)) });
     luego(3.4, 1.6, { mapa: 1 });
@@ -426,10 +428,12 @@ export const galaxia: Escena = {
       salida: { pos: UNA.clone(), escala: camFin.pos.distanceTo(UNA) / 21 },
       escalera: false,
       cuenta(p) {
-        const c: Cuenta = p < tl.at('burbuja') ? potencia(27.4) : p < tl.at('tipo') ? potencia(27.4 + (tl.get('bur', p) / 34) * 6) : potencia(37);
+        // The power: the light of every star reached (two at first, the whole galaxy at the end).
+        const n = Math.max(2, estrellasEn(alcanceR));
+        const c: Cuenta = p < tl.at('tipo') + 2.4 ? potencia(Math.min(37, 27.4 + Math.log10(n / 2) * 0.85)) : potencia(37);
         // How far we reach: the stars inside the bubble, then the whole galaxy.
         const toda = tl.at('tipo') + 2.4;
-        c.alcance = p < toda ? cuantas(Math.max(2, estrellasEn(alcanceR)), 'estrella', 'estrellas') : 'la galaxia';
+        c.alcance = p < toda ? cuantas(n, 'estrella', 'estrellas') : 'la galaxia';
         c.nuevo = p >= toda ? 1 - THREE.MathUtils.smoothstep(p, toda, toda + 1.8) : 0;
         return c;
       },
@@ -447,15 +451,19 @@ export const galaxia: Escena = {
         camera.far = 2000;
         const ch = tl.get('ch', p);
         const lw = tl.get('lw', p);
-        const m = montar(caminoCh, ch, 0.03, 0.06, 0.02);
+        const m = montar(caminoCh, ch, 0.03, 0.06, ch < 1 ? 0.3 * frente(ch) : 0.02);
         aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: lw }, { punto: m.lugar, peso: lw }));
         chispa.update(caminoCh, ch, 0.0015, 1, tl.get('tit', p), camera.position, f.focal, f.dpr, f.time);
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
 
-        estrellas.u.uBur.value = Math.max(tl.get('bur', p), p < tl.at('freno') + 2 ? chispa.pos.distanceTo(S) + 0.2 : 0);
+        const red = Math.min(1, Math.max(0, ch));
+        estrellas.u.uBur.value = Math.max(tl.get('bur', p), frente(red));
+        burb.estrellas.u.uRed.value = red;
+        burb.hilos.u.uRed.value = red;
+        burb.hilos.u.uOn.value = 1 - 0.85 * tl.get('ir', p);
         // The reach counts from where the spark has been (the bubble's own edge once it spreads).
-        alcanceR = Math.max(tl.get('bur', p), p < tl.at('freno') + 2 ? chispa.pos.distanceTo(S) : 0);
+        alcanceR = Math.max(tl.get('bur', p), frente(red));
         estrellas.u.uIR.value = tl.get('ir', p);
         estrellas.u.uCamG.value.copy(camera.position);
         polvo.u.uCamG.value.copy(camera.position);
