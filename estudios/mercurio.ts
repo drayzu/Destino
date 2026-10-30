@@ -3,7 +3,7 @@ import { Timeline } from './timeline';
 import { enfocar, materia, materiaBuilder, type Nube } from './motor/materia';
 import { gauss } from './motor/math';
 import { mercurio as mercurioHorizontes, sol as solHorizontes } from '../src/horizontes';
-import { TEAL, potencia } from './remake';
+import { TEAL, potencia, anioEn } from './remake';
 import { angulos, aplicarToma, toma } from './rig';
 import { crearChispa, type Camino } from './chispa';
 import { COLOR, E, MA, RE, RMA, RV, VE } from './interior';
@@ -342,6 +342,10 @@ export const mercurio: Escena = {
       },
       placa(g, f) {
         nombres(g, f, NOMBRES, tl.get('nombres', f.p));
+      },
+      anio(p) {
+        const a = (l: string) => tl.at(l);
+        return anioEn(p, [[0, 2066], [a('catapulta'), 2068], [a('pared'), 2070], [a('lejos'), 2085], [tl.length, 2090]]);
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);

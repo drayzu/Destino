@@ -38,6 +38,8 @@ export interface Instancia {
   placa?(g: CanvasRenderingContext2D, f: Frame): void;
   /** What the clock counts now (null: no clock). */
   cuenta(p: number): Cuenta | null;
+  /** The estimated year at beat p (Destino), or null for none. */
+  anio?(p: number): number | null;
   /** The moment's chapter, name and sentence. */
   rotulo(p: number): Rotulo | null;
   /** False: no ladder. */

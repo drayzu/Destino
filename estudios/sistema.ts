@@ -3,7 +3,7 @@ import { Timeline } from './timeline';
 import { enfocar, materia, materiaBuilder, type MateriaData, type Nube } from './motor/materia';
 import { gauss } from './motor/math';
 import { luna as lunaH, marte as marteH, mercurio as mercurioH, sol as solH, tierra as tierraH, venus as venusH } from '../src/horizontes';
-import { HORIZONTE, TEAL, caraHacia, dirLatLon, potencia } from './remake';
+import { HORIZONTE, TEAL, caraHacia, dirLatLon, potencia, anioEn } from './remake';
 import { angulos, aplicarToma, toma } from './rig';
 import { crearChispa, montar, type Camino } from './chispa';
 import { CARA } from './tierra';
@@ -563,6 +563,10 @@ export const sistema: Escena = {
         c.alcance = n === 0 ? '1 mundo' : `${n + 1} mundos`;
         c.nuevo = n > 0 ? 1 - THREE.MathUtils.smoothstep(p, pasos[n - 1], pasos[n - 1] + 1.8) : 0;
         return c;
+      },
+      anio(p) {
+        const a = (l: string) => tl.at(l);
+        return anioEn(p, [[0, 2045], [a('dentro'), 2048], [a('marte') + 2, 2050], [a('venus') + 2, 2056], [a('todo') + 4, 2062], [tl.length, 2066]]);
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);

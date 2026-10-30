@@ -3,7 +3,7 @@ import { EASE, Timeline } from './timeline';
 import { DECADAS, LOG0, crearBurbuja, frente } from './burbuja';
 import { enfocar, materia, materiaBuilder, type MateriaData, type Nube } from './motor/materia';
 import { gauss } from './motor/math';
-import { TEAL, potencia } from './remake';
+import { TEAL, potencia, anioEn } from './remake';
 import { angulos, aplicarToma, toma } from './rig';
 import { tierra as tierraH } from '../src/horizontes';
 import { crearChispa, montar, type Camino } from './chispa';
@@ -439,6 +439,13 @@ export const galaxia: Escena = {
       },
       placa(g, f) {
         nombres(g, f, NOMBRES, tl.get('nombres', f.p));
+      },
+      // The years: the bubble's own, at an even twentieth of the speed of light (stopping at each
+      // star to copy itself); then the encounters, deep in the galaxy's time.
+      anio(p) {
+        const burbuja = 2500 + (alcanceR * 830) / 0.05;
+        if (p < tl.at('zoo')) return burbuja;
+        return anioEn(p, [[tl.at('zoo'), burbuja], [tl.length, 3e6]]);
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);

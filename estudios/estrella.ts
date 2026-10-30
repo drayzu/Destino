@@ -3,7 +3,7 @@ import { Timeline } from './timeline';
 import { enfocar, materia, materiaBuilder, type MateriaData, type Nube } from './motor/materia';
 import { gauss } from './motor/math';
 import { sol as solHorizontes } from '../src/horizontes';
-import { TEAL, potencia, puntoTu } from './remake';
+import { TEAL, potencia, puntoTu, anioEn } from './remake';
 import { aplicarToma, toma, type Toma } from './rig';
 import { crearChispa, type Camino } from './chispa';
 import type { Rotulo } from './placa';
@@ -232,6 +232,9 @@ export const estrella: Escena = {
       escalera: false,
       cuenta() {
         return { ...potencia(37), alcance: 'la galaxia' };
+      },
+      anio(p) {
+        return anioEn(p, [[0, 3e6], [tl.length, 5e6]]);
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);

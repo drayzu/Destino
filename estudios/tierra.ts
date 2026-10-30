@@ -5,7 +5,7 @@ import { clamp, gauss, lerp } from './motor/math';
 import { ease, mapaTierra } from './comun';
 import { tierra as tierraHorizontes } from '../src/horizontes';
 import { CIUDADES } from './ciudades';
-import { HORIZONTE, INFERNO, TEAL, caraHacia, dirLatLon, potencia, puntoTu } from './remake';
+import { HORIZONTE, INFERNO, TEAL, caraHacia, dirLatLon, potencia, puntoTu, anioEn } from './remake';
 import { angulos, aplicarToma, toma } from './rig';
 import { crearChispa, montar, type Chispa } from './chispa';
 import type { Rotulo } from './placa';
@@ -585,9 +585,16 @@ export const tierraNoche: Escena = {
       escalera: false,
       cuenta(p) {
         const anio = tl.get('anio', p);
-        const c = p < tl.at('luces') ? potencia(13.28, '2026 · ') : p < tl.at('hoy') ? potencia(lpDe(anio), `${Math.round(anio)} · `) : p < tl.at('calor') ? potencia(13.28, '2026 · hoy · ') : potencia(tl.get('lp2', p));
+        const c = p < tl.at('luces') ? potencia(13.28) : p < tl.at('hoy') ? potencia(lpDe(anio)) : p < tl.at('calor') ? potencia(13.28, 'hoy · ') : potencia(tl.get('lp2', p));
         // How far we reach: one world, ours.
         return { ...c, alcance: '1 mundo' };
+      },
+      // The years: the two hundred years of lights, today, and the first steps out (soon: the
+      // machines that think make everything go faster).
+      anio(p) {
+        if (p >= tl.at('luces') && p < tl.at('hoy')) return tl.get('anio', p);
+        const a = (l: string) => tl.at(l);
+        return anioEn(p, [[0, 2026], [a('energia'), 2026], [a('calor'), 2030], [a('cable'), 2034], [a('fin'), 2045]]);
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);

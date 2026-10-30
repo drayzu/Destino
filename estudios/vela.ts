@@ -3,7 +3,7 @@ import { Timeline } from './timeline';
 import { enfocar, materia, materiaBuilder, type MateriaData, type Nube } from './motor/materia';
 import { gauss } from './motor/math';
 import { sol as solH } from '../src/horizontes';
-import { TEAL, potencia, puntoTu } from './remake';
+import { TEAL, potencia, puntoTu, anioEn } from './remake';
 import { aplicarToma, toma } from './rig';
 import { crearChispa, type Camino } from './chispa';
 import { LEJOS, enjambreNube } from './mercurio';
@@ -348,6 +348,12 @@ export const vela: Escena = {
       },
       placa(g, f) {
         nombres(g, f, NOMBRES, tl.get('nombres', f.p));
+      },
+      // The years: the sail leaves, a fifth of the speed of light, twenty-odd years to arrive; the
+      // ships that are worlds, centuries later.
+      anio(p) {
+        const a = (l: string) => tl.at(l);
+        return anioEn(p, [[0, 2135], [a('quinto'), 2137], [a('lenta'), 2145], [a('freno') + 3.4, 2160], [a('nave') + 10, 2165], [a('nave') + 13, 2400], [tl.length, 2500]]);
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);

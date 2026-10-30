@@ -9,6 +9,7 @@ import { FONDOS } from './motor/pantalla';
 import { createStage, liberar } from './stage';
 import { cuenta, escalera, marca } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
+import { textoAnio } from './remake';
 import { mente } from './mente';
 import { apertura } from './apertura';
 import { despierta } from './despierta';
@@ -163,6 +164,8 @@ function step(now: number, dt: number, at: number) {
   marca(g, u, `estudio · ${escena.nombre}`, escena.estilos.length > 1 ? `${escena.estilos[estilo].key} · ${escena.estilos[estilo].nombre}` : 'fase 0');
   inst.placa?.(g, f);
   const c = inst.cuenta(at);
+  const anio = inst.anio?.(at);
+  if (c && anio != null) c.anio = textoAnio(anio);
   cuenta(g, u, H, c, inst.rotulo(at));
   if (c && inst.escalera !== false) escalera(g, u, W, H, c.h, c.a ?? 1);
 }

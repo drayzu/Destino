@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { materia, materiaBuilder, type Nube } from './motor/materia';
-import type { Cuenta } from './placa';
+import { grupo, sup, type Cuenta } from './placa';
 
 /** What the remake's studies share: the work's colour, the power clock, and pieces of GLSL. */
 
@@ -14,6 +14,47 @@ const COMA = (x: number, d = 2) => x.toFixed(d).replace('.', ',');
 export function potencia(lp: number, antes = '', a = 1): Cuenta {
   const k = (lp - 6) / 10;
   return { pisos: ['10', String(Math.floor(lp))], unidad: 'W', linea: `${antes}tipo ${COMA(Math.max(0, k))}`, h: 1, a };
+}
+
+/**
+ * The estimated year, as the clock writes it: «año 2026», «año 22 000», «año 3 millones», «año
+ * −3 800 millones», «año 10¹⁴». Two significant figures past ten thousand.
+ */
+export function textoAnio(y: number) {
+  const neg = y < 0;
+  const a = Math.abs(y);
+  let s: string;
+  if (a < 1e4) s = String(Math.round(a));
+  else if (a >= 1e12) s = `10${sup(Math.floor(Math.log10(a) + 1e-9))}`;
+  else {
+    const e = Math.floor(Math.log10(a));
+    const v = Math.round(a / 10 ** (e - 1)) * 10 ** (e - 1);
+    if (v < 1e6) s = grupo(v);
+    else if (v < 1.5e6) s = '1 millón';
+    else s = `${grupo(Math.round(v / 1e6))} millones`;
+  }
+  return `año ${neg ? '−' : ''}${s}`;
+}
+
+/**
+ * The year at beat p, between anchors [beat, year] (in order). It moves in logarithm: of the years
+ * before now in the past, of the years after now in the future (so the ages go by at an even pace,
+ * from thousands of millions of years ago to today, or from today to 10¹⁰⁰).
+ */
+export function anioEn(p: number, anclas: [number, number][]) {
+  const v = (y: number) => (y <= 2026 ? -Math.log10(2027 - y) : Math.log10(y - 2025));
+  const y = (x: number) => (x <= 0 ? 2027 - Math.pow(10, -x) : 2025 + Math.pow(10, x));
+  if (p <= anclas[0][0]) return anclas[0][1];
+  for (let i = 0; i < anclas.length - 1; i++) {
+    const [p0, y0] = anclas[i];
+    const [p1, y1] = anclas[i + 1];
+    if (p <= p1) {
+      const k = p1 > p0 ? (p - p0) / (p1 - p0) : 1;
+      const s = k * k * (3 - 2 * k);
+      return y(v(y0) + (v(y1) - v(y0)) * s);
+    }
+  }
+  return anclas[anclas.length - 1][1];
 }
 
 /** GLSL: Matplotlib's «inferno», for anything seen by its heat (Zucker's polynomial fit). */

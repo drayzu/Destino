@@ -3,7 +3,7 @@ import { Timeline } from './timeline';
 import { enfocar, materia, materiaBuilder, type MateriaData, type Nube } from './motor/materia';
 import { gauss } from './motor/math';
 import { sol as solH } from '../src/horizontes';
-import { TEAL, potencia } from './remake';
+import { TEAL, potencia, anioEn } from './remake';
 import { angulos, aplicarToma, toma } from './rig';
 import { crearChispa, type Camino } from './chispa';
 import { LEJOS, enjambreNube } from './mercurio';
@@ -171,6 +171,10 @@ export const solTrabajado: Escena = {
       escalera: false,
       cuenta(p) {
         return { ...(p < tl.at('tipo') ? potencia(25.6) : potencia(26.58)), alcance: '1 estrella' };
+      },
+      anio(p) {
+        const a = (l: string) => tl.at(l);
+        return anioEn(p, [[0, 2090], [a('mover'), 2105], [a('tipo'), 2125], [tl.length, 2135]]);
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);

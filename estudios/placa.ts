@@ -194,6 +194,8 @@ export interface Cuenta {
   /** Ladder height (super-logarithm; 5.7 = ℵ₀, 6.3 = 2^ℵ₀). */
   h: number;
   a?: number;
+  /** Destino: the estimated year («año 2060»), first on the line. */
+  anio?: string;
   /** Destino: how far we reach («3 mundos», «2 estrellas»), in teal after the line. */
   alcance?: string;
   /** 0..1: the reach just changed (it glows a moment). */
@@ -235,12 +237,22 @@ export function cuenta(g: CanvasRenderingContext2D, u: number, H: number, c: Cue
     g.font = FONT.mono(11 * u);
     g.letterSpacing = `${0.9 * u}px`;
     g.fillStyle = ink(0.78);
-    g.fillText(c.linea.toUpperCase(), x, H - 52 * u);
-    if (c.alcance) {
-      const sep = '  ·  ';
-      const x1 = x + g.measureText(c.linea.toUpperCase() + sep).width;
+    const sep = '  ·  ';
+    let x0 = x;
+    if (c.anio) {
+      g.fillStyle = ink(0.92);
+      g.fillText(c.anio.toUpperCase(), x0, H - 52 * u);
+      x0 += g.measureText(c.anio.toUpperCase()).width;
       g.fillStyle = ink(0.4);
-      g.fillText(sep, x + g.measureText(c.linea.toUpperCase()).width, H - 52 * u);
+      g.fillText(sep, x0, H - 52 * u);
+      x0 += g.measureText(sep).width;
+      g.fillStyle = ink(0.78);
+    }
+    g.fillText(c.linea.toUpperCase(), x0, H - 52 * u);
+    if (c.alcance) {
+      const x1 = x0 + g.measureText(c.linea.toUpperCase() + sep).width;
+      g.fillStyle = ink(0.4);
+      g.fillText(sep, x0 + g.measureText(c.linea.toUpperCase()).width, H - 52 * u);
       const n = c.nuevo ?? 0;
       g.shadowColor = n > 0.01 ? violeta(0.9 * n) : 'rgba(0,0,0,0.85)';
       g.shadowBlur = (12 + 10 * n) * u;

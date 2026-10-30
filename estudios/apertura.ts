@@ -354,6 +354,9 @@ export const apertura: Escena = {
         }
         return potencia(37, 'la Vía Láctea · ', 1);
       },
+      anio() {
+        return 2026;
+      },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);
         if (!c || !c.fact) return null;

@@ -9,6 +9,7 @@ import { FONDOS } from '../estudios/motor/pantalla';
 import { createStage, type Stage } from '../estudios/stage';
 import { cuenta, escalera, FONT, ink, VIOLETA } from '../estudios/placa';
 import type { Ancla, Escena, Frame, Instancia } from '../estudios/tipos';
+import { textoAnio } from '../estudios/remake';
 import { mente } from '../estudios/mente';
 import { apertura } from '../estudios/apertura';
 import { despierta } from '../estudios/despierta';
@@ -365,6 +366,8 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
   g.fillText('Destino', 40 * u, 54 * u);
   g.restore();
   const c = inst.cuenta(p);
+  const anio = inst.anio?.(p);
+  if (c && anio != null) c.anio = textoAnio(anio);
   g.save();
   g.globalAlpha = vis;
   cuenta(g, u, H, c, inst.rotulo(p));

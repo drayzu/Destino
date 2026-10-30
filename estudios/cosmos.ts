@@ -4,7 +4,7 @@ import { enfocar, materia, materiaBuilder, type Nube } from './motor/materia';
 import { redCosmica } from './comun';
 import { FONT, ink, type Cuenta, type Rotulo } from './placa';
 import { cuantas, enfocarMarcas, marcas, nombres, type Nombre } from './revelar';
-import { TEAL, potencia } from './remake';
+import { TEAL, potencia, anioEn } from './remake';
 import { aplicarToma, toma } from './rig';
 import { crearChispa, type Camino } from './chispa';
 import type { Escena, Frame, Instancia } from './tipos';
@@ -231,6 +231,12 @@ export const cosmos: Escena = {
         c.alcance = p >= todo ? 'todo lo alcanzable' : k < 0.02 ? 'la galaxia' : cuantas(Math.max(2, ALCANZABLES * k * k * k), 'galaxia', 'galaxias');
         c.nuevo = p >= todo ? 1 - THREE.MathUtils.smoothstep(p, todo, todo + 1.8) : 0;
         return c;
+      },
+      // The years: the probes leave in six hours; arriving takes thousands of millions of years; and
+      // then the island empties, until the stars go out.
+      anio(p) {
+        const a = (l: string) => tl.at(l);
+        return anioEn(p, [[0, 5e6], [a('prisa'), 5e6], [a('tocan'), 2e9], [a('tipo') + 2, 2e10], [a('horizonte'), 2e10], [a('horizonte') + 3.6, 1e12], [tl.length, 1e14]]);
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);

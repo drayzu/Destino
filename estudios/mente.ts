@@ -193,6 +193,9 @@ export const mente: Escena = {
       cuenta() {
         return { pisos: ['20'], unidad: 'W', linea: 'tú, pensando', h: 1 };
       },
+      anio() {
+        return 2026;
+      },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);
         return c ? { capitulo: '', name: c.name, fact: c.fact } : null;

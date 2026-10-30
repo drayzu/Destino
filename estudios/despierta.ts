@@ -6,7 +6,7 @@ import { ease, mapaTierra } from './comun';
 import { pantalla, FONDOS } from './motor/pantalla';
 import { tierra as tierraHorizontes } from '../src/horizontes';
 import { FONT, ink, type Cuenta, type Rotulo } from './placa';
-import { TEAL, caraHacia, potencia, puntoTu } from './remake';
+import { TEAL, caraHacia, potencia, puntoTu, anioEn } from './remake';
 import { aplicarToma, toma } from './rig';
 import { CARA, SOL, S_CAIRO, luces, montarTierra, rutaTierra } from './tierra';
 import { crearChispa, montar, type Camino } from './chispa';
@@ -386,7 +386,12 @@ export const despierta: Escena = {
         if (p < tl.at('cerebro')) return { pisos: ['10', '-3'], unidad: 'W', linea: 'nervios', h: 1 };
         if (p < tl.at('ocho')) return { pisos: ['20'], unidad: 'W', linea: 'un cerebro, como el tuyo', h: 1 };
         if (p < tl.at('maquinas')) return { ...potencia(11.2, 'todos los cerebros · '), alcance: '1 mundo' };
-        return { ...potencia(13.28, '2026 · '), alcance: '1 mundo' };
+        return { ...potencia(13.28), alcance: '1 mundo' };
+      },
+      // The years: from the first cell to today, the ages going by at an even pace.
+      anio(p) {
+        const a = (l: string) => tl.at(l);
+        return anioEn(p, [[a('celula'), -3.8e9], [a('nervios') - 1, -3.8e9], [a('nervios') + 0.6, -6e8], [a('cerebro') - 1, -6e8], [a('cerebro') + 0.6, -3e5], [a('ocho') - 0.8, -3e5], [a('ocho') + 1.4, 2026]]);
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);

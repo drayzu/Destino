@@ -5,7 +5,7 @@ import { gauss } from './motor/math';
 import { crearAgujero } from './motor/agujero';
 import { ease, redCosmica } from './comun';
 import { FONT, ink, type Cuenta, type Rotulo } from './placa';
-import { TEAL, potencia, puntoTu } from './remake';
+import { TEAL, potencia, puntoTu, anioEn } from './remake';
 import { aplicarToma, toma } from './rig';
 import { crearChispa, type Camino } from './chispa';
 import type { Escena, Frame, Instancia } from './tipos';
@@ -202,6 +202,12 @@ export const final: Escena = {
         const b = tl.get('baja', p);
         if (b > 0.5) return { pisos: ['20'], unidad: 'W', linea: 'alguien, pensando', h: 1, a: ease(0.5, 1, b) };
         return null;
+      },
+      // The years: the last power plants, the last thoughts, the last black hole; inside, none.
+      anio(p) {
+        const a = (l: string) => tl.at(l);
+        if (p >= a('adentro')) return null;
+        return anioEn(p, [[0, 1e20], [a('contados'), 1e40], [a('crear'), 1e60], [a('crear') + 3, 1e100]]);
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);
