@@ -88,6 +88,11 @@ export class Timeline {
     return this;
   }
 
+  /** Every moment's caption, in order (the journey's pace reads them). */
+  get momentos(): readonly Caption[] {
+    return this.captions;
+  }
+
   captionAt(p: number): Caption | null {
     return this.captions.find((c) => p >= c.from && p <= c.to) ?? null;
   }

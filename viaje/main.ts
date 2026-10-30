@@ -21,6 +21,7 @@ import { galaxia } from '../estudios/galaxia';
 import { estrella } from '../estudios/estrella';
 import { cosmos } from '../estudios/cosmos';
 import { final } from '../estudios/final';
+import { AJUSTE, Pagina, RES, cambio, ritmoDe, type Ritmo, type Vista } from './ritmo';
 
 /**
  * Destino, the remake: the journey. One scroll through the scenes of ESCALETA.md, built with the
@@ -157,7 +158,12 @@ let target = P;
 let autoplay = false;
 const frozen: number | null = params.has('ver') ? Number(params.get('ver')) : null;
 scrollTo(0, P * PX_PER_BEAT);
-addEventListener('scroll', () => (target = clamp(scrollY / PX_PER_BEAT, 0, TOTAL)));
+/** Frames during which scroll events are the page being re-laid, not the hand. */
+let reubicando = 0;
+addEventListener('scroll', () => {
+  if (reubicando > 0) return;
+  target = clamp(pagina ? pagina.pDe(scrollY) : scrollY / PX_PER_BEAT, 0, TOTAL);
+});
 addEventListener('wheel', () => (autoplay = false), { passive: true });
 addEventListener('keydown', (ev) => {
   if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
@@ -197,8 +203,9 @@ const mapas = new Map<Tramo, { m: THREE.Matrix4; escala: number }>();
 const smooth = (x: number) => x * x * (3 - 2 * x);
 const camA = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), fov: 40 };
 
-/** One frame at journey beat `at`, ambient time `now` (ms), step `dt` (s). */
-function step(now: number, dt: number, at: number) {
+/** One frame at journey beat `at`, ambient time `now` (ms), step `dt` (s). `soloCamara`: place the
+ * acts and the camera, and stop there (the pace measures the camera this way). */
+function step(now: number, dt: number, at: number, soloCamara = false) {
   const { camera } = stage;
   const W = stage.W;
   const H = stage.H;
@@ -291,6 +298,7 @@ function step(now: number, dt: number, at: number) {
       if (!enRelevo && t.escena.id !== 'agujero') stage.renderer.toneMappingExposure = t.film.exposure;
     }
   }
+  if (soloCamara) return;
   const ef = inst.efectos?.(p) ?? {};
   stage.finish.uniforms.uCalor.value = ef.calor ?? 0;
   stage.finish.uniforms.uVel.value = ef.vel ?? 0;
@@ -364,6 +372,48 @@ function step(now: number, dt: number, at: number) {
   if (c && inst.escalera !== false) escalera(g, u, W, H, c.h, (c.a ?? 1) * vis);
 }
 
+// ---------------------------------------------------------------- the pace (ritmo.ts)
+
+let ritmo: Ritmo | null = null;
+let pagina: Pagina | null = null;
+const crudo = new Float32Array(Math.ceil(TOTAL / RES) + 1);
+let medido = 0;
+let vistaAnt: Vista | null = null;
+const dirV = new THREE.Vector3();
+/** Where the camera looks at journey beat `at`, and how far it is from what it frames (its rig's centre). */
+function vistaEn(at: number): Vista {
+  step(0, 1 / 60, at, true);
+  const c = stage.camera;
+  dirV.set(0, 0, -1).applyQuaternion(c.quaternion);
+  const { t, p } = enTramo(at);
+  const tl = t.inst!.tl;
+  const d = Math.hypot(c.position.x - tl.get('cx', p), c.position.y - tl.get('cy', p), c.position.z - tl.get('cz', p));
+  return { dir: { x: dirV.x, y: dirV.y, z: dirV.z }, lz: Math.log(Math.max(d, 1e-12)), fov: c.fov };
+}
+/** Every caption of every act, in journey beats. */
+function momentos() {
+  return tramos.flatMap((t) => (t.inst?.tl.momentos ?? []).map((c) => ({ ...c, from: c.from + t.inicio, to: c.to + t.inicio })));
+}
+/** Measures the camera for `presupuesto` ms (a little each frame, after the warm-up); then lays out the page. */
+function medir(presupuesto: number) {
+  const t0 = performance.now();
+  const n = crudo.length;
+  while (medido < n && performance.now() - t0 < presupuesto) {
+    const v = vistaEn(Math.min(TOTAL, medido * RES));
+    if (vistaAnt) crudo[medido - 1] = cambio(vistaAnt, v) / RES;
+    vistaAnt = v;
+    medido++;
+  }
+  if (medido < n || ritmo) return;
+  crudo[n - 1] = crudo[n - 2];
+  ritmo = ritmoDe(crudo, momentos(), AJUSTE);
+  pagina = new Pagina(ritmo);
+  // The page gets its new length; the film stays where it is.
+  reubicando = 3;
+  spacer.style.height = `${pagina.alto + innerHeight}px`;
+  scrollTo(0, pagina.yDe(target));
+}
+
 let last = performance.now();
 /** Recording (tools/clip.mjs): the page stops drawing by itself; frames come only from `cuadro`. */
 let grabando = false;
@@ -372,17 +422,28 @@ function frame(now: number) {
   if (grabando) return;
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
+  if (reubicando > 0) reubicando--;
   if (autoplay) {
-    const next = Math.min(TOTAL, target + dt * 0.45);
-    scrollTo(0, next * PX_PER_BEAT);
+    const v = ritmo && pagina ? pagina.en(ritmo.auto, target) : 0.45;
+    const next = Math.min(TOTAL, target + dt * v);
+    scrollTo(0, pagina ? pagina.yDe(next) : next * PX_PER_BEAT);
     target = next;
     if (next >= TOTAL) autoplay = false;
   }
-  P = frozen ?? damp(P, target, 4.2, dt);
+  if (frozen !== null) P = frozen;
+  else {
+    let siguiente = damp(P, target, 4.2, dt);
+    // By hand, the film follows a flick no faster than it can be seen.
+    if (ritmo && pagina && !autoplay) {
+      const tope = pagina.en(ritmo.tope, P) * dt;
+      siguiente = P + clamp(siguiente - P, -tope, tope);
+    }
+    P = siguiente;
+  }
   if (porCalentar.length) {
     for (let k = 0; k < 3 && porCalentar.length; k++) step(now, dt, porCalentar.shift()!);
     if (!porCalentar.length) calentarListo();
-  }
+  } else if (!ritmo && !grabando) medir(6);
   step(now, dt, P);
   requestAnimationFrame(frame);
 }
@@ -448,6 +509,17 @@ const api = {
   },
   get total() {
     return TOTAL;
+  },
+  /** Debug: measures the whole pace now; the scroll it takes, the autoplay's minutes, and where the camera changes most. */
+  ritmo() {
+    while (!ritmo) medir(1000);
+    const r = ritmo;
+    let s = 0;
+    for (const a of r.auto) s += RES / a;
+    const picos: [number, number][] = [];
+    for (let i = 1; i < crudo.length - 1; i++) if (crudo[i] > 1.2 && crudo[i] >= crudo[i - 1] && crudo[i] >= crudo[i + 1]) picos.push([+(i * RES).toFixed(2), +crudo[i].toFixed(2)]);
+    picos.sort((a, b) => b[1] - a[1]);
+    return { px: Math.round(pagina!.alto), pantallas: +(pagina!.alto / 900).toFixed(1), minutosAuto: +(s / 60).toFixed(1), picos: picos.slice(0, 40).map(([b, v]) => [b, v, enTramo(b).t.escena.id, +enTramo(b).p.toFixed(1)]) };
   },
   tramos: () => tramos.map((t) => [t.escena.id, t.estilo + 1, +t.inicio.toFixed(2), +t.largo.toFixed(2)]),
   async listo() {
