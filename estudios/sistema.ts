@@ -169,33 +169,49 @@ function venusDatos(sol: THREE.Vector3): MateriaData {
  * its face towards Venus is dark.
  */
 function parasolMalla(sol: THREE.Vector3) {
-  const g = new THREE.CircleGeometry(1.3, 160);
+  // (a little wider than the parasol: round it, seen from behind, the Sun's glow it hides)
+  const g = new THREE.CircleGeometry(1.3 * 1.5, 160);
   g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(V(0, 0, 1), sol));
   g.translate(sol.x * 2.2, sol.y * 2.2, sol.z * 2.2);
   const mat = new THREE.ShaderMaterial({
-    uniforms: { uOn: { value: 0 }, uFundido: { value: 1 }, uSol: { value: sol.clone() } },
+    uniforms: { uOn: { value: 0 }, uFundido: { value: 1 }, uSol: { value: sol.clone() }, uOcc: { value: new THREE.Vector4() }, uDetras: { value: 0 } },
     vertexShader: /* glsl */ `
       varying vec3 vL;
+      varying vec3 vV;
       void main() {
         vL = position;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vV = mv.xyz;
+        gl_Position = projectionMatrix * mv;
       }
     `,
     fragmentShader: /* glsl */ `
-      uniform float uOn, uFundido;
+      uniform float uOn, uFundido, uDetras;
       uniform vec3 uSol;
+      uniform vec4 uOcc;
       varying vec3 vL;
+      varying vec3 vV;
       float raya(float x, float w) {
         float d = abs(fract(x + 0.5) - 0.5);
         float fw = max(fwidth(x), 1e-6);
         return 1.0 - smoothstep(w - fw, w + fw, d);
       }
       void main() {
+        // Behind Venus (seen from its far side): hidden by it.
+        vec3 ray = normalize(vV);
+        float tt = dot(uOcc.xyz, ray);
+        if (uOcc.w > 0.0 && tt > 0.0 && length(vV) > tt && length(uOcc.xyz - ray * tt) < uOcc.w) discard;
         vec3 c = vL - uSol * 2.2;
         float r = length(c) / 1.3;
         vec3 t1 = normalize(cross(uSol, vec3(0.0, 1.0, 0.0)));
         vec3 t2 = cross(uSol, t1);
         float fi = atan(dot(c, t2), dot(c, t1));
+        if (r > 1.0) {
+          // Beyond the rim: the corona of the hidden Sun, only from behind.
+          float halo = exp(-(r - 1.0) * 7.0) * uDetras * (gl_FrontFacing ? 0.0 : 1.0);
+          gl_FragColor = vec4(vec3(1.0, 0.72, 0.42) * halo * 0.55 * uOn * uFundido, 0.0);
+          return;
+        }
         float aros = raya(r * 9.0, 0.04);
         float varas = raya(fi / 6.2831853 * 16.0, 0.02);
         vec3 col;
@@ -207,6 +223,8 @@ function parasolMalla(sol: THREE.Vector3) {
         } else {
           // Facing Venus: its shadow side, dark; the struts barely there.
           col = vec3(0.02, 0.022, 0.026) + vec3(0.3, 0.34, 0.38) * (aros * 0.06 + varas * 0.06);
+          // (its rim lit from behind by the Sun it hides)
+          col += vec3(1.0, 0.78, 0.5) * smoothstep(0.93, 1.0, r) * uDetras * 0.9;
           a = 0.94;
         }
         gl_FragColor = vec4(col * uOn * uFundido, a * uOn * uFundido);
@@ -221,7 +239,8 @@ function parasolMalla(sol: THREE.Vector3) {
     blendDst: THREE.OneMinusSrcAlphaFactor,
   });
   const m = new THREE.Mesh(g, mat);
-  m.renderOrder = 3;
+  // (after the Sun, so it covers it: from behind, an eclipse)
+  m.renderOrder = 45;
   m.frustumCulled = false;
   return { mesh: m, u: mat.uniforms };
 }
@@ -239,8 +258,11 @@ function luzVenusDatos() {
     // (a thick sheet through the axis, edge-on to the side the camera looks from: there the
     // parasol's shadow shows as a dark band down to Venus)
     const fase = b.r();
-    const x = gauss(b.r) * 0.28;
-    const y = (b.r() * 2 - 1) * 2.6;
+    const anillo = i % 3 === 0;
+    const ang = b.r() * Math.PI * 2;
+    const q = 1.34 + Math.pow(b.r(), 1.6) * 1.3;
+    const x = anillo ? Math.cos(ang) * q : gauss(b.r) * 0.28;
+    const y = anillo ? Math.sin(ang) * q : (b.r() * 2 - 1) * 2.6;
     const luz = 0.3 + 0.3 * b.r();
     for (let k = 0; k < 4; k++) {
       b.push(0, 0, 0, new THREE.Color(1.0, 0.9, 0.7), 0.008, luz * (1 - k * 0.22), { kind: fase - k * 0.0035 });
@@ -559,17 +581,28 @@ export const sistema: Escena = {
     const ladoV = Y.clone().cross(SOL_V).normalize();
     const cVen = VE.clone().addScaledVector(SOL_V, 0.3);
     const vistaVenus = cVen.clone().addScaledVector(ladoV, 1.75).addScaledVector(SOL_V, 0.2).addScaledVector(Y, 0.5);
+    // (almost on the line from the Sun: an eclipse, the Sun's glow round the parasol's rim, Venus dark in front)
+    const vistaDetras = VE.clone().addScaledVector(SOL_V, -RV * 7).addScaledVector(ladoV, RV * 0.9).addScaledVector(Y, RV * 0.5);
+    const vistaEclipse = VE.clone().addScaledVector(SOL_V, -RV * 7.6).addScaledVector(ladoV, RV * 0.4).addScaledVector(Y, RV * 0.3);
     const vistaCiudad = CIUDAD.clone().addScaledVector(DIR_CIUDAD.clone().multiplyScalar(0.55).addScaledVector(ladoV, 0.75).addScaledVector(Y, 0.3).normalize(), RV * 2.2);
-    tl.label('venus').caption(10.0, 'Venus, a la sombra', 'Venus es un horno, pero en lo alto de sus nubes el aire es templado: ahí pueden flotar ciudades.');
+    tl.label('venus').caption(14.8, 'Venus, a la sombra', 'Venus es un horno, pero en lo alto de sus nubes el aire es templado: ahí pueden flotar ciudades.');
     tl.with(0.6, { h6: 1 });
-    tl.with(1.6, { lw: 1, mw: 1, md: 0.75, fov: 46 });
+    tl.with(2.0, { lw: 1, mw: 1, fov: 46 });
+    // (the gaze leans to Venus gently, once on the spark)
+    luego(0.3, 2.6, { md: 0.75 });
     luego(0.2, 4.6, { ch: 3.85 });
     luego(1.0, 1.6, { vel: 0.28 });
     luego(3.0, 1.4, { vel: 0 });
     luego(2.4, 2.2, { ven: 1, sombra: 1 });
-    luego(1.0, 0.5, { ...Cn(cVen), ...rel(cVen, vistaVenus), pitch: -90, yaw: 90 });
+    // (out of sight while it rides, only once it rides fully: the rig waits by Venus)
+    luego(2.2, 0.6, { ...Cn(cVen), ...rel(cVen, vistaVenus), pitch: -90, yaw: 90 });
     tl.wait(3.8);
     tl.to(2.4, { lw: 0, mw: 0, md: 0, fov: 40 });
+    // Round behind Venus, looking at the Sun: Venus dark, the parasol a dark disc round it, the
+    // sunlight streaming past its rim.
+    tl.to(2.8, { ...rel(cVen, vistaDetras), fov: 38 });
+    // (drifting until the Sun is all behind the parasol: its glow round the rim)
+    tl.to(2.0, { ...rel(cVen, vistaEclipse), fov: 36 });
     luego(0.8, 2.6, { ch: 4 });
     luego(0, 2.0, { ...Cn(CIUDAD) });
     tl.to(3.8, { ...rel(CIUDAD, vistaCiudad), fov: 42 });
@@ -696,6 +729,9 @@ export const sistema: Escena = {
         venusN.u.uVen.value = tl.get('ven', p);
         venusN.u.uSombra.value = tl.get('sombra', p);
         parasol.u.uOn.value = tl.get('sombra', p);
+        const vV = VE.clone().applyMatrix4(camera.matrixWorldInverse);
+        parasol.u.uOcc.value.set(vV.x, vV.y, vV.z, RV * 1.04);
+        parasol.u.uDetras.value = THREE.MathUtils.smoothstep(camera.position.clone().sub(VE).normalize().dot(SOL_V.clone().negate()), 0.92, 0.995);
         luzVenus.u.uSombra.value = tl.get('sombra', p);
         luzVenus.u.uLuz.value = tl.get('ven', p) * (1 - tl.get('todo', p));
         luzVenus.u.uSizeUnit.value = RV;
