@@ -11,7 +11,7 @@ const LAMINA: Record<string, Linea[]> = {
   'Un pensamiento': [['El cerebro humano usa unos 20 W, una quinta parte de la energía del cuerpo · Raichle y Gusnard, PNAS 2002', 'The human brain runs on about 20 W, a fifth of the body’s energy · Raichle & Gusnard, PNAS 2002']],
   'Nuestra voz': [['Las primeras emisiones de radio salieron hace un siglo: hoy van a unos 100 años luz', 'The first radio broadcasts left a century ago: they are about 100 light years out now']],
   'Cien mil años luz': [['La Vía Láctea mide unos 100 000 años luz de lado a lado', 'The Milky Way is about 100,000 light years across']],
-  'Toda esa luz': [['La Vía Láctea brilla con unos 10³⁷ W', 'The Milky Way shines with about 10³⁷ W']],
+  'Toda esa luz': [['La Vía Láctea brilla con unos 10³⁷ W', 'The Milky Way shines with about 10³⁷ W'], ['Escala de Kardashev (1964), con la fórmula de Sagan: tipo = (log₁₀ P − 6) / 10, con P en vatios', 'Kardashev scale (1964), with Sagan’s formula: type = (log₁₀ P − 6) / 10, P in watts']],
   '¿Hay alguien más?': [['Entre 100 000 y 400 000 millones de estrellas', 'Between 100 and 400 billion stars']],
   'Planetas por todas partes': [
     ['En promedio, al menos un planeta por estrella · Cassan et al., Nature 2012', 'On average, at least one planet per star · Cassan et al., Nature 2012'],

@@ -442,7 +442,7 @@ export const apertura: Escena = {
     luego(1.8, 2.6, { ...C(hacia(P, G, 0.55)) });
     tl.to(4.4, { ld: 2.02, el: 56, az: 34 });
 
-    tl.label('luz').caption(4.6, 'Toda esa luz', '');
+    tl.label('luz').caption(4.6, 'Toda esa luz', 'Quien usara toda la luz de una galaxia sería de tipo III en la escala de Kardashev, que mide a una civilización por su energía: tipo I, la de un planeta; II, la de una estrella; III, la de una galaxia.');
     luego(0.5, 1.2, { titulo: 1 });
     luego(3.0, 1.2, { titulo: 2 });
     luego(0.6, 3.4, { vatios: 1 });

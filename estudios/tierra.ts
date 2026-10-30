@@ -569,7 +569,7 @@ export const tierraNoche: Escena = {
     tl.to(0.9, { anio: 1800, az: 8, el: 7, ld: 0.7 });
     tl.to(3.5, { anio: 2026, az: 3, el: 5, ld: 0.64 });
 
-    tl.label('hoy').caption(3.6, 'Hoy', 'Hoy usamos diecinueve billones de vatios. Unos pocos encienden la pantalla en que miras esto.');
+    tl.label('hoy').caption(3.6, 'Hoy', 'Hoy usamos diecinueve billones de vatios: tipo 0,73 en la escala de Kardashev. Unos pocos encienden la pantalla en que miras esto.');
     luego(0.4, 0.9, { tu: 1 });
     tl.to(3.6, { az: 0, el: 4, ld: 0.58 });
 

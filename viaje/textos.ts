@@ -9,6 +9,8 @@ export const EXTRA: Record<string, string> = {
   'Ese pensamiento vive en ti, y se apaga contigo. A menos que algo lo lleve más lejos.': 'That thought lives in you, and goes out with you. Unless something carries it further.',
   'Lo que pensamos, lo decimos. Hace un siglo que nuestra radio sale de aquí.': 'What we think, we say. For a century our radio has been leaving from here.',
   'Toda esa luz': 'All that light',
+  'Quien usara toda la luz de una galaxia sería de tipo III en la escala de Kardashev, que mide a una civilización por su energía: tipo I, la de un planeta; II, la de una estrella; III, la de una galaxia.': 'Whoever used all of a galaxy’s light would be type III on the Kardashev scale, which measures a civilization by its energy: type I, a planet’s; II, a star’s; III, a galaxy’s.',
+  'Hoy usamos diecinueve billones de vatios: tipo 0,73 en la escala de Kardashev. Unos pocos encienden la pantalla en que miras esto.': 'Today we use nineteen trillion watts: type 0.73 on the Kardashev scale. A few of them light the screen you are watching this on.',
   'Al otro lado del mundo': 'The other side of the world',
   'Lo que piensa uno, en un instante lo sabe el otro lado del mundo.': 'What one person thinks, the other side of the world knows in an instant.',
   'La luz es lenta': 'Light is slow',
