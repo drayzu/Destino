@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { EASE, Timeline } from './timeline';
+import { Timeline } from './timeline';
 import { enfocar, materia, materiaBuilder, type Nube } from './motor/materia';
 import { gauss } from './motor/math';
 import { mercurio as mercurioHorizontes, sol as solHorizontes } from '../src/horizontes';
@@ -441,10 +441,10 @@ export const mercurio: Escena = {
     luego(0.5, 5.0, { rio: 0.55 });
     tl.to(1.8, { ...c2, mm: 1 });
     tl.with(1.0, { lr: 1, fov: 50 });
-    tl.to(3.4, { cv: 1 }, EASE.in);
+    tl.to(3.4, { cv: 1 }, (x) => x * x);
     // Beside the river, carried along it: the grains stream past below, the Sun ahead.
-    // (one ride hands over to the other: the two weights always add to one)
-    tl.with(1.4, { lr: 0, lw: 1 });
+    // (one ride hands over to the other while the load still flies: the two weights add to one)
+    luego(-0.7, 1.8, { lr: 0, lw: 1 });
     tl.to(3.0, { ...c3, sc: 0.04, fov: 40 });
 
     // The river carries the camera into the swarm's shell; off it, round the Sun among the
