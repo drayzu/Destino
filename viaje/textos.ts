@@ -13,6 +13,8 @@ export const EXTRA: Record<string, string> = {
   'Lo que piensa uno, en un instante lo sabe el otro lado del mundo.': 'What one person thinks, the other side of the world knows in an instant.',
   'La luz es lenta': 'Light is slow',
   'Todo a la vez': 'All at once',
+  'La Luna, cantera': 'The Moon, a quarry',
+  'La roca para construir afuera sale de la Luna: sin aire y con poca gravedad, lanzarla cuesta poco.': 'The rock to build out there comes from the Moon: with no air and little gravity, launching it costs little.',
   'Cada mensaje a casa tarda más de cuatro años. Allá solo saben de nosotros lo que fuimos.': 'Every message home takes more than four years. There they only know what we were.',
 
   // ---- Chapters.

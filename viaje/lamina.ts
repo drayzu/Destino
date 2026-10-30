@@ -30,6 +30,7 @@ const LAMINA: Record<string, Linea[]> = {
   'Más energía, más calor': [['Al disco de la Tierra le llegan unos 1,7 × 10¹⁷ W de sol', 'About 1.7 × 10¹⁷ W of sunlight reach the Earth’s disc']],
   'El calor nos echa': [['Creciendo un 2,3 % al año, en unos 400 años el calor que liberamos haría hervir la superficie · Murphy, Do the Math, 2011', 'Growing 2.3% a year, in about 400 years our waste heat would boil the surface · Murphy, Do the Math, 2011']],
   'La industria sale al espacio': [['Escala de Kardashev (1964), con la fórmula de Sagan: tipo = (log₁₀ P − 6) / 10, con P en vatios', 'Kardashev scale (1964), with Sagan’s formula: type = (log₁₀ P − 6) / 10, P in watts']],
+  'La Luna, cantera': [['Sacar de la Luna el material de las colonias, con lanzadores electromagnéticos · O’Neill, 1974', 'Mining the Moon for the colonies’ material, with mass drivers · O’Neill, 1974']],
   'Mundos que giran': [['Cilindro de O’Neill: 8 km de diámetro y 32 de largo · O’Neill, 1974', 'O’Neill cylinder: 8 km across, 32 km long · O’Neill, 1974']],
   'Calentar Marte': [['Espejos en órbita para calentar sus polos · Zubrin y McKay, 1993', 'Orbiting mirrors to warm its poles · Zubrin & McKay, 1993']],
   'Venus, a la sombra': [['A unos 50 km de altura: una atmósfera de presión, entre 0 y 50 °C · Landis, 2003', 'About 50 km up: one atmosphere of pressure, 0–50 °C · Landis, 2003']],
