@@ -263,6 +263,8 @@ export const vela: Escena = {
     root.add(chispa.nube.points);
     const eco = crearChispa();
     root.add(eco.nube.points);
+    // The echo home, named while it goes.
+    const NOMBRE_ECO: Nombre[] = [{ pos: eco.pos, texto: 'Mensaje a casa · llega en 4 años y medio', nuestro: true, aire: 6 }];
 
     const listo = Promise.all([sol.listo, A.listo, B.listo]);
 
@@ -274,7 +276,7 @@ export const vela: Escena = {
       tl.wait(-off);
     };
     // Where the Sun's scene leaves the camera (sol.ts, «tipo»): relative to the Sun, here S0.
-    tl.set({ cx: S0.x, cy: S0.y, cz: S0.z, ox: 0, oy: 0, oz: 0, az: angulos(LEJOS).az + 150, el: 30, ld: 2.2, yaw: 90, pitch: -90, roll: 0, fov: 34, haz: 0, lsol: Math.log10(14), lcen: 4.5, beta: 0, polvo: 0, abre: 1, luzA: 0, nave: 0, tu: 0, nz: -3, eco: 0, ecoS: 0, chH: 0, salta: 0, mapa: 0, nombres: 0, dentro: 0, vuelo: 0 });
+    tl.set({ cx: S0.x, cy: S0.y, cz: S0.z, ox: 0, oy: 0, oz: 0, az: angulos(LEJOS).az + 150, el: 30, ld: 2.2, yaw: 90, pitch: -90, roll: 0, fov: 34, haz: 0, lsol: Math.log10(14), lcen: 4.5, beta: 0, polvo: 0, abre: 1, luzA: 0, nave: 0, tu: 0, nz: -3, eco: 0, ecoS: 0, chH: 0, salta: 0, mapa: 0, nombres: 0, dentro: 0, vuelo: 0, ecoN: 0 });
 
     tl.label('velas').caption(5.6, 'Velas de luz', 'Para ir a otra estrella, un láser empuja una vela de pocos gramos. En minutos va a un quinto de la luz.');
     tl.with(1.2, { cx: 0, cy: 0, cz: 0 });
@@ -294,7 +296,9 @@ export const vela: Escena = {
     tl.label('lenta').caption(6.0, 'La luz es lenta', 'Cada mensaje a casa tarda más de cuatro años. Allá solo saben de nosotros lo que fuimos.');
     tl.with(0.8, { eco: 1 });
     tl.with(6.0, { ecoS: 1 });
-    tl.to(6.0, { az: 200, el: 12, ld: -1.0, fov: 54 });
+    luego(1.6, 1.2, { ecoN: 1 });
+    luego(5.2, 1.0, { ecoN: 0 });
+    tl.to(6.0, { az: 250, el: 12, ld: -0.42, fov: 46 });
 
     tl.label('freno').caption(6.0, 'Frenar con su luz', 'Al llegar no hay con qué frenar. Una vela más grande usa la luz de la estrella como freno.');
     tl.with(3.6, { lcen: 1.35, beta: 0.03 });
@@ -350,6 +354,7 @@ export const vela: Escena = {
       },
       placa(g, f) {
         nombres(g, f, NOMBRES, tl.get('nombres', f.p));
+        nombres(g, f, NOMBRE_ECO, tl.get('ecoN', f.p));
       },
       // The years: the sail leaves, a fifth of the speed of light, twenty-odd years to arrive; the
       // ships that are worlds, centuries later.
@@ -429,7 +434,9 @@ export const vela: Escena = {
         const chS = Math.min(1, tl.get('chH', p)) + tl.get('salta', p);
         chispa.update(caminoCh, chS, 0.004, 1, 0, camera.position, f.focal, f.dpr, f.time);
         // The echo home: from the sail back towards the Sun, slow.
-        const caminoEco: Camino = (sv, out) => out.copy(enVela).lerp(casa.position, Math.max(0, sv) * 0.25);
+        // (slow, and in sight: it crawls back towards home while the camera watches from the side)
+        const haciaCasa = casa.position.clone().sub(enVela).normalize();
+        const caminoEco: Camino = (sv, out) => out.copy(enVela).addScaledVector(haciaCasa, 0.13 * Math.max(0, sv));
         eco.update(caminoEco, tl.get('ecoS', p), 0.002, tl.get('eco', p) * (1 - tl.get('salta', p)), 0, camera.position, f.focal, f.dpr, f.time);
         naveG.scale.setScalar(1);
         naveG.rotation.y = 0.15;
