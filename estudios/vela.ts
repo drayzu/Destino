@@ -11,6 +11,7 @@ import { angulos } from './rig';
 import { enfocarMarcas, marcas, nombres, trazo, type Nombre } from './revelar';
 import type { Cuenta, Rotulo } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
+import { crearAnillo } from './cilindro';
 
 /**
  * Scenes 14–15 of ESCALETA.md, «La vela» and «La nave-mundo» (GUION.md, moments 32–35).
@@ -75,6 +76,7 @@ function polvoDatos() {
 /** The ring the camera goes into (its z on the spine), and how fast the rings turn (radians a second). */
 const ANILLO = 0.1;
 const GIRO_ANILLO = 0.05;
+const RINGS = [-0.3, -0.1, ANILLO, 0.3];
 
 function naveDatos(): MateriaData {
   const b = materiaBuilder(197);
@@ -86,42 +88,8 @@ function naveDatos(): MateriaData {
     const a = r() * Math.PI * 2;
     b.push(Math.cos(a) * 0.012, Math.sin(a) * 0.012, z, new THREE.Color(0.6, 0.66, 0.75), 0.002, 0.14, { kind: 0 });
   }
-  // Four rings, each a land on its inside: fields, rivers, towns lit; side walls; the hull outside
-  // with its windows. The one the camera enters is drawn much finer.
-  for (const zc of [-0.3, -0.1, ANILLO, 0.3]) {
-    const fino = zc === ANILLO;
-    const n = fino ? 320000 : 30000;
-    const t = fino ? 0.00045 : 0.0016;
-    for (let i = 0; i < n; i++) {
-      const a = r() * Math.PI * 2;
-      const z = (r() - 0.5) * 0.09;
-      const campo = 0.5 + 0.5 * Math.sin(a * 46 + Math.sin(z * 140) * 2) * Math.sin(z * 190 + a * 11);
-      c.setRGB(0.25 + 0.2 * campo, 0.42 + 0.14 * campo, 0.18 + 0.06 * campo);
-      let luz = 0.36;
-      let kind = 1;
-      if (Math.abs(Math.sin(z * 80 + a * 13)) < 0.035) {
-        c.setRGB(0.28, 0.5, 0.82);
-        luz = 0.5;
-      } else if (r() < 0.012) {
-        c.setRGB(1.0, 0.8, 0.52);
-        luz = 1.3;
-        kind = 2;
-      }
-      b.push(Math.cos(a) * 0.13, Math.sin(a) * 0.13, zc + z, c, t, luz, { kind, delay: zc });
-    }
-    for (let i = 0; i < (fino ? 30000 : 6000); i++) {
-      const a = r() * Math.PI * 2;
-      const rr = 0.112 + r() * 0.018;
-      const lado = r() < 0.5 ? -0.045 : 0.045;
-      b.push(Math.cos(a) * rr, Math.sin(a) * rr, zc + lado, new THREE.Color(0.55, 0.6, 0.68), t, 0.12, { kind: 1, delay: zc });
-    }
-    for (let i = 0; i < (fino ? 26000 : 8000); i++) {
-      const a = r() * Math.PI * 2;
-      const z = (r() - 0.5) * 0.09;
-      const ventana = r() < 0.06;
-      b.push(Math.cos(a) * 0.1335, Math.sin(a) * 0.1335, zc + z, ventana ? new THREE.Color(1.0, 0.85, 0.6) : new THREE.Color(0.45, 0.5, 0.58), t, ventana ? 0.7 : 0.08, { kind: ventana ? 2 : 1, delay: zc });
-    }
-    // Spokes.
+  // Four rings (their land, walls and hull are surfaces: crearAnillo); here, their spokes.
+  for (const zc of RINGS) {
     for (let k = 0; k < 6; k++) {
       const a = (k / 6) * Math.PI * 2;
       for (let i = 0; i < 500; i++) {
@@ -257,6 +225,13 @@ export const vela: Escena = {
       6,
     );
     nave.u.uFuente.value = 0.4;
+    // The rings: land inside, hull outside, a glass roof; the one the camera enters finer.
+    const anillos = RINGS.map((zc, k) => {
+      const a = crearAnillo(0.13, 0.09, 0.018, k + 1, zc === ANILLO ? 1.6 : 0.7);
+      a.grupo.position.z = zc;
+      naveG.add(a.grupo);
+      return a;
+    });
     const A_TU = 1.15;
     const tu = add(puntoTu(V(Math.cos(A_TU) * 0.1285, Math.sin(A_TU) * 0.1285, ANILLO), 0.0012), naveG, 7);
     const chispa = crearChispa();
@@ -383,10 +358,10 @@ export const vela: Escena = {
           const local = (ang: number, rr: number) => V(Math.cos(ang) * rr, Math.sin(ang) * rr, ANILLO).applyAxisAngle(Yv, 0.15).add(naveP);
           const pA = camera.position.clone();
           const qA = camera.quaternion.clone();
-          const pos = local(a, 0.112);
+          const pos = local(a, 0.1195);
           camera.position.copy(pos);
           camera.up.copy(V(-Math.cos(a), -Math.sin(a), 0).applyAxisAngle(Yv, 0.15));
-          camera.lookAt(local(a + 0.7, 0.122));
+          camera.lookAt(local(a + 0.7, 0.1255));
           const qB = camera.quaternion.clone();
           camera.position.lerpVectors(pA, pos, k);
           camera.quaternion.slerpQuaternions(qA, qB, k);
@@ -441,6 +416,7 @@ export const vela: Escena = {
         naveG.scale.setScalar(1);
         naveG.rotation.y = 0.15;
         nave.u.uNave.value = tl.get('nave', p);
+        for (const [k, a] of anillos.entries()) a.update(tl.get('nave', p), t * GIRO_ANILLO, RINGS[k] === ANILLO ? tl.get('dentro', p) : 0);
         tu.u.uGain.value = tl.get('tu', p) * (1 + 0.25 * Math.sin(t * 1.5)) * tl.get('nave', p);
         tu.points.rotation.z = t * GIRO_ANILLO;
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
