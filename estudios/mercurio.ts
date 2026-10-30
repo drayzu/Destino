@@ -141,8 +141,9 @@ function rielMalla() {
         float v = vUv.y;
         // Built from its start: it lights up along its length as it comes on.
         if (v > uRiel * 1.05) discard;
-        float rieles = raya(vUv.x * 1.0 - 0.18, 0.04) + raya(vUv.x * 1.0 - 0.82, 0.04);
-        float bobina = raya(v * 140.0, 0.045);
+        // Two fine rails; coils across them, faint until a load passes.
+        float rieles = raya(vUv.x * 1.0 - 0.2, 0.012) + raya(vUv.x * 1.0 - 0.8, 0.012);
+        float bobina = raya(v * 140.0, 0.03) * step(0.2, vUv.x) * step(vUv.x, 0.8);
         // Each load: where it is now (it accelerates: v = phase²), and the coils round it fire.
         float fuego = 0.0;
         for (int k = 0; k < ${CARGAS}; k++) {
@@ -150,9 +151,10 @@ function rielMalla() {
           float vk = fase * fase;
           fuego += exp(-pow((v - vk) / 0.012, 2.0)) + 0.35 * exp(-max(0.0, vk - v) / 0.04) * step(v, vk) * step(0.02, vk - v);
         }
-        vec3 col = vec3(0.02, 0.024, 0.028) + vec3(0.42, 0.95, 0.85) * rieles * 0.6 + vec3(0.5, 0.56, 0.62) * bobina * 0.1;
-        col += vec3(0.6, 1.0, 0.92) * bobina * fuego * 1.1 + vec3(0.42, 0.95, 0.85) * rieles * fuego * 0.6;
-        gl_FragColor = vec4(col * uFundido, 0.7 * uFundido);
+        vec3 col = vec3(0.42, 0.95, 0.85) * rieles * 0.42 + vec3(0.5, 0.56, 0.62) * bobina * 0.05;
+        col += vec3(0.6, 1.0, 0.92) * bobina * min(fuego, 1.0) * 0.7 + vec3(0.42, 0.95, 0.85) * rieles * min(fuego, 1.0) * 0.4;
+        // (the rail's bed: barely there, a darker band on the ground)
+        gl_FragColor = vec4(col * uFundido, 0.25 * uFundido);
       }
     `,
     transparent: true,
@@ -173,7 +175,7 @@ function rielMalla() {
 function cargasDatos() {
   const b = materiaBuilder(33);
   for (let k = 0; k < CARGAS; k++) {
-    for (let i = 0; i < 40; i++) b.push(gauss(b.r) * 0.0012, gauss(b.r) * 0.0012, (b.r() - 0.5) * 0.006, i < 8 ? 0xffffff : TEAL, 0.0016, i < 8 ? 1.6 : 0.6, { kind: k / CARGAS });
+    for (let i = 0; i < 24; i++) b.push(gauss(b.r) * 0.0008, gauss(b.r) * 0.0008, (b.r() - 0.5) * 0.005, i < 5 ? 0xffffff : TEAL, 0.0012, i < 5 ? 0.9 : 0.4, { kind: k / CARGAS });
   }
   return b.data();
 }
@@ -444,7 +446,7 @@ export const mercurio: Escena = {
     tl.to(3.4, { cv: 1 }, (x) => x * x);
     // Beside the river, carried along it: the grains stream past below, the Sun ahead.
     // (one ride hands over to the other while the load still flies: the two weights add to one)
-    luego(-0.7, 1.8, { lr: 0, lw: 1 });
+    luego(-0.5, 2.6, { lr: 0, lw: 1 });
     tl.to(3.0, { ...c3, sc: 0.04, fov: 40 });
 
     // The river carries the camera into the swarm's shell; off it, round the Sun among the
@@ -550,7 +552,10 @@ export const mercurio: Escena = {
         if (lr > 0.0005) {
           const rad = enRiel(cv, 0).sub(M).normalize();
           const railCam = enRiel(cv - 0.06, 0.032).addScaledVector(rad, 0.0);
-          const railMira = enRiel(cv + 0.3, 0.0);
+          // (ahead along the rail, and past its end along the way the river leaves: never at the
+          // camera's own place)
+          const delante = cv + 0.3;
+          const railMira = delante <= 1 ? enRiel(delante, 0.0) : enRiel(1, 0).addScaledVector(D, (delante - 1) * RIEL_A * RM * 1.2);
           const w = lr / Math.max(1e-6, lr + lw);
           lugarP = aqui.clone().lerp(railCam, w);
           lugarW = Math.max(lw, lr, Math.min(1, lr + lw));
