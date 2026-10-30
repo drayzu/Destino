@@ -137,14 +137,31 @@ export function crearBurbuja(centro: THREE.Vector3, hacia: THREE.Vector3): Burbu
   const camino: { p: THREE.Vector3; t: number }[] = [];
   for (let i = hojaI; i >= 0; i = padre[i]) camino.unshift({ p: pos[i], t: t[i] });
   camino.unshift({ p: V(), t: 0 });
+  // The spark glides along the branch through its stars without stopping (a smooth curve through
+  // them, its pace even in the front's own logarithmic time), not hopping from one to the next.
+  const dirs = camino.map((c, i) => {
+    const prev = camino[Math.max(0, i - 1)].p;
+    const next = camino[Math.min(camino.length - 1, i + 1)].p;
+    const a = c.p.clone().sub(prev);
+    const n = next.clone().sub(c.p);
+    const d = (a.lengthSq() > 0 ? a.normalize() : V()).add(n.lengthSq() > 0 ? n.normalize() : V());
+    return d.lengthSq() > 0 ? d.normalize() : V(1, 0, 0);
+  });
   const rama = (red: number, out: THREE.Vector3) => {
     const x = Math.min(camino[camino.length - 1].t, Math.max(0, red));
     let k = 0;
     while (k < camino.length - 2 && camino[k + 1].t <= x) k++;
     const a = camino[k];
     const c2 = camino[k + 1];
-    const s = c2.t > a.t ? (x - a.t) / (c2.t - a.t) : 1;
-    return out.copy(a.p).lerp(c2.p, THREE.MathUtils.smoothstep(s, 0, 1)).add(centro);
+    const u = c2.t > a.t ? (x - a.t) / (c2.t - a.t) : 1;
+    const L = a.p.distanceTo(c2.p);
+    const u2 = u * u;
+    const u3 = u2 * u;
+    out.copy(a.p).multiplyScalar(2 * u3 - 3 * u2 + 1);
+    out.addScaledVector(dirs[k], (u3 - 2 * u2 + u) * L * 0.8);
+    out.addScaledVector(c2.p, -2 * u3 + 3 * u2);
+    out.addScaledVector(dirs[k + 1], (u3 - u2) * L * 0.8);
+    return out.add(centro);
   };
   return { estrellas, hilos, rama, hoja: pos[hojaI].clone().add(centro) };
 }

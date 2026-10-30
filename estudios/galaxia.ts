@@ -468,7 +468,8 @@ export const galaxia: Escena = {
         const kE = THREE.MathUtils.smoothstep(ch, 0.95, 1.1);
         const m = montar(caminoCh, ch, THREE.MathUtils.lerp(0.07, 0.03, kE), THREE.MathUtils.lerp(0.22, 0.06, kE), THREE.MathUtils.lerp(0.3 * frente(ch), 0.02, kE), V(0, 1, 0), THREE.MathUtils.lerp(0.015, 0.06, kE));
         aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: lw, arriba: m.arriba, delante: m.delante }, { punto: m.lugar, peso: lw }));
-        chispa.update(caminoCh, ch, 0.0015, 1, tl.get('tit', p), camera.position, f.focal, f.dpr, f.time);
+        // (a short wake in the bubble: there the way grows in logarithm, and a long one would be a line across it)
+        chispa.update(caminoCh, ch, ch < 1 ? 0.0005 : 0.0015, 1, tl.get('tit', p), camera.position, f.focal, f.dpr, f.time);
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
 

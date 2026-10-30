@@ -64,6 +64,7 @@ export function dibujarEstelas(g: CanvasRenderingContext2D, camera: THREE.Perspe
     const dCab = -tmpE.z;
     if (dCab <= camera.near) continue;
     let m = 0;
+    let recorrido = 0;
     for (let i = 0; i < n; i++) {
       tmpE.set(c.estela[i * 3], c.estela[i * 3 + 1], c.estela[i * 3 + 2]).applyMatrix4(mw).applyMatrix4(camera.matrixWorldInverse);
       const d = -tmpE.z;
@@ -73,6 +74,11 @@ export function dibujarEstelas(g: CanvasRenderingContext2D, camera: THREE.Perspe
       ys[m] = (0.5 - tmpV.y * 0.5) * H;
       const r = d / dCab;
       fs[m] = Math.min(1, Math.max(0, (r - 0.3) / 0.45));
+      // (never longer on screen than a fifth of its height: a comet's tail, not a line across)
+      if (m > 0) {
+        recorrido += Math.hypot(xs[m] - xs[m - 1], ys[m] - ys[m - 1]);
+        if (recorrido > H * 0.2) break;
+      }
       m++;
     }
     if (m < 3) continue;

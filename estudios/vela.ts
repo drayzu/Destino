@@ -569,7 +569,8 @@ export const vela: Escena = {
         velaN.u.uLuzA.value = tl.get('luzA', p);
         // From afar the sail is a speck, not a lamp.
         // (and once the spark has gone over to the ship, the sail falls behind, dimming)
-        velaN.u.uGain.value = Math.min(1, 2 / Math.max(1e-6, camera.position.length())) * (1 - THREE.MathUtils.smoothstep(tl.get('adentro', p), 0, 0.5));
+        // (centuries later, when the ships come, the sail is long gone)
+        velaN.u.uGain.value = Math.min(1, 2 / Math.max(1e-6, camera.position.length())) * (1 - THREE.MathUtils.smoothstep(p, tl.at('nave') - 0.4, tl.at('nave') + 1.6));
         haz.u.uHaz.value = tl.get('haz', p);
         membrana.u.uLuz.value = 0.5 * tl.get('haz', p);
         membrana.u.uLuzA.value = 0.6 * tl.get('luzA', p);
@@ -577,7 +578,12 @@ export const vela: Escena = {
         membrana.u.uTime.value = t;
         naveG.position.set(0.9, 0.1, 0.2 + tl.get('nz', p));
         // (the wake shorter inside the ring, where the way is short)
-        chispa.update(caminoCh, chS, chS > 2 ? 0.0012 : 0.004, 1, 0, camera.position, f.focal, f.dpr, f.time);
+        // (its wake never reaches back through the sail: once on it, the beam behind is gone; and it
+        // draws in as the spark comes to rest on it)
+        const piso = chS >= 1 ? 1 : 0;
+        const cola: Camino = (sv, out) => caminoCh(Math.max(sv, piso), out);
+        const pasoCola = chS > 2 ? 0.0012 : chS < 1 ? 0.004 * THREE.MathUtils.clamp((1 - chS) / 0.15, 0.12, 1) : 0.004;
+        chispa.update(cola, chS, pasoCola, 1, 0, camera.position, f.focal, f.dpr, f.time);
         // The echo home: from the sail back towards the Sun, slow.
         // (slow, and in sight: it crawls back towards home while the camera watches from the side)
         const haciaCasa = casa.position.clone().sub(enVela).normalize();
