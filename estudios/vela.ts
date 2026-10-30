@@ -12,6 +12,7 @@ import { enfocarMarcas, marcas, nombres, trazo, type Nombre } from './revelar';
 import type { Cuenta, Rotulo } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
 import { crearAnillo } from './cilindro';
+import { crearNaveMalla } from './nave';
 
 /**
  * Scenes 14–15 of ESCALETA.md, «La vela» and «La nave-mundo» (GUION.md, moments 32–35).
@@ -353,6 +354,10 @@ export const vela: Escena = {
       6,
     );
     nave.u.uFuente.value = 0.4;
+    // The ship as surfaces (spine, spokes, shield, radiators, drive); its points no longer drawn.
+    nave.points.visible = false;
+    const naveM = crearNaveMalla(RINGS, 0.13);
+    naveG.add(naveM.grupo);
     // The rings: land inside, hull outside, a glass roof; the one the camera enters finer.
     const anillos = RINGS.map((zc, k) => {
       const a = crearAnillo(0.13, 0.09, 0.018, k + 1, zc === ANILLO ? 1.6 : 0.7);
@@ -415,6 +420,14 @@ export const vela: Escena = {
 
     // The reveal: out until both stars fit, the Sun drawn near (short), ours, with the route between
     // them; the names a moment; then back in to the sail, where something enormous passes.
+    const enNaveW = (z: number) => V(0, 0, z).applyAxisAngle(V(0, 1, 0), 0.15).add(V(0.9, 0.1, 0.8));
+    const proaC = enNaveW(0.42);
+    const centroNave = enNaveW(0);
+    const popaC = enNaveW(-0.5);
+    // (three-quarters from ahead at the bow, the shield and the rings beyond; three-quarters from
+    // behind at the stern, the drive and the rings ahead; turning the same way all along)
+    const proa = { cx: proaC.x, cy: proaC.y, cz: proaC.z, az: -318, el: 20, ld: Math.log10(0.95) };
+    const popa = { cx: popaC.x, cy: popaC.y, cz: popaC.z, az: -425, el: 12, ld: Math.log10(0.7) };
     const MEDIO = V(-1.5, -2.6, -29);
     tl.label('nave').caption(27.6, 'Naves que son mundos', 'El viaje dura siglos. Quien llega es nieto de los nietos de quien salió: alguien como tú, que nunca vio la Tierra.');
     tl.with(1.0, { beta: 0 });
@@ -433,17 +446,16 @@ export const vela: Escena = {
     tl.with(1.6, { nave: 1 });
     tl.to(5.2, { nz: 0.6, cx: 0.9, cy: 0.1, cz: 0.2, az: -300, el: 10, ld: -0.35, fov: 40 });
     tl.to(2.4, { az: -318, el: 16, ld: -0.6 });
-    // The spark jumps to it, across to its spine, and the camera goes after it: in among the spokes
-    // of a ring, down through its glass roof, and low over its land (the land curving up ahead and
-    // overhead) to someone among its lights. Then up again, looking down on them, and back out.
+    // The spark jumps across to it and goes in through a ring's glass roof, to someone; the camera
+    // flies down the ship, close: the shield at the bow, the rings turning past, the radiators
+    // glowing with the heat of the life inside, the drive and its plume; then back, to see it whole
+    // among the stars, where the galaxy takes over.
     luego(-0.4, 1.8, { salta: 1 });
-    luego(0.2, 1.8, { lw: 1, fov: 54 });
-    tl.to(7.6, { adentro: 1 });
-    luego(-2.0, 1.4, { tu: 1 });
-    tl.to(1.8, { sube: 1, fov: 50 });
-    // And back out of the ring: the ship among the stars again, where the galaxy takes over.
-    tl.with(2.6, { lw: 0 });
-    tl.to(2.8, { fov: 40, az: -328, el: 14, ld: -0.45 });
+    luego(1.6, 5.0, { adentro: 1 });
+    tl.to(2.6, { ...proa, fov: 44 });
+    tl.to(5.6, { ...popa });
+    // (back to see it whole, from beside it: the galaxy takes over from here)
+    tl.to(3.2, { fov: 40, cx: centroNave.x, cy: centroNave.y, cz: centroNave.z, az: -455, el: 14, ld: Math.log10(1.25) });
 
     const tm = toma(tl, 0);
     const velV = V();
@@ -452,7 +464,8 @@ export const vela: Escena = {
       tl,
       listo,
       entrada: { pos: S0.clone(), escala: 1 },
-      salida: { pos: V(0.9, 0.1, 0.2), escala: 0.05 },
+      salida: { pos: V(0.9, 0.1, 0.8), escala: 0.05 * 3.5 },
+      relevoMaxPx: 4,
       escalera: false,
       cuenta(p) {
         const c: Cuenta = p < tl.at('nave') ? potencia(26.7, 'vela · ') : potencia(27.4);
@@ -535,7 +548,11 @@ export const vela: Escena = {
         B.u.uBrillo.value = 1.4;
         A.update({ sol: V(1, 0, 0), camara: camA.clone().divideScalar(1.22), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: 1 });
         B.update({ sol: V(1, 0, 0), camara: camA.clone().sub(B.group.position).divideScalar(0.86), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: 1 });
-        alfa.visible = dCen < 20000;
+        // (at the very end both stars are far behind: not drawn, so the hand-over to the galaxy,
+        // which rescales this world, never blows their glow up)
+        const ultimo = p > tl.length - 1.0;
+        alfa.visible = dCen < 20000 && !ultimo;
+        casa.visible = !ultimo;
 
         // Aberration and Doppler for the sky: our speed along +Z, in view space.
         const beta = tl.get('beta', p);
@@ -551,7 +568,8 @@ export const vela: Escena = {
         velaN.u.uSizeUnit.value = velaG.scale.x;
         velaN.u.uLuzA.value = tl.get('luzA', p);
         // From afar the sail is a speck, not a lamp.
-        velaN.u.uGain.value = Math.min(1, 2 / Math.max(1e-6, camera.position.length()));
+        // (and once the spark has gone over to the ship, the sail falls behind, dimming)
+        velaN.u.uGain.value = Math.min(1, 2 / Math.max(1e-6, camera.position.length())) * (1 - THREE.MathUtils.smoothstep(tl.get('adentro', p), 0, 0.5));
         haz.u.uHaz.value = tl.get('haz', p);
         membrana.u.uLuz.value = 0.5 * tl.get('haz', p);
         membrana.u.uLuzA.value = 0.6 * tl.get('luzA', p);
@@ -568,6 +586,7 @@ export const vela: Escena = {
         naveG.scale.setScalar(1);
         naveG.rotation.y = 0.15;
         nave.u.uNave.value = tl.get('nave', p);
+        naveM.update(tl.get('nave', p), t);
         const dentroR = lw * THREE.MathUtils.smoothstep(chS, 2.2, 2.4) * (1 - 0.8 * tl.get('sube', p));
         for (const [k, a] of anillos.entries()) a.update(tl.get('nave', p), ag, RINGS[k] === ANILLO ? dentroR : 0);
         tu.u.uGain.value = tl.get('tu', p) * (1 + 0.25 * Math.sin(t * 1.5)) * tl.get('nave', p);
