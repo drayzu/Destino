@@ -3,7 +3,8 @@ import { Timeline } from './timeline';
 import { enfocar, materia, materiaBuilder, type MateriaData, type Nube } from './motor/materia';
 import { gauss } from './motor/math';
 import { TEAL, potencia } from './remake';
-import { aplicarToma, toma } from './rig';
+import { angulos, aplicarToma, toma } from './rig';
+import { tierra as tierraH } from '../src/horizontes';
 import { crearChispa, montar, type Camino } from './chispa';
 import { S, brazo, galaxiaDatos, polvoDatos } from './apertura';
 import { cuantas, enfocarMarcas, marcas, nombres, type Nombre } from './revelar';
@@ -27,6 +28,7 @@ import type { Escena, Frame, Instancia } from './tipos';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const Y = V(0, 1, 0);
+const D2R = THREE.MathUtils.degToRad;
 const G = V();
 /** Where the ship is, a little way from the Sun. */
 const Q = S.clone().add(V(0.004, 0.0005, -0.003));
@@ -40,59 +42,86 @@ const FILTRO = enDisco(42, 0, 0.62);
 /** The single star past the edge. */
 const UNA = enDisco(57, 1, 0.55).add(V(0, 0.4, 0));
 
-/** A blue world (points; its own units, radius 1) and a shell of teal probes round it at a distance, with a gap facing the world: kept away. */
-function zooDatos(): MateriaData {
-  const b = materiaBuilder(211);
-  const r = b.r;
+/** The living world's own seas and lands (not ours): deep ocean, green and ochre lands, ice at the poles. */
+const MUNDO_VIVO = /* glsl */ `
+  float cv = fbm(n * 1.6 + vec3(3.1, 7.7, 1.3));
+  float suelo = smoothstep(0.5, 0.53, cv);
+  vec3 verde = mix(vec3(0.12, 0.26, 0.08), vec3(0.42, 0.34, 0.17), smoothstep(0.48, 0.72, fbm(n * 4.3 + 2.0)));
+  float hielo = smoothstep(0.8, 0.9, abs(n.y) + 0.08 * fbm(n * 7.0));
+  alb = mix(mix(vec3(0.025, 0.1, 0.27), verde, suelo), vec3(0.55, 0.58, 0.62), hielo);
+`;
+
+/** The probes that keep away: a still lattice round the living world, from three radii out (its units). */
+function vigiasDatos(): MateriaData {
+  const b = materiaBuilder(213);
+  const n = 2200;
   const ga = Math.PI * (3 - Math.sqrt(5));
-  const c = new THREE.Color();
-  for (let i = 0; i < 26000; i++) {
-    const y = 1 - ((i + 0.5) / 26000) * 2;
+  for (let i = 0; i < n; i++) {
+    const y = 1 - ((i + 0.5) / n) * 2;
     const rr = Math.sqrt(1 - y * y);
     const th = ga * i;
-    const x = Math.cos(th) * rr;
-    const z = Math.sin(th) * rr;
-    const tierra = Math.sin(x * 5 + Math.sin(z * 4)) * Math.sin(z * 6 + y * 3) > 0.25;
-    const nube = Math.sin(x * 11 + y * 7) * Math.sin(z * 9) > 0.55;
-    c.set(nube ? 0xf2f4f8 : tierra ? 0x4f7f43 : 0x1d4f9a);
-    b.push(x, y, z, c, 0.035, nube ? 0.5 : 0.32, { kind: 0 });
-  }
-  for (let i = 0; i < 9000; i++) {
-    const [x, y, z] = b.onSphere();
-    if (z > 0.35) continue;
-    b.push(x * 3.2, y * 3.2, z * 3.2, TEAL, 0.03, 0.7, { kind: 1 });
+    const q = 3.1 + b.r() * 0.6;
+    b.push(Math.cos(th) * rr * q, y * q, Math.sin(th) * rr * q, TEAL, 0.03, 1.3);
   }
   return b.data();
 }
 
-/** A cluster of stars (its own units). */
+/** A globular cluster: a few thousand old stars, crowded to the middle (its own units, radius ~1). */
 function callanDatos(): MateriaData {
   const b = materiaBuilder(223);
   const c = new THREE.Color();
-  for (let i = 0; i < 700; i++) {
+  for (let i = 0; i < 3200; i++) {
     const [x, y, z] = b.onSphere();
-    const q = Math.cbrt(b.r()) * 1;
-    c.setRGB(1, 0.86, 0.68).lerp(new THREE.Color(0.75, 0.84, 1), b.r());
-    b.push(x * q, y * q * 0.6, z * q, c, 0.02, 1.4);
+    const q = 0.08 + Math.pow(b.r(), 1.8) * 1.1;
+    c.setRGB(1, 0.8, 0.58).lerp(new THREE.Color(0.78, 0.86, 1), b.r() * b.r());
+    const brillo = 0.5 + 2.2 * Math.pow(b.r(), 6);
+    b.push(x * q, y * q * 0.85, z * q, c, 0.006 + 0.01 * Math.pow(b.r(), 3), brillo);
   }
   return b.data();
 }
 
-/** A dead swarm: ash-grey collectors on a broken shell round a dim red star, some adrift (its own units: the star's radius is 1). */
-function filtroDatos(): MateriaData {
+/** A call: a sphere of teal that spreads from the spark (unit radius, scaled by the shader). */
+function llamadaDatos(): MateriaData {
+  const b = materiaBuilder(225);
+  for (let i = 0; i < 5000; i++) {
+    const [x, y, z] = b.onSphere();
+    b.push(x, y, z, TEAL, 0.004, 0.22);
+  }
+  return b.data();
+}
+
+/** A dim red star (its own units: radius 1): points, a glow round them. */
+function rojaDatos(): MateriaData {
   const b = materiaBuilder(227);
   const r = b.r;
-  for (let i = 0; i < 1800; i++) {
+  for (let i = 0; i < 14000; i++) {
     const [x, y, z] = b.onSphere();
-    const q = r() * 0.95;
-    b.push(x * q, y * q, z * q, new THREE.Color(1.0, 0.35, 0.18), 0.12, 0.5, { kind: 0 });
+    const q = Math.pow(r(), 0.25);
+    b.push(x * q, y * q, z * q, new THREE.Color(1.0, 0.26, 0.1), 0.03, 0.09);
   }
-  for (let i = 0; i < 46000; i++) {
+  for (let i = 0; i < 2000; i++) {
+    const [x, y, z] = b.onSphere();
+    const q = 1 + r() * r() * 1.6;
+    b.push(x * q, y * q, z * q, new THREE.Color(0.8, 0.2, 0.08), 0.1, 0.018);
+  }
+  return b.data();
+}
+
+/**
+ * A dead swarm: collectors, square and ash-grey, on a broken shell round the red star, tumbling
+ * (they catch its light now and then); some adrift, out of the shell (its own units).
+ */
+function muertosDatos(): MateriaData {
+  const b = materiaBuilder(229);
+  const r = b.r;
+  for (let i = 0; i < 52000; i++) {
     const [x, y, z] = b.onSphere();
     const roto = Math.sin(x * 5 + y * 3) * Math.sin(z * 4) > 0.2;
-    if (roto && r() < 0.85) continue;
-    const q = 3.2 + gauss(r) * 0.08 + (r() < 0.05 ? r() * 3 : 0);
-    b.push(x * q, y * q, z * q, new THREE.Color(0.5, 0.48, 0.45), 0.03, 0.16 + r() * 0.12, { kind: 1 });
+    if (roto && r() < 0.88) continue;
+    const suelto = r() < 0.06;
+    const q = suelto ? 3.3 + r() * 2.8 : 3.2 + gauss(r) * 0.06;
+    const g = 0.35 + r() * 0.25;
+    b.push(x * q, y * q, z * q, new THREE.Color(g * 1.1, g, g * 0.92), suelto ? 0.014 + r() * 0.03 : 0.012, 0.16 + r() * 0.12, { kind: suelto ? 1 : 0 });
   }
   return b.data();
 }
@@ -163,30 +192,88 @@ export const galaxia: Escena = {
       root.add(g);
       return g;
     };
-    const zooG = grupo(ZOO, 0.0004);
-    const zoo = add(materia(zooDatos(), { pre: `uniform float uOn;`, move: `em *= uOn; if (aKind > 0.5) em *= 0.5 + 0.5 * sin(uTime * 0.8 + seed * 20.0);`, uniforms: { uOn: { value: 0 } } }), zooG, 4);
-    const callanG = grupo(CALLAN, 0.006);
+    // The living world: its own lands, the light of its star, turning; and the probes round it, kept away.
+    const base = `${import.meta.env.BASE_URL}texturas/`;
+    const R_ZOO = 0.0004;
+    const zooG = grupo(ZOO, R_ZOO);
+    const vivo = tierraH(base, { giro: 0.03, mar: false, puntos: 300000, superficie: { glsl: MUNDO_VIVO } });
+    zooG.add(vivo.group);
+    // Its star off to the side the camera turns towards: the world more and more lit as it goes.
+    const SOL_ZOO = V(Math.cos(D2R(22)) * Math.sin(D2R(345)), Math.sin(D2R(22)), Math.cos(D2R(22)) * Math.cos(D2R(345)));
+    const solZoo = add(punto(new THREE.Color(1.0, 0.92, 0.78), 2.6), root, 5);
+    solZoo.points.position.copy(ZOO).addScaledVector(SOL_ZOO, R_ZOO * 90);
+    const vigias = add(
+      materia(vigiasDatos(), {
+        pre: /* glsl */ `uniform float uOn;`,
+        move: /* glsl */ `
+          float ag = uTime * 0.012;
+          p.xz = vec2(cos(ag) * p.x - sin(ag) * p.z, sin(ag) * p.x + cos(ag) * p.z);
+          em *= uOn * (0.55 + 0.45 * sin(uTime * 1.1 + seed * 40.0));
+        `,
+        uniforms: { uOn: { value: 0 } },
+      }),
+      zooG,
+      4,
+    );
+    vigias.u.uFuente.value = 0.6;
+
+    // The cluster that keeps quiet: the spark calls, and every star the call reaches goes out.
+    const R_CALLAN = 0.006;
+    const callanG = grupo(CALLAN, R_CALLAN);
+    const ORIGEN_LLAMADA = V(0.62, 0.22, 0.1);
     const callan = add(
       materia(callanDatos(), {
-        pre: /* glsl */ `uniform float uOn, uCalla;`,
-        post: /* glsl */ `
-          // The ones you look at go out.
-          vec2 ndc = gl_Position.xy / gl_Position.w;
-          em *= mix(1.0, smoothstep(0.12, 0.55, length(ndc * vec2(1.6, 1.0))), uCalla);
+        pre: /* glsl */ `uniform float uOn, uCalla, uLlama; uniform vec3 uOrigen;`,
+        move: /* glsl */ `
+          float frente = uLlama * 1.5;
+          float dl = length(p - uOrigen);
+          float alcanzada = 1.0 - smoothstep(frente - 0.12, frente, dl);
+          // At the front they flicker, then go out.
+          float borde = smoothstep(frente - 0.35, frente - 0.12, dl) * alcanzada;
+          float parpadeo = 0.5 + 0.5 * sin(uTime * 22.0 + seed * 90.0);
+          em *= uOn * mix(1.0, 0.03, alcanzada * smoothstep(0.0, 0.05, uLlama)) * (1.0 + borde * parpadeo * 1.5);
         `,
-        move: `em *= uOn;`,
-        uniforms: { uOn: { value: 0 }, uCalla: { value: 0 } },
+        post: /* glsl */ `
+          // And the ones you look at go out.
+          vec2 ndc = gl_Position.xy / gl_Position.w;
+          em *= mix(1.0, smoothstep(0.1, 0.5, length(ndc * vec2(1.6, 1.0))), uCalla);
+        `,
+        uniforms: { uOn: { value: 0 }, uCalla: { value: 0 }, uLlama: { value: 0 }, uOrigen: { value: ORIGEN_LLAMADA.clone() } },
       }),
       callanG,
       4,
     );
-    const filtroG = grupo(FILTRO, 0.0005);
-    const filtro = add(
-      materia(filtroDatos(), {
+    callan.u.uFuente.value = 0.7;
+    const llamada = add(
+      materia(llamadaDatos(), {
+        pre: /* glsl */ `uniform float uLlama; uniform vec3 uOrigen;`,
+        move: /* glsl */ `
+          float rr = uLlama * 1.5;
+          p = uOrigen + p * rr;
+          em *= smoothstep(0.0, 0.08, uLlama) * (1.0 - smoothstep(0.7, 1.0, uLlama));
+        `,
+        uniforms: { uLlama: { value: 0 }, uOrigen: { value: ORIGEN_LLAMADA.clone() } },
+      }),
+      callanG,
+      5,
+    );
+    llamada.u.uFuente.value = 0.6;
+
+    // The dead swarm round its red star.
+    const R_FILTRO = 0.0005;
+    const filtroG = grupo(FILTRO, R_FILTRO);
+    const roja = add(materia(rojaDatos(), { pre: `uniform float uOn;`, move: `em *= uOn;`, uniforms: { uOn: { value: 0 } } }), filtroG, 3);
+    roja.u.uFuente.value = 0.5;
+    const muertos = add(
+      materia(muertosDatos(), {
+        cuadro: true,
         pre: /* glsl */ `uniform float uOn;`,
         move: /* glsl */ `
-          float ag = uTime * 0.03 * (1.0 + 0.3 * fract(seed * 9.1));
-          if (aKind > 0.5) p.xz = vec2(cos(ag) * p.x - sin(ag) * p.z, sin(ag) * p.x + cos(ag) * p.z);
+          // Drifting, and tumbling: now and then a face catches the red light.
+          float ag = uTime * (aKind > 0.5 ? 0.02 : 0.008) * (0.6 + 0.8 * fract(seed * 9.1));
+          p.xz = vec2(cos(ag) * p.x - sin(ag) * p.z, sin(ag) * p.x + cos(ag) * p.z);
+          float cara = pow(abs(sin(uTime * (0.3 + 0.9 * fract(seed * 5.3)) + seed * 30.0)), 10.0);
+          em = mix(em, vec3(1.0, 0.42, 0.22) * 0.9, cara * 0.8);
           em *= uOn;
         `,
         uniforms: { uOn: { value: 0 } },
@@ -194,6 +281,7 @@ export const galaxia: Escena = {
       filtroG,
       4,
     );
+    muertos.u.uFuente.value = 0.3;
 
     // ---------------------------------------------------------------- the moments (GUION.md 36–42)
     // Revealing: home ringed in teal, its name a moment (the galaxy names itself).
@@ -230,14 +318,25 @@ export const galaxia: Escena = {
       Q.clone().addScaledVector(fuera, 1.3).addScaledVector(lado, 0.3).add(V(0, 0.04, 0)),
       Q.clone().addScaledVector(fuera, 2.2).addScaledVector(lado, 0.1).add(V(0, 0.0, 0)),
     ]);
-    const paradas = [saltos.getPoint(1), ZOO.clone().add(V(0.002, 0.0006, 0.001)), CALLAN.clone().add(V(0.004, 0.002, 0)), FILTRO.clone().add(V(0.004, 0.0012, 0.001)), UNA.clone().add(V(-0.0006, 0, 0))];
+    // (Where the camera ends up at each, so the spark waits in sight: among the probes, in the
+    // cluster where its call starts, among the dead collectors; and beside the single star.)
+    const dirDe = (az: number, el: number) => V(Math.cos(D2R(el)) * Math.sin(D2R(az)), Math.sin(D2R(el)), Math.cos(D2R(el)) * Math.cos(D2R(az)));
+    const AZ_ZOO = 250;
+    const AZ_FIL = 385;
+    const paradas = [
+      saltos.getPoint(1),
+      ZOO.clone().addScaledVector(dirDe(AZ_ZOO + 30, 10), R_ZOO * 3.4).add(V(0, R_ZOO * 0.5, 0)),
+      CALLAN.clone().addScaledVector(ORIGEN_LLAMADA, R_CALLAN),
+      FILTRO.clone().addScaledVector(dirDe(AZ_FIL + 8, 7), R_FILTRO * 3.6).add(V(0, R_FILTRO * 0.3, 0)),
+      UNA.clone().add(V(-0.0006, 0, 0)),
+    ];
     const caminoCh: Camino = (sv, out) => {
       if (sv <= 1) return out.copy(saltos.getPoint(Math.max(0, sv)));
       const i = Math.min(Math.floor(sv - 1), paradas.length - 2);
       const t = THREE.MathUtils.smoothstep(sv - 1 - i, 0, 1);
       return out.copy(paradas[i]).lerp(paradas[i + 1], t);
     };
-    tl.set({ ...Cn(Q), ox: 0, oy: 0, oz: 0, az: 120, el: 10, ld: Math.log10(D0), yaw: 90, pitch: -90, roll: 0, fov: 40, bur: 0, ir: 0, gal: 1, zoo: 0, callan: 0, calla: 0, filtro: 0, una: 0, ch: 0, lw: 0, tit: 0, mapa: 0, nombres: 0 });
+    tl.set({ ...Cn(Q), ox: 0, oy: 0, oz: 0, az: 120, el: 10, ld: Math.log10(D0), yaw: 90, pitch: -90, roll: 0, fov: 40, bur: 0, ir: 0, gal: 1, zoo: 0, callan: 0, calla: 0, filtro: 0, una: 0, ch: 0, lw: 0, tit: 0, mapa: 0, nombres: 0, llama: 0 });
 
     // Copied from star to star: the camera rides one branch, the stars it touches turn ours.
     tl.label('burbuja').caption(6.4, 'La burbuja', 'Sondas que se copian en cada estrella que tocan. Aunque vayan lento, el movimiento de las estrellas las reparte.');
@@ -261,40 +360,60 @@ export const galaxia: Escena = {
     luego(2.6, 2.2, { ir: 1 });
     tl.to(5.4, { ...Cn(G), ld: 2.02, el: 62, az: 210 });
 
-    // Down into the disc: three encounters.
-    tl.label('zoo').caption(5.4, 'El zoológico', '¿Por qué no vemos a nadie? Quizá alguien nos vio y nos dejó tranquilos. Al pasar, nosotros también dejamos un mundo vivo en paz.');
+    // Down into the disc: three encounters, each a place of its own. The camera goes with the spark,
+    // stays, and looks.
+    const cerca = (a: number, ref: number) => a + 360 * Math.round((ref - a) / 360);
+
+    // A living world, its own seas and lands, and round it a still lattice of probes that never
+    // touch it. The spark takes its place among them.
+    tl.label('zoo').caption(10.4, 'El zoológico', '¿Por qué no vemos a nadie? Quizá alguien nos vio y nos dejó tranquilos. Al pasar, nosotros también dejamos un mundo vivo en paz.');
     tl.with(1.2, { ...Cn(ZOO), ir: 0.35 });
-    luego(1.4, 1.4, { zoo: 1 });
-    luego(0.4, 2.0, { ch: 2 });
-    tl.to(3.2, { ld: Math.log10(0.004), el: 14, az: 250 });
-    tl.to(2.2, { ld: Math.log10(0.0032), az: 275 });
+    luego(0.6, 2.2, { zoo: 1 });
+    luego(0.4, 3.4, { ch: 2 });
+    tl.to(3.2, { ld: Math.log10(R_ZOO * 9), el: 16, az: AZ_ZOO });
+    tl.to(3.4, { ld: Math.log10(R_ZOO * 4.4), el: 10, az: AZ_ZOO + 22, fov: 38 });
+    tl.to(3.8, { ld: Math.log10(R_ZOO * 4.0), el: 7, az: AZ_ZOO + 44 });
 
-    tl.label('callan').caption(5.0, 'Los que callan', 'O callan a propósito, porque hacerse oír puede ser peligroso.');
-    luego(0.6, 1.0, { zoo: 0 });
-    luego(0.6, 1.6, { ...Cn(CALLAN) });
-    luego(1.6, 1.2, { callan: 1 });
-    luego(0.6, 2.4, { ch: 3 });
-    luego(2.6, 2.0, { calla: 1 });
-    tl.to(2.0, { ld: 0.5, el: 20, az: 300 });
-    tl.to(3.0, { ld: Math.log10(0.016), el: 10, az: 320 });
+    // A crowded cluster of old stars. In among them, the spark calls; every star the call reaches
+    // goes out, and the ones you look at too.
+    tl.label('callan').caption(10.0, 'Los que callan', 'O callan a propósito, porque hacerse oír puede ser peligroso.');
+    luego(0.6, 1.2, { zoo: 0 });
+    luego(0.6, 1.8, { ...Cn(CALLAN) });
+    luego(1.4, 1.4, { callan: 1 });
+    luego(0.6, 2.6, { ch: 3 });
+    luego(4.6, 4.2, { llama: 1 });
+    luego(6.4, 2.4, { calla: 1 });
+    tl.to(2.2, { ld: 0.4, el: 20, az: 300 });
+    tl.to(2.4, { ld: Math.log10(R_CALLAN * 1.8), el: 14, az: 322 });
+    tl.to(2.6, { ld: Math.log10(R_CALLAN * 0.55), el: 9, az: 345, fov: 54 });
+    tl.to(2.8, { az: 376, el: 3 });
 
-    tl.label('filtro').caption(5.4, 'El Gran Filtro', 'O casi todas se apagan antes de llegar tan lejos, como este enjambre muerto. ¿Ese filtro quedó atrás, o nos espera?');
-    luego(0.4, 1.0, { callan: 0, calla: 0 });
-    luego(0.6, 1.6, { ...Cn(FILTRO) });
-    luego(1.6, 1.4, { filtro: 1 });
-    luego(0.6, 2.4, { ch: 4 });
-    luego(3.0, 1.8, { tit: 1 });
-    tl.to(2.0, { ld: 0.5, el: 22, az: 340 });
-    tl.to(3.4, { ld: Math.log10(0.0045), el: 12, az: 370 });
+    // A swarm that died: square collectors adrift round a cold red star, now and then one catching
+    // its light. The spark flickers, as if it too would go out.
+    tl.label('filtro').caption(10.6, 'El Gran Filtro', 'O casi todas se apagan antes de llegar tan lejos, como este enjambre muerto. ¿Ese filtro quedó atrás, o nos espera?');
+    luego(0.4, 1.2, { callan: 0, calla: 0 });
+    luego(0.6, 1.8, { ...Cn(FILTRO) });
+    luego(1.6, 1.6, { filtro: 1 });
+    luego(0.6, 2.8, { ch: 4 });
+    luego(4.4, 2.0, { tit: 1 });
+    tl.to(2.2, { ld: 0.45, el: 22, az: 340 });
+    tl.to(2.6, { ld: Math.log10(R_FILTRO * 10), el: 14, az: AZ_FIL - 20 });
+    tl.to(3.0, { ld: Math.log10(R_FILTRO * 6.2), el: 9, az: AZ_FIL, fov: 46 });
+    tl.to(2.8, { ld: Math.log10(R_FILTRO * 5.4), az: AZ_FIL + 14, el: 5 });
 
-    tl.label('borde').caption(5.8, 'El borde y el silencio', 'Llegamos al borde, y vuelve la pregunta del principio: ¿dónde están todos? Quizá se fueron hacia adentro.');
+    // The edge. Out past the last stars: the whole galaxy from its rim, ours; then round, to face
+    // out: black, and one star.
+    const azFuera = cerca(angulos(UNA.clone().sub(G).setY(0)).az, AZ_FIL + 14);
+    tl.label('borde').caption(11.6, 'El borde y el silencio', 'Llegamos al borde, y vuelve la pregunta del principio: ¿dónde están todos? Quizá se fueron hacia adentro.');
     luego(0.4, 1.2, { filtro: 0 });
-    luego(0.8, 2.0, { ...Cn(UNA), una: 1 });
+    luego(0.8, 2.2, { ...Cn(UNA), una: 1 });
     luego(0.2, 0.6, { tit: 0 });
-    luego(0.8, 3.0, { ch: 5 });
+    luego(0.8, 4.4, { ch: 5 });
     luego(0.4, 2.4, { ir: 0 });
-    tl.to(2.6, { ld: 0.9, el: 8, az: 395 });
-    tl.to(3.2, { ld: Math.log10(0.0021), el: 4, az: 410 });
+    tl.to(2.6, { ld: 1.1, el: 26, az: azFuera, fov: 46 });
+    tl.to(3.0, { ld: 0.95, el: 20, az: azFuera + 8 });
+    tl.to(3.4, { ld: -0.4, el: 6, az: azFuera + 150 });
+    tl.to(2.6, { ld: Math.log10(0.0021), el: 4, az: azFuera + 180, fov: 44 });
 
     const chispa = crearChispa();
     root.add(chispa.nube.points);
@@ -302,6 +421,7 @@ export const galaxia: Escena = {
     const camFin = toma(tl, tl.length);
     return {
       tl,
+      listo: vivo.listo,
       entrada: { pos: Q.clone(), escala: D0 / 9 },
       salida: { pos: UNA.clone(), escala: camFin.pos.distanceTo(UNA) / 21 },
       escalera: false,
@@ -344,16 +464,32 @@ export const galaxia: Escena = {
         nave.u.uGain.value = 0;
         una.u.uSizeUnit.value = px(7, UNA);
         una.u.uGain.value = tl.get('una', p);
-        zoo.u.uOn.value = tl.get('zoo', p);
-        callan.u.uOn.value = tl.get('callan', p);
+        // The living world: lit by its star, turning; seen from the camera (both in its radii).
+        const zooOn = tl.get('zoo', p);
+        zooG.visible = zooOn > 0.001;
+        if (zooG.visible) vivo.update({ sol: SOL_ZOO, camara: camera.position.clone().sub(ZOO).divideScalar(R_ZOO), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: zooOn });
+        vigias.u.uOn.value = zooOn;
+        polvo.u.uGal.value = 1 - Math.max(zooOn, tl.get('filtro', p));
+        solZoo.u.uGain.value = zooOn;
+        solZoo.u.uSizeUnit.value = px(9, solZoo.points.position);
+        const callOn = tl.get('callan', p);
+        callan.u.uOn.value = callOn;
         callan.u.uCalla.value = tl.get('calla', p);
-        filtro.u.uOn.value = tl.get('filtro', p);
+        callan.u.uLlama.value = tl.get('llama', p);
+        llamada.u.uLlama.value = tl.get('llama', p) * callOn;
+        const filOn = tl.get('filtro', p);
+        roja.u.uOn.value = filOn;
+        muertos.u.uOn.value = filOn;
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
         enfocarMarcas(aroSol, f.dpr, tl.get('mapa', p));
         estrellas.u.uMaxPx.value = 3.2 * f.dpr;
-        zoo.u.uSizeUnit.value = zooG.scale.x;
-        callan.u.uSizeUnit.value = callanG.scale.x;
-        filtro.u.uSizeUnit.value = filtroG.scale.x;
+        vigias.u.uSizeUnit.value = R_ZOO;
+        callan.u.uSizeUnit.value = R_CALLAN;
+        llamada.u.uSizeUnit.value = R_CALLAN;
+        callan.u.uMaxPx.value = 14 * f.dpr;
+        roja.u.uSizeUnit.value = R_FILTRO;
+        muertos.u.uSizeUnit.value = R_FILTRO;
+        muertos.u.uMaxPx.value = 24 * f.dpr;
         void Y;
       },
       dispose() {},
