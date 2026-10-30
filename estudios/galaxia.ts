@@ -380,7 +380,8 @@ export const galaxia: Escena = {
     // goes out, and the ones you look at too.
     tl.label('callan').caption(10.0, 'Los que callan', 'O callan a propósito, porque hacerse oír puede ser peligroso.');
     luego(0.6, 1.2, { zoo: 0 });
-    luego(0.6, 1.8, { ...Cn(CALLAN) });
+    // (from one encounter to the next: out first, then across, then in; never across while close)
+    luego(1.2, 1.4, { ...Cn(CALLAN) });
     luego(1.4, 1.4, { callan: 1 });
     luego(0.6, 2.6, { ch: 3 });
     luego(4.6, 4.2, { llama: 1 });
@@ -394,7 +395,7 @@ export const galaxia: Escena = {
     // its light. The spark flickers, as if it too would go out.
     tl.label('filtro').caption(10.6, 'El Gran Filtro', 'O casi todas se apagan antes de llegar tan lejos, como este enjambre muerto. ¿Ese filtro quedó atrás, o nos espera?');
     luego(0.4, 1.2, { callan: 0, calla: 0 });
-    luego(0.6, 1.8, { ...Cn(FILTRO) });
+    luego(1.2, 1.4, { ...Cn(FILTRO) });
     luego(1.6, 1.6, { filtro: 1 });
     luego(0.6, 2.8, { ch: 4 });
     luego(4.4, 2.0, { tit: 1 });
@@ -408,7 +409,7 @@ export const galaxia: Escena = {
     const azFuera = cerca(angulos(UNA.clone().sub(G).setY(0)).az, AZ_FIL + 14);
     tl.label('borde').caption(11.6, 'El borde y el silencio', 'Llegamos al borde, y vuelve la pregunta del principio: ¿dónde están todos? Quizá se fueron hacia adentro.');
     luego(0.4, 1.2, { filtro: 0 });
-    luego(0.8, 2.2, { ...Cn(UNA), una: 1 });
+    luego(1.3, 1.9, { ...Cn(UNA), una: 1 });
     luego(0.2, 0.6, { tit: 0 });
     luego(0.8, 4.4, { ch: 5 });
     luego(0.4, 2.4, { ir: 0 });
