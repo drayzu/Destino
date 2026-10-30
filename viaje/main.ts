@@ -531,6 +531,23 @@ const api = {
     return { px: Math.round(pagina!.alto), pantallas: +(pagina!.alto / 900).toFixed(1), minutosAuto: +(s / 60).toFixed(1), picos: picos.slice(0, 40).map(([b, v]) => [b, v, enTramo(b).t.escena.id, +enTramo(b).p.toFixed(1)]) };
   },
   tramos: () => tramos.map((t) => [t.escena.id, t.estilo + 1, +t.inicio.toFixed(2), +t.largo.toFixed(2)]),
+  /** Debug: every act's labels, in journey beats. */
+  etiquetas: () => tramos.map((t) => [t.escena.id, Object.fromEntries([...(t.inst!.tl as unknown as { labels: Map<string, number> }).labels].map(([k, v]) => [k, +(v + t.inicio).toFixed(2)]))]),
+  /** Debug: the camera from beat a to b every `res` beats: position, gaze, up, fov and distance to its rig's centre, flat. */
+  trayecto(a: number, b: number, res = 0.02) {
+    const out: number[] = [];
+    const c = stage.camera;
+    for (let at = a; at <= b + 1e-9; at += res) {
+      step(0, 1 / 60, at, true);
+      dirV.set(0, 0, -1).applyQuaternion(c.quaternion);
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(c.quaternion);
+      const { t, p } = enTramo(at);
+      const tl = t.inst!.tl;
+      const d = Math.hypot(c.position.x - tl.get('cx', p), c.position.y - tl.get('cy', p), c.position.z - tl.get('cz', p));
+      out.push(at, c.position.x, c.position.y, c.position.z, dirV.x, dirV.y, dirV.z, up.x, up.y, up.z, c.fov, d);
+    }
+    return out;
+  },
   async listo() {
     await Promise.all(tramos.map((t) => t.inst?.listo));
     await calentado;

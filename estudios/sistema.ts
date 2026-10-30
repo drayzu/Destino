@@ -601,7 +601,7 @@ export const sistema: Escena = {
         const md = tl.get('md', p);
         if (md > 0.001) mira.lerp(MA.clone().lerp(VE, THREE.MathUtils.smoothstep(ch, 3.0, 3.3)), md);
         if (lw < 0.999) mira.lerp(centro, 1 - lw);
-        aplicarToma(camera, toma(tl, p, tm, { punto: mira, peso: mw }, { punto: lugar, peso: lw }));
+        aplicarToma(camera, toma(tl, p, tm, { punto: mira, peso: mw, arriba: m.arriba, delante: m.delante }, { punto: lugar, peso: lw }));
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
 

@@ -306,7 +306,8 @@ export const apertura: Escena = {
     tl.to(3.2, { sc: 2 });
 
     tl.label('escuchado').caption(4.4, 'Lo que hemos escuchado', 'Llevamos décadas escuchando. Es como sacar un vaso de agua del mar y decir que no hay peces.');
-    tl.with(1.4, { lw: 0, ld: -2.0, az: 150, el: 6 });
+    // (from above: the camera leaves as its centre heads for the Sun, and must not cross the spark)
+    tl.with(1.4, { lw: 0, ld: -2.0, az: 150, el: 34 });
     luego(0.2, 1.2, { pla: 0 });
     luego(2.2, 1.4, { vaso: 1 });
     luego(0.3, 2.6, { ...C(S) });
@@ -371,9 +372,18 @@ export const apertura: Escena = {
         galaxia.updateMatrixWorld(true);
         // The rig works in the galaxy's frame: its centre turns with it.
         const sc = tl.get('sc', p);
-        const m = montar(camino, sc, sc < 1.05 ? 0.04 : sc < 2.05 ? 0.06 : 0.05, sc < 1.05 ? 0.12 : 0.1, sc < 1.05 ? 0.0006 : 0.0004);
+        // (the ride's distances change from leg to leg gradually, never at once)
+        const k1 = THREE.MathUtils.smoothstep(sc, 0.9, 1.2);
+        const k2 = THREE.MathUtils.smoothstep(sc, 1.9, 2.2);
+        // (smoothed only a little: the legs differ wildly in length, a light year against a loop
+        // among a few stars, and a wide average would mix them)
+        // (and while the spark rests at the end of its loop, the gaze does not peek down the long way
+        // to the yellow star; that way opens as the spark takes it)
+        const tope = sc <= 2 ? 2 : 2 + (sc - 2) * 3;
+        const cam: Camino = (sv, out) => camino(Math.min(sv, tope), out);
+        const m = montar(cam, sc, 0.04 + 0.02 * k1 - 0.01 * k2, 0.12 - 0.02 * k1, 0.0006 - 0.0002 * k1, V(0, 1, 0), 0.006);
         const lw = tl.get('lw', p);
-        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: lw }, { punto: m.lugar, peso: lw }));
+        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: lw, arriba: m.arriba, delante: m.delante }, { punto: m.lugar, peso: lw }));
         camera.position.applyAxisAngle(V(0, 1, 0), galaxia.rotation.y);
         camera.up.applyAxisAngle(V(0, 1, 0), galaxia.rotation.y);
         camera.lookAt(camera.position.clone().add(tm.dir.clone().applyAxisAngle(V(0, 1, 0), galaxia.rotation.y)));

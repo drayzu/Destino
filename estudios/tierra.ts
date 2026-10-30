@@ -72,9 +72,33 @@ export function rutaTierra(sv: number, out = V()) {
   const h = PASOS[i][2] + (PASOS[i + 1][2] - PASOS[i][2]) * t + (PASOS[i][2] > 0.005 && PASOS[i + 1][2] > 0.005 ? 0.012 * Math.sin(Math.PI * t) : 0);
   return out.normalize().multiplyScalar(1 + h);
 }
-/** The camera riding the spark over the Earth (its own frame): behind, a little above, looking ahead. */
+/** How far along the route (radians of the Earth's arc) each stop is: the legs differ a lot in length. */
+const ARCOS = (() => {
+  const a = [0];
+  for (let i = 0; i + 1 < PASOS.length; i++) a.push(a[i] + Math.hypot(dirLatLon(PASOS[i][0], PASOS[i][1]).angleTo(dirLatLon(PASOS[i + 1][0], PASOS[i + 1][1])), PASOS[i + 1][2] - PASOS[i][2]));
+  return a;
+})();
+const arcoDe = (sv: number) => {
+  const n = PASOS.length - 1;
+  const x = Math.min(Math.max(sv, 0), n);
+  const i = Math.min(Math.floor(x), n - 1);
+  return ARCOS[i] + (x - i) * (ARCOS[i + 1] - ARCOS[i]);
+};
+const svDe = (u: number) => {
+  const n = PASOS.length - 1;
+  if (u <= 0) return 0;
+  if (u >= ARCOS[n]) return n;
+  let i = 0;
+  while (ARCOS[i + 1] < u) i++;
+  return i + (u - ARCOS[i]) / Math.max(1e-9, ARCOS[i + 1] - ARCOS[i]);
+};
+/**
+ * The camera riding the spark over the Earth (its own frame): behind, a little above, looking
+ * ahead. It rides by distance along the route, not by stop (a short leg and a long one take the
+ * same s), so it can round each city in a wide curve without its average running ahead.
+ */
 export function montarTierra(sv: number) {
-  return montar((x, o) => rutaTierra(x, o), sv, 0.08, 0.22, 0.012, rutaTierra(sv).normalize());
+  return montar((x, o) => rutaTierra(svDe(x), o), arcoDe(sv), 0.016, 0.044, 0.012, rutaTierra(sv).normalize(), 0.09, true, 0.05);
 }
 /** Where the data centre is, and the cities its copies go to. */
 const DC = [19.1, 72.9];
@@ -613,12 +637,14 @@ export const tierraNoche: Escena = {
         // Riding the spark over the Earth (its frame turned into the world's), or the rig's own shot.
         const rs = tl.get('rs', p);
         const rw = tl.get('rw', p);
-        const mira = { punto: cW.clone().multiplyScalar(tl.get('lh', p)), peso: tl.get('lw', p) };
+        const mira: { punto: THREE.Vector3; peso: number; arriba?: THREE.Vector3; delante?: THREE.Vector3 } = { punto: cW.clone().multiplyScalar(tl.get('lh', p)), peso: tl.get('lw', p) };
         let lugarR: { punto: THREE.Vector3; peso: number } | undefined;
         if (rw > 0.001) {
           const m = montarTierra(rs);
           mira.punto.copy(m.mira.applyQuaternion(earth.quaternion));
           mira.peso = rw;
+          mira.arriba = m.arriba.applyQuaternion(earth.quaternion);
+          mira.delante = m.delante.applyQuaternion(earth.quaternion);
           lugarR = { punto: m.lugar.applyQuaternion(earth.quaternion), peso: rw };
         }
         aplicarToma(camera, toma(tl, p, tm, mira, lugarR));

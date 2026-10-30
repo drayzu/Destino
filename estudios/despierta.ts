@@ -324,7 +324,7 @@ export const despierta: Escena = {
     tl.with(1.6, { cel: 0, toque: 0 });
     luego(0.3, 2.4, { ner: 1, crece: 1 });
     tl.to(1.6, { az: 40, el: 24, ld: 0.52 });
-    tl.with(0.8, { lw: 0.85 });
+    luego(0.4, 1.0, { lw: 0.85 });
     tl.to(3.4, { sc: 2 });
 
     // The net folds into a brain; the spark goes in, among neurons, to the point.
@@ -333,14 +333,21 @@ export const despierta: Escena = {
     luego(1.4, 2.6, { sc: 3, lw: 0.8 });
     luego(3.8, 1.0, { tu: 1 });
     tl.to(2.4, { az: 96, el: 16, ld: 0.42 });
-    tl.to(3.4, { az: 104, el: 10, ld: -0.42, fov: 46 });
+    // (in until «tú» is just ahead, then only drifting: never through it, where the spark rests)
+    tl.to(2.2, { az: 102, el: 10.6, ld: -0.42, fov: 45 });
+    // (the spark has arrived: the camera is the rig's alone again before the spark leaves)
+    tl.with(1.2, { lw: 0 });
+    tl.to(1.2, { az: 104, el: 10, fov: 46 });
 
     // Out of the brain: its network lays itself over the night Earth, and the spark runs on it, city to city.
     tl.label('ocho').caption(6.0, 'Ocho mil millones de cerebros', 'Están ahí, donde de noche hay luz. Todos juntos piensan con menos del uno por ciento de lo que gastamos.');
     tl.with(1.0, { tu: 0 });
     luego(0.4, 2.2, { cor: 0 });
     luego(0.4, 3.0, { forma: 1, tierra: 1 });
-    tl.with(1.2, { lw: 1, fov: 40 });
+    // The spark leaves «tú» for London; the camera lets go and draws back to see the brain become
+    // the night Earth, then dives onto the spark again as it reaches London.
+    luego(0.2, 1.9, { ld: 0.32, el: 20, az: 118 });
+    luego(1.6, 1.8, { lw: 1, fov: 40 });
     tl.to(1.8, { sc: 3.4, vel: 0.2 });
     tl.to(4.2, { sc: 4 + S_CAIRO / 4, vel: 0.2 });
 
@@ -349,23 +356,38 @@ export const despierta: Escena = {
     const tu = add(puntoTu(tuPos, 0.006));
     const qT = caraHacia(CARA.lat, CARA.lon);
     const londres = rutaTierra(0).applyQuaternion(qT);
+    // From «tú» out of the planet the brain becomes, over it and down onto London, arriving along the
+    // route (never through the Earth, where the camera would see nothing).
+    const rumbo = rutaTierra(0.04).applyQuaternion(qT).sub(londres).normalize();
+    // (it sets off across the view, towards London but never at the camera that watches it leave)
+    const haciaL = londres.clone().sub(tuPos);
+    const sale = haciaL.clone().addScaledVector(tm.dir, -haciaL.dot(tm.dir)).normalize();
+    const aLondres = new THREE.CubicBezierCurve3(tuPos.clone(), tuPos.clone().addScaledVector(sale, 0.5), londres.clone().multiplyScalar(1.22).addScaledVector(rumbo, -0.3), londres.clone());
     const enCerebro = new THREE.CatmullRomCurve3([campana(1, Math.PI / 2).multiplyScalar(1), V(0.35, 0.25, 0.3), V(-0.1, 0.1, 0.15), tuPos.clone()]);
     /**
      * The spark's way: a loop inside the cell (0..1), down a nerve of the bell and round its rim
      * (1..2), through the brain to «tú» (2..3), out to London (3..3.4), and over the Earth to Cairo
      * (3.4.., in the route's own s, scaled 1:4).
      */
+    // (it arrives along the nerve: the tangent there is the nerve's own)
+    const enNervio = campana(0.3, 0);
+    const lungo = campana(0.32, 0).sub(enNervio).normalize();
+    const salto = new THREE.CubicBezierCurve3(V(0.2, 0, 0), V(0.22, 0.22, 0.04), enNervio.clone().addScaledVector(lungo, -0.22), enNervio);
     const camino: Camino = (sv, out) => {
       if (sv <= 1) {
         const a = Math.max(sv, 0) * Math.PI * 4;
         return out.set(Math.cos(a) * 0.2, 0.05 * Math.sin(a * 1.5), Math.sin(a) * 0.2);
       }
       if (sv <= 2) {
+        // Up and out of the cell onto a nerve in an arc (never back on itself), down the nerve,
+        // round the rim.
         const t = sv - 1;
-        return t < 0.7 ? out.copy(campana(0.08 + (t / 0.7) * 0.92, 0)) : out.copy(campana(1, ((t - 0.7) / 0.3) * (Math.PI / 2)));
+        if (t < 0.15) return out.copy(salto.getPoint(t / 0.15));
+        const u = (t - 0.15) / 0.85;
+        return u < 0.65 ? out.copy(campana(0.3 + (u / 0.65) * 0.7, 0)) : out.copy(campana(1, ((u - 0.65) / 0.35) * (Math.PI / 2)));
       }
       if (sv <= 3) return out.copy(enCerebro.getPoint(sv - 2));
-      if (sv <= 3.4) return out.copy(tuPos).lerp(londres, (sv - 3) / 0.4);
+      if (sv <= 3.4) return out.copy(aLondres.getPoint((sv - 3) / 0.4));
       return rutaTierra((sv - 3.4) * (S_CAIRO / (S_CAIRO / 4 + 0.6)), out).applyQuaternion(qT);
     };
     const chispa = crearChispa();
@@ -405,14 +427,27 @@ export const despierta: Escena = {
         const sc = tl.get('sc', p);
         const lw = tl.get('lw', p);
         // Riding the spark; over the Earth, the same ride as scene 6 starts with (so they meet exactly).
-        let m: { lugar: THREE.Vector3; mira: THREE.Vector3 };
-        if (sc > 3.4) {
+        // (from one ride to the other over a stretch of the way, not at once where the Earth begins)
+        // (while the spark rests at «tú», the gaze does not peek down the way out; it opens as the
+        // spark takes it)
+        const tope = sc <= 3 ? 3 : 3 + (sc - 3) * 3;
+        const cam: Camino = (sv, out) => camino(Math.min(sv, tope), out);
+        let m = montar(cam, sc, 0.05, 0.08, 0.04);
+        const kT = THREE.MathUtils.smoothstep(sc, 3.4, 3.75);
+        if (kT > 0) {
           const rs = (sc - 3.4) * (S_CAIRO / (S_CAIRO / 4 + 0.6));
-          m = montarTierra(rs);
-          m.lugar.applyQuaternion(qT);
-          m.mira.applyQuaternion(qT);
-        } else m = montar(camino, sc, 0.05, 0.08, 0.04);
-        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: lw }, { punto: m.lugar, peso: lw }));
+          const mT = montarTierra(rs);
+          mT.lugar.applyQuaternion(qT);
+          mT.mira.applyQuaternion(qT);
+          if (kT >= 1) m = { ...mT, arriba: mT.arriba.applyQuaternion(qT), delante: mT.delante.applyQuaternion(qT) };
+          else {
+            m.lugar.lerp(mT.lugar, kT);
+            m.mira.lerp(mT.mira, kT);
+            m.arriba.lerp(mT.arriba.applyQuaternion(qT), kT).normalize();
+            m.delante.lerp(mT.delante.applyQuaternion(qT), kT).normalize();
+          }
+        }
+        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: lw, arriba: m.arriba, delante: m.delante }, { punto: m.lugar, peso: lw }));
         chispa.update(camino, sc, sc > 3.4 ? 0.0004 : 0.0025, tl.get('on', p), 0, camera.position, f.focal, f.dpr, f.time);
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();

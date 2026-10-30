@@ -185,7 +185,7 @@ export const mente: Escena = {
     tl.to(1.6, { sc: 1, vel: 0.2, red: 0.15 });
 
     const tm = toma(tl, 0);
-    const fin = montar(camino, 1, 0.009, 0.02, 0.035);
+    const fin = montar(camino, 1, 0.009, 0.02, 0.035, V(0, 1, 0), 0.03);
     return {
       tl,
       salida: { pos: camino(1, V()), escala: fin.lugar.distanceTo(camino(1, V())) },
@@ -210,8 +210,9 @@ export const mente: Escena = {
         camera.far = 100;
         const sc = tl.get('sc', p);
         // Riding the spark: just behind it, a little above, looking ahead.
-        const m = montar(camino, sc, 0.009, 0.02, 0.035);
-        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: tl.get('lw', p) }, { punto: m.lugar, peso: tl.get('lw', p) }));
+        // (round each neuron in a wide curve: the spark turns sharply there, the camera need not)
+        const m = montar(camino, sc, 0.009, 0.02, 0.035, V(0, 1, 0), 0.03);
+        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: tl.get('lw', p), arriba: m.arriba, delante: m.delante }, { punto: m.lugar, peso: tl.get('lw', p) }));
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
         red.u.uRed.value = tl.get('red', p);

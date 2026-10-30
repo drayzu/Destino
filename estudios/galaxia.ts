@@ -459,8 +459,11 @@ export const galaxia: Escena = {
         const ch = tl.get('ch', p);
         const lw = tl.get('lw', p);
         // (On the branch, looking well ahead along it, so the hops from star to star do not jerk the gaze.)
-        const m = ch < 1 ? montar(caminoCh, ch, 0.07, 0.22, 0.3 * frente(ch)) : montar(caminoCh, ch, 0.03, 0.06, 0.02);
-        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: lw }, { punto: m.lugar, peso: lw }));
+        // (the branch grows in logarithm: smoothed only a little, or the camera would average far
+        // ahead of the spark; and from one way of riding to the other gradually)
+        const kE = THREE.MathUtils.smoothstep(ch, 0.95, 1.1);
+        const m = montar(caminoCh, ch, THREE.MathUtils.lerp(0.07, 0.03, kE), THREE.MathUtils.lerp(0.22, 0.06, kE), THREE.MathUtils.lerp(0.3 * frente(ch), 0.02, kE), V(0, 1, 0), THREE.MathUtils.lerp(0.015, 0.06, kE));
+        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: lw, arriba: m.arriba, delante: m.delante }, { punto: m.lugar, peso: lw }));
         chispa.update(caminoCh, ch, 0.0015, 1, tl.get('tit', p), camera.position, f.focal, f.dpr, f.time);
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();

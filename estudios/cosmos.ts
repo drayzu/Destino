@@ -7,7 +7,7 @@ import { FONT, ink, type Cuenta, type Rotulo } from './placa';
 import { cuantas, enfocarMarcas, marcas, nombres, type Nombre } from './revelar';
 import { TEAL, potencia, anioEn } from './remake';
 import { aplicarToma, toma } from './rig';
-import { crearChispa, type Camino } from './chispa';
+import { crearChispa, montar, type Camino } from './chispa';
 import type { Escena, Frame, Instancia } from './tipos';
 
 /**
@@ -181,6 +181,7 @@ export const cosmos: Escena = {
       .filter((c) => c.length() > 0.18 && c.length() < 0.62)
       .sort((a, b) => Math.atan2(a.x, a.z) - Math.atan2(b.x, b.z));
     const elegidas = [0, 1, 2, 3, 4, 5].map((i) => paso[Math.floor((i / 6) * paso.length)] ?? V(0.3, 0, 0));
+    const caminoRuta: Camino = (sv, out) => out.copy(ruta.getPoint(THREE.MathUtils.clamp(sv, 0, 1)));
     const ruta = new THREE.CatmullRomCurve3(elegidas.map((c, i) => c.clone().add(V(0.012, 0.018, 0.012).multiplyScalar(i % 2 ? 1 : -1))));
     // The last black hole, a golden point in the empty island.
     const ob = materiaBuilder(263);
@@ -301,8 +302,11 @@ export const cosmos: Escena = {
         // Gliding through our galaxies (Type IV): the camera on its way among them, looking ahead.
         const vuela = tl.get('vuela', p);
         const sv = THREE.MathUtils.clamp(tl.get('sv', p), 0, 1);
-        const lugarV = ruta.getPoint(sv);
-        const miraV = ruta.getPoint(Math.min(1, sv + 0.035));
+        // (the gaze always a little ahead of the place, even at the way's end; both smoothed, so the
+        // camera rounds each galaxy it passes instead of turning at it)
+        const mv = montar(caminoRuta, sv * 0.95, 0, 0.1, 0, V(0, 1, 0), 0.04);
+        const lugarV = mv.lugar;
+        const miraV = mv.mira;
         aplicarToma(camera, toma(tl, p, tm, { punto: miraV, peso: vuela }, { punto: lugarV, peso: vuela }));
         cercanas.u.uOn.value = tl.get('cerca', p);
         sondas.u.uTenue.value = vuela;
