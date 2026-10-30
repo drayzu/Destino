@@ -27,6 +27,7 @@ import { AJUSTE, Pagina, RES, cambio, ritmoDe, type Ritmo, type Vista } from './
 import { agregar, diccionario, lang, switchLang, tx } from '../src/i18n';
 import { tr, usarIdioma } from '../estudios/idioma';
 import { lamina } from './lamina';
+import { dibujarEstelas } from '../estudios/chispa';
 import { EXTRA } from './textos';
 
 /**
@@ -388,6 +389,8 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
   }
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.clearRect(0, 0, W, H);
+  // The sparks' wakes, over the film.
+  dibujarEstelas(g, camera, W, H);
   const u = f.u;
   // The dip between acts, and the title before the first.
   const negro = FUNDIDO > 0 ? Math.max(1 - clamp((at - (t.inicio - FUNDIDO / 2)) / (FUNDIDO / 2), 0, 1), clamp((at - (t.inicio + t.largo)) / (FUNDIDO / 2), 0, 1)) : 0;

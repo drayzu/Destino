@@ -29,8 +29,92 @@ export interface Chispa {
   update(camino: Camino, s: number, paso: number, on: number, titila: number, camPos: THREE.Vector3, focal: number, dpr: number, time: number): void;
 }
 
+/** Every spark made, so the page can draw their wakes (`dibujarEstelas`). */
+const VIVAS = new Set<{ nube: Nube; estela: Float32Array; on: number; titila: number; time: number; dpr: number }>();
+const tmpE = new THREE.Vector3();
+const tmpV = new THREE.Vector3();
+const TEAL_RGB = [0.435, 0.89, 0.757];
+
+/** A ray of the spark: visible if it and every parent are, and how much (the journey's crossfade). */
+function presente(o: THREE.Object3D) {
+  for (let x: THREE.Object3D | null = o; x; x = x.parent) if (!x.visible) return false;
+  return true;
+}
+
 /**
- * Still points, as Diego chose (a stroke had too many glitches), but finer: a white heart with a
+ * The sparks' wakes, drawn on the page's 2D layer after the film (Diego, 30 Oct: no dotted wake;
+ * a ribbon in WebGL had glitches): each wake projected to the screen this frame and stroked as one
+ * smooth, tapering line of light, bright and white at the head, teal and thin towards its end,
+ * fading where it comes near the camera and cut where it would pass behind it.
+ */
+export function dibujarEstelas(g: CanvasRenderingContext2D, camera: THREE.PerspectiveCamera, W: number, H: number) {
+  camera.updateMatrixWorld();
+  const n = ESTELA;
+  const xs = new Float32Array(n);
+  const ys = new Float32Array(n);
+  const fs = new Float32Array(n);
+  for (const c of VIVAS) {
+    if (!presente(c.nube.points)) continue;
+    const luz = c.on * c.nube.u.uFundido.value * c.nube.u.uGain.value;
+    if (luz < 0.01) continue;
+    const parpadeo = c.titila > 0 ? 1 - c.titila + c.titila * (0.15 + 0.85 * ((((Math.sin(Math.floor(c.time * 9) * 12.9898) * 43758.5453) % 1) + 1) % 1 > 0.45 ? 1 : 0)) : 1;
+    const mw = c.nube.points.matrixWorld;
+    // The head's depth: the wake fades where it comes nearer the camera than part of it.
+    tmpE.set(c.estela[0], c.estela[1], c.estela[2]).applyMatrix4(mw).applyMatrix4(camera.matrixWorldInverse);
+    const dCab = -tmpE.z;
+    if (dCab <= camera.near) continue;
+    let m = 0;
+    for (let i = 0; i < n; i++) {
+      tmpE.set(c.estela[i * 3], c.estela[i * 3 + 1], c.estela[i * 3 + 2]).applyMatrix4(mw).applyMatrix4(camera.matrixWorldInverse);
+      const d = -tmpE.z;
+      if (d <= camera.near * 2) break;
+      tmpV.copy(tmpE).applyMatrix4(camera.projectionMatrix);
+      xs[m] = (tmpV.x * 0.5 + 0.5) * W;
+      ys[m] = (0.5 - tmpV.y * 0.5) * H;
+      const r = d / dCab;
+      fs[m] = Math.min(1, Math.max(0, (r - 0.3) / 0.45));
+      m++;
+    }
+    if (m < 3) continue;
+    // The wake's length on screen (to keep its width modest when it is short).
+    let largo = 0;
+    for (let i = 1; i < m; i++) largo += Math.hypot(xs[i] - xs[i - 1], ys[i] - ys[i - 1]);
+    if (largo < 1) continue;
+    const dpr = c.dpr;
+    const a0 = luz * parpadeo;
+    g.save();
+    g.globalCompositeOperation = 'lighter';
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    // Nested strokes from the head: each shorter, wider and brighter, so together they taper.
+    const capas: [number, number, number][] = [
+      [1.0, 1.1, 0.34],
+      [0.66, 2.0, 0.34],
+      [0.38, 3.2, 0.38],
+      [0.16, 4.4, 0.42],
+    ];
+    for (const [hasta, ancho, alfa] of capas) {
+      const k = Math.max(2, Math.round(hasta * (m - 1)) + 1);
+      const grad = g.createLinearGradient(xs[0], ys[0], xs[k - 1], ys[k - 1]);
+      const head = a0 * alfa * fs[0];
+      grad.addColorStop(0, `rgba(${Math.round(255 * 0.88)},255,${Math.round(255 * 0.96)},${head})`);
+      grad.addColorStop(0.35, `rgba(${Math.round(255 * TEAL_RGB[0] * 1.3)},${Math.round(255 * Math.min(1, TEAL_RGB[1] * 1.1))},${Math.round(255 * TEAL_RGB[2] * 1.2)},${head * 0.75 * fs[Math.floor(k * 0.35)]})`);
+      grad.addColorStop(1, `rgba(${Math.round(255 * TEAL_RGB[0])},${Math.round(255 * TEAL_RGB[1])},${Math.round(255 * TEAL_RGB[2])},0)`);
+      g.strokeStyle = grad;
+      g.lineWidth = ancho * dpr * Math.min(1, 0.4 + largo / (60 * dpr));
+      g.shadowColor = `rgba(111,227,193,${0.6 * head})`;
+      g.shadowBlur = 9 * dpr;
+      g.beginPath();
+      g.moveTo(xs[0], ys[0]);
+      for (let i = 1; i < k; i++) g.lineTo(xs[i], ys[i]);
+      g.stroke();
+    }
+    g.restore();
+  }
+}
+
+/**
+ * The spark's head: points, a white heart with a
  * small four-pointed glint and a teal halo; a wake of close points that reads as one thread, from
  * pale to deep teal, each one its size in pixels wherever it is (so where the wake runs towards the
  * camera it does not swell into blobs) and fading near the camera; a faint shimmer along it.
@@ -56,12 +140,12 @@ export function crearChispa(): Chispa {
     data.size[i + 2] = 4.2 * (1 - t) + 1.1;
   }
   const nube = materia(data, {
-    pre: /* glsl */ `uniform float uOn, uTitila, uDCab; varying float vKind;`,
+    pre: /* glsl */ `uniform float uOn, uTitila, uDCab, uPuntos; varying float vKind;`,
     move: /* glsl */ `
       float parpadeo = mix(1.0, 0.15 + 0.85 * step(0.45, fract(sin(floor(uTime * 9.0) * 12.9898) * 43758.5453)), uTitila);
       em *= uOn * parpadeo;
       // (a faint shimmer running down the wake)
-      if (aKind < 0.5) em *= 0.8 + 0.35 * sin(aDelay * 40.0 - uTime * 7.0);
+      if (aKind < 0.5) em *= (0.8 + 0.35 * sin(aDelay * 40.0 - uTime * 7.0)) * uPuntos;
       vKind = aKind;
     `,
     post: /* glsl */ `
@@ -90,7 +174,7 @@ export function crearChispa(): Chispa {
         gl_FragColor = vec4(vEm * f, vOcc * f);
       }
     `,
-    uniforms: { uOn: { value: 1 }, uTitila: { value: 0 }, uDCab: { value: 1 } },
+    uniforms: { uOn: { value: 1 }, uTitila: { value: 0 }, uDCab: { value: 1 }, uPuntos: { value: 1 } },
   });
   nube.u.uSpread.value = 0;
   nube.u.uFuente.value = 1;
@@ -99,6 +183,10 @@ export function crearChispa(): Chispa {
   const posAttr = nube.points.geometry.getAttribute('position') as THREE.BufferAttribute;
   const pos = V();
   const tmp = V();
+  // The wake is drawn on the page (dibujarEstelas); its points stay, unlit, as its positions.
+  nube.u.uPuntos.value = 0;
+  const viva = { nube, estela: new Float32Array(ESTELA * 3), on: 1, titila: 0, time: 0, dpr: 1 };
+  VIVAS.add(viva);
   return {
     nube,
     pos,
@@ -110,6 +198,9 @@ export function crearChispa(): Chispa {
       for (let i = 0; i < ESTELA; i++) {
         camino(s - i * p2, tmp);
         posAttr.setXYZ(i + 2, tmp.x, tmp.y, tmp.z);
+        viva.estela[i * 3] = tmp.x;
+        viva.estela[i * 3 + 1] = tmp.y;
+        viva.estela[i * 3 + 2] = tmp.z;
       }
       posAttr.needsUpdate = true;
       nube.points.geometry.computeBoundingSphere();
@@ -121,6 +212,10 @@ export function crearChispa(): Chispa {
       nube.u.uMaxPx.value = 64 * dpr;
       nube.u.uOn.value = on;
       nube.u.uTitila.value = titila;
+      viva.on = on;
+      viva.titila = titila;
+      viva.time = time;
+      viva.dpr = dpr;
     },
   };
 }

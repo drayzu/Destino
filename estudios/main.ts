@@ -1,3 +1,4 @@
+import { dibujarEstelas } from './chispa';
 import '@fontsource/instrument-serif/400.css';
 import '@fontsource/instrument-serif/400-italic.css';
 import '@fontsource-variable/geist';
@@ -160,6 +161,7 @@ function step(now: number, dt: number, at: number) {
   }
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.clearRect(0, 0, W, H);
+  dibujarEstelas(g, stage.camera, W, H);
   const u = f.u;
   marca(g, u, `estudio · ${escena.nombre}`, escena.estilos.length > 1 ? `${escena.estilos[estilo].key} · ${escena.estilos[estilo].nombre}` : 'fase 0');
   inst.placa?.(g, f);
