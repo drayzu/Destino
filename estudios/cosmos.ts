@@ -1,3 +1,4 @@
+import { tr } from './idioma';
 import * as THREE from 'three';
 import { Timeline } from './timeline';
 import { enfocar, materia, materiaBuilder, type Nube } from './motor/materia';
@@ -353,7 +354,7 @@ export const cosmos: Escena = {
           g.fillText('6', f.W - 90 * u, f.H * 0.42);
           g.font = FONT.italic(30 * u);
           g.fillStyle = ink(0.7);
-          g.fillText('horas', f.W - 90 * u, f.H * 0.42 + 44 * u);
+          g.fillText(tr('horas'), f.W - 90 * u, f.H * 0.42 + 44 * u);
           g.restore();
         }
       },

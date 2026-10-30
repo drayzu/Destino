@@ -1,3 +1,4 @@
+import { tr } from './idioma';
 import * as THREE from 'three';
 import { Timeline } from './timeline';
 import { enfocar, materia, materiaBuilder, type MateriaData, type Nube } from './motor/materia';
@@ -445,7 +446,7 @@ export const apertura: Escena = {
           g.font = FONT.mono(11 * u);
           g.letterSpacing = `${1.6 * u}px`;
           g.fillStyle = ink();
-          g.fillText('DESLIZA PARA EMPEZAR', f.W / 2, f.H / 2 + 70 * u);
+          g.fillText(tr('Desliza para empezar').toUpperCase(), f.W / 2, f.H / 2 + 70 * u);
           g.restore();
         }
         // The title, over the whole galaxy.
@@ -468,7 +469,7 @@ export const apertura: Escena = {
           g.fillText('Destino', f.W / 2, f.H * 0.18);
           g.font = FONT.italic(30 * u);
           g.fillStyle = ink(0.78);
-          g.fillText('¿Adónde podemos llegar?', f.W / 2, f.H * 0.18 + 84 * u);
+          g.fillText(tr('¿Adónde podemos llegar?'), f.W / 2, f.H * 0.18 + 84 * u);
           g.restore();
         }
       },

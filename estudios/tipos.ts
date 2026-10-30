@@ -18,6 +18,8 @@ export interface Frame {
   /** The camera's focal length in device pixels (after the scene places the camera). */
   focal: number;
   camera: THREE.PerspectiveCamera;
+  /** The journey's page draws its own chrome (the card to Infinito is a link there, not paint). */
+  chasis?: boolean;
 }
 
 /** Where an act hands over or takes over (journey): a point in its world and a size there. */
@@ -42,6 +44,8 @@ export interface Instancia {
   anio?(p: number): number | null;
   /** The moment's chapter, name and sentence. */
   rotulo(p: number): Rotulo | null;
+  /** Journey: how much the closing card is up (0..1), for the page's own link to the next piece. */
+  outro?(p: number): number;
   /** False: no ladder. */
   escalera?: boolean;
   /** The film's effects at beat p: the air trembling with heat, light streaking with speed (0..1). */

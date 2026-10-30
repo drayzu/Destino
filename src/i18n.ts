@@ -23,6 +23,12 @@ export const lang: Lang = (() => {
   return nav.toLowerCase().startsWith('es') ? 'es' : 'en';
 })();
 
+/** More entries (the remake's own lines), and the whole dictionary for whoever draws text itself. */
+export function agregar(d: Record<string, string>) {
+  Object.assign(EN, d);
+}
+export const diccionario = () => EN;
+
 /** The text in the current language. */
 export const tx = (es: string) => (lang === 'en' ? (EN[es] ?? es) : es);
 

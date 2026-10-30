@@ -3,6 +3,7 @@ import '@fontsource/instrument-serif/400-italic.css';
 import '@fontsource-variable/geist';
 import '@fontsource-variable/geist-mono';
 import '../estudios/style.css';
+import './chasis.css';
 import * as THREE from 'three';
 import { clamp, damp } from '../estudios/motor/math';
 import { FONDOS } from '../estudios/motor/pantalla';
@@ -23,6 +24,10 @@ import { estrella } from '../estudios/estrella';
 import { cosmos } from '../estudios/cosmos';
 import { final } from '../estudios/final';
 import { AJUSTE, Pagina, RES, cambio, ritmoDe, type Ritmo, type Vista } from './ritmo';
+import { agregar, diccionario, lang, switchLang, tx } from '../src/i18n';
+import { tr, usarIdioma } from '../estudios/idioma';
+import { lamina } from './lamina';
+import { EXTRA } from './textos';
 
 /**
  * Destino, the remake: the journey. One scroll through the scenes of ESCALETA.md, built with the
@@ -58,6 +63,16 @@ const PORTADA = 0;
 /** Beats of black between two acts: none, the acts hand over through a shared image (GUION.md). */
 const FUNDIDO = 0;
 const PX_PER_BEAT = 520;
+
+// ---------------------------------------------------------------- the language
+agregar(EXTRA);
+usarIdioma(lang === 'en', diccionario());
+document.documentElement.lang = lang;
+for (const el of document.querySelectorAll<HTMLElement>('[data-i18n]')) {
+  const text = [...el.childNodes].find((n) => n.nodeType === Node.TEXT_NODE && n.textContent!.trim());
+  if (text) text.textContent = tx(text.textContent!.trim());
+}
+document.querySelector('meta[name="description"]')?.setAttribute('content', tx(document.querySelector('meta[name="description"]')!.getAttribute('content')!));
 
 const params = new URLSearchParams(location.search);
 const capMatch = /^(\d+)x(\d+)$/.exec(params.get('cap') ?? '');
@@ -165,11 +180,53 @@ addEventListener('scroll', () => {
   if (reubicando > 0) return;
   target = clamp(pagina ? pagina.pDe(scrollY) : scrollY / PX_PER_BEAT, 0, TOTAL);
 });
-addEventListener('wheel', () => (autoplay = false), { passive: true });
+addEventListener('wheel', () => setAutoplay(false), { passive: true });
+
+// ---------------------------------------------------------------- the chrome (Destino's icons)
+const $ = <T extends HTMLElement>(s: string) => document.querySelector<T>(s)!;
+const playBtn = $<HTMLButtonElement>('#play');
+const soundBtn = $<HTMLButtonElement>('#sound');
+const plateBtn = $<HTMLButtonElement>('#plate');
+const langBtn = $<HTMLButtonElement>('#lang');
+const outroEl = $('#outro');
+const leer = $('#leer');
+const showToggle = (b: HTMLButtonElement, on: boolean) => {
+  b.classList.toggle('is-on', on);
+  b.setAttribute('aria-pressed', String(on));
+};
+function setAutoplay(on: boolean) {
+  autoplay = on;
+  showToggle(playBtn, on);
+  playBtn.querySelector('.chip-t')!.textContent = tx(on ? 'Pausa' : 'Reproducir');
+}
+let plateOn = params.has('lamina');
+showToggle(plateBtn, plateOn);
+// The sound is not ready: its icon stays, faint, and says it comes soon.
+let told = 0;
+soundBtn.classList.add('is-soon');
+soundBtn.setAttribute('aria-disabled', 'true');
+soundBtn.querySelector('.chip-t')!.textContent = tx('Sonido · pronto');
+const toggleSound = () => {
+  soundBtn.classList.add('is-told');
+  clearTimeout(told);
+  told = window.setTimeout(() => soundBtn.classList.remove('is-told'), 1800);
+};
+langBtn.querySelector('.chip-t')!.textContent = lang === 'en' ? 'Español' : 'English';
+langBtn.querySelector('.chip-k')!.textContent = lang === 'en' ? 'ES' : 'EN';
+langBtn.setAttribute('aria-label', lang === 'en' ? 'Ver en español' : 'View in English');
+langBtn.addEventListener('click', switchLang);
+playBtn.addEventListener('click', () => setAutoplay(!autoplay));
+soundBtn.addEventListener('click', toggleSound);
+plateBtn.addEventListener('click', () => showToggle(plateBtn, (plateOn = !plateOn)));
 addEventListener('keydown', (ev) => {
   if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
-  if (ev.key.toLowerCase() === 'a') autoplay = !autoplay;
+  const k = ev.key.toLowerCase();
+  if (k === 'a') setAutoplay(!autoplay);
+  if (k === 's') toggleSound();
+  if (k === 'i') showToggle(plateBtn, (plateOn = !plateOn));
+  if (k === 'l') switchLang();
 });
+let leido = '';
 const mouse = new THREE.Vector2();
 const mouseTarget = new THREE.Vector2();
 addEventListener('pointermove', (ev) => mouseTarget.set((ev.clientX / innerWidth) * 2 - 1, -((ev.clientY / innerHeight) * 2 - 1)));
@@ -236,7 +293,7 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
   }
   t.grupo.visible = true;
   const time = calm.matches ? 0 : now / 1000;
-  const f: Frame = { time, dt, p, W, H, u: H / 860, dpr: stage.dpr, focal: H / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), camera };
+  const f: Frame = { time, dt, p, W, H, u: Math.min(H / 860, W / 540), dpr: stage.dpr, focal: H / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), camera, chasis: !fixed };
   let k = 1;
   let escalaPrev = 1;
   if (enRelevo && prev) {
@@ -368,10 +425,19 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
   const c = inst.cuenta(p);
   const anio = inst.anio?.(p);
   if (c && anio != null) c.anio = textoAnio(anio);
+  const rot = inst.rotulo(p);
   g.save();
   g.globalAlpha = vis;
-  cuenta(g, u, H, c, inst.rotulo(p));
+  cuenta(g, u, H, c, rot);
   g.restore();
+  if (plateOn && rot) lamina(g, u, W, H, rot.name, vis);
+  // For screen readers, the moment's words once each.
+  const dicho = rot ? `${tr(rot.name)}. ${tr(rot.fact)}` : '';
+  if (dicho !== leido) {
+    leido = dicho;
+    leer.textContent = dicho;
+  }
+  outroEl.classList.toggle('is-in', !fixed && (inst.outro?.(p) ?? 0) > 0.5);
   if (c && inst.escalera !== false) escalera(g, u, W, H, c.h, (c.a ?? 1) * vis);
 }
 
@@ -431,7 +497,7 @@ function frame(now: number) {
     const next = Math.min(TOTAL, target + dt * v);
     scrollTo(0, pagina ? pagina.yDe(next) : next * PX_PER_BEAT);
     target = next;
-    if (next >= TOTAL) autoplay = false;
+    if (next >= TOTAL) setAutoplay(false);
   }
   if (frozen !== null) P = frozen;
   else {

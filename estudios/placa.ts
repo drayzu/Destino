@@ -1,3 +1,4 @@
+import { tr } from './idioma';
 import * as THREE from 'three';
 import { clamp, smoothstep } from './motor/math';
 
@@ -203,8 +204,11 @@ export interface Cuenta {
 }
 
 /** The count at bottom left, with the moment's chapter, name and sentence above it. */
-export function cuenta(g: CanvasRenderingContext2D, u: number, H: number, c: Cuenta | null, cap: Rotulo | null, capAlpha = 1) {
+export function cuenta(g: CanvasRenderingContext2D, u: number, H: number, c0: Cuenta | null, cap0: Rotulo | null, capAlpha = 1) {
   const x = 44 * u;
+  // (in the journey's language)
+  const cap = cap0 ? { capitulo: cap0.capitulo ? tr(cap0.capitulo) : cap0.capitulo, name: tr(cap0.name), fact: tr(cap0.fact) } : null;
+  const c = c0 ? { ...c0, linea: tr(c0.linea), alcance: c0.alcance ? tr(c0.alcance) : c0.alcance } : null;
   g.save();
   g.textBaseline = 'alphabetic';
   g.shadowColor = 'rgba(0,0,0,0.85)';

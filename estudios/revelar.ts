@@ -1,3 +1,4 @@
+import { idioma, tr } from './idioma';
 import * as THREE from 'three';
 import { materia, materiaBuilder, type Nube } from './motor/materia';
 import { TEAL } from './remake';
@@ -143,7 +144,21 @@ export function enfocarMarcas(n: Nube, dpr: number, on: number) {
  * A count in words, to one significant figure: 2 estrellas, mil estrellas, 40 mil estrellas,
  * 3 millones de estrellas, 400 mil millones de estrellas.
  */
-export function cuantas(n: number, una: string, varias: string) {
+export function cuantas(n: number, una0: string, varias0: string) {
+  if (idioma.en) {
+    const una = una0 === 'galaxia' ? 'galaxy' : una0 === 'estrella' ? 'star' : una0;
+    const varias = varias0 === 'galaxias' ? 'galaxies' : varias0 === 'estrellas' ? 'stars' : varias0;
+    if (n < 1.5) return `1 ${una}`;
+    const e = Math.floor(Math.log10(n));
+    const v = Math.round(n / 10 ** e) * 10 ** e;
+    if (v < 1e3) return `${v} ${varias}`;
+    if (v < 1e6) return `${Math.round(v / 1e3)} thousand ${varias}`;
+    if (v < 1e9) return `${Math.round(v / 1e6)} million ${varias}`;
+    if (v < 1e12) return `${Math.round(v / 1e9)} billion ${varias}`;
+    return `${Math.round(v / 1e12)} trillion ${varias}`;
+  }
+  const una = una0;
+  const varias = varias0;
   if (n < 1.5) return `1 ${una}`;
   const e = Math.floor(Math.log10(n));
   const v = Math.round(n / 10 ** e) * 10 ** e;
@@ -198,7 +213,7 @@ export function nombres(g: CanvasRenderingContext2D, f: Frame, lista: Nombre[], 
     else y += off;
     g.globalAlpha = ai;
     g.fillStyle = n.nuestro ? violeta(0.85) : ink(0.55);
-    g.fillText(n.texto.toUpperCase(), x, y);
+    g.fillText(tr(n.texto).toUpperCase(), x, y);
   }
   g.restore();
 }

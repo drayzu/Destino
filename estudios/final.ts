@@ -1,3 +1,4 @@
+import { tr } from './idioma';
 import * as THREE from 'three';
 import { Timeline } from './timeline';
 import { enfocar, materia, materiaBuilder, type MateriaData, type Nube } from './motor/materia';
@@ -251,6 +252,9 @@ export const final: Escena = {
       tl,
       entrada: { pos: V(), escala: 20 },
       escalera: false,
+      outro(p) {
+        return tl.get('tarjeta', p);
+      },
       cuenta(p): Cuenta | null {
         if (p < tl.at('crear')) {
           const per = tl.get('periodo', p);
@@ -311,7 +315,7 @@ export const final: Escena = {
       },
       placa(g, f) {
         // The card: Infinito, where the point is.
-        const a = tl.get('tarjeta', f.p);
+        const a = f.chasis ? 0 : tl.get('tarjeta', f.p);
         if (a > 0.01) {
           const u = f.u;
           g.save();
@@ -321,14 +325,14 @@ export const final: Escena = {
           g.font = FONT.mono(11 * u);
           g.letterSpacing = `${1.8 * u}px`;
           g.fillStyle = 'rgba(201,180,255,0.9)';
-          g.fillText('CONTINÚA EN', f.W / 2, f.H * 0.68);
+          g.fillText(tr('Continúa en').toUpperCase(), f.W / 2, f.H * 0.68);
           g.letterSpacing = '0px';
           g.font = FONT.serif(64 * u);
           g.fillStyle = ink(0.95);
           g.fillText('Infinito', f.W / 2, f.H * 0.68 + 52 * u);
           g.font = FONT.italic(24 * u);
           g.fillStyle = ink(0.7);
-          g.fillText('¿Qué hay más allá?', f.W / 2, f.H * 0.68 + 100 * u);
+          g.fillText(tr('¿Qué hay más allá?'), f.W / 2, f.H * 0.68 + 100 * u);
           g.restore();
         }
       },

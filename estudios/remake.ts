@@ -1,3 +1,4 @@
+import { agrupar, idioma } from './idioma';
 import * as THREE from 'three';
 import { materia, materiaBuilder, type Nube } from './motor/materia';
 import { grupo, sup, type Cuenta } from './placa';
@@ -29,11 +30,16 @@ export function textoAnio(y: number) {
   else {
     const e = Math.floor(Math.log10(a));
     const v = Math.round(a / 10 ** (e - 1)) * 10 ** (e - 1);
-    if (v < 1e6) s = grupo(v);
+    if (idioma.en) {
+      // «year 22,000», «year 3 million», «year −3.8 billion».
+      if (v < 1e6) s = agrupar(v);
+      else if (v < 1e9) s = `${+(v / 1e6).toPrecision(2)} million`;
+      else s = `${+(v / 1e9).toPrecision(2)} billion`;
+    } else if (v < 1e6) s = grupo(v);
     else if (v < 1.5e6) s = '1 millón';
     else s = `${grupo(Math.round(v / 1e6))} millones`;
   }
-  return `año ${neg ? '−' : ''}${s}`;
+  return `${idioma.en ? 'year' : 'año'} ${neg ? '−' : ''}${s}`;
 }
 
 /**
