@@ -6,12 +6,11 @@ import { gauss } from './motor/math';
 import { luna as lunaH, marte as marteH, mercurio as mercurioH, sol as solH, tierra as tierraH, venus as venusH } from '../src/horizontes';
 import { HORIZONTE, TEAL, caraHacia, dirLatLon, potencia, anioEn } from './remake';
 import { angulos, aplicarToma, toma } from './rig';
-import { crearChispa, montar, type Camino } from './chispa';
+import { crearChispa, type Camino } from './chispa';
 import { CARA, SOL as SOL_TIERRA } from './tierra';
 import { COLOR, E, MA, RE, RMA, RV, VE, enOrbita } from './interior';
 import { enfocarMarcas, marcas, nombres, orbitas, type Nombre } from './revelar';
 import { M, RM } from './mercurio';
-import { crearCilindro } from './cilindro';
 import type { Cuenta, Rotulo } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
 
@@ -20,13 +19,10 @@ import type { Escena, Frame, Instancia } from './tipos';
  * as Mercury's scene (solar radii, the Sun at the origin, distances drawn short), so the Earth hands
  * over to it and it hands Mercury over without a cut.
  *
- * From the Earth and its ring, to a world that turns: an O'Neill cylinder, land and windows in
- * strips, its mirrors. In along its axis: the land rises up the sides and passes overhead, clouds in
- * the middle. Out the far end, riding a thread of cargo to Mars: mirrors over its south pole, domes
- * of light on its red ground. Back out to the whole inner system at work, all at once: threads of
- * teal between the worlds, the Moon throwing rock, the belt being mined, the first glints of a swarm
- * by the Sun. Down to Venus, among its yellow clouds, where cities float; a shade between it and the
- * Sun. And on to Mercury.
+ * One flight that never stops: from the Earth down onto the Moon's launcher and out on its stream of
+ * rock towards Mars; once round Mars, under the ring of mirrors at its south pole; across to Venus
+ * and round behind it, where the parasol hides the Sun, skimming a city on its limb; and on to
+ * Mercury while the camera draws back to the whole inner system at work, all at once.
  */
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -34,15 +30,16 @@ const Y = V(0, 1, 0);
 const D2R = THREE.MathUtils.degToRad;
 
 const LUNA = E.clone().add(V(0.9, 0.12, 0.7));
-/** The cylinder: beside the Earth, its axis to the Sun. */
-const C = E.clone().add(enOrbita(1, 140 + 90).multiplyScalar(3.0)).add(V(0, 0.35, 0));
-const EJE = C.clone().negate().normalize();
-const LC = 0.9;
-const RC = 0.13;
 
-/** The Moon's launcher: a rail over its top that throws rock tangentially towards the cylinder. */
-const U_LUNA = C.clone().addScaledVector(EJE, -LC / 2).sub(LUNA).normalize();
-const N_LUNA = Y.clone().addScaledVector(U_LUNA, -Y.dot(U_LUNA)).normalize();
+/** The Moon's launcher: a rail over its sunlit top that throws rock towards Mars (for its mirrors).
+ * It starts on the side that faces the Earth, so the spark comes in from there as a plane lands. */
+const U_LUNA = MA.clone().sub(LUNA).normalize();
+const N_LUNA = (() => {
+  const arriba = Y.clone().addScaledVector(U_LUNA, -Y.dot(U_LUNA)).normalize();
+  const sol = LUNA.clone().negate().normalize();
+  const alSol = sol.clone().addScaledVector(U_LUNA, -sol.dot(U_LUNA)).addScaledVector(arriba, -sol.dot(arriba)).normalize();
+  return arriba.multiplyScalar(Math.cos(D2R(35))).addScaledVector(alSol, Math.sin(D2R(35))).normalize();
+})();
 const enRielLuna = (v: number, alto = 0, out = V()) => {
   const a = -0.9 * (1 - v);
   // (v < 0: before the rail, over the ground leading to it)
@@ -56,17 +53,17 @@ const DIR_CIUDAD = SOL_V.clone().applyAxisAngle(Y, D2R(-100)).addScaledVector(Y,
 const CIUDAD = VE.clone().addScaledVector(DIR_CIUDAD, RV * 1.055);
 
 /** A quadratic arc between two places (bulging up and outwards), for the threads of cargo. */
-function arco(a: THREE.Vector3, b: THREE.Vector3, alto = 0.15) {
+function arco(a: THREE.Vector3, b: THREE.Vector3, alto = 0.15, control?: THREE.Vector3) {
   const L = a.distanceTo(b);
   const mid = a.clone().add(b).multiplyScalar(0.5);
   const fuera = mid.clone().setY(0).normalize();
-  const c = mid.addScaledVector(Y, alto * L).addScaledVector(fuera, 0.08 * L);
+  const c = control ? control.clone() : mid.addScaledVector(Y, alto * L).addScaledVector(fuera, 0.08 * L);
   return { a: a.clone(), c, b: b.clone(), en: (t: number, out = V()) => out.copy(a).multiplyScalar((1 - t) * (1 - t)).addScaledVector(c, 2 * (1 - t) * t).addScaledVector(b, t * t) };
 }
 
 /** A thread: grains flowing along an arc (`aKind` its phase, `aOff` its place across). */
-function hilo(a: THREE.Vector3, b: THREE.Vector3, n: number, ancho: number, alto = 0.15) {
-  const r = arco(a, b, alto);
+function hilo(a: THREE.Vector3, b: THREE.Vector3, n: number, ancho: number, alto = 0.15, control?: THREE.Vector3) {
+  const r = arco(a, b, alto, control);
   const bld = materiaBuilder(Math.round(a.x * 100 + b.z * 10));
   const off: number[] = [];
   for (let i = 0; i < n; i++) {
@@ -407,7 +404,7 @@ function cinturonDatos(): MateriaData {
 export const sistema: Escena = {
   id: 'sistema',
   nombre: 'III · El sistema solar trabaja',
-  estilos: [{ key: '1', nombre: 'Guion', nota: 'El cilindro por fuera y por dentro, Marte, Venus y, al revelar, todo lo nuestro: las órbitas, los hilos, los nombres un momento.' }],
+  estilos: [{ key: '1', nombre: 'Guion', nota: 'Un vuelo sin pausas: la Luna y su lanzador, una vuelta a Marte, Venus por detrás y, al revelar, todo lo nuestro.' }],
   montar(stage): Instancia {
     const root = stage.root;
     const { camera } = stage;
@@ -456,9 +453,13 @@ export const sistema: Escena = {
     ];
 
     const nubes: Nube[] = [];
+    // (r0, r1: the floor, and where it starts to ease the camera out, in the world's radii; low over
+    // Venus' clouds, where the spark skims a city)
     const SUELOS = [
-      { pos: E, R: RE },
-      { pos: LUNA, R: 0.1 },
+      { pos: E, R: RE, r0: 1.12, r1: 1.6 },
+      { pos: LUNA, R: 0.1, r0: 1.12, r1: 1.6 },
+      { pos: MA, R: RMA, r0: 1.1, r1: 1.3 },
+      { pos: VE, R: RV, r0: 1.08, r1: 1.22 },
     ];
     const OCULTAN = [
       { pos: E, R: RE },
@@ -484,14 +485,6 @@ export const sistema: Escena = {
     const anillo = add(materia(anilloB.data()), tierraG);
     anillo.u.uFuente.value = 0.35;
 
-    // The cylinder.
-    const cilG = new THREE.Group();
-    cilG.position.copy(C);
-    cilG.quaternion.setFromUnitVectors(V(0, 0, 1), EJE);
-    root.add(cilG);
-    const cil = crearCilindro(RC, LC);
-    cilG.add(cil.grupo);
-    nubes.push(cil.nubes);
 
     const marteN = add(
       materia(marteDatos(), {
@@ -563,13 +556,12 @@ export const sistema: Escena = {
     );
     cinturon.u.uFuente.value = 0.6;
 
-    // The threads of cargo.
-    const salidaCil = C.clone().addScaledVector(EJE, -(LC / 2 + 0.3));
+    // The threads of cargo. The Moon's rock goes to Mars, to the ring of mirrors under its south pole.
     const llegaMarte = MA.clone().add(V(-0.42, 0.62, 0.62));
+    const anilloMarte = MA.clone().add(V(0, -RMA * 1.7, 0));
+    const largoLM = FIN_RIEL_LUNA.distanceTo(anilloMarte);
     const hilos = {
-      tierraCil: hilo(E.clone().addScaledVector(C.clone().sub(E).normalize(), RE * 1.4), C.clone().addScaledVector(EJE, LC / 2 + 0.1), 6000, 0.02, 0.1),
-      cilMarte: hilo(salidaCil, llegaMarte, 16000, 0.04, 0.08),
-      luna: hilo(FIN_RIEL_LUNA, C.clone().addScaledVector(EJE, -LC / 2), 6000, 0.012, 0.2),
+      luna: hilo(FIN_RIEL_LUNA, anilloMarte, 16000, 0.015, 0.2, FIN_RIEL_LUNA.clone().addScaledVector(U_LUNA, largoLM * 0.45).addScaledVector(Y, largoLM * 0.05)),
       cinturon: hilo(enOrbita(61, 120), MA, 9000, 0.12, 0.1),
       venus: hilo(E, VE, 9000, 0.06, 0.1),
       mercurio: hilo(M, enOrbita(3.2, 220), 9000, 0.05, 0.05),
@@ -676,8 +668,6 @@ export const sistema: Escena = {
     const cW = dirLatLon(0, 37).applyQuaternion(tierraG.quaternion);
     const norte = Y.clone().applyQuaternion(tierraG.quaternion);
     const fin7 = angulos(cW.clone().applyAxisAngle(norte, D2R(-75)).multiplyScalar(Math.cos(0.84)).addScaledVector(norte, Math.sin(0.84)));
-    // The cylinder from outside, three-quarters, its mirrors open.
-    const vistaCil = EJE.clone().cross(Y).normalize().addScaledVector(Y, 0.55).addScaledVector(EJE, -0.35).normalize();
     // Mercury as its scene starts (mercurio.ts, c0).
     const rM = M.clone().normalize();
     const eM = Y.clone().cross(rM).normalize();
@@ -693,320 +683,300 @@ export const sistema: Escena = {
     const CMAPA = V(20, 0, -14);
     const c0Merc = M.clone().addScaledVector(ladoM.clone().addScaledVector(Y, 0.3).addScaledVector(rM, 0.25).normalize(), 1.75);
 
-    // The spark's way (GUION.md v2, 22–26): from the Earth's ring to the cylinder (ch 0..1), along its
-    // axis (1..2), on the thread to Mars (2..3), on to Venus (3..4), and to Mercury (4..5).
-    const entradaCil = C.clone().addScaledVector(EJE, LC / 2 + 0.25);
-    // Inside, the spark flies low over the land below (the world turns slowly round it, a strip of
-    // land and one of windows passing under in turn). In and out through the doors on the axis.
-    let agCil = 0;
-    const abajo = Y.clone().negate().addScaledVector(EJE, EJE.y).normalize();
-    const suelo = (out: THREE.Vector3) => out.copy(abajo);
-    const tmpS = V();
-    const ladoCil = EJE.clone().cross(Y).normalize();
-    const cilPath0 = (sv: number, out: THREE.Vector3) => {
-      const k = THREE.MathUtils.smoothstep(sv, 0.18, 0.36) * (1 - THREE.MathUtils.smoothstep(sv, 0.62, 0.77));
-      return out.copy(C).addScaledVector(EJE, LC / 2 + 0.25 - sv * (LC + 0.55)).addScaledVector(suelo(tmpS), RC * 0.55 * k);
-    };
-    // The spark's way, one flight through the inner system, passing the worlds without stopping
-    // (Diego, 30 Oct): from the Earth over to the Moon, along its launcher and out on the stream of
-    // its rock, round the cylinder to its door (0..1); through it (1..2); on the thread to Mars, and
-    // round it under its south pole, through the light of its mirrors (2..3); on to Venus, round
-    // behind it (where the parasol hides the Sun) and over its limb into a city (3..4); to Mercury.
-    const S0 = E.clone().addScaledVector(C.clone().sub(E).normalize(), RE * 1.4);
-    const finLuna = hilos.luna.arco;
-    // (from the Earth, well above it, over to the Moon; wide round its sunlit side to its far side, and in
-    // along the line of its launcher, low over the ground, as a plane comes in to land; then along the
-    // rail, gaining speed with the loads, and out on the stream of rock)
-    const ladoLuna = U_LUNA.clone().cross(N_LUNA).normalize();
-    const vuelo0 = new THREE.CatmullRomCurve3([
-      S0,
-      E.clone().add(V(0, RE * 1.85, 0)).addScaledVector(LUNA.clone().sub(E), 0.42),
-      LUNA.clone().addScaledVector(U_LUNA, 0.12).addScaledVector(ladoLuna, -0.36).addScaledVector(N_LUNA, 0.06),
-      LUNA.clone().addScaledVector(U_LUNA, -0.24).addScaledVector(ladoLuna, -0.28).addScaledVector(N_LUNA, -0.03),
-      enRielLuna(-0.78, 0.022),
-      enRielLuna(-0.35, 0.006),
-      enRielLuna(0, 0.0012),
-      enRielLuna(0.5, 0.0012),
-      enRielLuna(1, 0.0012),
-      finLuna.en(0.1),
-      finLuna.en(0.3),
-      finLuna.en(0.55),
-      // (then off the stream, wide of the cylinder and its mirrors, alongside it, round to its door)
-      C.clone().addScaledVector(EJE, -0.1).addScaledVector(EJE.clone().cross(Y).normalize(), 1.5).addScaledVector(Y, 0.55),
-      C.clone().addScaledVector(EJE, 1.35).addScaledVector(EJE.clone().cross(Y).normalize(), 0.55).addScaledVector(Y, 0.2),
-      entradaCil.clone().addScaledVector(EJE, 0.4),
-      entradaCil.clone(),
-    ]);
-    const PARASOL_C = VE.clone().addScaledVector(SOL_V, RV * 2.2);
-    const dvM = VE.clone().sub(MA).setY(0).normalize();
-    const llegaMarte2 = hilos.cilMarte.arco.b;
-    // Round Mars: sM towards the Sun, lM to its side, az from sM towards lM. The spark comes from the
-    // cylinder over its lit side (az ≈ 40°) and leaves for Venus (az ≈ −31°): it goes once round it,
-    // always the same way, under the ring of mirrors, out wide past its night side, back in past
-    // where the camera waits, and close round its limb into the sunlight, on to Venus.
+    // The spark's way: one flight through the inner system that never stops (Diego, 30 Oct: «que
+    // parezca un todo el viaje»). From the Earth down onto the Moon's launcher, along it and out on
+    // the stream of rock; once round Mars, under the ring of mirrors at its south pole; across to
+    // Venus and round behind it (the parasol hiding the Sun), skimming a city on its limb; along the
+    // thread to Mercury. Always the same way round each world.
+    // Round Mars and Venus: az from the Sun's way (s) towards the side (l = Y × s).
     const sM = MA.clone().negate().setY(0).normalize();
     const lM = Y.clone().cross(sM).normalize();
     const enMarte = (az: number, r: number, y: number) =>
       MA.clone().addScaledVector(sM, Math.cos(D2R(az)) * r).addScaledVector(lM, Math.sin(D2R(az)) * r).addScaledVector(Y, y);
-    const P5_MARTE = enMarte(134, 0.92, -0.06);
-    const P6_MARTE = enMarte(212, 0.33, 0.02);
-    const vueloMarte = new THREE.CatmullRomCurve3([
-      llegaMarte2.clone(),
-      enMarte(70, 0.6, 0.02),
-      enMarte(112, 0.32, -0.46),
-      enMarte(150, 0.95, -0.26),
-      enMarte(170, 1.3, -0.08),
-      P5_MARTE,
-      P6_MARTE,
-      enMarte(296, 0.62, 0.03),
-      enMarte(329, 1.3, 0.05),
-    ]);
-    const salMarte = vueloMarte.getPoint(1);
-    const llegaVenus = VE.clone().addScaledVector(MA.clone().sub(VE).setY(0).normalize(), 1.6).add(V(0, 0.25, 0));
-    const aVenus = arco(salMarte, llegaVenus, 0.06);
-    // Round Venus: sV towards the Sun (and its parasol), lV to its side, az from sV towards lV. The
-    // spark comes from Mars at its side (az ≈ 83°) and goes round behind it only, never between it
-    // and the parasol: across the line from the Sun, in front of the dark planet, and on to the city
-    // on its limb (az 260°).
     const sV = SOL_V.clone().setY(0).normalize();
     const lV = Y.clone().cross(sV).normalize();
-    const enVenus = (az: number, r: number, y: number) =>
-      VE.clone().addScaledVector(sV, Math.cos(D2R(az)) * r).addScaledVector(lV, Math.sin(D2R(az)) * r).addScaledVector(Y, y);
-    const P3_VENUS = enVenus(226, 0.72, 0.16);
-    const vueloVenus = new THREE.CatmullRomCurve3([
-      llegaVenus.clone(),
-      enVenus(128, 1.08, 0.18),
-      enVenus(178, 0.84, 0.1),
-      P3_VENUS,
-      CIUDAD.clone().addScaledVector(DIR_CIUDAD, 0.16),
-      CIUDAD.clone(),
-    ]);
-    /** Where along the first flight the Moon's rail starts and ends (its parameter). */
-    const enVuelo0 = (q: THREE.Vector3) => {
-      let mejor = 0;
-      let d = Infinity;
-      for (let i = 0; i <= 2000; i++) {
-        const x = vuelo0.getPointAt(i / 2000).distanceTo(q);
-        if (x < d) {
-          d = x;
-          mejor = i / 2000;
+    const enVenus = (az: number, el: number, r: number) =>
+      VE.clone()
+        .addScaledVector(sV, Math.cos(D2R(az)) * Math.cos(D2R(el)) * r)
+        .addScaledVector(lV, Math.sin(D2R(az)) * Math.cos(D2R(el)) * r)
+        .addScaledVector(Y, Math.sin(D2R(el)) * r);
+    const corriente = hilos.luna.arco;
+    const aMerc = hilos.venusMerc.arco;
+    const puntos: THREE.Vector3[] = [];
+    const hito: Record<string, number> = {};
+    const pon = (q: THREE.Vector3, nombre?: string) => {
+      if (nombre) hito[nombre] = puntos.length;
+      puntos.push(q);
+    };
+    const dirEL = LUNA.clone().sub(E).normalize();
+    // (from the Earth's face that scene 7 leaves in sight, low round its day side, out to the face of
+    // the Moon that looks at it, and up along the ground onto the rail, as a plane comes in to land)
+    const dir7 = V(Math.cos(D2R(fin7.el)) * Math.sin(D2R(fin7.az)), Math.sin(D2R(fin7.el)), Math.cos(D2R(fin7.el)) * Math.cos(D2R(fin7.az)));
+    pon(E.clone().addScaledVector(dir7, RE * 1.2), 'inicio');
+    pon(E.clone().addScaledVector(dir7.clone().multiplyScalar(0.6).addScaledVector(dirEL, 0.45).normalize(), RE * 1.5));
+    pon(E.clone().addScaledVector(dir7.clone().multiplyScalar(0.18).addScaledVector(dirEL, 0.85).normalize(), RE * 2.0));
+    pon(LUNA.clone().addScaledVector(U_LUNA, -0.26).addScaledVector(N_LUNA, -0.05));
+    pon(enRielLuna(-0.55, 0.02));
+    pon(enRielLuna(-0.25, 0.006));
+    for (let i = 0; i <= 10; i++) pon(enRielLuna(i / 10, 0.0012), i === 0 ? 'riel0' : i === 10 ? 'riel1' : undefined);
+    // (out with the rock, then towards Mars' lit side and once round it)
+    for (const q of [0.004, 0.02, 0.08, 0.3]) pon(corriente.en(q));
+    pon(enMarte(-38, 4.2, 0.35));
+    pon(enMarte(15, 1.0, 0.15), 'marte');
+    pon(enMarte(70, 0.64, 0.03));
+    pon(enMarte(125, 0.62, -0.3));
+    pon(enMarte(180, 0.52, -0.56));
+    pon(enMarte(235, 0.62, -0.3));
+    pon(enMarte(290, 0.85, 0.0), 'marte2');
+    pon(enMarte(323, 2.6, 0.15));
+    // (across, above the plane, to Venus' side; round behind it, low over a city, and away)
+    pon(MA.clone().lerp(VE, 0.5).addScaledVector(Y, 1.6));
+    pon(enVenus(72, 7, RV * 13));
+    pon(enVenus(100, 8, RV * 4), 'venus');
+    pon(enVenus(148, 5, RV * 3));
+    pon(enVenus(182, 4, RV * 2.8));
+    pon(enVenus(222, 9, RV * 2.3));
+    pon(enVenus(247, 13, RV * 1.6));
+    pon(CIUDAD.clone().addScaledVector(DIR_CIUDAD, 0.1));
+    pon(enVenus(276, 13, RV * 1.42), 'venus2');
+    pon(enVenus(296, 11, RV * 2.2));
+    for (const q of [0.25, 0.55, 0.8, 0.95]) pon(aMerc.en(q));
+    pon(M.clone().add(V(0, 0.25, 0)), 'fin');
+    const ruta = new THREE.CatmullRomCurve3(puntos, false, 'centripetal');
+
+    // Its pace: each stretch takes its time, and within it the spark goes as fast as the worlds near
+    // it are far (the same sense of speed by a world and between worlds, quicker still in the open);
+    // along the launcher it gains speed. Then smoothed, so the speed itself never jumps.
+    const DURA: [string, string, number][] = [
+      ['inicio', 'riel0', 5.4],
+      ['riel0', 'riel1', 1.8],
+      ['riel1', 'marte', 4.9],
+      ['marte', 'marte2', 7.6],
+      ['marte2', 'venus', 5.3],
+      ['venus', 'venus2', 7.4],
+      ['venus2', 'fin', 8.5],
+    ];
+    const ESCALAS = [
+      { pos: E, R: RE },
+      { pos: LUNA, R: 0.1 },
+      { pos: MA, R: RMA },
+      { pos: VE, R: RV },
+      { pos: M, R: RM },
+      { pos: V(), R: 1 },
+    ];
+    const escalaEn = (q: THREE.Vector3) => {
+      let k = 0;
+      for (const x of ESCALAS) k += Math.pow(Math.max(1e-6, q.distanceTo(x.pos)), -3);
+      return Math.pow(k, -1 / 3);
+    };
+    const NS = 120000;
+    const lTab = new Float64Array(NS + 1);
+    const wTab = new Float64Array(NS + 1);
+    {
+      const q0 = ruta.getPoint(0, V());
+      const q1 = V();
+      for (let k = 1; k <= NS; k++) {
+        ruta.getPoint(k / NS, q1);
+        const dL = q1.distanceTo(q0);
+        lTab[k] = lTab[k - 1] + dL;
+        const Dk = escalaEn(q1);
+        wTab[k] = dL / (Dk * (1 + 3 * THREE.MathUtils.smoothstep(Dk, 1.5, 10)));
+        q0.copy(q1);
+      }
+    }
+    const kDe = (n: string) => Math.round((hito[n] / (puntos.length - 1)) * NS);
+    const tauTab = new Float64Array(NS + 1);
+    for (const [a, b, dur] of DURA) {
+      const ka = kDe(a);
+      const kb = kDe(b);
+      let suma = 0;
+      for (let k = ka + 1; k <= kb; k++) {
+        if (a === 'riel0') wTab[k] /= 0.35 + (k - ka) / (kb - ka);
+        suma += wTab[k];
+      }
+      for (let k = ka + 1; k <= kb; k++) tauTab[k] = tauTab[k - 1] + (wTab[k] * dur) / suma;
+    }
+    const TAU_FIN = tauTab[NS];
+    const DT = 0.02;
+    const SIG = 0.35;
+    const PAD = Math.ceil((3 * SIG) / DT);
+    const NG = Math.ceil(TAU_FIN / DT) + 1;
+    const lGrid = new Float64Array(NG);
+    {
+      const crudo = new Float64Array(NG + 2 * PAD);
+      let k = 0;
+      for (let j = 0; j < crudo.length; j++) {
+        const tau = (j - PAD) * DT;
+        if (tau <= 0) crudo[j] = 0;
+        else if (tau >= TAU_FIN) crudo[j] = lTab[NS];
+        else {
+          while (k < NS - 1 && tauTab[k + 1] < tau) k++;
+          const f = (tau - tauTab[k]) / Math.max(1e-12, tauTab[k + 1] - tauTab[k]);
+          crudo[j] = lTab[k] + (lTab[k + 1] - lTab[k]) * THREE.MathUtils.clamp(f, 0, 1);
         }
       }
-      return mejor;
-    };
-    const U_RIEL0 = enVuelo0(enRielLuna(0, 0.0012));
-    const U_RIEL1 = enVuelo0(enRielLuna(1, 0.0012));
-    const U_CIL = enVuelo0(finLuna.en(0.55));
-    const caminoCh: Camino = (sv, out) => {
-      // (on the rail itself, exactly along it, low over the ground: the curve through its points would bulge)
-      if (sv >= U_RIEL0 && sv <= U_RIEL1) return enRielLuna((sv - U_RIEL0) / (U_RIEL1 - U_RIEL0), 0.0012, out);
-      if (sv <= 1) return out.copy(vuelo0.getPointAt(THREE.MathUtils.clamp(sv, 0, 1)));
-      if (sv <= 2) return cilPath0(sv - 1, out);
-      if (sv <= 3) {
-        const q = sv - 2;
-        if (q < 0.7) return hilos.cilMarte.arco.en(q / 0.7, out);
-        return out.copy(vueloMarte.getPointAt(THREE.MathUtils.clamp((q - 0.7) / 0.3, 0, 1)));
+      const nucleo: number[] = [];
+      let sn = 0;
+      for (let i = -PAD; i <= PAD; i++) {
+        const w = Math.exp(-0.5 * Math.pow((i * DT) / SIG, 2));
+        nucleo.push(w);
+        sn += w;
       }
-      if (sv <= 4) {
-        const q = sv - 3;
-        if (q < 0.55) return aVenus.en(q / 0.55, out);
-        return out.copy(vueloVenus.getPointAt(THREE.MathUtils.clamp((q - 0.55) / 0.45, 0, 1)));
+      for (let j = 0; j < NG; j++) {
+        let acc = 0;
+        for (let i = 0; i < nucleo.length; i++) acc += crudo[j + i] * nucleo[i];
+        lGrid[j] = acc / sn;
       }
-      return hilos.venusMerc.arco.en(Math.min(1, sv - 4), out);
-    };
-    // Mars, a shot of its own: as the spark arrives the camera leaves it and drifts slowly round Mars,
-    // from its lit face down past the ring of mirrors and the light they send up to the pole, to its
-    // terminator, the gaze on Mars and its ring; the spark goes round and passes by the camera,
-    // which falls in behind it. Where the ride is when the shot starts, and where it will be when it
-    // ends (a little above the way, so the spark passes under).
-    const enS = (q: THREE.Vector3) => {
-      let mejor = 0;
-      let d = Infinity;
-      for (let i = 0; i <= 3000; i++) {
-        const x = vueloMarte.getPointAt(i / 3000).distanceTo(q);
-        if (x < d) {
-          d = x;
-          mejor = i / 3000;
-        }
+    }
+    const tDeL = (L: number) => {
+      let lo = 0;
+      let hi = NS;
+      while (hi - lo > 1) {
+        const mid = (lo + hi) >> 1;
+        if (lTab[mid] <= L) lo = mid;
+        else hi = mid;
       }
-      return 2.7 + 0.3 * mejor;
+      const f = (L - lTab[lo]) / Math.max(1e-12, lTab[hi] - lTab[lo]);
+      return (lo + THREE.MathUtils.clamp(f, 0, 1)) / NS;
     };
-    const CH_P5 = enS(P5_MARTE);
-    const CH_P6 = enS(P6_MARTE);
-    const viaje = (c: number) => montar(caminoCh, c, 0.012, 0.03, 0.03, Y, 0.006, false, 0.0096).lugar;
-    const K_MARTE = MA.clone().add(V(0, -0.08, 0));
-    const esfera = (q: THREE.Vector3) => {
-      const d = q.clone().sub(K_MARTE);
-      const r = d.length();
-      return V(Math.atan2(d.dot(lM), d.dot(sM)), Math.asin(d.y / r), Math.log(r));
+    const lDeTau = (tau: number) => {
+      const x = THREE.MathUtils.clamp(tau / DT, 0, NG - 1);
+      const j = Math.min(NG - 2, Math.floor(x));
+      return lGrid[j] + (lGrid[j + 1] - lGrid[j]) * (x - j);
     };
-    const ORB0 = esfera(viaje(2.7));
-    const ORB1 = esfera(viaje(CH_P5 + 0.012).addScaledVector(Y, 0.1));
-    // (az only grows: once round the same way)
-    while (ORB1.x < ORB0.x) ORB1.x += Math.PI * 2;
-    const orbita = new THREE.CatmullRomCurve3([
-      ORB0,
-      V(D2R(62), D2R(-8), Math.log(0.95)),
-      V(D2R(98), D2R(-20), Math.log(1.0)),
-      ORB1,
-    ]);
-    const enOrbitaMarte = (u: number, out = V()) => {
-      const a = orbita.getPoint(THREE.MathUtils.clamp(u, 0, 1));
-      const r = Math.exp(a.z);
-      return out.copy(K_MARTE).addScaledVector(sM, Math.cos(a.x) * Math.cos(a.y) * r).addScaledVector(lM, Math.sin(a.x) * Math.cos(a.y) * r).addScaledVector(Y, Math.sin(a.y) * r);
+    /** The spark at beat τ of the act (its clock is the act's: it never waits). */
+    const caminoCh: Camino = (sv, out) => ruta.getPoint(tDeL(lDeTau(sv)), out);
+    const tauDe = (n: string) => tauTab[kDe(n)];
+
+    // The camera chases the spark a fixed time behind it (so its distance follows the speed, as it
+    // would behind anything that flies), a little above and to its side; by a world it moves out
+    // from it and its gaze leans towards it, the world beside the spark the way the Sun is in the
+    // swarm, never so far that the spark leaves the frame, and never back over its shoulder.
+    // (`atras`: how far behind a world may be and still hold the gaze; the Moon a moment longer,
+    // its limb low in the frame as the spark leaves it)
+    const MUNDOS = [
+      { pos: E, R: RE, fuera: 0.35, mira: 0.3, atras: -0.3 },
+      { pos: LUNA, R: 0.1, fuera: 0.8, mira: 0.25, atras: -0.85 },
+      { pos: MA, R: RMA, fuera: 0.9, mira: 0.65, atras: -0.3 },
+      { pos: VE, R: RV, fuera: 0.9, mira: 0.65, atras: -0.3 },
+      { pos: M, R: RM, fuera: 0.5, mira: 0.4, atras: -0.3 },
+    ];
+    const CAMPANA = Array.from({ length: 16 }, (_, i) => {
+      const u = ((i + 0.5) / 16) * 2 - 1;
+      return (1 - u * u) ** 2;
+    });
+    const CAMPANA_S = CAMPANA.reduce((a, b) => a + b, 0);
+    const tmpC = V();
+    const tmpD = V();
+    const prom = (tau: number, w: number, out: THREE.Vector3) => {
+      out.set(0, 0, 0);
+      for (let i = 0; i < 16; i++) out.addScaledVector(caminoCh(tau + (((i + 0.5) / 16) * 2 - 1) * w, tmpC), CAMPANA[i] / CAMPANA_S);
+      return out;
     };
-    // Venus, a shot of its own too: as the spark slows by it the camera leaves it and goes slowly
-    // round behind Venus, the gaze on it: the parasol turns from a line beside it to a ring round
-    // it, hiding the Sun, the spark crossing the dark planet; then it falls in behind the spark
-    // going down to the city.
-    const enSV = (q: THREE.Vector3) => {
-      let mejor = 0;
-      let d = Infinity;
-      for (let i = 0; i <= 3000; i++) {
-        const x = vueloVenus.getPointAt(i / 3000).distanceTo(q);
-        if (x < d) {
-          d = x;
-          mejor = i / 3000;
-        }
+    const velEn = (tau: number, out: THREE.Vector3) => caminoCh(tau + 0.06, out).sub(caminoCh(tau - 0.06, tmpD)).divideScalar(0.12);
+    const T0 = puntos[1].clone().sub(puntos[0]).normalize();
+    const LAG = 0.4;
+    const seguir = (tau: number, lugarO: THREE.Vector3, miraO: THREE.Vector3) => {
+      const P = caminoCh(tau, V());
+      const T = velEn(tau - LAG * 0.5, V());
+      const rap = T.length();
+      if (rap > 1e-6) T.divideScalar(rap);
+      else T.copy(T0);
+      // (where it was a moment ago, a little smoothed; never nearer than the worlds round it allow,
+      // so by the Moon the camera sees a globe, not its grains)
+      prom(tau - LAG, 0.22, lugarO);
+      const dist = lugarO.distanceTo(P);
+      const esc = Math.hypot(dist, 0.6 * escalaEn(P));
+      const S = T.clone().cross(Y);
+      if (S.lengthSq() < 1e-8) S.set(1, 0, 0);
+      S.normalize();
+      // (off to a side and above: its wake is seen along its length, never end on as a blot)
+      lugarO.addScaledVector(T, -(esc - dist)).addScaledVector(Y, 0.4 * esc).addScaledVector(S, 0.55 * esc);
+      const pesos = MUNDOS.map((x) => 1 - THREE.MathUtils.smoothstep(P.distanceTo(x.pos) / x.R, 4.5, 13));
+      MUNDOS.forEach((x, i) => {
+        if (pesos[i] > 0) lugarO.addScaledVector(P.clone().sub(x.pos).normalize(), x.fuera * pesos[i] * esc);
+      });
+      prom(tau + 0.12, 0.3, miraO);
+      const dS = miraO.clone().sub(lugarO);
+      const LS = Math.max(1e-9, dS.length());
+      dS.divideScalar(LS);
+      const hacia = V();
+      MUNDOS.forEach((x, i) => {
+        if (pesos[i] <= 0) return;
+        const dB = x.pos.clone().sub(lugarO).normalize();
+        hacia.addScaledVector(dB, x.mira * pesos[i] * THREE.MathUtils.smoothstep(dB.dot(T), x.atras, x.atras + 0.4));
+      });
+      const m = Math.min(1, hacia.length());
+      if (m > 1e-4) {
+        hacia.normalize();
+        const th = dS.angleTo(hacia);
+        const TH = 0.3;
+        const eje = dS.clone().cross(hacia);
+        if (eje.lengthSq() > 1e-12) dS.applyAxisAngle(eje.normalize(), TH * Math.tanh((m * th) / TH));
       }
-      return 3.55 + 0.45 * mejor;
+      miraO.copy(lugarO).addScaledVector(dS, LS);
+      return T;
     };
-    const CH_V3 = enSV(P3_VENUS);
-    const esferaV = (q: THREE.Vector3) => {
-      const d = q.clone().sub(VE);
-      const r = d.length();
-      return V(Math.atan2(d.dot(lV), d.dot(sV)), Math.asin(d.y / r), Math.log(r));
-    };
-    const ORBV0 = esferaV(viaje(3.55));
-    const ORBV1 = esferaV(viaje(CH_V3 + 0.012).addScaledVector(Y, 0.06));
-    while (ORBV0.x < 0) ORBV0.x += Math.PI * 2;
-    while (ORBV1.x < ORBV0.x) ORBV1.x += Math.PI * 2;
-    const orbitaV = new THREE.CatmullRomCurve3([
-      ORBV0,
-      V(D2R(118), D2R(9), Math.log(2.45)),
-      V(D2R(162), D2R(6), Math.log(2.3)),
-      V(D2R(196), D2R(5), Math.log(2.05)),
-      ORBV1,
-    ]);
-    const enOrbitaVenus = (u: number, out = V()) => {
-      const a = orbitaV.getPoint(THREE.MathUtils.clamp(u, 0, 1));
-      const r = Math.exp(a.z);
-      return out.copy(VE).addScaledVector(sV, Math.cos(a.x) * Math.cos(a.y) * r).addScaledVector(lV, Math.sin(a.x) * Math.cos(a.y) * r).addScaledVector(Y, Math.sin(a.y) * r);
-    };
-    tl.set({ ...Cn(E), ox: 0, oy: 0, oz: 0, az: fin7.az, el: fin7.el, ld: Math.log10(23 * RE), yaw: 90, pitch: -90, roll: 0, fov: 34, mw: 0, lw: 0, ch: 0, on: 1, cil: 0, mar: 0, todo: 0, ven: 0, sombra: 0, anillo: 1, h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0, vel: 0, mapa: 0, nombres: 0, md: 0, mc: 0, hl: 0, aire: 0, mdV: 0, mdL: 0, ml: 0, mo: 0, moU: 0, vo: 0, voU: 0 });
 
-    // Over to the Moon: the camera goes ahead of the spark to the launcher on its top and waits there,
-    // behind and above the rail, as the spark comes over from the Earth, runs along the rail and is
-    // thrown out on the stream of rock; then on to the cylinder.
-    tl.label('luna').caption(7.6, 'La Luna, cantera', 'La roca para construir afuera sale de la Luna: sin aire y con poca gravedad, lanzarla cuesta poco.');
-    tl.with(2.2, { lw: 1, mw: 1, fov: 46 });
-    luego(0.3, 1.6, { hl: 1 });
-    luego(0.4, 1.8, { mdL: 0.15 });
-    luego(0.2, 3.8, { ch: U_RIEL0 });
-    luego(4.0, 2.2, { ch: U_RIEL1, vel: 0.22 });
-    luego(5.2, 1.4, { mdL: 0 });
-    // (beside the rail, low over the ground, the camera runs along with the spark as it speeds up,
-    // and tilts up to watch it leave)
-    luego(1.4, 2.4, { ml: 1 });
-    luego(6.0, 1.6, { ml: 0 });
-    luego(6.2, 1.4, { ch: (U_RIEL1 + U_CIL) * 0.5 });
-    // (the rig waits by the cylinder, out of sight, for when the camera lets the spark go)
-    luego(0, 7.6, { ...Cn(C), ...rel(C, C.clone().addScaledVector(vistaCil, 2.4)), pitch: -90, yaw: 90 });
-    tl.wait(7.6);
-    tl.label('giran').caption(5.6, 'Mundos que giran', 'Para vivir lejos de la Tierra hacen falta mundos que giren: el giro hace de gravedad.');
-    tl.with(1.4, { cil: 1 });
-    luego(0.2, 1.4, { vel: 0 });
-    luego(0, 5.6, { ch: 1 });
-    // (the camera lets the spark go on and draws out to see the world that turns; the spark goes
-    // round to its door)
-    tl.with(2.6, { lw: 0, mw: 0, fov: 40 });
-    tl.to(5.6, { ...rel(C, C.clone().addScaledVector(vistaCil, 1.3)) });
+    // The moments laid over the flight: each caption a little before the spark gets to its world.
+    const T_RIEL0 = tauDe('riel0');
+    const T_MARTE = tauDe('marte');
+    const T_MARTE2 = tauDe('marte2');
+    const T_VENUS = tauDe('venus');
+    const T_VENUS2 = tauDe('venus2');
+    const T_FIN = tauDe('fin');
+    const L_MARTE = T_MARTE - 2.6;
+    const L_VENUS = T_VENUS - 2.6;
+    const L_TODO = T_VENUS2 + 0.6;
+    tl.set({ ...Cn(E), ox: 0, oy: 0, oz: 0, az: fin7.az, el: fin7.el, ld: Math.log10(23 * RE), yaw: 90, pitch: -90, roll: 0, fov: 44, mw: 1, lw: 1, on: 1, mar: 0, todo: 0, ven: 0, sombra: 0, anillo: 1, h3: 0, h4: 0, h5: 0, h6: 0, hl: 0, mapa: 0, nombres: 0, aire: 0, velR: 0 });
+    tl.label('luna').caption(L_MARTE - 0.4, 'La Luna, cantera', 'La roca para construir afuera sale de la Luna: sin aire y con poca gravedad, lanzarla cuesta poco.');
+    // (from the first beat the camera is on the chase: the journey's relay brings it there from where
+    // scene 7 left it, turning round the Earth)
+    tl.keyAt(T_RIEL0 - 3.0, { hl: 0 });
+    tl.keyAt(T_RIEL0 - 1.4, { hl: 1 });
+    tl.keyAt(T_MARTE - 3.4, { mar: 0 });
+    tl.keyAt(T_MARTE - 1.0, { mar: 1 });
+    tl.keyAt(T_MARTE - 0.5, { aire: 0 });
+    tl.keyAt(T_MARTE + 4.5, { aire: 1 });
+    tl.keyAt(T_MARTE2, { h6: 0 });
+    tl.keyAt(T_MARTE2 + 1.4, { h6: 1 });
+    tl.keyAt(T_VENUS - 3.6, { ven: 0, sombra: 0 });
+    tl.keyAt(T_VENUS - 1.0, { ven: 1, sombra: 1 });
+    tl.wait(L_MARTE);
+    tl.label('marte').caption(L_VENUS - L_MARTE - 0.4, 'Calentar Marte', 'Unos espejos pueden calentar Marte, pero su aire nunca será como el nuestro: viviríamos bajo cúpulas.');
+    tl.wait(L_VENUS - L_MARTE);
+    tl.label('venus').caption(L_TODO - L_VENUS - 0.3, 'Venus, a la sombra', 'Venus es un horno, pero en lo alto de sus nubes el aire es templado: ahí pueden flotar ciudades.');
+    tl.wait(L_TODO - L_VENUS);
 
-    // In through the sunward cap with it, along the axis, out the shaded end.
-    const entrada = C.clone().addScaledVector(EJE, LC / 2 + 0.6);
-    tl.label('dentro').caption(6.9, 'Un mundo por dentro', 'Adentro, el paisaje sube por los lados y pasa por arriba.');
-    tl.to(1.4, { ...rel(C, entrada) });
-    tl.to(0.9, { lw: 1, mw: 1 });
-    luego(1.6, 1.4, { h2: 1 });
-    tl.to(4.6, { ch: 2 });
-
-    // Out the far end with the spark and along the thread to Mars, Mars ahead the whole way: a red
-    // point that grows into a world. Then off the spark, round under its south pole: the ring of
-    // mirrors, their light on the pole, and the domes.
-    const solM = MA.clone().negate().normalize();
-    const ladoM0 = Y.clone().cross(solM).normalize();
-    const cMar = MA.clone().add(V(0, -0.1, 0));
-    const vistaMarte = (giro: number, baja: number) => cMar.clone().addScaledVector(ladoM0.clone().applyAxisAngle(Y, D2R(giro)).addScaledVector(Y, -baja).normalize(), 0.92);
-    // Out of the far door (the camera looks back a moment at the world it leaves), on the thread to
-    // Mars, fast; then slower, round it under its south pole, through the light its mirrors send
-    // up; its air thickens, its domes light; and on towards Venus.
-    tl.label('marte').caption(15.0, 'Calentar Marte', 'Unos espejos pueden calentar Marte, pero su aire nunca será como el nuestro: viviríamos bajo cúpulas.');
-    luego(-1.4, 1.6, { mc: 1 });
-    luego(1.0, 2.2, { mc: 0 });
-    luego(0.6, 1.6, { md: 0.5 });
-    luego(0.3, 3.6, { ch: 2.7 });
-    luego(0.8, 1.6, { vel: 0.28 });
-    luego(3.0, 1.4, { vel: 0 });
-    luego(2.4, 2.4, { mar: 1 });
-    // (slowly once round; then faster round its limb and away)
-    luego(3.9, 6.6, { ch: CH_P5 });
-    luego(10.5, 1.9, { ch: CH_P6 });
-    luego(12.4, 2.4, { ch: 3 });
-    luego(3.0, 2.4, { mo: 1 });
-    luego(3.7, 7.0, { moU: 1 });
-    luego(10.8, 1.9, { mo: 0 });
-    luego(5.0, 4.0, { aire: 1 });
-    tl.wait(15.0);
-
-    // Back on the spark as it leaves for Venus, Venus ahead; then off it: Venus in the parasol's
-    // shade, the parasol's rim ours; and closer, the cities floating on the cloud tops by the limb, the
-    // spark dropping into one.
-    const ladoV = Y.clone().cross(SOL_V).normalize();
-    const vistaCiudad = CIUDAD.clone().addScaledVector(DIR_CIUDAD.clone().multiplyScalar(0.55).addScaledVector(ladoV, 0.75).addScaledVector(Y, 0.3).normalize(), RV * 2.2);
-    // On to Venus, fast; then round behind it, slower: looking back past it, the parasol hides the
-    // Sun (its rim lit, the corona round it, Venus dark in front); over its limb, down into a city.
-    tl.label('venus').caption(15.0, 'Venus, a la sombra', 'Venus es un horno, pero en lo alto de sus nubes el aire es templado: ahí pueden flotar ciudades.');
-    tl.with(0.6, { h6: 1 });
-    luego(0.2, 3.4, { ch: 3.55 });
-    luego(0.4, 1.4, { vel: 0.28 });
-    luego(2.6, 1.2, { vel: 0 });
-    luego(1.6, 2.2, { ven: 1, sombra: 1 });
-    // (slowly round behind it; then down to the city)
-    luego(3.6, 7.6, { ch: CH_V3 });
-    luego(11.2, 2.4, { ch: 3.96 });
-    luego(13.6, 1.2, { ch: 4 });
-    luego(2.8, 2.4, { vo: 1 });
-    luego(3.3, 7.7, { voU: 1 });
-    luego(11.2, 1.8, { vo: 0 });
-    // (after the shot, the lean on the city the spark goes down to)
-    luego(3.0, 2.8, { md: 0.5 });
-    // (the rig waits by the city, out of sight, for the pull-back that follows)
-    luego(12.0, 0.5, { ...Cn(CIUDAD), ...rel(CIUDAD, vistaCiudad), pitch: -90, yaw: 90 });
-    tl.wait(15.0);
-
-    // The reveal: all the inner system woven with threads, the spark one point on its way to Mercury.
+    // The reveal takes the camera from the flight just where it is (the rig waits there, round
+    // Venus), and as it draws back the gaze turns to Venus: powers of ten from it.
+    const cerca = (az: number, ref: number) => az + 360 * Math.round((ref - az) / 360);
+    const lugT = V();
+    const mirT = V();
+    seguir(L_TODO, lugT, mirT);
+    const a0 = rel(VE, lugT);
+    tl.keyAt(L_TODO - 0.8, { ...Cn(VE), ...a0, yaw: 90, pitch: -90 });
+    tl.keyAt(L_TODO, { ...Cn(VE), ...a0, yaw: 90, pitch: -90 });
     const TODO = 'Todo ocurre a la vez: la Luna lanza roca, se minan los asteroides y, cerca del Sol, crece un enjambre.';
     tl.label('todo').caption(9.6, 'Todo a la vez', TODO);
-    tl.with(2.0, { lw: 0, mw: 0, md: 0, fov: 42 });
+    tl.with(2.4, { lw: 0, mw: 0, fov: 42 });
     tl.with(1.6, { todo: 1, h3: 1, h4: 1, h5: 1, ven: 0 });
-    const llegaM = 8.0;
-    luego(0.4, llegaM - 0.4, { ch: 5 });
-    // Powers of ten: straight down at Venus, then out decade after decade (a little speed blur for
-    // the vertigo); the centre slides to the whole once the distance is there. Then still, and the
-    // names come for a moment.
-    tl.with(1.4, { pitch: -90, yaw: 90 });
-    luego(0.3, 4.6, { ld: Math.log10(105), el: 50, az: -30, fov: 36 });
-    luego(0.9, 1.4, { vel: 0.35 });
-    luego(2.3, 1.6, { vel: 0 });
+    // Powers of ten: out decade after decade, rising over the plane; the centre slides to the whole
+    // once the distance is there. Then still, and the names come for a moment.
+    const azR = cerca(-30, a0.az);
+    luego(0.3, 4.6, { ld: Math.log10(105), el: 50, az: azR, fov: 36 });
+    luego(0.9, 1.4, { velR: 0.35 });
+    luego(2.3, 1.6, { velR: 0 });
     luego(2.6, 2.4, { ...Cn(CMAPA) });
     luego(2.2, 2.0, { mapa: 1 });
     luego(3.8, 1.6, { nombres: 1 });
     tl.wait(4.9);
-    tl.to(3.6, { az: -24 });
+    tl.to(3.6, { az: azR + 6 });
     // And down to Mercury, where its scene starts.
+    const aM = rel(M, c0Merc);
     tl.with(1.2, { ...Cn(M), mapa: 0, nombres: 0 });
     luego(1.6, 1.4, { todo: 0.3, h3: 0.3, h4: 0.3 });
-    tl.to(3.0, { ...rel(M, c0Merc), fov: 40 });
+    tl.to(3.0, { ...aM, az: cerca(aM.az, azR + 6), fov: 40 });
 
     const chispa = crearChispa();
     root.add(chispa.nube.points);
@@ -1021,12 +991,14 @@ export const sistema: Escena = {
       salida: { pos: M.clone(), escala: RM },
       escalera: false,
       efectos(p) {
-        return { vel: tl.get('vel', p) };
+        // (a little speed blur in the open, where the spark goes fastest)
+        const rap = velEn(p, V()).length();
+        return { vel: Math.max(0.14 * THREE.MathUtils.smoothstep(rap, 4, 12) * (1 - tl.get('todo', p)), tl.get('velR', p)) };
       },
       cuenta(p) {
         const c: Cuenta = p < tl.at('marte') ? potencia(16.3) : p < tl.at('todo') ? potencia(16.5) : potencia(16.7);
         // How far we reach: a world more each time the spark gets to one.
-        const pasos = [tl.at('giran') + 4.6, tl.at('marte') + 4.2, tl.at('venus') + 3.8, tl.at('todo') + llegaM - 0.5];
+        const pasos = [T_RIEL0, T_MARTE, T_VENUS, T_FIN - 0.5];
         const n = pasos.filter((x) => p >= x).length;
         c.alcance = n === 0 ? '1 mundo' : `${n + 1} mundos`;
         c.nuevo = n > 0 ? 1 - THREE.MathUtils.smoothstep(p, pasos[n - 1], pasos[n - 1] + 1.8) : 0;
@@ -1034,7 +1006,7 @@ export const sistema: Escena = {
       },
       anio(p) {
         const a = (l: string) => tl.at(l);
-        return anioEn(p, [[0, 2045], [a('dentro'), 2048], [a('marte') + 2, 2050], [a('venus') + 2, 2056], [a('todo') + 4, 2062], [tl.length, 2066]]);
+        return anioEn(p, [[0, 2045], [a('marte'), 2049], [a('venus'), 2054], [a('todo') + 4, 2062], [tl.length, 2066]]);
       },
       rotulo(p): Rotulo | null {
         const c = tl.captionAt(p);
@@ -1048,111 +1020,23 @@ export const sistema: Escena = {
         const t = f.time;
         camera.near = 1e-5;
         camera.far = 3000;
-        agCil = t * 0.06;
-        const ch = tl.get('ch', p);
         const lw = tl.get('lw', p);
         const mw = tl.get('mw', p);
-        const enCil = ch > 1 && ch <= 2;
-        // Riding: closer and level outside, further back and looking well ahead along the axis inside;
-        // blended across the door, so the gaze never jumps there.
-        const kc = THREE.MathUtils.smoothstep(ch, 0.9, 1.12) * (1 - THREE.MathUtils.smoothstep(ch, 1.9, 2.1));
-        // (inside, «up» is towards the axis, away from the land below)
-        const arribaC = Y.clone().lerp(suelo(V()).negate(), kc).normalize();
-        // (past the cylinder the way is smooth curves whose stretches go at very different paces in s,
-        // a few worlds' widths at Mars, tens between worlds: little averaging there, or it reaches far
-        // ahead of the spark; and lower over the worlds, where it passes close)
-        // (the first flight, to the Moon and on its stream, is long and smooth too: the same)
-        const fino = Math.max(THREE.MathUtils.smoothstep(ch, 2.4, 2.65), 1 - THREE.MathUtils.smoothstep(ch, 0.82, 0.97));
-        const suaveM = THREE.MathUtils.lerp(Math.max(THREE.MathUtils.lerp(0.025, 0.07, kc), THREE.MathUtils.lerp(0.06, 0.25, kc) * 0.35) * 1.4, 0.006, fino);
-        // (by the Moon, close behind the spark and low: the first flight is long in s, the Moon small)
-        const enLuna = 1 - THREE.MathUtils.smoothstep(ch, 0.62, 0.8);
-        const atrasM = THREE.MathUtils.lerp(THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.025, 0.07, kc), 0.012, fino), 0.0045, enLuna);
-        const adelanteM = THREE.MathUtils.lerp(THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.06, 0.25, kc), 0.03, fino), 0.012, enLuna);
-        const altoM = THREE.MathUtils.lerp(THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.04 + 0.2 * tl.get('md', p), 0.02, kc), 0.03, fino), 0.016, enLuna);
-        // (leaving the Earth, up over it: further back and smoother, so the hump over it is a curve)
-        const salida = 1 - THREE.MathUtils.smoothstep(ch, 0.07, 0.115);
-        const suaveL = THREE.MathUtils.lerp(THREE.MathUtils.lerp(suaveM, 0.0025, enLuna), 0.014, salida);
-        // (into the city the spark stops looking ahead: past it the way turns sharply for Mercury)
-        const m = montar(caminoCh, ch, THREE.MathUtils.lerp(atrasM, 0.01, salida), adelanteM * (1 - 0.9 * THREE.MathUtils.smoothstep(ch, 3.88, 3.99)), altoM, arribaC, suaveL, false, suaveL * 1.6);
-        lugar.copy(m.lugar);
-        mira.copy(m.mira);
+        const T = seguir(p, lugar, mira);
         const centro = V(tl.get('cx', p), tl.get('cy', p), tl.get('cz', p));
-        // Riding to a world, the gaze leans to it, so where we go is in sight the whole way.
-        const md = Math.max(tl.get('md', p), tl.get('mdL', p));
-        if (md > 0.001) {
-          // (the cylinder while going round it; Mars on the way there; then Venus, and behind it the
-          // parasol, so the eclipse is in the frame; then the city)
-          // (sliding from one to the next: Mars stays in the gaze as the spark leaves it)
-          const objetivo = C.clone().lerp(MA, THREE.MathUtils.smoothstep(ch, 1.0, 1.5)).lerp(VE, THREE.MathUtils.smoothstep(ch, 2.93, 3.25));
-          // (over to the Moon, it in sight; then the launcher's line ahead)
-          const mdL = tl.get('mdL', p);
-          if (mdL > 0.001) objetivo.lerp(FIN_RIEL_LUNA, mdL / Math.max(md, 1e-6));
-          objetivo.lerp(PARASOL_C, tl.get('mdV', p) * (1 - THREE.MathUtils.smoothstep(ch, 3.82, 3.9)));
-          if (ch > 3.85) objetivo.lerp(CIUDAD, THREE.MathUtils.smoothstep(ch, 3.85, 3.96));
-          // (a world the camera has passed, behind it now, lets the gaze go: it turns to look as it
-          // passes, never back over its shoulder)
-          const aSpark = mira.clone().sub(lugar).normalize();
-          const aObj = objetivo.clone().sub(lugar).normalize();
-          mira.lerp(objetivo, md * THREE.MathUtils.smoothstep(aSpark.dot(aObj), -0.15, 0.55));
-        }
-        const mc = tl.get('mc', p);
-        if (mc > 0.001) {
-          lugar.addScaledVector(ladoCil, 0.5 * mc).addScaledVector(Y, 0.16 * mc);
-          // (the gaze turns, not slides: halfway round from the spark ahead to the world behind)
-          const dSpark = mira.clone().sub(lugar);
-          const dCil = C.clone().addScaledVector(EJE, -LC * 0.2).sub(lugar).normalize();
-          const L = dSpark.length();
-          dSpark.normalize();
-          const q = new THREE.Quaternion().setFromUnitVectors(dSpark, dCil);
-          mira.copy(lugar).addScaledVector(dSpark.applyQuaternion(new THREE.Quaternion().slerp(q, 0.55 * mc)), L);
-        }
-        const ml = tl.get('ml', p);
-        if (ml > 0.001) {
-          const vR = THREE.MathUtils.clamp((ch - U_RIEL0) / (U_RIEL1 - U_RIEL0), -0.4, 1.25);
-          const ladoR = U_LUNA.clone().cross(N_LUNA).normalize();
-          // (a little way off, so the rail reads as one thing with the spark on it)
-          // (waiting, well off the line it comes in on, so it is seen crossing rather than rushing
-          // past; then closer in beside the rail, running along behind it)
-          const cerca = THREE.MathUtils.smoothstep(vR, -0.4, 0.35);
-          const junto = enRielLuna(THREE.MathUtils.clamp(vR - 0.4, -0.7, 0.8), THREE.MathUtils.lerp(0.06, 0.045, cerca)).addScaledVector(ladoR, THREE.MathUtils.lerp(0.2, 0.09, cerca));
-          // (round the Moon, not through it: the place's direction from its centre turns, its
-          // distance blends)
-          const a = lugar.clone().sub(LUNA);
-          const b = junto.sub(LUNA);
-          const ra = a.length();
-          const rb = b.length();
-          const q = new THREE.Quaternion().setFromUnitVectors(a.normalize(), b.normalize());
-          lugar.copy(LUNA).addScaledVector(a.applyQuaternion(new THREE.Quaternion().slerp(q, ml)), THREE.MathUtils.lerp(ra, rb, ml));
-          // (while it comes round, the gaze is half on where it will land: the Moon in the frame)
-          const chispaL = caminoCh(ch, V());
-          const RIEL0 = enRielLuna(0, 0.0012);
-          mira.lerp(chispaL.clone().lerp(RIEL0, 0.5 * THREE.MathUtils.smoothstep(chispaL.distanceTo(RIEL0), 0.04, 0.3)), ml);
-        }
-        const mo = tl.get('mo', p);
-        if (mo > 0.001) {
-          lugar.lerp(enOrbitaMarte(tl.get('moU', p)), mo);
-          mira.lerp(K_MARTE, mo);
-        }
-        const vo = tl.get('vo', p);
-        if (vo > 0.001) {
-          lugar.lerp(enOrbitaVenus(tl.get('voU', p)), vo);
-          mira.lerp(VE, vo);
-        }
         // Never into a world: near one the place is eased out to a little over its ground.
         for (const x of SUELOS) {
           const d = lugar.distanceTo(x.pos);
-          const r0 = x.R * 1.12;
-          const r1 = x.R * 1.6;
+          const r0 = x.R * x.r0;
+          const r1 = x.R * x.r1;
           if (d < r1) lugar.sub(x.pos).setLength(r0 + (r1 - r0) * Math.exp((d - r1) / (r1 - r0))).add(x.pos);
         }
         if (lw < 0.999) mira.lerp(centro, 1 - lw);
-        // (the way's «ahead» steadies the frame only while the camera rides it: not in a shot of its own)
-        const delante = m.delante.clone().multiplyScalar(lw * (1 - Math.max(ml, mo, vo)));
-        aplicarToma(camera, toma(tl, p, tm, { punto: mira, peso: mw, arriba: m.arriba, delante }, { punto: lugar, peso: lw }));
+        aplicarToma(camera, toma(tl, p, tm, { punto: mira, peso: mw, arriba: Y, delante: T.multiplyScalar(lw) }, { punto: lugar, peso: lw }));
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
 
-        sol.update({ sol: V(1, 0, 0), camara: camera.position.clone(), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: 1 });
+        sol.update({ sol: V(1, 0, 0), camara: camera.position.clone(), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: f.fundido ?? 1 });
         // Coming from the Earth's own scene: its light comes at first from where that scene had the
         // Sun, turning slowly to where the Sun is here (the night side turns away, as the Earth
         // would); the Moon comes up out of the dark.
@@ -1166,12 +1050,12 @@ export const sistema: Escena = {
           const lejos = camL.length() > 400;
           x.c.group.visible = !lejos || x.R > 0.3;
           // Venus under the parasol: its day side dims.
-          const presencia = x.c === venus ? 1 - 0.35 * tl.get('sombra', p) : x.c === luna ? THREE.MathUtils.smoothstep(p, 1.6, 4.2) : 1;
+          const presencia = x.c === venus ? 1 - 0.35 * tl.get('sombra', p) : x.c === luna ? THREE.MathUtils.smoothstep(p, 0.3, 2.0) : 1;
           x.c.update({ sol: solL, camara: camL, focal: f.focal, dpr: f.dpr, tiempo: t, presencia });
         }
         const lejosDe = (q: THREE.Vector3, d0: number, k = 1) => Math.min(1, Math.pow(d0 / Math.max(1e-6, camera.position.distanceTo(q)), k));
-        cil.update(tl.get('cil', p) * lejosDe(C, 5, 2), agCil, camera.position);
-        chispa.update(caminoCh, ch, enCil ? 0.0025 : 0.0012, tl.get('on', p), 0, camera.position, f.focal, f.dpr, t);
+        // (its wake a third of a beat long: shorter than the camera's lag, so it never reaches past it)
+        chispa.update(caminoCh, p, 0.0065, tl.get('on', p), 0, camera.position, f.focal, f.dpr, t);
         hilos.marteVenus.nube.u.uOn.value = Math.max(tl.get('h6', p), tl.get('todo', p));
         marteN.u.uMar.value = tl.get('mar', p);
         marteN.u.uCamL.value.copy(camera.position).sub(MA).divideScalar(RMA);
@@ -1193,13 +1077,11 @@ export const sistema: Escena = {
         venusN.u.uSizeUnit.value = RV;
         anillo.u.uSizeUnit.value = RE;
         anillo.u.uGain.value = tl.get('anillo', p) * lejosDe(E, 10, 1);
-        hilos.tierraCil.nube.u.uOn.value = tl.get('h1', p);
         rielLuna.uniforms.uOn.value = tl.get('hl', p) * (1 - tl.get('todo', p));
         rielLuna.uniforms.uTime.value = t;
         mLuz.haz.material.uniforms.uMar.value = tl.get('mar', p);
         mLuz.haz.material.uniforms.uTime.value = t;
         mLuz.aire.material.uniforms.uAire.value = tl.get('aire', p);
-        hilos.cilMarte.nube.u.uOn.value = Math.max(tl.get('h2', p), tl.get('todo', p));
         for (const h of [hilos.cinturon, hilos.venus]) h.nube.u.uOn.value = Math.max(tl.get('h3', p), tl.get('todo', p));
         hilos.luna.nube.u.uOn.value = Math.max(tl.get('h3', p), tl.get('todo', p), tl.get('hl', p));
         hilos.mercurio.nube.u.uOn.value = tl.get('h4', p);
@@ -1219,7 +1101,7 @@ export const sistema: Escena = {
         const oV = ocu.pos.clone().applyMatrix4(camera.matrixWorldInverse);
         for (const n of [...nubes, chispa.nube]) n.u.uOcc.value.set(oV.x, oV.y, oV.z, ocu.R * 0.995);
         // Mercury's ring once the spark is there.
-        const llego = THREE.MathUtils.smoothstep(ch, 4.9, 5.0);
+        const llego = THREE.MathUtils.smoothstep(p, T_FIN - 0.6, T_FIN);
         enfocarMarcas(nuestras, f.dpr, mapa);
         enfocarMarcas(mercMarca, f.dpr, mapa * (1 - llego));
         enfocarMarcas(mercAro, f.dpr, mapa * llego);
