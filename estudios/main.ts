@@ -16,6 +16,7 @@ import { sistema } from './sistema';
 import { mercurio } from './mercurio';
 import { solTrabajado } from './sol';
 import { vela } from './vela';
+import { galaxia } from './galaxia';
 import { estrella } from './estrella';
 
 /**
@@ -29,7 +30,7 @@ import { estrella } from './estrella';
  */
 
 // In the order of the journey (ESCALETA.md: scenes 6–7, 11–12, 18–19).
-const ESCENAS: Escena[] = [apertura, despierta, tierraNoche, sistema, mercurio, solTrabajado, vela, estrella];
+const ESCENAS: Escena[] = [apertura, despierta, tierraNoche, sistema, mercurio, solTrabajado, vela, galaxia, estrella];
 const PX_PER_BEAT = 520;
 
 const params = new URLSearchParams(location.search);

@@ -25,11 +25,11 @@ const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const PITCH = THREE.MathUtils.degToRad(13);
 const KW = 1 / Math.tan(PITCH);
 /** Where arm j's centre is at radius R. */
-const brazo = (R: number, j: number) => KW * Math.log(R / 4) + j * Math.PI;
+export const brazo = (R: number, j: number) => KW * Math.log(R / 4) + j * Math.PI;
 /** The Sun: 26 kly out, between the two main arms. */
 const R_SOL = 26;
 const PHI_SOL = brazo(R_SOL, 0) + Math.PI / 2 + 0.25;
-const S = V(Math.sin(PHI_SOL) * R_SOL, 0.02, Math.cos(PHI_SOL) * R_SOL);
+export const S = V(Math.sin(PHI_SOL) * R_SOL, 0.02, Math.cos(PHI_SOL) * R_SOL);
 /** A neighbourhood a little way from the Sun, where the camera flies among stars with planets. */
 const P = S.clone().add(V(0.09, 0.006, -0.07));
 const R_VOZ = 0.1;
@@ -40,7 +40,7 @@ function angDif(a: number, b: number) {
 }
 
 /** The Milky Way in points: a disc wound into arms, young blue stars and pink knots in them, a golden bar and bulge. */
-function galaxiaDatos(): MateriaData {
+export function galaxiaDatos(): MateriaData {
   const b = materiaBuilder(71);
   const r = b.r;
   const c = new THREE.Color();
@@ -87,7 +87,7 @@ function galaxiaDatos(): MateriaData {
 }
 
 /** Dust along the inner edges of the arms: points that hide what is behind them (the dark lanes). */
-function polvoDatos(): MateriaData {
+export function polvoDatos(): MateriaData {
   const b = materiaBuilder(73);
   const r = b.r;
   for (let i = 0; i < 110000; i++) {
