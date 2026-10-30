@@ -67,6 +67,57 @@ function burbujaDatos(): MateriaData {
   return b.data();
 }
 
+/**
+ * The new universe's first light, seen from inside it: the whole sky glowing white, then cooling
+ * through gold and red to black, mottled (the faint unevenness that later becomes galaxies).
+ */
+function primeraLuz() {
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uLuz: { value: 0 }, uFrio: { value: 0 }, uFundido: { value: 1 }, uTime: { value: 0 } },
+    vertexShader: /* glsl */ `
+      varying vec3 vD;
+      void main() {
+        vD = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uLuz, uFrio, uFundido, uTime;
+      varying vec3 vD;
+      float h31(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+      float ruido(vec3 p) {
+        vec3 i = floor(p);
+        vec3 f = fract(p);
+        vec3 u = f * f * (3.0 - 2.0 * f);
+        return mix(mix(mix(h31(i), h31(i + vec3(1, 0, 0)), u.x), mix(h31(i + vec3(0, 1, 0)), h31(i + vec3(1, 1, 0)), u.x), u.y),
+                   mix(mix(h31(i + vec3(0, 0, 1)), h31(i + vec3(1, 0, 1)), u.x), mix(h31(i + vec3(0, 1, 1)), h31(i + vec3(1, 1, 1)), u.x), u.y), u.z);
+      }
+      void main() {
+        vec3 d = normalize(vD);
+        float n = 0.5 * ruido(d * 3.0) + 0.3 * ruido(d * 7.0 + 3.1) + 0.2 * ruido(d * 17.0 + 7.7);
+        // The temperature: all the same at first; as it cools, the unevenness shows.
+        float T = 1.0 - uFrio + (n - 0.5) * 0.7 * uFrio;
+        vec3 col = T > 0.66 ? mix(vec3(1.0, 0.72, 0.42), vec3(1.0, 0.97, 0.92), (T - 0.66) / 0.34)
+                 : T > 0.33 ? mix(vec3(0.62, 0.16, 0.08), vec3(1.0, 0.72, 0.42), (T - 0.33) / 0.33)
+                 : mix(vec3(0.0), vec3(0.62, 0.16, 0.08), T / 0.33);
+        col *= (0.75 + 0.5 * n) * uLuz * 0.78;
+        gl_FragColor = vec4(col * uFundido, 0.0);
+      }
+    `,
+    side: THREE.BackSide,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
+  });
+  const m = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 32), mat);
+  m.renderOrder = 1;
+  m.frustumCulled = false;
+  return { mesh: m, u: mat.uniforms };
+}
+
 export const final: Escena = {
   id: 'final',
   nombre: 'VIII · El final',
@@ -115,13 +166,13 @@ export const final: Escena = {
     const burbuja = add(materia(burbujaDatos(), { pre: `uniform float uOn;`, move: `em *= uOn;`, uniforms: { uOn: { value: 0 } } }), uniG, 5);
     burbuja.u.uFuente.value = 0.5;
     // Inside: the light that spills and cools into a web (from a white fog to its knots).
-    const rc = redCosmica(293, 110, (t, out) => out.setRGB(1.0, 0.86 - 0.1 * t, 0.7 - 0.15 * t));
+    const rc = redCosmica(293, 110, (t, out) => out.setRGB(1.0, 0.86 - 0.1 * t, 0.7 - 0.15 * t), true);
     const luz = add(
       materia(rc.data, {
         pre: /* glsl */ `uniform float uLuz, uRed, uApaga; attribute vec3 aAzar;`,
         move: /* glsl */ `
           p = mix(aAzar, p, uRed);
-          em = mix(vec3(1.0, 0.97, 0.92) * 1.1, em * 1.3, uRed) * uLuz * (1.0 - uApaga);
+          em = mix(vec3(1.0, 0.9, 0.78) * 0.35, em * 1.3, uRed) * uLuz * (1.0 - uApaga) * (0.25 + 0.75 * uRed);
         `,
         uniforms: { uLuz: { value: 0 }, uRed: { value: 0 }, uApaga: { value: 0 } },
         extra: { aAzar: [rc.azar, 3] },
@@ -130,6 +181,8 @@ export const final: Escena = {
       6,
     );
     luz.u.uFuente.value = 0.5;
+    const primera = primeraLuz();
+    uniG.add(primera.mesh);
     // The corner where someone thinks: a knot of the new web, near its edge.
     const rincon = rc.nodos.slice().sort((a, z) => z.length() - a.length())[8].clone();
     const tu = add(puntoTu(rincon.clone(), 0.006), uniG, 7);
@@ -142,11 +195,11 @@ export const final: Escena = {
       tl.wait(-off);
     };
     const Cn = (v: THREE.Vector3) => ({ cx: v.x, cy: v.y, cz: v.z });
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 240, el: 16, ld: Math.log10(400), yaw: 90, pitch: -90, roll: 0, fov: 40, hoyo: 1, anillo: 0, mente: 0, periodo: 1, tuM: 0, apagaM: 0, bur: 0, rb: 0, luz: 0, red: 0, tu: 0, apaga: 0, tarjeta: 0, baja: 0, chs: 0, chOn: 0 });
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 240, el: 16, ld: Math.log10(150), yaw: 90, pitch: -90, roll: 0, fov: 40, pl: 0, frio: 0, hoyo: 1, anillo: 0, mente: 0, periodo: 1, tuM: 0, apagaM: 0, bur: 0, rb: 0, luz: 0, red: 0, tu: 0, apaga: 0, tarjeta: 0, baja: 0, chs: 0, chOn: 0 });
 
     tl.label('centrales').caption(5.6, 'Las últimas centrales', 'Cuando las estrellas se apagan, quedan los agujeros negros. Todavía se puede sacar energía de su giro.');
-    luego(1.6, 2.0, { anillo: 1 });
-    tl.to(5.6, { ld: Math.log10(70), el: 9, az: 262 });
+    luego(0.6, 1.8, { anillo: 1 });
+    tl.to(5.6, { ld: Math.log10(60), el: 9, az: 262 });
 
     tl.label('contados').caption(6.6, 'Pensamientos contados', 'Al universo le quedan pensamientos contados. Este que tienes ahora es uno de ellos.');
     tl.with(1.2, { mente: 1, chOn: 1 });
@@ -166,14 +219,19 @@ export const final: Escena = {
     luego(0.4, 1.6, { ...Cn(NACE) });
     tl.to(5.4, { ld: Math.log10(26), el: 12, az: 330 });
 
-    tl.label('adentro').caption(3.6, 'Adentro', 'Adentro, un universo empieza.');
-    tl.with(1.6, { luz: 1 });
-    luego(1.4, 2.0, { bur: 0 });
-    tl.to(3.6, { ld: Math.log10(R_UNI * 0.75), el: 10, az: 345 });
+    // Inside: the whole sky white with the first light; it cools to gold, red, black, and out of
+    // its unevenness the web gathers, galaxies at its knots.
+    tl.label('adentro').caption(4.6, 'Adentro', 'Adentro, un universo empieza.');
+    tl.with(1.4, { pl: 1 });
+    luego(0.6, 1.6, { luz: 1 });
+    luego(1.0, 2.0, { bur: 0 });
+    luego(0.5, 5.2, { frio: 1 });
+    tl.to(4.6, { ld: Math.log10(R_UNI * 0.75), el: 10, az: 345 });
 
     const rinconW = rincon.clone().multiplyScalar(R_UNI).add(NACE);
     tl.label('alguien').caption(6.2, 'Alguien', 'En miles de millones de años, en algún rincón de ahí adentro, algo va a pensar por primera vez. Como tú, ahora.');
-    tl.with(3.2, { red: 1 });
+    tl.with(3.6, { red: 1 });
+    luego(1.6, 2.2, { pl: 0 });
     luego(1.6, 2.4, { ...Cn(rinconW), baja: 1 });
     luego(0.6, 3.4, { chs: 3 });
     luego(3.6, 1.4, { tu: 1, chOn: 0 });
@@ -241,12 +299,15 @@ export const final: Escena = {
         luz.u.uRed.value = tl.get('red', p);
         luz.u.uApaga.value = tl.get('apaga', p);
         luz.u.uSizeUnit.value = uniG.scale.x;
+        primera.u.uLuz.value = tl.get('pl', p);
+        primera.u.uFrio.value = tl.get('frio', p);
+        primera.u.uTime.value = t;
         // «Tú» keeps a few pixels, however close.
         tu.u.uSizeUnit.value = (8 * camera.position.distanceTo(rinconW)) / f.focal / 0.006;
         tu.u.uGain.value = tl.get('tu', p) * (1 + 0.25 * Math.sin(t * 1.5));
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
         // A flood of light first (soft and wide), then a web of fine points.
-        luz.u.uMaxPx.value = (3.2 + 20 * (1 - tl.get('red', p))) * f.dpr;
+        luz.u.uMaxPx.value = (3.2 + 6 * (1 - tl.get('red', p))) * f.dpr;
       },
       placa(g, f) {
         // The card: Infinito, where the point is.
