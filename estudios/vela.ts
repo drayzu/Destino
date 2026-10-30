@@ -72,39 +72,73 @@ function polvoDatos() {
  * The ship that is a world (its own units: 1 long, along +Z): a spine, four wheels that turn, a
  * radiator fin and a shield at its bow. `aKind`: 0 spine, 1 wheel (turns), 2 light, 3 radiator.
  */
+/** The ring the camera goes into (its z on the spine), and how fast the rings turn (radians a second). */
+const ANILLO = 0.1;
+const GIRO_ANILLO = 0.05;
+
 function naveDatos(): MateriaData {
   const b = materiaBuilder(197);
   const r = b.r;
+  const c = new THREE.Color();
+  // The spine.
   for (let i = 0; i < 9000; i++) {
     const z = r() - 0.5;
     const a = r() * Math.PI * 2;
     b.push(Math.cos(a) * 0.012, Math.sin(a) * 0.012, z, new THREE.Color(0.6, 0.66, 0.75), 0.002, 0.14, { kind: 0 });
   }
-  for (const zc of [-0.3, -0.1, 0.1, 0.3]) {
-    for (let i = 0; i < 9000; i++) {
+  // Four rings, each a land on its inside: fields, rivers, towns lit; side walls; the hull outside
+  // with its windows. The one the camera enters is drawn much finer.
+  for (const zc of [-0.3, -0.1, ANILLO, 0.3]) {
+    const fino = zc === ANILLO;
+    const n = fino ? 320000 : 30000;
+    const t = fino ? 0.00045 : 0.0016;
+    for (let i = 0; i < n; i++) {
       const a = r() * Math.PI * 2;
-      const rr = 0.13 + gauss(r) * 0.004;
-      const ancho = (r() - 0.5) * 0.03;
-      const luz = r() < 0.08;
-      b.push(Math.cos(a) * rr, Math.sin(a) * rr, zc + ancho, luz ? new THREE.Color(1.0, 0.82, 0.55) : new THREE.Color(0.55, 0.62, 0.72), 0.002, luz ? 0.9 : 0.1, { kind: luz ? 2 : 1, delay: zc });
+      const z = (r() - 0.5) * 0.09;
+      const campo = 0.5 + 0.5 * Math.sin(a * 46 + Math.sin(z * 140) * 2) * Math.sin(z * 190 + a * 11);
+      c.setRGB(0.25 + 0.2 * campo, 0.42 + 0.14 * campo, 0.18 + 0.06 * campo);
+      let luz = 0.36;
+      let kind = 1;
+      if (Math.abs(Math.sin(z * 80 + a * 13)) < 0.035) {
+        c.setRGB(0.28, 0.5, 0.82);
+        luz = 0.5;
+      } else if (r() < 0.012) {
+        c.setRGB(1.0, 0.8, 0.52);
+        luz = 1.3;
+        kind = 2;
+      }
+      b.push(Math.cos(a) * 0.13, Math.sin(a) * 0.13, zc + z, c, t, luz, { kind, delay: zc });
+    }
+    for (let i = 0; i < (fino ? 30000 : 6000); i++) {
+      const a = r() * Math.PI * 2;
+      const rr = 0.112 + r() * 0.018;
+      const lado = r() < 0.5 ? -0.045 : 0.045;
+      b.push(Math.cos(a) * rr, Math.sin(a) * rr, zc + lado, new THREE.Color(0.55, 0.6, 0.68), t, 0.12, { kind: 1, delay: zc });
+    }
+    for (let i = 0; i < (fino ? 26000 : 8000); i++) {
+      const a = r() * Math.PI * 2;
+      const z = (r() - 0.5) * 0.09;
+      const ventana = r() < 0.06;
+      b.push(Math.cos(a) * 0.1335, Math.sin(a) * 0.1335, zc + z, ventana ? new THREE.Color(1.0, 0.85, 0.6) : new THREE.Color(0.45, 0.5, 0.58), t, ventana ? 0.7 : 0.08, { kind: ventana ? 2 : 1, delay: zc });
     }
     // Spokes.
     for (let k = 0; k < 6; k++) {
       const a = (k / 6) * Math.PI * 2;
-      for (let i = 0; i < 300; i++) {
-        const q = 0.012 + r() * 0.118;
+      for (let i = 0; i < 500; i++) {
+        const q = 0.012 + r() * 0.1;
         b.push(Math.cos(a) * q, Math.sin(a) * q, zc, new THREE.Color(0.5, 0.56, 0.65), 0.002, 0.1, { kind: 1, delay: zc });
       }
     }
   }
+  // The engine's glow behind, and the shield ahead.
   for (let i = 0; i < 6000; i++) {
     const z = -0.5 + r() * 0.35;
     const x = (r() - 0.5) * 0.5;
     b.push(x, 0, z, new THREE.Color(1.0, 0.4, 0.2), 0.002, 0.06, { kind: 3 });
   }
-  for (let i = 0; i < 7000; i++) {
+  for (let i = 0; i < 9000; i++) {
     const a = r() * Math.PI * 2;
-    const q = Math.sqrt(r()) * 0.16;
+    const q = Math.sqrt(r()) * 0.17;
     b.push(Math.cos(a) * q, Math.sin(a) * q, 0.55 - q * q * 1.5, new THREE.Color(0.65, 0.7, 0.78), 0.002, 0.12, { kind: 0 });
   }
   // Its teal lights along the spine.
@@ -211,8 +245,8 @@ export const vela: Escena = {
       materia(naveDatos(), {
         pre: /* glsl */ `uniform float uNave;`,
         move: /* glsl */ `
-          if (aKind > 0.5 && aKind < 2.5 && abs(p.z - aDelay) < 0.03) {
-            float ag = uTime * 0.3;
+          if (aKind > 0.5 && aKind < 2.5 && abs(p.z - aDelay) < 0.05) {
+            float ag = uTime * ${GIRO_ANILLO.toFixed(3)};
             p.xy = vec2(cos(ag) * p.x - sin(ag) * p.y, sin(ag) * p.x + cos(ag) * p.y);
           }
           em *= uNave;
@@ -223,7 +257,8 @@ export const vela: Escena = {
       6,
     );
     nave.u.uFuente.value = 0.4;
-    const tu = add(puntoTu(V(0.02, 0.135, 0.1), 0.006), naveG, 7);
+    const A_TU = 1.15;
+    const tu = add(puntoTu(V(Math.cos(A_TU) * 0.1285, Math.sin(A_TU) * 0.1285, ANILLO), 0.0012), naveG, 7);
     const chispa = crearChispa();
     root.add(chispa.nube.points);
     const eco = crearChispa();
@@ -239,7 +274,7 @@ export const vela: Escena = {
       tl.wait(-off);
     };
     // Where the Sun's scene leaves the camera (sol.ts, «tipo»): relative to the Sun, here S0.
-    tl.set({ cx: S0.x, cy: S0.y, cz: S0.z, ox: 0, oy: 0, oz: 0, az: angulos(LEJOS).az + 150, el: 30, ld: 2.2, yaw: 90, pitch: -90, roll: 0, fov: 34, haz: 0, lsol: Math.log10(14), lcen: 4.5, beta: 0, polvo: 0, abre: 1, luzA: 0, nave: 0, tu: 0, nz: -3, eco: 0, ecoS: 0, chH: 0, salta: 0, mapa: 0, nombres: 0 });
+    tl.set({ cx: S0.x, cy: S0.y, cz: S0.z, ox: 0, oy: 0, oz: 0, az: angulos(LEJOS).az + 150, el: 30, ld: 2.2, yaw: 90, pitch: -90, roll: 0, fov: 34, haz: 0, lsol: Math.log10(14), lcen: 4.5, beta: 0, polvo: 0, abre: 1, luzA: 0, nave: 0, tu: 0, nz: -3, eco: 0, ecoS: 0, chH: 0, salta: 0, mapa: 0, nombres: 0, dentro: 0, vuelo: 0 });
 
     tl.label('velas').caption(5.6, 'Velas de luz', 'Para ir a otra estrella, un láser empuja una vela de pocos gramos. En minutos va a un quinto de la luz.');
     tl.with(1.2, { cx: 0, cy: 0, cz: 0 });
@@ -270,7 +305,7 @@ export const vela: Escena = {
     // The reveal: out until both stars fit, the Sun drawn near (short), ours, with the route between
     // them; the names a moment; then back in to the sail, where something enormous passes.
     const MEDIO = V(-1.5, -2.6, -29);
-    tl.label('nave').caption(15.6, 'Naves que son mundos', 'El viaje dura siglos. Quien llega es nieto de los nietos de quien salió: alguien como tú, que nunca vio la Tierra.');
+    tl.label('nave').caption(25.0, 'Naves que son mundos', 'El viaje dura siglos. Quien llega es nieto de los nietos de quien salió: alguien como tú, que nunca vio la Tierra.');
     tl.with(1.0, { beta: 0 });
     tl.with(3.6, { lsol: Math.log10(80) });
     luego(0.2, 4.2, { ld: Math.log10(150), el: 22, az: 96, fov: 34 });
@@ -283,10 +318,16 @@ export const vela: Escena = {
     luego(0.4, 1.4, { mapa: 0 });
     luego(1.2, 4.0, { lsol: 4.2 });
     luego(0.4, 2.4, { cx: 0, cy: 0, cz: 0 });
+    // The ship passes the sail, slowly: its shield, its turning rings, the lights along its spine.
     tl.with(1.6, { nave: 1 });
-    luego(2.0, 1.4, { salta: 1 });
-    luego(3.2, 1.0, { tu: 1 });
-    tl.to(6.2, { nz: 0.6, cx: 0.9, cy: 0.1, cz: 0.2, az: 120, el: 10, ld: -0.35, fov: 40 });
+    tl.to(5.2, { nz: 0.6, cx: 0.9, cy: 0.1, cz: 0.2, az: 120, el: 10, ld: -0.35, fov: 40 });
+    tl.to(2.4, { az: 142, el: 16, ld: -0.6 });
+    // The spark jumps to it, and the camera goes after it into a ring: the land inside curves up
+    // ahead and overhead; among its lights, someone.
+    luego(-0.4, 1.8, { salta: 1 });
+    tl.to(3.6, { dentro: 1, fov: 58 });
+    luego(1.2, 1.2, { tu: 1 });
+    tl.to(4.4, { vuelo: 1 });
 
     const tm = toma(tl, 0);
     const velV = V();
@@ -318,6 +359,26 @@ export const vela: Escena = {
         camera.near = 1e-5;
         camera.far = 30000;
         aplicarToma(camera, toma(tl, p, tm));
+        // Inside the ring: low over its floor, looking along it as it curves up ahead, «up» towards
+        // the spine; the ring turns slowly under the camera.
+        const dentro = tl.get('dentro', p);
+        if (dentro > 0.0005) {
+          const k = dentro * dentro * (3 - 2 * dentro);
+          const a = A_TU - 0.55 + 0.35 * tl.get('vuelo', p);
+          const naveP = V(0.9, 0.1, 0.2 + tl.get('nz', p));
+          const Yv = new THREE.Vector3(0, 1, 0);
+          const local = (ang: number, rr: number) => V(Math.cos(ang) * rr, Math.sin(ang) * rr, ANILLO).applyAxisAngle(Yv, 0.15).add(naveP);
+          const pA = camera.position.clone();
+          const qA = camera.quaternion.clone();
+          const pos = local(a, 0.112);
+          camera.position.copy(pos);
+          camera.up.copy(V(-Math.cos(a), -Math.sin(a), 0).applyAxisAngle(Yv, 0.15));
+          camera.lookAt(local(a + 0.7, 0.122));
+          const qB = camera.quaternion.clone();
+          camera.position.lerpVectors(pA, pos, k);
+          camera.quaternion.slerpQuaternions(qA, qB, k);
+          camera.fov = THREE.MathUtils.lerp(camera.fov, 62, k);
+        }
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
 
@@ -355,7 +416,7 @@ export const vela: Escena = {
         // The spark: along the beam from the swarm into the sail, then on the sail, then a jump to the ship.
         const desde = casa.position.clone().add(V(0, 0, 3.2));
         const enVela = V(0, 0, 0.004);
-        const enNave = naveG.position.clone().add(V(0.02, 0.135, 0.1));
+        const enNave = V(Math.cos(A_TU + 0.05) * 0.12, Math.sin(A_TU + 0.05) * 0.12, ANILLO).applyAxisAngle(new THREE.Vector3(0, 0, 1), t * GIRO_ANILLO).applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.15).add(naveG.position);
         const caminoCh: Camino = (sv, out) => (sv <= 1 ? out.copy(desde).lerp(enVela, Math.max(0, sv) ** 0.5) : out.copy(enVela).lerp(enNave, Math.min(1, sv - 1)));
         const chS = Math.min(1, tl.get('chH', p)) + tl.get('salta', p);
         chispa.update(caminoCh, chS, 0.004, 1, 0, camera.position, f.focal, f.dpr, f.time);
@@ -366,6 +427,7 @@ export const vela: Escena = {
         naveG.rotation.y = 0.15;
         nave.u.uNave.value = tl.get('nave', p);
         tu.u.uGain.value = tl.get('tu', p) * (1 + 0.25 * Math.sin(t * 1.5)) * tl.get('nave', p);
+        tu.points.rotation.z = t * GIRO_ANILLO;
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
         const mapa = tl.get('mapa', p);
         enfocarMarcas(aroSol, f.dpr, mapa);
