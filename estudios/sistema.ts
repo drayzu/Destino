@@ -118,9 +118,10 @@ function cilindroDatos(): MateriaData {
   }
   for (const zc of [-LC / 2, LC / 2]) {
     for (let i = 0; i < 12000; i++) {
-      const q = Math.sqrt(r()) * RC;
+      // (an annulus: the middle of each cap is open, a door into the world)
+      const q = RC * (0.32 + 0.68 * Math.sqrt(r()));
       const fi = r() * Math.PI * 2;
-      b.push(Math.cos(fi) * q, Math.sin(fi) * q, zc, new THREE.Color(0.55, 0.58, 0.62), 0.0016, 0.14, { kind: 2 });
+      b.push(Math.cos(fi) * q, Math.sin(fi) * q, zc, new THREE.Color(0.6, 0.64, 0.7), 0.0016, 0.2, { kind: 2 });
     }
   }
   for (let k = 0; k < 40; k++) {
@@ -449,7 +450,12 @@ export const sistema: Escena = {
     const entradaCil = C.clone().addScaledVector(EJE, LC / 2 + 0.25);
     const cilPath0 = (sv: number, out: THREE.Vector3) => out.copy(C).addScaledVector(EJE, LC / 2 + 0.25 - sv * (LC + 0.55));
     const caminoCh: Camino = (sv, out) => {
-      if (sv <= 1) return hilos.tierraCil.arco.en(Math.max(0, sv), out).lerp(entradaCil, THREE.MathUtils.smoothstep(sv, 0.85, 1));
+      if (sv <= 1) {
+        // The last of the beam comes in along the axis, so whoever follows it lines up with the door.
+        const k = THREE.MathUtils.clamp((sv - 0.78) / 0.22, 0, 1);
+        const enEje = entradaCil.clone().addScaledVector(EJE, 0.4 * (1 - k));
+        return hilos.tierraCil.arco.en(Math.max(0, sv), out).lerp(enEje, THREE.MathUtils.smoothstep(k, 0, 0.55));
+      }
       if (sv <= 2) return cilPath0(sv - 1, out);
       if (sv <= 3) return hilos.cilMarte.arco.en(sv - 2, out);
       if (sv <= 4) {
@@ -584,7 +590,10 @@ export const sistema: Escena = {
         const lw = tl.get('lw', p);
         const mw = tl.get('mw', p);
         const enCil = ch > 1 && ch <= 2;
-        const m = montar(caminoCh, ch, enCil ? 0.08 : 0.025, enCil ? 0.25 : 0.06, enCil ? 0.0 : 0.04 + 0.2 * tl.get('md', p));
+        // Riding: closer and level outside, further back and looking well ahead along the axis inside;
+        // blended across the door, so the gaze never jumps there.
+        const kc = THREE.MathUtils.smoothstep(ch, 0.9, 1.12) * (1 - THREE.MathUtils.smoothstep(ch, 1.9, 2.1));
+        const m = montar(caminoCh, ch, THREE.MathUtils.lerp(0.025, 0.08, kc), THREE.MathUtils.lerp(0.06, 0.25, kc), THREE.MathUtils.lerp(0.04 + 0.2 * tl.get('md', p), 0, kc));
         lugar.copy(m.lugar);
         mira.copy(m.mira);
         const centro = V(tl.get('cx', p), tl.get('cy', p), tl.get('cz', p));
