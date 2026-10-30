@@ -182,14 +182,14 @@ export function crearChispa(): Chispa {
       // (each joint's width a share of its own distance to the camera, so near it the curl stays small on screen)
       const rel = tmpR.copy(camPos).sub(pos);
       for (let i = TRAZO - 1; i >= 1; i--) {
-        const amp = 0.035 * Math.max(1e-12, rel.distanceTo(j[i]));
+        const amp = 0.026 * Math.max(1e-12, rel.distanceTo(j[i]));
         const tg = tmpT.copy(j[i - 1]).sub(j[Math.min(TRAZO - 1, i + 1)]);
         if (tg.lengthSq() < 1e-40) continue;
         tg.normalize();
         const n1 = tmpN1.crossVectors(tg, Math.abs(tg.y) < 0.9 ? EJE_Y : EJE_X).normalize();
         const n2 = tmpN2.crossVectors(tg, n1);
         const t = i / (TRAZO - 1);
-        const fase = t * Math.PI * 2 * 1.6 - time * 2.4;
+        const fase = t * Math.PI * 2 * 1.2 - time * 2.4;
         const a = amp * Math.pow(t, 1.25);
         j[i].addScaledVector(n1, Math.cos(fase) * a).addScaledVector(n2, Math.sin(fase) * a);
       }

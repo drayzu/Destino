@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { materiaBuilder, type MateriaData } from './motor/materia';
+import { formaGalaxia } from './galaxias';
 
 /**
  * What the studies share: the Earth as points coloured with its real map (the series' treatment
@@ -118,32 +119,18 @@ export function redCosmica(seed: number, nodos = 90, col = (t: number, out: THRE
   }
   const c = new THREE.Color();
   const azar: number[] = [];
-  const punto = (x: number, y: number, z: number, k: THREE.Vector3, t: number, s: number, l: number) => {
-    b.push(x, y, z, col(t, c), s, l, { from: [k.x, k.y, k.z] });
+  const punto = (x: number, y: number, z: number, k: THREE.Vector3, t: number, s: number, l: number, tinte?: THREE.Color) => {
+    col(t, c);
+    if (tinte) c.multiply(tinte);
+    b.push(x, y, z, c, s, l, { from: [k.x, k.y, k.z] });
     const [a, e, o] = b.onSphere();
     const q = Math.cbrt(r());
     azar.push(a * q, e * q, o * q);
   };
   for (const n of ns) {
     if (espirales) {
-      // A spiral galaxy: a bright bulge, two arms in a tilted disc.
-      const [ex, ey, ez] = b.onSphere();
-      const eje = V(ex, ey, ez);
-      const t1 = V(0, 1, 0).cross(eje).normalize();
-      if (t1.lengthSq() < 1e-6) t1.set(1, 0, 0);
-      const t2 = eje.clone().cross(t1);
-      const R = 0.014 + r() * 0.01;
-      const giro = r() * Math.PI * 2;
-      for (let k = 0; k < 300; k++) {
-        if (k < 70) {
-          punto(n.x + g() * R * 0.18, n.y + g() * R * 0.18, n.z + g() * R * 0.18, n, 0, 0.004, 1.0);
-          continue;
-        }
-        const q = Math.sqrt(r()) * R;
-        const brazo = (k % 2) * Math.PI + giro + Math.log(q / R + 0.05) * 2.4 + g() * 0.35;
-        const pp = n.clone().addScaledVector(t1, Math.cos(brazo) * q).addScaledVector(t2, Math.sin(brazo) * q).addScaledVector(eje, g() * R * 0.05);
-        punto(pp.x, pp.y, pp.z, n, 0.15 + 0.4 * (q / R), 0.003, 0.55);
-      }
+      // A galaxy at the knot, each its own kind (galaxias.ts).
+      formaGalaxia(r, 300, 0.019, (x, y, z, t, luz, tinte) => punto(n.x + x, n.y + y, n.z + z, n, 0.15 + 0.4 * t, t < 0.05 ? 0.004 : 0.003, luz, tinte));
     } else for (let k = 0; k < 80; k++) punto(n.x + g() * 0.022, n.y + g() * 0.022, n.z + g() * 0.022, n, 0.1, 0.006, 0.6);
     const cerca = ns.filter((m) => m !== n).sort((a, z) => a.distanceTo(n) - z.distanceTo(n)).slice(0, 3);
     for (const m of cerca) {

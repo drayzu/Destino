@@ -226,13 +226,13 @@ export const final: Escena = {
     tl.with(1.4, { pl: 1 });
     luego(0.6, 1.6, { luz: 1 });
     luego(1.0, 2.0, { bur: 0 });
-    luego(0.5, 5.2, { frio: 1 });
+    luego(0.4, 4.0, { frio: 1 });
     tl.to(4.6, { ld: Math.log10(R_UNI * 0.75), el: 10, az: 345 });
 
     const rinconW = rincon.clone().multiplyScalar(R_UNI).add(NACE);
     tl.label('alguien').caption(6.2, 'Alguien', 'En miles de millones de años, en algún rincón de ahí adentro, algo va a pensar por primera vez. Como tú, ahora.');
     tl.with(3.6, { red: 1 });
-    luego(1.6, 2.2, { pl: 0 });
+    luego(0.3, 1.8, { pl: 0 });
     luego(1.6, 2.4, { ...Cn(rinconW), baja: 1 });
     luego(0.6, 3.4, { chs: 3 });
     luego(3.6, 1.4, { tu: 1, chOn: 0 });

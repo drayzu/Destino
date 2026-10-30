@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Timeline } from './timeline';
 import { enfocar, materia, materiaBuilder, type Nube } from './motor/materia';
 import { redCosmica } from './comun';
+import { formaGalaxia } from './galaxias';
 import { gauss } from './motor/math';
 import { FONT, ink, type Cuenta, type Rotulo } from './placa';
 import { cuantas, enfocarMarcas, marcas, nombres, type Nombre } from './revelar';
@@ -157,23 +158,13 @@ export const cosmos: Escena = {
       if (g.length() < HOR * 0.9 && g.length() > 0.06 && candidatas.every((c) => c.distanceTo(g) > 0.045)) candidatas.push(g);
     }
     const blanco = new THREE.Color(0.9, 1.0, 0.96);
+    // (each its own kind of galaxy, all ours: teal, warmer at their hearts)
+    const col = new THREE.Color();
     for (const c of candidatas) {
-      const [ex, ey, ez] = gb.onSphere();
-      const eje = V(ex, ey, ez);
-      const t1 = V(0, 1, 0).cross(eje).normalize();
-      const t2 = eje.clone().cross(t1);
-      const Rg = 0.008 + gr() * 0.008;
-      const giro = gr() * Math.PI * 2;
-      for (let k = 0; k < 420; k++) {
-        if (k < 90) {
-          gb.push(c.x + gauss(gr) * Rg * 0.15, c.y + gauss(gr) * Rg * 0.15, c.z + gauss(gr) * Rg * 0.15, blanco, 0.0007, 1.6);
-          continue;
-        }
-        const q = Math.sqrt(gr()) * Rg;
-        const brazo = (k % 2) * Math.PI + giro + Math.log(q / Rg + 0.05) * 2.4 + gauss(gr) * 0.3;
-        const pp = c.clone().addScaledVector(t1, Math.cos(brazo) * q).addScaledVector(t2, Math.sin(brazo) * q).addScaledVector(eje, gauss(gr) * Rg * 0.04);
-        gb.push(pp.x, pp.y, pp.z, TEAL.clone().lerp(blanco, 0.3 * gr()), 0.0006, 0.9);
-      }
+      formaGalaxia(gr, 420, 0.012, (x, y, z, t, luz, tinte) => {
+        col.copy(TEAL).lerp(blanco, 0.3 * gr()).lerp(tinte, t < 0.05 ? 0.55 : 0.25);
+        gb.push(c.x + x, c.y + y, c.z + z, col, t < 0.05 ? 0.0007 : 0.0006, luz * (t < 0.05 ? 1.6 : 1.7));
+      });
     }
     const cercanas = add(materia(gb.data(), { pre: `uniform float uOn;`, move: `em *= uOn;`, uniforms: { uOn: { value: 0 } } }), root, 3);
     cercanas.u.uFuente.value = 0.6;
