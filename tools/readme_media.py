@@ -1,8 +1,8 @@
 """The README, as in Espacio and Tiempo: a cover (the title over the hero clip) and six moments, each a
 captured clip on one side and its power and caption on the other.
 
-    node tools/clip.mjs tools/readme.json tools/readme   (the frames, from the piece itself; dev server on)
-    python tools/readme_media.py [cover brain ...]       ->  media/<name>-<theme>.avif / .webp
+    node tools/clip-viaje.mjs                            (the frames, from the journey itself; dev server on 5211)
+    python tools/readme_media.py [cover thought ...]     ->  media/<name>-<theme>.avif / .webp
 
 Drawn at 1840 px wide (about twice the README column, sharp on HiDPI screens), text included, from the
 1840 x 1035 JPG frames in tools/readme/<clip>. AVIF at 30 fps for the page; a lighter WebP (920 px,
@@ -39,23 +39,27 @@ THEMES = {
 }
 
 # name, frames dir, start, count, crop (x, y, w, h) in the 1840 x 1035 frames, power exponent (W), title, line, loop
+# (the remake: frames from viaje/, captured with tools/clip-viaje.mjs and tools/readme-viaje.json)
 MOMENTS = [
-    ('brain', 'brain', 0, 120, (220, 125, 1440, 810), '1', 'A brain',
-     'Twenty watts, and it wonders whether anyone else is out there.', 'pingpong'),
-    ('industry', 'industry', 0, 150, (200, 60, 1440, 810), '16', 'Industry moves into space',
-     'Up the elevator: in orbit, its heat goes straight into the void.', 'forward'),
-    ('inside', 'inside', 0, 150, (0, 0, 1840, 1035), '16', 'A world inside',
-     'A cylinder 8 km wide turns every two minutes, and the land climbs overhead.', 'forward'),
-    ('wall', 'wall', 0, 150, (0, 0, 1840, 1035), '20', 'The wall that covers the Sun',
-     'A swarm of collectors, each on its own orbit, catching the starlight.', 'forward'),
-    ('ship', 'ship', 0, 120, (0, 60, 1680, 945), '27', 'Ships that are worlds',
-     'At one percent of the speed of light, the crew’s great-grandchildren arrive.', 'pingpong'),
-    ('star', 'star', 0, 120, (420, 60, 1420, 799), '37', 'Thinking with a star',
-     'Shells of computers around a star, each one fed by the heat of the last.', 'pingpong'),
+    ('thought', 'r-thought', 0, 150, (160, 90, 1520, 855), '1', 'A thought',
+     'Twenty watts, and it goes out with you. Unless something carries it further.', 'pingpong'),
+    ('nerves', 'r-nerves', 0, 150, (0, 0, 1840, 1035), '-3', 'Nerves',
+     'Cells began passing sparks to each other: a whole body reacts at once.', 'forward'),
+    ('moon', 'r-moon', 0, 150, (0, 0, 1840, 1035), '16', 'The Moon, a quarry',
+     'No air and little gravity: the rock to build out there is cheap to launch.', 'forward'),
+    ('sun', 'r-sun', 0, 150, (240, 0, 1600, 900), '25', 'Moving the Sun',
+     'A mirror sends part of its light back and pushes it, slowly.', 'forward'),
+    ('ship', 'r-ship', 0, 150, (0, 0, 1840, 1035), '27', 'Ships that are worlds',
+     'Centuries between stars: whoever arrives never saw the Earth.', 'forward'),
+    ('web', 'r-web', 0, 150, (0, 0, 1840, 1035), '44', 'Eternity in six hours',
+     'With a star’s light, probes leave in six hours for every galaxy within reach.', 'pingpong'),
 ]
-# The hero, as in Espacio and Tiempo: one flight through the piece, its tempo set in tools/readme.json
-# (lingering on each place, rushing through the flights), the places joined by short crossfades.
-HERO = dict(clips=['hero1', 'hero2', 'hero4'], crop=(0, 0, 1840, 1035), crf=36, join=10)
+# The hero, the piece's most immersive moment: the dive into a star wrapped in shells of computers,
+# down through its glowing layers, until the thoughts light up inside. One clip, looping forwards with
+# a long crossfade.
+HERO = dict(clips=['r-hero'], crop=(0, 0, 1840, 1035), crf=45, join=20, webp_q=40)
+# (busy textures, the mirror's plates, cost far more to encode: these take a higher CRF to stay light)
+CRF = {'sun': 42}
 
 
 def px(v):
@@ -182,7 +186,7 @@ def moment(k, m):
                 out[:] = page
                 out[cy:cy + ch, cx:cx + cw] = col * al[..., None] + page * (1 - al[..., None])
                 yield txt[..., :3] * ta + out * (1 - ta)
-        write(os.path.join(OUT, f'{name}-{theme}'), frames(), PW, PH)
+        write(os.path.join(OUT, f'{name}-{theme}'), frames(), PW, PH, CRF.get(name, 34))
 
 
 def band(th):
@@ -230,7 +234,7 @@ def cover():
                 col, al = (page + rgb * (1 - page), mask) if theme == 'dark' else (rgb, rounded)
                 out[BAND:] = col * al[..., None] + page * (1 - al[..., None])
                 yield out
-        write(os.path.join(OUT, f'cover-{theme}'), frames(), PW, BAND + vh, HERO['crf'], WEBP_Q - 12)
+        write(os.path.join(OUT, f'cover-{theme}'), frames(), PW, BAND + vh, HERO['crf'], HERO['webp_q'])
 
 
 if __name__ == '__main__':

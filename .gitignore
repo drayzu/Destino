@@ -10,3 +10,6 @@ BRIEF.md
 
 tools/vacios/
 tools/readme/
+
+# the README preview (python tools/preview_readme.py)
+tools/preview-readme.html
