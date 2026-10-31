@@ -7,10 +7,11 @@ import { brillosGalaxias, formaGalaxia, type FormaGalaxia } from './galaxias';
 import { gauss } from './motor/math';
 import { FONT, ink, type Cuenta, type Rotulo } from './placa';
 import { cuantas, enfocarMarcas, marcas, nombres, type Nombre } from './revelar';
-import { TEAL, capaLuz, potencia, anioEn } from './remake';
+import { TEAL, potencia, anioEn } from './remake';
 import { aplicarToma, toma } from './rig';
 import { crearChispa, montar, type Camino } from './chispa';
 import type { Escena, Frame, Instancia } from './tipos';
+import { COSTURA_MOVE, capaLuzSegura, costuraDatos, espiralHuida } from './momentos-cosmos';
 
 /**
  * Scene 20 of ESCALETA.md, «Seis horas» (GUION.md, moments 47–51).
@@ -26,6 +27,8 @@ import type { Escena, Frame, Instancia } from './tipos';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const HOR = 0.8;
+/** Round from where the camera comes in, the way the probe it rides goes out (the far side, a little on). */
+const AZ_LEJOS = 118;
 const OTRAS = [
   { c: V(1.15, 0.25, -0.5), col: new THREE.Color(1.0, 0.7, 0.32) },
   { c: V(-0.85, -0.4, 0.95), col: new THREE.Color(1.0, 0.45, 0.68) },
@@ -146,7 +149,7 @@ export const cosmos: Escena = {
       hb.push(x * HOR, y * HOR, z * HOR, new THREE.Color(0.55, 0.62, 0.8), 0.004, 0.12);
     }
     const horizonte = add(materia(hb.data(), { pre: `uniform float uOn;`, move: `em *= uOn;`, uniforms: { uOn: { value: 0 } } }), root, 1);
-    const capaHor = capaLuz(new THREE.Color(0.55, 0.62, 0.8), { cara: 0.03, grano: 0.3 });
+    const capaHor = capaLuzSegura(new THREE.Color(0.55, 0.62, 0.8), { cara: 0.03, grano: 0.3 });
     capaHor.mesh.scale.setScalar(HOR);
     root.add(capaHor.mesh);
 
@@ -176,6 +179,59 @@ export const cosmos: Escena = {
     root.add(brillos.mesh);
     const cercanas = add(materia(gb.data(), { pre: `uniform float uOn;`, move: `em *= uOn;`, uniforms: { uOn: { value: 0 } } }), root, 3);
     cercanas.u.uFuente.value = 0.6;
+
+    // The bubble that touches ours (the amber one): its galaxies on its side of the seam, each lit as
+    // its front gets there; and the seam itself, a wall of light where the two fronts meet.
+    const EJE = OTRAS[0].c.clone().normalize();
+    const SEAM = 0.56;
+    /** A bubble's galaxies, seen from afar: `n` of them inside radius `R` round `o`, on its side of the
+     * seam, each lit as its front gets there (`uFrente`), those along the seam flaring (`uCostura`). */
+    const nubeBurbuja = (seed: number, o: THREE.Vector3, R: number, n: number, color: THREE.Color, nuestro: boolean) => {
+      const bb = materiaBuilder(seed);
+      const br = bb.r;
+      const cs: number[] = [];
+      for (let k = 0, hechas = 0; hechas < n && k < 20000; k++) {
+        const [x, y, z] = bb.onSphere();
+        const c = o.clone().add(V(x, y, z).multiplyScalar(R * Math.cbrt(br())));
+        const lado = c.dot(EJE);
+        if (nuestro ? lado > SEAM - 0.025 : lado < SEAM + 0.025 || c.length() < 0.4) continue;
+        hechas++;
+        formaGalaxia(br, 160, 0.011, (gx, gy, gz, t, luz, tinte) => {
+          col.copy(color).lerp(blanco, 0.15 * br()).lerp(tinte, t < 0.05 ? 0.4 : 0.12);
+          bb.push(c.x + gx, c.y + gy, c.z + gz, col, t < 0.05 ? 0.0008 : 0.0007, luz * 0.9);
+          cs.push(c.x, c.y, c.z);
+        });
+      }
+      const nb = add(
+        materia(bb.data(), {
+          pre: /* glsl */ `attribute vec3 aC; uniform float uOn, uFrente, uCostura, uHuye, uApaga; uniform vec3 uEje, uO;`,
+          move: /* glsl */ `
+            float dC = length(aC - uO);
+            em *= uOn * smoothstep(dC - 0.03, dC, uFrente);
+            // (what dark energy takes goes off, reddening; what we hold goes out, galaxy by galaxy)
+            p *= 1.0 + 2.2 * uHuye * uHuye;
+            em = mix(em, vec3(0.9, 0.22, 0.1) * max(max(em.r, em.g), em.b), smoothstep(0.0, 0.4, uHuye));
+            em *= 1.0 - smoothstep(0.55, 1.0, uHuye);
+            em *= step(uApaga, fract(sin(dot(aC, vec3(12.9898, 78.233, 37.719))) * 43758.5453));
+            em *= 1.0 + 3.0 * uCostura * exp(-pow(abs(dot(aC, uEje) - ${SEAM.toFixed(2)}) / 0.05, 2.0));
+          `,
+          uniforms: { uOn: { value: 0 }, uFrente: { value: 0 }, uCostura: { value: 0 }, uHuye: { value: 0 }, uApaga: { value: 0 }, uEje: { value: EJE.clone() }, uO: { value: o.clone() } },
+          extra: { aC: [new Float32Array(cs), 3] },
+        }),
+        root,
+        3,
+      );
+      nb.u.uFuente.value = 0.6;
+      return nb;
+    };
+    const nuestras = nubeBurbuja(281, V(), HOR * 0.85, 240, TEAL, true);
+    const suyas = nubeBurbuja(283, OTRAS[0].c, 1.3, 260, OTRAS[0].col, false);
+    const costura = add(
+      materia(costuraDatos(9000, EJE), { pre: /* glsl */ `uniform float uOn, uRho; uniform vec3 uCentro;`, move: COSTURA_MOVE, uniforms: { uOn: { value: 0 }, uRho: { value: 0 }, uCentro: { value: EJE.clone().multiplyScalar(SEAM) } } }),
+      root,
+      5,
+    );
+    costura.u.uFuente.value = 1;
     // The way: through a ring of them round the middle, each passed close.
     const paso = candidatas
       .filter((c) => c.length() > 0.18 && c.length() < 0.62)
@@ -219,44 +275,79 @@ export const cosmos: Escena = {
     luego(0.6, 5.0, { prog: 0.55 });
     luego(1.2, 1.2, { seis: 1 });
     luego(4.4, 1.2, { seis: 0 });
+    // (once the relay is done: down through home after the spark, the probes streaking out past the
+    // camera on every side, and on behind it, galaxies rushing by; the web's own light lower, so the
+    // probes are what shines)
+    luego(2.5, 1.9, { ride: 1 });
+    luego(2.6, 0.9, { vel: 0.55 });
+    luego(3.6, 1.8, { vel: 0 });
+    luego(2.6, 1.6, { tenue: 1 });
+    luego(2.8, 1.6, { huida: 1 });
     tl.to(5.8, { az: 110, el: 24, ld: Math.log10(2.4) });
 
     tl.label('prisa').caption(5.8, 'La prisa', 'Hay que apurarse: las galaxias se alejan cada vez más rápido, y las que cruzan el horizonte ya no se alcanzan.');
     tl.with(1.4, { hor: 1 });
     luego(0.6, 5.0, { exp: 1, prog: 0.72 });
     luego(2.4, 2.4, { tit: 1 });
+    // (riding on behind the spark: the galaxy it chases is carried off faster than it goes, past the
+    // horizon's faint wall, reddening, dimming, lost; then back out, to see it all)
+    luego(4.2, 1.6, { ride: 0, tenue: 0 });
+    luego(4.6, 1.0, { huida: 0 });
     tl.to(5.8, { az: 140, el: 28, ld: Math.log10(3.3) });
 
-    tl.label('tocan').caption(5.6, 'Las expansivas se tocan', 'Si otras se expanden igual, las burbujas se tocan, y cada una se queda con su parte del cielo.');
+    // Ours, a cloud of teal galaxies, and the amber one growing towards it, each galaxy lit as its
+    // front gets there; where they touch, a wall of light, and the galaxies along it flare. The
+    // camera goes in to the seam and through it: seen edge-on it is a line between the two colours.
+    const SEAM_C = OTRAS[0].c.clone().normalize().multiplyScalar(0.56);
+    tl.label('tocan').caption(6.4, 'Las expansivas se tocan', 'Si otras se expanden igual, las burbujas se tocan, y cada una se queda con su parte del cielo.');
+    luego(0.0, 1.6, { toca: 1 });
     luego(0.4, 4.6, { otras: 1.3 });
-    tl.to(5.6, { az: 175, el: 32, ld: Math.log10(5.2) });
+    luego(0.6, 2.0, { cx: SEAM_C.x, cy: SEAM_C.y, cz: SEAM_C.z });
+    luego(2.4, 1.6, { costura: 1 });
+    tl.to(2.4, { az: 186, el: -10, ld: Math.log10(2.3) });
+    tl.to(2.0, { az: 199, el: -20, ld: Math.log10(1.45) });
+    tl.to(2.0, { az: 203, el: -24, ld: Math.log10(1.0) });
 
     // The reveal: all we reach, ours in teal among the others; the names a moment; still.
     // Into our share of the web: every light a galaxy, every one ours, the camera gliding among
     // them; then out again, to the whole island among the others'.
     tl.label('tipo').caption(16.0, 'Tipo IV', 'Tipo IV: todo lo que se puede alcanzar. Más allá no hay adónde ir.');
     tl.with(2.0, { bur: HOR * 1.02 });
-    luego(0.4, 2.0, { cerca: 1 });
+    luego(0.4, 2.0, { cerca: 1, toca: 0, costura: 0, cx: 0, cy: 0, cz: 0 });
     luego(0.6, 2.8, { vuela: 1 });
     luego(0.6, 10.0, { sv: 1 });
     luego(8.8, 3.0, { vuela: 0 });
     luego(10.0, 1.8, { cerca: 0 });
     luego(10.4, 1.6, { mapa: 1 });
     luego(11.4, 1.4, { nombres: 1 });
-    tl.to(11.6, { az: 200, el: 26, ld: Math.log10(4.6) });
+    // (then out again: our island of teal galaxies whole, the amber one against it at the seam)
+    luego(9.6, 2.2, { isla: 1 });
+    tl.to(11.6, { az: 205, el: 26, ld: Math.log10(4.6) });
     tl.to(4.0, { az: 208 });
 
     tl.label('horizonte').caption(6.0, 'El horizonte', 'Lo que se lleva la energía oscura no vuelve. Lo que podemos tocar ya no crece: se vacía.');
     luego(0.2, 1.0, { nombres: 0 });
     luego(0.4, 1.4, { mapa: 0 });
     luego(0.4, 3.6, { vacia: 1, hor: 0.4, tit: 0 });
+    luego(0.9, 2.3, { vid: 1 });
+    // (the others are carried off, reddening; ours goes out galaxy by galaxy; all of it before the
+    // last stretch, which is as it was: the act after takes up from there)
+    luego(0.1, 3.0, { huye: 1 });
+    luego(0.4, 2.8, { apaga: 1 });
+    luego(3.0, 0.4, { isla: 0 });
     luego(0.6, 3.6, { prog: 0 });
     luego(2.4, 2.0, { oro: 1 });
     tl.to(2.6, { az: 220, el: 20, ld: Math.log10(2.4) });
     tl.to(3.4, { az: 240, el: 16, ld: Math.log10(0.05) });
 
-    // The spark: out on a probe towards one galaxy within reach (its knot, in the web's frame).
-    const meta = (() => {
+    // The spark: out on a probe towards one galaxy within reach, on the far side from where the camera
+    // comes in (a little on, so the camera keeps turning the same way): the camera dives through home
+    // after it and rides it.
+    const lejos = V(Math.cos(THREE.MathUtils.degToRad(21)) * Math.sin(THREE.MathUtils.degToRad(AZ_LEJOS)), Math.sin(THREE.MathUtils.degToRad(21)), Math.cos(THREE.MathUtils.degToRad(21)) * Math.cos(THREE.MathUtils.degToRad(AZ_LEJOS))).negate();
+    const meta = lejos.clone().multiplyScalar(HOR * 0.78);
+    // (for its first beats, while the act before hands over, it heads where it always did, then bends
+    // round to that galaxy)
+    const metaAntes = (() => {
       let mejor = V(0.5, 0.1, 0.3);
       for (let k = 0; k < n; k += 97) {
         const g = V(pos[k * 3], pos[k * 3 + 1], pos[k * 3 + 2]).multiplyScalar(1.6);
@@ -267,6 +358,22 @@ export const cosmos: Escena = {
       }
       return mejor;
     })();
+    const tmpM = V();
+    // The galaxy it chases: a spiral that reads as one, out there; space swells and carries it off
+    // faster than the probe goes, past the horizon, where it reddens and fades.
+    const huida = add(
+      materia(espiralHuida(3200, 0.05, meta.clone().negate()), {
+        pre: /* glsl */ `uniform float uOn, uRojo;`,
+        move: /* glsl */ `
+          em = mix(em, vec3(1.0, 0.24, 0.1) * max(max(em.r, em.g), em.b) * 0.9, uRojo);
+          em *= uOn;
+        `,
+        uniforms: { uOn: { value: 0 }, uRojo: { value: 0 } },
+      }),
+      root,
+      4,
+    );
+    huida.u.uFuente.value = 0.6;
     const chispa = crearChispa();
     root.add(chispa.nube.points);
     const tm = toma(tl, 0);
@@ -299,35 +406,61 @@ export const cosmos: Escena = {
         const t = f.time;
         camera.near = 1e-5;
         camera.far = 100;
+        // Where it is: along the way to its galaxy (which the swell carries off), and home again at the end.
+        const expC = tl.get('exp', p);
+        const caminoCh: Camino = (sv, out) => out.copy(metaAntes).lerp(tmpM.copy(meta), THREE.MathUtils.smoothstep(sv, 0.2, 0.34)).multiplyScalar((1 + expC * 1.4) * Math.max(0, sv));
+        const prog = tl.get('prog', p);
         // Gliding through our galaxies (Type IV): the camera on its way among them, looking ahead.
         const vuela = tl.get('vuela', p);
+        const ride = tl.get('ride', p);
         const sv = THREE.MathUtils.clamp(tl.get('sv', p), 0, 1);
         // (the gaze always a little ahead of the place, even at the way's end; both smoothed, so the
         // camera rounds each galaxy it passes instead of turning at it)
-        const mv = montar(caminoRuta, sv * 0.9, 0, 0.3, 0, V(0, 1, 0), 0.2, false, 0.2);
-        const lugarV = mv.lugar;
-        const miraV = mv.mira;
-        aplicarToma(camera, toma(tl, p, tm, { punto: miraV, peso: vuela }, { punto: lugarV, peso: vuela }));
-        cercanas.u.uOn.value = tl.get('cerca', p);
-        brillos.u.uOn.value = 0.55 * tl.get('cerca', p);
-        sondas.u.uTenue.value = vuela;
-        // Where it is: along the way to its galaxy (which the swell carries off), and home again at the end.
-        const expC = tl.get('exp', p);
-        const caminoCh: Camino = (sv, out) => out.copy(meta).multiplyScalar((1 + expC * 1.4) * Math.max(0, sv));
-        const prog = tl.get('prog', p);
+        const mv = ride > 0 ? montar(caminoCh, prog, 0.09, 0.3, 0.015, V(0, 1, 0), 0.06) : montar(caminoRuta, sv * 0.9, 0, 0.3, 0, V(0, 1, 0), 0.2, false, 0.2);
+        const peso = Math.max(vuela, ride);
+        aplicarToma(camera, toma(tl, p, tm, { punto: mv.mira, peso }, { punto: mv.lugar, peso }));
+        const cerca = tl.get('cerca', p);
+        const toca = tl.get('toca', p);
+        const otrasV = tl.get('otras', p);
+        const contacto = THREE.MathUtils.smoothstep(otrasV, 0.62, 0.95);
+        cercanas.u.uOn.value = cerca;
+        brillos.u.uOn.value = 0.55 * cerca;
+        const isla = Math.max(toca, tl.get('isla', p));
+        nuestras.u.uApaga.value = tl.get('apaga', p);
+        suyas.u.uHuye.value = tl.get('huye', p);
+        for (const [nb, fr] of [[nuestras, tl.get('bur', p)], [suyas, otrasV]] as [Nube, number][]) {
+          // (the neighbour seen whole, from afar, dimmer than ours: ours is the one we look at)
+          nb.u.uOn.value = nb === suyas ? isla * (1 - 0.4 * tl.get('isla', p) * (1 - toca)) : isla;
+          nb.u.uFrente.value = fr;
+          nb.u.uCostura.value = contacto;
+          nb.points.visible = isla > 0.002;
+          nb.u.uMaxPx.value = 4 * f.dpr;
+        }
+        costura.u.uOn.value = Math.max(tl.get('costura', p), 0.5 * tl.get('isla', p)) * (1 - tl.get('huye', p));
+        costura.u.uRho.value = 0.6 * THREE.MathUtils.smoothstep(otrasV, 0.6, 1.25);
+        costura.points.visible = costura.u.uOn.value > 0.002;
+        sondas.u.uTenue.value = Math.max(vuela, Math.min(1, tl.get('toca', p) + cerca + tl.get('isla', p)));
+        // The galaxy it chases: carried off faster than the probe, reddening past the horizon.
+        const huyeR = meta.length() * (1 + expC * 1.4 + expC * expC * 1.8);
+        huida.points.position.copy(meta).setLength(huyeR);
+        huida.u.uOn.value = tl.get('huida', p) * (1 - 0.92 * THREE.MathUtils.smoothstep(huyeR, HOR * 1.1, HOR * 2.0));
+        huida.u.uRojo.value = THREE.MathUtils.smoothstep(huyeR, HOR * 0.85, HOR * 1.35);
+        huida.points.visible = huida.u.uOn.value > 0.002;
+        huida.u.uSizeUnit.value = 1;
         chispa.update(caminoCh, prog, 0.01, 1 - tl.get('oro', p), tl.get('tit', p), camera.position, f.focal, f.dpr, f.time);
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
         const exp = tl.get('exp', p);
         red.u.uExp.value = exp;
+        red.u.uRed.value = 1 - 0.55 * tl.get('tenue', p);
         red.u.uBur.value = tl.get('bur', p);
         red.u.uOtras.value = tl.get('otras', p);
         red.u.uVacia.value = tl.get('vacia', p);
         sondas.u.uSondas.value = tl.get('sondas', p);
         sondas.u.uExp.value = 0;
         sondas.u.uVacia.value = tl.get('vacia', p);
-        horizonte.u.uOn.value = 0.6 * tl.get('hor', p);
-        capaHor.u.uOn.value = 0.5 * tl.get('hor', p);
+        horizonte.u.uOn.value = 0.6 * tl.get('hor', p) * (1 - tl.get('toca', p));
+        capaHor.u.uOn.value = 0.5 * tl.get('hor', p) * tl.get('vid', p);
         capaHor.u.uTime.value = t;
         oro.u.uGain.value = tl.get('oro', p);
         oro.u.uSizeUnit.value = (6 * camera.position.length()) / f.focal;
@@ -338,6 +471,9 @@ export const cosmos: Escena = {
         // Up close a galaxy is many fine points, never a few big blobs.
         cercanas.u.uMaxPx.value = 5 * f.dpr;
         red.u.uSizeUnit.value = 1.6;
+      },
+      efectos(p) {
+        return { vel: tl.get('vel', p) };
       },
       placa(g, f) {
         nombres(g, f, NOMBRES, tl.get('nombres', f.p));
