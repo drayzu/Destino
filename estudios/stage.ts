@@ -35,8 +35,10 @@ const FinishShader = {
     float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
     void main() {
       vec2 uv = vUv;
-      // Heat: the air trembles (a wall).
-      uv += uCalor * 0.0035 * vec2(sin(uv.y * 70.0 + uTime * 5.0) + 0.5 * sin(uv.y * 23.0 - uTime * 3.1), cos(uv.x * 55.0 + uTime * 4.3));
+      // Heat: the air trembles, finely and fast (in broad waves it bent the planet's rim like a fault).
+      // (ripples a few pixels long, about 140 across the frame)
+      uv += uCalor * 0.0008 * vec2(sin(uv.y * 900.0 + uTime * 11.0) + 0.5 * sin((uv.x + uv.y) * 640.0 - uTime * 8.3),
+                                   cos(uv.x * 1000.0 + uTime * 9.7) + 0.5 * cos((uv.x - uv.y) * 560.0 + uTime * 7.1));
       vec2 c = uv - 0.5;
       vec2 off = c * dot(c, c) * (uFringe + uVel * 0.05);
       vec3 col = vec3(texture2D(tDiffuse, uv + off).r, texture2D(tDiffuse, uv).g, texture2D(tDiffuse, uv - off).b);
