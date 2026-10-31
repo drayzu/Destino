@@ -55,6 +55,12 @@ const MUNDO_VIVO = /* glsl */ `
   vec3 verde = mix(vec3(0.12, 0.26, 0.08), vec3(0.42, 0.34, 0.17), smoothstep(0.48, 0.72, fbm(n * 4.3 + 2.0)));
   float hielo = smoothstep(0.8, 0.9, abs(n.y) + 0.08 * fbm(n * 7.0));
   alb = mix(mix(vec3(0.025, 0.1, 0.27), verde, suelo), vec3(0.55, 0.58, 0.62), hielo);
+  // (alive on its night side too, with no lights of anyone's: its seas faintly glowing, the land a
+  // darker shape on them, and auroras round its poles; a black disc ringed in blue read as a hoop)
+  extra += vec3(0.0, 0.018, 0.028) * (1.0 - suelo) * (1.0 - hielo) * (0.6 + 0.4 * fbm(n * 9.0 + 4.0));
+  float aurora = smoothstep(0.8, 0.84, abs(n.y)) * (1.0 - smoothstep(0.86, 0.9, abs(n.y)));
+  float cortina = smoothstep(0.35, 0.75, fbm(vec3(atan(n.z, n.x) * 5.0, n.y * 14.0, 1.7)));
+  extra += vec3(0.04, 0.16, 0.1) * aurora * cortina;
 `;
 
 /** The probes that keep away: a still lattice round the living world, from three radii out (its units). */
@@ -591,7 +597,9 @@ export const galaxia: Escena = {
           const dPl = camera.position.distanceTo(ZOO);
           const aPl = Math.asin(Math.min(1, R_ZOO / dPl));
           const aSt = tmpO.copy(solZoo.points.position).sub(camera.position).angleTo(tmpS.copy(ZOO).sub(camera.position));
-          alba = aSt > aPl - 0.004 ? Math.exp(-Math.max(0, aSt - aPl) / 0.06) : 0;
+          // (the dawn grows as the star clears the limb, not in one step: a small point first, then the flare)
+          const asoma = THREE.MathUtils.smoothstep(aSt, aPl - 0.002, aPl + 0.02);
+          alba = asoma * Math.exp(-Math.max(0, aSt - aPl - 0.02) / 0.06);
         }
         solZoo.u.uGain.value = zooOn * (1 + 4 * alba);
         solZoo.u.uSizeUnit.value = px(9 + 16 * alba, solZoo.points.position);
