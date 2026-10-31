@@ -388,10 +388,12 @@ export const vela: Escena = {
       6,
     );
     nave.u.uFuente.value = 0.4;
-    // The ship as surfaces (spine, spokes, shield, radiators, drive); its points no longer drawn.
+    // The ship as surfaces (spine, spokes, shield, radiators, tanks, drive) and its jet in points; its
+    // old points no longer drawn.
     nave.points.visible = false;
     const naveM = crearNaveMalla(RINGS, 0.13);
     naveG.add(naveM.grupo);
+    add(naveM.chorro, naveG, 6);
     // The rings: land inside, hull outside, a glass roof; the one the camera enters finer.
     const anillos = RINGS.map((zc, k) => {
       const a = crearAnillo(0.13, 0.09, 0.018, k + 1, zc === ANILLO ? 1.6 : 0.7);
