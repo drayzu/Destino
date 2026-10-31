@@ -374,9 +374,9 @@ export const apertura: Escena = {
 
     const estrellas = add(
       materia(galaxiaDatos(), {
-        pre: /* glsl */ `uniform float uGal, uOla, uOlaOn; uniform vec3 uSol, uTeal, uCamG;`,
+        pre: /* glsl */ `uniform float uGal, uOla, uOlaOn, uCerca; uniform vec3 uSol, uTeal, uCamG;`,
         move: /* glsl */ `
-          em *= smoothstep(0.25, 1.6, length(p - uCamG));
+          em *= smoothstep(0.25 * uCerca, 1.6 * uCerca, length(p - uCamG));
           // What should be there: one civilization's teal over the whole galaxy, a wave from the Sun.
           float dS = length(p - uSol);
           float frente = uOla * 110.0;
@@ -387,7 +387,7 @@ export const apertura: Escena = {
           em *= mix(1.0, 0.3, smoothstep(40.0, 110.0, length(uCamG)));
           em *= uGal;
         `,
-        uniforms: { uGal: { value: 0 }, uOla: { value: 0 }, uOlaOn: { value: 0 }, uSol: { value: S.clone() }, uTeal: { value: TEAL.clone() }, uCamG: { value: V() } },
+        uniforms: { uGal: { value: 0 }, uOla: { value: 0 }, uOlaOn: { value: 0 }, uCerca: { value: 1 }, uSol: { value: S.clone() }, uTeal: { value: TEAL.clone() }, uCamG: { value: V() } },
       }),
       galaxia,
     );
@@ -540,7 +540,7 @@ export const apertura: Escena = {
     const pd = planetasDatos(sis.S);
     const sisPlanetas = add(materia(pd.data, { ...GLSL_PLANETAS, uniforms: { uSis: { value: 0 } }, extra: { aC: [pd.C, 3], aU: [pd.U, 3], aV: [pd.W, 3], aO: [pd.O, 3] } }), galaxia, 3);
 
-    tl.set({ ...C(P), ox: 0, oy: 0, oz: 0, az: 0, el: 4, ld: -1.2, yaw: 90, pitch: -90, roll: 0, fov: 42, tu: 0, cue: 0, voz: 0, vozOn: 1, cielo: 0.4, gal: 0.4, titulo: 0, vatios: 0, giro: 0, pla: 0, vaso: 0, ola: 0, olaOn: 0, solp: 0, luzSol: 0, sc: 0, lw: 1, on: 1, tit: 0, frenteV: 0, punto: 0 });
+    tl.set({ ...C(P), ox: 0, oy: 0, oz: 0, az: 0, el: 4, ld: -1.2, yaw: 90, pitch: -90, roll: 0, fov: 42, tu: 0, cue: 0, voz: 0, vozOn: 1, cielo: 0.4, gal: 0.4, titulo: 0, vatios: 0, giro: 0, pla: 0, vaso: 0, ola: 0, olaOn: 0, solp: 0, luzSol: 0, sc: 0, lw: 1, on: 1, tit: 0, frenteV: 0, punto: 0, velo: 1, cerca: 1 });
 
     // Riding the front of our radio, out from the Sun; the stars round it pass.
     // (every star the front reaches flashes and keeps its teal: they could hear us now; and the
@@ -602,9 +602,13 @@ export const apertura: Escena = {
     luego(-0.4, 1.0, { olaOn: 0, tit: 0 });
 
     // The leap: the spark dives to one yellow star, the camera behind it, and its light fills the frame.
+    // (the gaze on the yellow star all the way down, it in the middle growing; the galaxy's haze gives
+    // way to its stars as the camera comes into the disc, the nearest rushing past)
     tl.label('amarilla').caption(5.0, 'Una estrella amarilla', 'No lo sabemos. Pero podemos imaginar cómo crecería una, empezando por la nuestra.');
     luego(0.6, 2.4, { solp: 1 });
-    tl.with(1.8, { ...C(lazo.getPoint(1)) });
+    tl.with(1.0, { ...C(lazo.getPoint(1)) });
+    luego(0.5, 0.7, { velo: 0, cerca: 0.15 });
+    luego(1.7, 0.8, { velo: 1, cerca: 1 });
     tl.to(2.6, { ld: -2.2, el: 8, az: 236 });
     tl.with(1.0, { lw: 1 });
     luego(1.4, 1.2, { luzSol: 1 });
@@ -664,7 +668,10 @@ export const apertura: Escena = {
         const gal = tl.get('gal', p);
         estrellas.u.uGal.value = gal;
         polvo.u.uGal.value = gal;
-        brillo.u.uGal.value = gal;
+        // (diving into the disc, its haze gives way to its stars: a fog from inside, it read as nothing)
+        const camGv = camera.position.clone().applyAxisAngle(V(0, 1, 0), -galaxia.rotation.y);
+        brillo.u.uGal.value = gal * (1 - (1 - tl.get('velo', p)) * (1 - THREE.MathUtils.smoothstep(Math.abs(camGv.y), 1.5, 6)));
+        estrellas.u.uCerca.value = tl.get('cerca', p);
         estrellas.u.uOla.value = tl.get('ola', p);
         estrellas.u.uOlaOn.value = tl.get('olaOn', p);
         // The stars round the Sun: on with the sky, gone once the camera is far from them.
