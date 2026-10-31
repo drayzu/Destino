@@ -503,14 +503,25 @@ export const apertura: Escena = {
     // Planets everywhere: a string of stars between P and the loop's third point, each with its
     // planets, that the spark flies past; it joins the loop where the loop turns home (its last
     // quarter, the way to the yellow star, stays as it was).
-    const [, , L2, L3, L4] = lazo.points;
-    const sis = sistemas(P, L2);
-    const pase = new THREE.CatmullRomCurve3([...sis.pasos, L2.clone(), L3.clone(), L4.clone()]);
-    const largosPase = pase.getLengths(400);
-    const hastaL3 = largosPase[Math.round((400 * (pase.points.length - 2)) / (pase.points.length - 1))] / largosPase[400];
+    // (a wide bend from P to the loop's third point, arriving
+    // the way the loop goes on from there and as fast: one long turn, always the same way)
+    const L3 = lazo.points[3];
+    const tL3 = lazo.getTangent(0.75).normalize();
+    const vL3 = lazo.getPoint(0.752).distanceTo(lazo.getPoint(0.748)) / 0.004;
+    // (it sets off straight away from where the camera waits, at azimuth 96: the camera falls in
+    // behind it instead of the spark passing it by)
+    const salida = V(Math.sin(THREE.MathUtils.degToRad(276)), 0, Math.cos(THREE.MathUtils.degToRad(276)));
+    const pase = new THREE.CubicBezierCurve3(P.clone(), P.clone().addScaledVector(salida, 0.008), L3.clone().addScaledVector(tL3, -0.008), L3.clone());
+    const largoPase = pase.getLength();
+    // (its pace along it: from an even start to the loop's own speed where it joins it)
+    const X_PASE = 0.75;
+    const v0Pase = Math.max(0.35 * (largoPase / X_PASE), (2 * largoPase) / X_PASE - vL3);
+    const recorrido = (x: number) => v0Pase * x + ((vL3 - v0Pase) * x * x) / (2 * X_PASE);
+    const uPase = (sv: number) => THREE.MathUtils.clamp(recorrido(sv - 1) / recorrido(X_PASE), 0, 1);
+    const sis = sistemas(pase);
     const camino: Camino = (sv, out) => {
       if (sv <= 1) return out.copy(S).lerp(P, Math.max(sv, -0.3));
-      if (sv <= 1.75) return out.copy(pase.getPointAt(((sv - 1) / 0.75) * hastaL3));
+      if (sv <= 1 + X_PASE) return out.copy(pase.getPointAt(uPase(sv)));
       if (sv <= 2) return out.copy(lazo.getPoint(sv - 1));
       const fin = lazo.getPoint(1);
       const t = Math.min(sv - 2, 1);
@@ -530,7 +541,12 @@ export const apertura: Escena = {
       // (among the planets, closer behind the spark, so they go by near; back to its distance before
       // the loop turns home)
       const kP = k1 * (1 - THREE.MathUtils.smoothstep(sc, 1.7, 1.85));
-      return montar(cam, sc, 0.04 + 0.02 * k1 - 0.01 * k2 - 0.03 * kP, 0.12 - 0.02 * k1, 0.0006 - 0.0002 * k1 - 0.0002 * kP, V(0, 1, 0), 0.006);
+      // (and a wider hand there: the way snakes between the systems, and a camera nailed to it would
+      // swing at each one)
+      const m = montar(cam, sc, 0.04 + 0.02 * k1 - 0.01 * k2 - 0.03 * kP, 0.12 - 0.02 * k1, 0.0006 - 0.0002 * k1 - 0.0002 * kP, V(0, 1, 0), 0.006 + 0.03 * kP);
+      // (the systems all stand to one side of the way: the gaze leans that way as they go by)
+      m.mira.addScaledVector(sis.fueraFijo, 0.0014 * kP);
+      return m;
     };
 
     // (the systems the spark flies past: their stars, their orbits, their planets)
@@ -575,19 +591,25 @@ export const apertura: Escena = {
     tl.with(1.1, { ...C(P) });
     tl.to(2.4, { ld: -2.1, el: 10, az: 96 });
     luego(-0.6, 1.6, { pla: 1 });
-    tl.with(1.0, { lw: 0.85 });
+    // (all the ride's: a share of the rig's place, out to one side, could fall right across the spark
+    // as it bends, and there the blend jumps)
+    tl.with(1.0, { lw: 1 });
     tl.to(5.2, { sc: 2 });
 
     // The glass of water: the drop of all we have listened to, the camera drawing back from it as
     // the stars round it multiply, until it is a speck in the sea of them.
     tl.label('escuchado').caption(4.8, 'Lo que hemos escuchado', 'Llevamos décadas escuchando. Es como sacar un vaso de agua del mar y decir que no hay peces.');
-    // (the rig goes round the Sun from where the ride already is, so letting go of the spark the
-    // camera only turns to the drop, and never crosses the spark or the drop's skin)
-    const enS = montarEn(2).lugar.sub(S);
-    luego(0, 0.5, { ...C(S), ...angulos(enS), ld: Math.log10(enS.length()) });
+    // (the rig starts round the resting spark from where the ride already is, so letting go of it
+    // the gaze stays on it; it draws back from it, and only then, far enough, turns to the drop,
+    // its centre going to the Sun: never through the drop's skin, never a turn right round)
+    const finLazo = lazo.getPoint(1);
+    const enL = montarEn(2).lugar.sub(finLazo);
+    luego(0, 0.4, { ...C(finLazo), ...angulos(enL), ld: Math.log10(enL.length()) });
     tl.with(1.4, { lw: 0 });
     luego(0.2, 1.2, { pla: 0 });
-    luego(0.2, 1.4, { vaso: 1 });
+    luego(0.6, 1.4, { vaso: 1 });
+    luego(0.4, 1.3, { ld: -1.05 });
+    luego(1.3, 1.9, { ...C(S) });
     tl.to(4.8, { ld: 0.2, el: 16, az: 176 });
 
     // The silence: the wave of what should be there, and nothing; the spark flickers.

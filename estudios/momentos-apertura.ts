@@ -24,22 +24,33 @@ export interface Sistema {
 }
 
 /**
- * Five systems strung along the way from `desde` to `hasta`, a little to either side of it: an
- * orange star, a red dwarf with close planets, a white star with giants, a yellow one like ours, and
- * another red dwarf. The way (`via`) passes between their planets.
+ * Five systems strung along the way (`curva`, a wide bend), all on its outer side: an orange star,
+ * a red dwarf with close planets, a white star with giants, a yellow one like ours, and another red
+ * dwarf. `fuera(u)`: the bend's outer side where the way is at `u` (of its length).
  */
-export function sistemas(desde: THREE.Vector3, hasta: THREE.Vector3) {
-  const eje = hasta.clone().sub(desde);
-  const largo = eje.length();
-  eje.normalize();
-  const lado = V(0, 1, 0).cross(eje).normalize();
-  const arriba = eje.clone().cross(lado).normalize();
-  const K = largo / 0.0105;
-  const en = (t: number, l: number, a: number) => desde.clone().addScaledVector(eje, t * largo).addScaledVector(lado, l * K).addScaledVector(arriba, a * K);
+export function sistemas(curva: THREE.Curve<THREE.Vector3>) {
+  // (the bend's outer side as a whole: where it turns, from its start to its end; one side for the
+  // whole way, even where the bend straightens or leans the other way for a moment)
+  const giro = curva.getTangentAt(1).sub(curva.getTangentAt(0));
+  /** The outer side, the same for the whole bend (for the camera's lean: it must never flip). */
+  const fueraFijo = giro.clone().normalize().negate();
+  const fuera = (u: number) => {
+    const t = curva.getTangentAt(u);
+    const o = giro.clone().addScaledVector(t, -giro.dot(t));
+    // (where the way runs along the turn itself that side is undefined: lean on the fixed one)
+    const k = THREE.MathUtils.smoothstep(o.length() / Math.max(giro.length(), 1e-9), 0.2, 0.6);
+    return o.normalize().negate().multiplyScalar(k).addScaledVector(fueraFijo, 1 - k).normalize();
+  };
+  const K = 1;
+  const en = (f: number, l: number, a: number) => {
+    const o = fuera(f);
+    const arriba = curva.getTangentAt(f).cross(o).normalize();
+    return curva.getPointAt(f).addScaledVector(o, l).addScaledVector(arriba, a);
+  };
   const plano = (x: number, y: number, z: number) => V(x, y, z).normalize();
   const S: Sistema[] = [
     {
-      c: en(0.12, 0.0024, -0.0003), color: new THREE.Color(1.0, 0.7, 0.42), r: 0.00009 * K, n: plano(0.15, 1, 0.1),
+      c: en(0.14, 0.0016, -0.0003), color: new THREE.Color(1.0, 0.7, 0.42), r: 0.00009 * K, n: plano(0.15, 1, 0.1),
       planetas: [
         { R: 0.00034 * K, fase: 0.3, w: 0.16, rp: 0.000034 * K, tipo: 'roca' },
         { R: 0.00062 * K, fase: 2.4, w: 0.09, rp: 0.000048 * K, tipo: 'agua' },
@@ -47,7 +58,7 @@ export function sistemas(desde: THREE.Vector3, hasta: THREE.Vector3) {
       ],
     },
     {
-      c: en(0.32, -0.0022, 0.0004), color: new THREE.Color(1.0, 0.45, 0.3), r: 0.00006 * K, n: plano(-0.2, 1, 0.25),
+      c: en(0.32, 0.0012, 0.0004), color: new THREE.Color(1.0, 0.45, 0.3), r: 0.00006 * K, n: plano(-0.2, 1, 0.25),
       planetas: [
         { R: 0.00018 * K, fase: 1.0, w: 0.3, rp: 0.000026 * K, tipo: 'lava' },
         { R: 0.0003 * K, fase: 3.1, w: 0.2, rp: 0.000032 * K, tipo: 'roca' },
@@ -56,14 +67,14 @@ export function sistemas(desde: THREE.Vector3, hasta: THREE.Vector3) {
       ],
     },
     {
-      c: en(0.52, 0.0026, 0.0001), color: new THREE.Color(0.85, 0.9, 1.0), r: 0.0001 * K, n: plano(0.3, 1, -0.2),
+      c: en(0.5, 0.0019, 0.0001), color: new THREE.Color(0.85, 0.9, 1.0), r: 0.0001 * K, n: plano(0.3, 1, -0.2),
       planetas: [
         { R: 0.00048 * K, fase: 2.0, w: 0.1, rp: 0.0001 * K, tipo: 'gas' },
         { R: 0.00092 * K, fase: 4.0, w: 0.06, rp: 0.00008 * K, tipo: 'hielo' },
       ],
     },
     {
-      c: en(0.71, -0.0024, -0.0003), color: new THREE.Color(1.0, 0.86, 0.6), r: 0.00008 * K, n: plano(-0.1, 1, -0.15),
+      c: en(0.68, 0.0015, -0.0003), color: new THREE.Color(1.0, 0.86, 0.6), r: 0.00008 * K, n: plano(-0.1, 1, -0.15),
       planetas: [
         { R: 0.00026 * K, fase: 0.8, w: 0.18, rp: 0.00003 * K, tipo: 'roca' },
         { R: 0.00045 * K, fase: 3.6, w: 0.12, rp: 0.000044 * K, tipo: 'agua' },
@@ -72,7 +83,7 @@ export function sistemas(desde: THREE.Vector3, hasta: THREE.Vector3) {
       ],
     },
     {
-      c: en(0.88, 0.002, 0.0003), color: new THREE.Color(1.0, 0.5, 0.32), r: 0.00006 * K, n: plano(0.25, 1, 0.3),
+      c: en(0.85, 0.0012, 0.0003), color: new THREE.Color(1.0, 0.5, 0.32), r: 0.00006 * K, n: plano(0.25, 1, 0.3),
       planetas: [
         { R: 0.0002 * K, fase: 4.2, w: 0.26, rp: 0.000028 * K, tipo: 'roca' },
         { R: 0.00034 * K, fase: 0.9, w: 0.17, rp: 0.000036 * K, tipo: 'agua' },
@@ -82,13 +93,7 @@ export function sistemas(desde: THREE.Vector3, hasta: THREE.Vector3) {
   ];
   // The way: from `desde` past each star, threading between its planets (inside the outer orbits),
   // to `hasta`.
-  const pasos = [desde.clone()];
-  S.forEach((s, i) => {
-    const fuera = s.c.clone().sub(desde).addScaledVector(eje, -s.c.clone().sub(desde).dot(eje)).normalize();
-    const R = s.planetas[s.planetas.length - 1].R;
-    pasos.push(s.c.clone().addScaledVector(fuera, -R * 0.55).addScaledVector(arriba, (i % 2 ? 1 : -1) * R * 0.12));
-  });
-  return { S, pasos };
+  return { S, fuera, fueraFijo };
 }
 
 /** The stars: a bright core and a soft halo each. */
