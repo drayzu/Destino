@@ -270,10 +270,16 @@ export function ciudadDatos(): MateriaData {
     }
     if (x < costa(z)) continue;
     const d = Math.hypot(x + 4000, z - 2000);
-    if (r() > Math.exp(-(d * d) / (2 * 9000 * 9000)) || Math.hypot(x, z) < 450) continue;
+    if (r() > Math.exp(-(d * d) / (2 * 9000 * 9000)) || Math.hypot(x, z) < 140) continue;
     n++;
     b.push(x, 5 + r() * 25, z, r() < 0.15 ? BLANCA : SODIO, 6, 1.1 + r() * 1.2);
   }
+  // Round the hall itself: the lamps of its yard and of the road that comes to it.
+  for (let i = 0; i < 90; i++) {
+    const a = (i / 90) * Math.PI * 2;
+    b.push(Math.cos(a) * 70 * 1.4, 4, Math.sin(a) * 70, BLANCA, 3, 0.9 + r() * 0.4);
+  }
+  for (let i = 0; i < 160; i++) b.push(-100 - i * 22, 4, 30 + Math.sin(i * 0.05) * 40, SODIO, 4, 1.0 + r() * 0.5);
   return b.data();
 }
 
