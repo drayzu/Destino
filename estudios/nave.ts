@@ -86,35 +86,42 @@ const ESCUDO = /* glsl */ `
 `;
 
 /**
- * A radiator fin, as the first Destino's: panels glowing dull red with the heat they shed, each its
- * own glow, dark seams between them, hottest by the spine and cooler out to the tip, in a dark frame.
+ * A radiator fin, as the first Destino's: a lattice of panels glowing dull red with the heat they
+ * shed, each its own glow, hottest by the spine and cooler out to the tip, and see-through: light
+ * only, the dark between the panels empty (Diego, 31 Oct: as solid plates they read heavy).
  */
 const RADIADOR = /* glsl */ `
   ${COMUN}
   void main() {
     // (u: out from the spine; v: along the ship)
-    vec2 q = vec2(vUv.x * 5.0, vUv.y * 4.0);
+    vec2 q = vec2(vUv.x * 7.0, vUv.y * 5.0);
     vec2 id = floor(q);
-    float costura = max(raya(q.x, 0.04), raya(q.y, 0.04));
-    float tubo = raya(vUv.y * 28.0, 0.08) * 0.3;
-    float calor = (0.55 + 0.6 * h21(id)) * (1.0 - 0.6 * vUv.x);
-    calor *= 0.94 + 0.06 * sin(uTime * 0.8 + h21(id + 5.0) * 6.2832);
-    vec3 col = vec3(0.025, 0.022, 0.024) + vec3(0.7, 0.17, 0.06) * 0.32 * calor * calor * (1.0 - 0.85 * costura) * (1.0 - tubo);
-    float marco = 1.0 - smoothstep(0.0, 0.03, min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y)));
-    col = mix(col, vec3(0.05, 0.05, 0.055), marco);
-    col += vec3(0.45, 0.32, 0.28) * borde() * 0.2;
-    gl_FragColor = vec4(col * uOn * uFundido, uOn * uFundido);
+    vec2 fr = fract(q);
+    float m = min(min(fr.x, 1.0 - fr.x), min(fr.y, 1.0 - fr.y));
+    float panel = smoothstep(0.08, 0.08 + 1.5 * max(fwidth(q.x), 1e-5), m);
+    // (fine heat pipes across each panel)
+    float tubo = 0.75 + 0.25 * raya(vUv.y * 40.0, 0.12);
+    float calor = (0.5 + 0.6 * h21(id)) * (1.0 - 0.55 * vUv.x);
+    calor *= 0.93 + 0.07 * sin(uTime * 0.8 + h21(id + 5.0) * 6.2832);
+    vec3 col = vec3(0.85, 0.24, 0.08) * 0.42 * calor * calor * panel * tubo;
+    // (a faint frame holds them)
+    float marco = 1.0 - smoothstep(0.0, 0.025, min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y)));
+    col += vec3(0.3, 0.12, 0.07) * marco * 0.25;
+    gl_FragColor = vec4(col * uOn * uFundido, 0.0);
   }
 `;
 
-/** A propellant tank: pale gold insulation in bands, lit from one side. */
+/** A propellant tank: the hull's own dark panels and seams, its cold rim, no ports (in a colour of
+ * its own it read as a part from another ship). */
 const TANQUE = /* glsl */ `
   ${COMUN}
   void main() {
-    float luz = max(0.0, dot(normalize(vN), normalize(vec3(0.4, 0.7, 0.6))));
-    float banda = raya(vUv.y * 7.0, 0.05);
-    vec3 col = vec3(0.5, 0.43, 0.3) * (0.12 + 0.38 * luz) * (1.0 - 0.6 * banda);
-    col += vec3(0.4, 0.42, 0.45) * borde() * 0.35;
+    vec2 q = vUv * vec2(10.0, 9.0);
+    vec2 id = floor(q);
+    float costura = max(raya(q.x, 0.02), raya(q.y, 0.02));
+    float luz = 0.5 + 0.5 * dot(normalize(vN), normalize(vec3(0.4, 0.7, 0.6)));
+    vec3 col = vec3(0.034, 0.038, 0.044) * (0.75 + 0.5 * h21(id)) * (0.7 + 0.6 * luz) + vec3(0.4, 0.45, 0.5) * costura * 0.12;
+    col += vec3(0.32, 0.4, 0.5) * borde() * 0.7;
     gl_FragColor = vec4(col * uOn * uFundido, uOn * uFundido);
   }
 `;
@@ -130,20 +137,22 @@ const METAL = /* glsl */ `
 `;
 
 /**
- * The drive, a magnetic nozzle as the first Destino's: an open bell of coil rings and ribs, the
- * plasma seen between them, its metal lit hot towards the throat.
+ * The drive: a smooth bell of dark metal ringed by its magnetic coils (bright bands), its inside
+ * glowing hot towards the throat (as an open lattice it read as something crawling).
  */
 const TOBERA = /* glsl */ `
   ${COMUN}
+  const bool uDentro = true;
   void main() {
     // (v: 0 at the throat, 1 at the mouth; clamped: a pow of a negative is a NaN that blacks out the
     // whole frame through the glow)
     float v = clamp(vUv.y, 0.0, 1.0);
-    float m = max(raya(v * 6.0, 0.1), raya(vUv.x * 16.0, 0.06));
-    if (m < 0.02) discard;
-    vec3 col = vec3(0.07, 0.072, 0.08) + vec3(0.32, 0.36, 0.42) * borde() * 0.35;
-    col += vec3(1.0, 0.62, 0.38) * pow(1.0 - v, 2.5) * (gl_FrontFacing ? 0.12 : 0.7);
-    gl_FragColor = vec4(col * m * uOn * uFundido, m * uOn * uFundido);
+    float bobina = raya(v * 4.0 + 0.5, 0.09);
+    float luz = 0.5 + 0.5 * dot(normalize(vN), normalize(vec3(0.4, 0.7, 0.6)));
+    vec3 col = vec3(0.05, 0.052, 0.058) * (0.6 + 0.8 * luz) + vec3(0.32, 0.36, 0.42) * borde() * 0.4;
+    col += vec3(0.5, 0.52, 0.56) * bobina * 0.25;
+    if (gl_FrontFacing == uDentro) col = mix(vec3(0.06, 0.04, 0.04), vec3(1.0, 0.6, 0.32), pow(1.0 - v, 2.0)) + vec3(0.7, 0.85, 1.0) * pow(1.0 - v, 8.0);
+    gl_FragColor = vec4(col * uOn * uFundido, uOn * uFundido);
   }
 `;
 
@@ -278,21 +287,52 @@ export function crearNaveMalla(anillos: number[], R: number): NaveMalla {
   aletaG.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0], 3));
   aletaG.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 0, 1, 1, 1, 1, 0], 2));
   aletaG.setIndex([0, 1, 2, 0, 2, 3]);
-  const matRad = mat(RADIADOR, {}, false, THREE.DoubleSide);
+  // (light only, tested against the hull's depth so the rings still hide them, writing none)
+  const matRad = mat(RADIADOR, {}, true, THREE.DoubleSide);
+  matRad.depthTest = true;
   for (let k = 0; k < 4; k++) {
     const aleta = new THREE.Mesh(aletaG, matRad);
     aleta.rotation.z = (k / 4) * Math.PI * 2 + Math.PI / 4;
     grupo.add(aleta);
   }
-  // The propellant: six tanks round the spine behind the radiators, in banded insulation.
-  const Z_TANQUES = -0.555;
+  // The propellant: four long tanks round the spine behind the radiators, between their fins, as the
+  // Shuttle's external tank (Diego, 31 Oct): a rounded aft dome, a pointed nose to the bow, orange
+  // foam, a feed line along the outside, held to the spine by struts.
+  const RT = 0.0135;
+  const LT = 0.12;
+  const NARIZ = 0.034;
+  const perfilT: THREE.Vector2[] = [];
+  for (let i = 0; i <= 10; i++) {
+    const t = i / 10;
+    perfilT.push(new THREE.Vector2(RT * Math.sin((t * Math.PI) / 2) + 1e-4, RT * (1 - Math.cos((t * Math.PI) / 2))));
+  }
+  for (let i = 1; i <= 16; i++) {
+    const t = i / 16;
+    perfilT.push(new THREE.Vector2(RT * Math.pow(Math.max(0, 1 - t * t), 0.55) + 1e-4, LT - NARIZ + t * NARIZ));
+  }
+  const tanqueG = new THREE.LatheGeometry(perfilT, 40);
+  tanqueG.rotateX(Math.PI / 2);
   const matTanque = mat(TANQUE);
-  for (let k = 0; k < 6; k++) {
-    const a = (k / 6) * Math.PI * 2 + Math.PI / 6;
-    const tanque = new THREE.Mesh(new THREE.CapsuleGeometry(0.017, 0.085, 8, 24), matTanque);
-    tanque.rotation.x = Math.PI / 2;
-    tanque.position.set(Math.cos(a) * 0.036, Math.sin(a) * 0.036, Z_TANQUES);
+  const Z_TANQUE = -0.615;
+  const R_TANQUE = 0.042;
+  for (let k = 0; k < 4; k++) {
+    const a = (k / 4) * Math.PI * 2;
+    const c = Math.cos(a);
+    const sn = Math.sin(a);
+    const tanque = new THREE.Mesh(tanqueG, matTanque);
+    tanque.position.set(c * R_TANQUE, sn * R_TANQUE, Z_TANQUE);
     grupo.add(tanque);
+    const linea = new THREE.Mesh(new THREE.CylinderGeometry(0.0022, 0.0022, LT * 0.8, 8, 1), mat(METAL));
+    linea.rotation.x = Math.PI / 2;
+    linea.position.set(c * (R_TANQUE + RT + 0.002), sn * (R_TANQUE + RT + 0.002), Z_TANQUE + LT * 0.45);
+    grupo.add(linea);
+    for (const z of [Z_TANQUE + 0.025, Z_TANQUE + LT - NARIZ - 0.005]) {
+      const L = R_TANQUE - RT - 0.014;
+      const puntal = new THREE.Mesh(new THREE.CylinderGeometry(0.002, 0.002, L, 6, 1), mat(METAL));
+      puntal.position.set(c * (0.016 + L / 2), sn * (0.016 + L / 2), z);
+      puntal.rotation.z = a - Math.PI / 2;
+      grupo.add(puntal);
+    }
   }
   // The drive at the stern: the magnetic nozzle, its bell flaring out from the throat, and the jet.
   const Z_GARGANTA = -0.625;
