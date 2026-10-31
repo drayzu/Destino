@@ -142,7 +142,8 @@ export function galaxiaDatos(): MateriaData {
     const z = gauss(r) * 1.6;
     const y = gauss(r) * 1.25 * Math.exp(-(x * x + z * z) / 40);
     const nucleo = x * x + z * z < 2.5;
-    b.push(x * Math.cos(bar) - z * Math.sin(bar), y, x * Math.sin(bar) + z * Math.cos(bar), ORO, 0.012, nucleo ? 0.2 : 0.11, { kind: Math.hypot(x, z) });
+    // (dimmer than they were: together they burnt the core into a white disc)
+    b.push(x * Math.cos(bar) - z * Math.sin(bar), y, x * Math.sin(bar) + z * Math.cos(bar), ORO, 0.012, nucleo ? 0.12 : 0.07, { kind: Math.hypot(x, z) });
   }
   return b.data();
 }
@@ -187,34 +188,52 @@ export function galaxiaBrillo() {
         vec2 u = f * f * (3.0 - 2.0 * f);
         return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), u.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), u.x), u.y);
       }
+      float fbm(vec2 p) {
+        float s = 0.0;
+        float a = 0.5;
+        for (int i = 0; i < 5; i++) {
+          s += a * ruido(p);
+          p = p * 2.03 + vec2(1.7, 9.2);
+          a *= 0.5;
+        }
+        return s;
+      }
       void main() {
         float R = length(vL.xz);
         if (R < 0.05) R = 0.05;
         float th = atan(vL.x, vL.z);
-        // The arms (the two major and two minor ones of the points), patchy along their length.
+        // The arms (the two major and two minor ones of the points), patchy along their length, soft
+        // and broad: a haze, as in a photograph, not a band.
         float A = 0.0;
         float lane = 0.0;
         for (int k = 0; k < 4; k++) {
           float j = k == 0 ? 0.0 : k == 1 ? 1.0 : k == 2 ? 0.5 : 1.5;
           float peso = k < 2 ? 1.0 : 0.5;
-          float w = k < 2 ? 2.6 + 0.065 * R : 1.7;
+          float w = k < 2 ? 3.6 + 0.09 * R : 2.4;
           float fin = smoothstep(3.0, 7.0, R) * (1.0 - smoothstep(k < 2 ? 30.0 : 22.0, k < 2 ? 50.0 : 36.0, R));
           float d = angDif(th, brazo(R, j)) * R;
           // (broken along its length: bright stretches, gaps)
           float parche = max(0.0, 0.45 + 0.8 * sin(R * 0.41 + j * 2.3) * sin(R * 0.23 + j * 0.7 + 1.1)) * (0.3 + 1.2 * ruido(vec2(R * 0.35 + j * 17.0, j * 3.0)));
           A = max(A, peso * fin * parche * exp(-(d * d) / (2.0 * w * w)));
           float dl = angDif(th, brazo(R, j) - 0.22) * R;
-          if (k < 2) lane = max(lane, fin * exp(-(dl * dl) / (2.0 * 0.9 * 0.9)));
+          if (k < 2) lane = max(lane, fin * parche * exp(-(dl * dl) / (2.0 * 1.5 * 1.5)));
         }
-        float grumo = 0.25 + 1.6 * pow(ruido(vL.xz / 4.0 + 3.0) * ruido(vL.xz / 1.8 - 1.0), 1.3);
-        // The bulge and the bar, warm.
+        // Texture: feathery streaks along the way the arms wind, clouds and gaps across the disc.
+        float fase = th - uKW * log(R / 4.0);
+        float pluma = fbm(vec2(R * 0.32, fase * 2.6));
+        float nube = fbm(vL.xz * 0.22 + 3.0);
+        float grumo = 0.35 + 1.25 * pluma * (0.6 + 0.8 * nube);
+        // Pink knots where stars are born, in the arms.
+        float nudos = smoothstep(0.6, 0.78, fbm(vL.xz * 0.85 + 7.0)) * A;
+        // The bulge and the bar, warm (soft: a glow, not a burnt disc).
         float cb = cos(uBar);
         float sb = sin(uBar);
         vec2 b = vec2(vL.x * cb + vL.z * sb, -vL.x * sb + vL.z * cb);
-        float bulbo = exp(-R / 2.2) * 1.4 + exp(-(b.x * b.x / 18.0 + b.y * b.y / 2.4)) * 0.6;
-        float disco = exp(-R / 13.0) * 0.12;
-        vec3 col = vec3(1.0, 0.8, 0.55) * bulbo + vec3(0.62, 0.72, 1.0) * A * grumo * 0.24 * (0.6 + 0.4 * smoothstep(6.0, 26.0, R)) + vec3(0.9, 0.82, 0.75) * disco;
-        col *= 1.0 - 0.65 * lane;
+        float bulbo = exp(-R / 2.6) * 0.75 + exp(-(b.x * b.x / 18.0 + b.y * b.y / 2.4)) * 0.45;
+        float disco = exp(-R / 12.0) * 0.16 * (0.55 + 0.9 * nube);
+        vec3 col = vec3(1.0, 0.82, 0.58) * bulbo + vec3(0.6, 0.72, 1.0) * A * grumo * 0.3 * (0.6 + 0.4 * smoothstep(6.0, 26.0, R)) + vec3(1.0, 0.45, 0.66) * nudos * 0.32 + vec3(0.92, 0.84, 0.76) * disco;
+        // (the dust lanes a soft brown shading on the arms' inner edges, broken by the clouds)
+        col *= 1.0 - 0.5 * lane * (0.4 + 0.9 * fbm(vL.xz * 0.6 - 2.0));
         // Seen face-on, the haze; edge-on, nothing (the stars carry it).
         float cara = smoothstep(0.08, 0.5, abs(dot(normalize(vN), normalize(vV))));
         gl_FragColor = vec4(col * cara * 0.55 * uGal * uFundido, 0.0);

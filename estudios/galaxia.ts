@@ -156,16 +156,22 @@ export const galaxia: Escena = {
           float dS = length(p - uSol);
           float dentro = 1.0 - smoothstep(uBur - 1.5, uBur, dS);
           float frente = smoothstep(uBur - 2.5, uBur - 0.8, dS) * dentro;
-          em = mix(em, uTeal * (0.55 + 0.6 * frente), dentro * step(0.18, fract(seed * 17.3)));
+          // (turning teal it keeps the light it had, the front itself brighter: the whole galaxy ours
+          // must not burn into one white disc)
+          float luzE = max(max(em.r, em.g), em.b);
+          em = mix(em, uTeal * (luzE * 1.7 + 0.45 * frente), dentro * step(0.18, fract(seed * 17.3)));
           // A galaxy that used all its light: dark, warm.
           em = mix(em, vec3(0.22, 0.05, 0.02) * (0.4 + 0.6 * fract(seed * 7.1)), uIR);
+          // (seen whole from outside, the stars, ours too, sparkle over the haze rather than pile up
+          // into a burnt disc or draw the arms as bands)
+          em *= mix(1.0, 0.35, smoothstep(40.0, 110.0, length(uCamG)));
           em *= uGal;
         `,
         uniforms: { uGal: { value: 1 }, uBur: { value: 0 }, uIR: { value: 0 }, uSol: { value: S.clone() }, uTeal: { value: TEAL.clone() }, uCamG: { value: V() } },
       }),
     );
     estrellas.u.uFuente.value = 0.55;
-    const polvo = add(materia(polvoDatos(), { pre: `uniform float uGal; uniform vec3 uCamG;`, move: `occ *= uGal * smoothstep(1.0, 4.0, length(p - uCamG));`, uniforms: { uGal: { value: 1 }, uCamG: { value: V() } } }), root, 2);
+    const polvo = add(materia(polvoDatos(), { pre: `uniform float uGal; uniform vec3 uCamG;`, move: `occ *= uGal * smoothstep(1.0, 4.0, length(p - uCamG)) * (1.0 - smoothstep(30.0, 60.0, length(uCamG)));`, uniforms: { uGal: { value: 1 }, uCamG: { value: V() } } }), root, 2);
     polvo.u.uInk.value = 0.22;
     const brillo = galaxiaBrillo();
     root.add(brillo.mesh);
@@ -423,6 +429,7 @@ export const galaxia: Escena = {
     const chispa = crearChispa();
     root.add(chispa.nube.points);
     const tm = toma(tl, 0);
+    const tmR = toma(tl, 0);
     const camFin = toma(tl, tl.length);
     return {
       tl,
@@ -467,7 +474,18 @@ export const galaxia: Escena = {
         // ahead of the spark; and from one way of riding to the other gradually)
         const kE = THREE.MathUtils.smoothstep(ch, 0.95, 1.1);
         const m = montar(caminoCh, ch, THREE.MathUtils.lerp(0.07, 0.03, kE), THREE.MathUtils.lerp(0.22, 0.06, kE), THREE.MathUtils.lerp(0.3 * frente(ch), 0.02, kE), V(0, 1, 0), THREE.MathUtils.lerp(0.015, 0.06, kE));
-        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: lw, arriba: m.arriba, delante: m.delante }, { punto: m.lugar, peso: lw }));
+        // (from one encounter to the next the gaze goes with the spark as it flies, and lets it go as
+        // it arrives: we travel with our light, not watch it shoot off; the camera's place stays the
+        // encounters' own)
+        const fT = ch - Math.floor(ch);
+        let viaja = ch > 1.0 && ch < 5 ? THREE.MathUtils.smoothstep(fT, 0.04, 0.24) * (1 - THREE.MathUtils.smoothstep(fT, 0.8, 0.98)) : 0;
+        // (only while the spark is roughly ahead of the encounter's own view: turning round to one
+        // behind it would swing the frame over)
+        if (viaja > 0) {
+          const propia = toma(tl, p, tmR);
+          viaja *= THREE.MathUtils.smoothstep(propia.dir.dot(m.mira.clone().sub(propia.pos).normalize()), 0.0, 0.5);
+        }
+        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: Math.max(lw, 0.85 * viaja), arriba: m.arriba, delante: m.delante }, { punto: m.lugar, peso: lw }));
         // (a short wake in the bubble: there the way grows in logarithm, and a long one would be a line across it)
         chispa.update(caminoCh, ch, ch < 1 ? 0.0005 : 0.0015, 1, tl.get('tit', p), camera.position, f.focal, f.dpr, f.time);
         camera.updateProjectionMatrix();

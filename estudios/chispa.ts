@@ -35,6 +35,17 @@ const tmpE = new THREE.Vector3();
 const tmpV = new THREE.Vector3();
 const TEAL_RGB = [0.435, 0.89, 0.757];
 
+/** The sparks inside an act's world (`grupo`): in a relay the journey keeps one spark, not two. */
+export function chispasEn(grupo: THREE.Object3D) {
+  const out: { nube: Nube; on: number; estela: Float32Array }[] = [];
+  for (const c of VIVAS) {
+    let x: THREE.Object3D | null = c.nube.points;
+    while (x && x !== grupo) x = x.parent;
+    if (x === grupo) out.push(c);
+  }
+  return out;
+}
+
 /** A ray of the spark: visible if it and every parent are, and how much (the journey's crossfade). */
 function presente(o: THREE.Object3D) {
   for (let x: THREE.Object3D | null = o; x; x = x.parent) if (!x.visible) return false;

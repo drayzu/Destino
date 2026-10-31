@@ -27,7 +27,7 @@ import { AJUSTE, Pagina, RES, cambio, ritmoDe, type Ritmo, type Vista } from './
 import { agregar, diccionario, lang, switchLang, tx } from '../src/i18n';
 import { tr, usarIdioma } from '../estudios/idioma';
 import { lamina } from './lamina';
-import { dibujarEstelas } from '../estudios/chispa';
+import { chispasEn, dibujarEstelas } from '../estudios/chispa';
 import { EXTRA } from './textos';
 
 /**
@@ -263,6 +263,8 @@ function mapa(a: Ancla, b: Ancla) {
     .multiply(new THREE.Matrix4().makeTranslation(-b.pos.x, -b.pos.y, -b.pos.z));
 }
 const mapas = new Map<Tramo, { m: THREE.Matrix4; escala: number }>();
+/** Sparks moved during a relay (to start where the last act's was), and their own place. */
+const corridas = new Map<THREE.Object3D, THREE.Vector3>();
 
 const smooth = (x: number) => x * x * (3 - 2 * x);
 const camA = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), fov: 40 };
@@ -310,6 +312,12 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
     prev.grupo.matrix.identity();
     prev.grupo.updateMatrixWorld(true);
     pi.update({ ...f, p: prev.largo, fundido: 1 - smooth(clamp((p - 0.05) / (RELEVO * 0.8), 0, 1)), saliente: !!inst.continuo });
+    // (one spark through a relay: the one going out leaves it to the one coming in, which takes it up
+    // where it was, the acts meeting at the spark)
+    for (const c of chispasEn(prev.grupo)) {
+      c.on = 0;
+      c.nube.u.uOn.value = 0;
+    }
     camA.pos.copy(camera.position);
     camA.quat.copy(camera.quaternion);
     camA.fov = camera.fov;
@@ -353,6 +361,24 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
     const c = smooth(clamp((p - 0.05) / (RELEVO * 0.8), 0, 1));
     fundir(prev.grupo, 1 - c, escalaPrev, prev.inst!.relevoMaxPx ?? 0);
     fundir(t.grupo, inst.continuo ? 1 : c);
+    for (const ch of chispasEn(t.grupo)) ch.nube.u.uFundido.value = 1;
+    // (and it takes the spark up where the last act left it, sliding onto its own way over the relay)
+    const sale = chispasEn(prev.grupo)[0];
+    const entra = chispasEn(t.grupo)[0];
+    if (sale && entra) {
+      const pts = entra.nube.points;
+      if (!corridas.has(pts)) corridas.set(pts, pts.position.clone());
+      pts.position.copy(corridas.get(pts)!);
+      pts.updateMatrixWorld();
+      const p0 = new THREE.Vector3(sale.estela[0], sale.estela[1], sale.estela[2]).applyMatrix4(sale.nube.points.matrixWorld);
+      const p1 = new THREE.Vector3(entra.estela[0], entra.estela[1], entra.estela[2]).applyMatrix4(pts.matrixWorld);
+      const lleva = 1 - smooth(clamp(p / RELEVO, 0, 1));
+      if (pts.parent && Number.isFinite(p0.x)) {
+        const enPadre = pts.parent.worldToLocal(p1.clone().lerp(p0, lleva)).sub(pts.parent.worldToLocal(p1.clone()));
+        pts.position.add(enPadre);
+        pts.updateMatrixWorld();
+      }
+    }
     const fa = prev.film!;
     const fb = t.film!;
     stage.bloom.strength = fa.strength + (fb.strength - fa.strength) * k;
@@ -361,6 +387,12 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
     stage.renderer.toneMappingExposure = fa.exposure + (fb.exposure - fa.exposure) * k;
   } else {
     fundir(t.grupo, 1);
+    // (a spark moved for a relay goes back to its own place)
+    for (const [pts, o] of corridas) {
+      pts.position.copy(o);
+      pts.updateMatrixWorld();
+    }
+    corridas.clear();
     if (t.film) {
       stage.bloom.strength = t.film.strength;
       stage.bloom.radius = t.film.radius;

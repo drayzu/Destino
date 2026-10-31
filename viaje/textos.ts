@@ -41,6 +41,7 @@ export const EXTRA: Record<string, string> = {
   'Sol · el enjambre': 'Sun · the swarm',
   Cinturón: 'Belt',
   'Alfa Centauri': 'Alpha Centauri',
+  'Alfa Centauri A · B': 'Alpha Centauri A · B',
   '4,4 años luz': '4.4 light years',
   'Mensaje a casa · llega en 4 años y medio': 'Message home · arrives in four and a half years',
   'Vía Láctea': 'Milky Way',

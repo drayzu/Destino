@@ -198,9 +198,10 @@ function polvoDatos() {
  * radiator fin and a shield at its bow. `aKind`: 0 spine, 1 wheel (turns), 2 light, 3 radiator.
  */
 /** The ring the camera goes into (its z on the spine), and how fast the rings turn (radians a second). */
-const ANILLO = 0.1;
+const ANILLO = 0.0;
 const GIRO_ANILLO = 0.05;
-const RINGS = [-0.3, -0.1, ANILLO, 0.3];
+// (three rings: Diego, 31 Oct)
+const RINGS = [-0.22, ANILLO, 0.22];
 
 function naveDatos(): MateriaData {
   const b = materiaBuilder(197);
@@ -289,7 +290,8 @@ export const vela: Escena = {
     const medio = V();
     const NOMBRES: Nombre[] = [
       { pos: casa.position, texto: 'Sol', nuestro: true, aire: 30 },
-      { pos: alfa.position, texto: 'Alfa Centauri', nuestro: true, aire: 8 },
+      // (a double star: its two suns, A and B, named as one pair)
+      { pos: alfa.position, texto: 'Alfa Centauri A · B', nuestro: true, aire: 8 },
       { pos: medio, texto: '4,4 años luz', lado: 'n', aire: -6 },
     ];
 
@@ -453,7 +455,7 @@ export const vela: Escena = {
     // The reveal: out until both stars fit, the Sun drawn near (short), ours, with the route between
     // them; the names a moment; then back in to the sail, where something enormous passes.
     const enNaveW = (z: number) => V(0, 0, z).applyAxisAngle(V(0, 1, 0), 0.15).add(V(0.9, 0.1, 0.8));
-    const proaC = enNaveW(0.42);
+    const proaC = enNaveW(0.5);
     const centroNave = enNaveW(0);
     const popaC = enNaveW(-0.5);
     // (three-quarters from ahead at the bow, the shield and the rings beyond; three-quarters from
