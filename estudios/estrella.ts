@@ -160,12 +160,20 @@ function capaMalla(k: number) {
         if (h < uHueco) discard;
         // The third and fourth give their tiles to the network.
         if (uK > 1.5 && uK < 3.5 && h21(tid + 5.0) < uSale * 0.8) discard;
-        // Built by fronts from three places.
-        float ang = min(min(acos(clamp(dot(d, vec3(0.28, 0.93, 0.19)), -1.0, 1.0)), acos(clamp(dot(d, vec3(-0.83, -0.31, 0.46)), -1.0, 1.0))), acos(clamp(dot(d, vec3(0.42, -0.59, -0.69)), -1.0, 1.0))) / 2.0;
-        ang += 0.04 * h;
+        // Built by fronts from seven places spread over it, turned for each shell: a mosaic that comes
+        // together (from the same three places, the shells grew as caps stacked on each other).
+        float ang = 10.0;
+        for (int i = 0; i < 7; i++) {
+          float fi = float(i);
+          float y = 1.0 - (fi + 0.5) / 3.5;
+          float th = fi * 2.39996 + uK * 1.3;
+          vec3 sd = vec3(cos(th) * sqrt(1.0 - y * y), y, sin(th) * sqrt(1.0 - y * y));
+          ang = min(ang, acos(clamp(dot(d, sd), -1.0, 1.0)));
+        }
+        ang = ang / 1.15 + 0.04 * h;
         float hecho = (uCapas * 5.0 - uK) * 1.25;
         if (hecho < ang) discard;
-        float frente = exp(-pow((hecho - ang) / 0.04, 2.0));
+        float frente = exp(-pow((hecho - ang) / 0.05, 2.0));
         // The tile's edge: a dark seam.
         float m = min(min(fr.x, 1.0 - fr.x), min(fr.y, 1.0 - fr.y));
         float fw = max(fwidth(g.x), 1e-5) * 1.2;
@@ -179,7 +187,8 @@ function capaMalla(k: number) {
         float ola = smoothstep(0.82, 1.0, w1) + smoothstep(0.88, 1.0, w2);
         float luz = 0.16 + uBits * (0.45 * bit + 1.1 * ola * (0.4 + 0.6 * bit));
         vec3 col = (uColor * luz * cuerpo + uColor * 0.025) * uBrillo;
-        col += vec3(1.0, 0.92, 0.8) * frente * 0.55;
+        // (the front warm, a glow on the tiles being laid, not a white rim)
+        col += vec3(1.0, 0.74, 0.45) * frente * 0.4 * cuerpo;
         col *= 1.0 - uFrio;
         gl_FragColor = vec4(col * uFundido, uFundido * (1.0 - uFrio * 0.9));
       }
