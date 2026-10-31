@@ -1,9 +1,9 @@
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" type="image/avif" srcset="media/cover-dark.avif"><source media="(prefers-color-scheme: dark)" srcset="media/cover-dark.webp"><source type="image/avif" srcset="media/cover-light.avif"><img src="media/cover-light.webp" width="100%" alt="Destino — From the first thought to the last thing we could ever build. A dive into a star wrapped in shells of computers, through its glowing layers, until the thoughts light up inside."></picture>
+  <picture><source media="(prefers-color-scheme: dark)" type="image/avif" srcset="media/cover-dark.avif"><source media="(prefers-color-scheme: dark)" srcset="media/cover-dark.webp"><source type="image/avif" srcset="media/cover-light.avif"><img src="media/cover-light.webp" width="100%" alt="Destino — From the first thought to the last thing we could ever build. One unbroken flight from the Earth past the Moon, Mars, Venus and Mercury to the Sun."></picture>
 </p>
 
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" type="image/avif" srcset="media/thought-dark.avif"><source media="(prefers-color-scheme: dark)" srcset="media/thought-dark.webp"><source type="image/avif" srcset="media/thought-light.avif"><img src="media/thought-light.webp" width="100%" alt="A thought"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" type="image/avif" srcset="media/brains-dark.avif"><source media="(prefers-color-scheme: dark)" srcset="media/brains-dark.webp"><source type="image/avif" srcset="media/brains-light.avif"><img src="media/brains-light.webp" width="100%" alt="Eight billion brains"></picture>
 </p>
 
 <p align="center">
@@ -23,7 +23,7 @@
 </p>
 
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" type="image/avif" srcset="media/web-dark.avif"><source media="(prefers-color-scheme: dark)" srcset="media/web-dark.webp"><source type="image/avif" srcset="media/web-light.avif"><img src="media/web-light.webp" width="100%" alt="Eternity in six hours"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" type="image/avif" srcset="media/hole-dark.avif"><source media="(prefers-color-scheme: dark)" srcset="media/hole-dark.webp"><source type="image/avif" srcset="media/hole-light.avif"><img src="media/hole-light.webp" width="100%" alt="The last power plants"></picture>
 </p>
 
 <p align="center">

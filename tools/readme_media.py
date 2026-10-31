@@ -41,23 +41,25 @@ THEMES = {
 # name, frames dir, start, count, crop (x, y, w, h) in the 1840 x 1035 frames, power exponent (W), title, line, loop
 # (the remake: frames from viaje/, captured with tools/clip-viaje.mjs and tools/readme-viaje.json)
 MOMENTS = [
-    ('thought', 'r-thought', 0, 150, (160, 90, 1520, 855), '1', 'A thought',
-     'Twenty watts, and it goes out with you. Unless something carries it further.', 'pingpong'),
-    ('nerves', 'r-nerves', 0, 150, (0, 0, 1840, 1035), '-3', 'Nerves',
+    ('brains', 'r-brains', 0, 150, (0, 0, 1840, 1035), '13', 'Eight billion brains',
+     'One brain, then all of them: eight billion networks like yours, thinking at once.', 'forward'),
+    ('nerves', 'r-nerves2', 0, 150, (0, 0, 1840, 1035), '-3', 'Nerves',
      'Cells began passing sparks to each other: a whole body reacts at once.', 'forward'),
     ('moon', 'r-moon', 0, 150, (0, 0, 1840, 1035), '16', 'The Moon, a quarry',
      'No air and little gravity: the rock to build out there is cheap to launch.', 'forward'),
     ('sun', 'r-sun', 0, 150, (240, 0, 1600, 900), '25', 'Moving the Sun',
      'A mirror sends part of its light back and pushes it, slowly.', 'forward'),
-    ('ship', 'r-ship', 0, 150, (0, 0, 1840, 1035), '27', 'Ships that are worlds',
+    ('ship', 'r-ship2', 0, 150, (0, 0, 1840, 1035), '27', 'Ships that are worlds',
      'Centuries between stars: whoever arrives never saw the Earth.', 'forward'),
-    ('web', 'r-web', 0, 150, (0, 0, 1840, 1035), '44', 'Eternity in six hours',
-     'With a star’s light, probes leave in six hours for every galaxy within reach.', 'pingpong'),
+    ('hole', 'r-hole', 0, 150, (0, 0, 1840, 1035), '29', 'The last power plants',
+     'When the stars go out, black holes remain: energy can still be drawn from their spin.', 'forward'),
 ]
-# The hero, the piece's most immersive moment: the dive into a star wrapped in shells of computers,
-# down through its glowing layers, until the thoughts light up inside. One clip, looping forwards with
-# a long crossfade.
-HERO = dict(clips=['r-hero'], crop=(0, 0, 1840, 1035), crf=45, join=20, webp_q=40)
+# The hero, as in Espacio and Tiempo: one unbroken flight from the Earth past the Moon, Mars, Venus and
+# Mercury to the Sun, lingering on each and longest on the Sun (Diego, 31 Oct, over eight shots across
+# the scales: python ... cover2 still draws that one, from its h* clips).
+HERO = dict(clips=['s-sistema'], crop=(0, 0, 1840, 1035), crf=42, join=14, webp_q=45)
+HERO2 = dict(clips=['h1-neurona', 'h2-medusa', 'h3-cerebros', 'h4-luna', 'h5-venus', 'h6-nave', 'h7-galaxia', 'h8-agujero'],
+             crop=(0, 0, 1840, 1035), crf=42, join=10, webp_q=45)
 # (busy textures, the mirror's plates, cost far more to encode: these take a higher CRF to stay light)
 CRF = {'sun': 42}
 
@@ -198,7 +200,7 @@ def band(th):
     return np.asarray(im, dtype=np.float32) / 255
 
 
-def hero_sequence():
+def hero_sequence(HERO=HERO):
     """(clip, frame) pairs and blends: each clip whole, the next fading in over its last `join` frames,
     and the last fading into the first, so the loop has no seam."""
     j = HERO['join']
@@ -213,13 +215,13 @@ def hero_sequence():
     return seq
 
 
-def cover():
+def cover(HERO=HERO, nombre='cover'):
     """The title over the hero, blended into the page and looping forwards."""
     x, y, w, h = HERO['crop']
     vh = round(PW * h / w)
     loaders = {c: loader(c, HERO['crop'], (PW, vh)) for c in HERO['clips']}
     frame = lambda ci: loaders[ci[0]](ci[1])
-    seq = hero_sequence()
+    seq = hero_sequence(HERO)
     mask, rounded = feather(PW, vh, inner=0.72), card(PW, vh, r=21)
     for theme, th in THEMES.items():
         page = np.array(th['page'], np.float32) / 255
@@ -234,13 +236,15 @@ def cover():
                 col, al = (page + rgb * (1 - page), mask) if theme == 'dark' else (rgb, rounded)
                 out[BAND:] = col * al[..., None] + page * (1 - al[..., None])
                 yield out
-        write(os.path.join(OUT, f'cover-{theme}'), frames(), PW, BAND + vh, HERO['crf'], HERO['webp_q'])
+        write(os.path.join(OUT, f'{nombre}-{theme}'), frames(), PW, BAND + vh, HERO['crf'], HERO['webp_q'])
 
 
 if __name__ == '__main__':
     which = sys.argv[1:]
     if not which or 'cover' in which:
         cover()
+    if 'cover2' in which:
+        cover(HERO2, 'cover2')
     for k, m in enumerate(MOMENTS):
         if not which or m[0] in which:
             moment(k, m)
