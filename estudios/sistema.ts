@@ -361,7 +361,7 @@ export const sistema: Escena = {
     tierraG.quaternion.copy(caraHacia(CARA.lat, CARA.lon));
     tierraG.add(tierra.group);
     root.add(tierraG);
-    const luna = lunaH(base, { giro: 0, puntos: 180000 });
+    const luna = lunaH(base, { giro: 0, puntos: 420000, fondo: 0.4 });
     luna.group.position.copy(LUNA);
     luna.group.scale.setScalar(0.1);
     root.add(luna.group);
