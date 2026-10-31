@@ -181,15 +181,24 @@ function primeraLuz() {
         return mix(mix(mix(h31(i), h31(i + vec3(1, 0, 0)), u.x), mix(h31(i + vec3(0, 1, 0)), h31(i + vec3(1, 1, 0)), u.x), u.y),
                    mix(mix(h31(i + vec3(0, 0, 1)), h31(i + vec3(1, 0, 1)), u.x), mix(h31(i + vec3(0, 1, 1)), h31(i + vec3(1, 1, 1)), u.x), u.y), u.z);
       }
+      // (light by temperature, one continuous ramp: dark, deep red, orange, gold, white; in steps it drew
+      // red blots ringed in black)
+      vec3 calor(float T) {
+        vec3 c = mix(vec3(0.0), vec3(0.5, 0.09, 0.035), smoothstep(0.0, 0.35, T));
+        c = mix(c, vec3(1.0, 0.5, 0.2), smoothstep(0.25, 0.62, T));
+        c = mix(c, vec3(1.0, 0.82, 0.58), smoothstep(0.55, 0.85, T));
+        return mix(c, vec3(1.0, 0.96, 0.9), smoothstep(0.82, 1.0, T));
+      }
       void main() {
         vec3 d = normalize(vD);
-        float n = 0.5 * ruido(d * 3.0) + 0.3 * ruido(d * 7.0 + 3.1) + 0.2 * ruido(d * 17.0 + 7.7);
-        // The temperature: all the same at first; as it cools, the unevenness shows.
-        float T = 1.0 - uFrio + (n - 0.5) * 0.7 * uFrio;
-        vec3 col = T > 0.66 ? mix(vec3(1.0, 0.72, 0.42), vec3(1.0, 0.97, 0.92), (T - 0.66) / 0.34)
-                 : T > 0.33 ? mix(vec3(0.62, 0.16, 0.08), vec3(1.0, 0.72, 0.42), (T - 0.33) / 0.33)
-                 : mix(vec3(0.0), vec3(0.62, 0.16, 0.08), T / 0.33);
-        col *= (0.75 + 0.5 * n) * uLuz * 0.78;
+        // (it boils, slowly: fine grain over broad swells, as the first light's own unevenness)
+        vec3 q = d + vec3(0.0, uTime * 0.012, 0.0);
+        float n = 0.4 * ruido(q * 3.0) + 0.24 * ruido(q * 7.0 + 3.1) + 0.16 * ruido(d * 17.0 + 7.7 - uTime * 0.02)
+                + 0.12 * ruido(d * 41.0 + 1.3) + 0.08 * ruido(d * 97.0 + 5.1);
+        // The temperature: nearly even at first, the unevenness growing as it cools.
+        float T = clamp(1.0 - uFrio + (n - 0.5) * (0.3 + 0.5 * uFrio), 0.0, 1.0);
+        // (never a flat white: even at its hottest the swells show, and it stays below a burn)
+        vec3 col = calor(T) * (0.62 + 0.76 * n) * uLuz * 0.4;
         gl_FragColor = vec4(col * uFundido, 0.0);
       }
     `,
@@ -269,7 +278,7 @@ export const final: Escena = {
         pre: /* glsl */ `uniform float uLuz, uRed, uApaga; attribute vec3 aAzar;`,
         move: /* glsl */ `
           p = mix(aAzar, p, uRed);
-          em = mix(vec3(1.0, 0.9, 0.78) * 0.35, em * 1.3, uRed) * uLuz * (1.0 - uApaga) * (0.25 + 0.75 * uRed);
+          em = mix(vec3(1.0, 0.9, 0.78) * 0.15, em * 1.3, uRed) * uLuz * (1.0 - uApaga) * (0.25 + 0.75 * uRed);
         `,
         uniforms: { uLuz: { value: 0 }, uRed: { value: 0 }, uApaga: { value: 0 } },
         extra: { aAzar: [rc.azar, 3] },
