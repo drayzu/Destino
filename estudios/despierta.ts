@@ -78,10 +78,13 @@ function redNerviosaDatos(): MateriaData {
       b.push(p.x + gauss(r) * 0.006, p.y + gauss(r) * 0.006, p.z + gauss(r) * 0.006, VIOLETA, 0.008, 0.55, { kind: 0, delay: t });
     }
   }
+  // (the ring that joins them grows out from each strand's tip, to meet the next one halfway: whole
+  // at once it popped up from nothing)
   for (let i = 0; i < 4000; i++) {
     const a = r() * Math.PI * 2;
     const p = campana(1, a);
-    b.push(p.x, p.y + gauss(r) * 0.01, p.z, VIOLETA, 0.008, 0.6, { kind: 0, delay: 1 });
+    const medio = Math.abs(((a / (Math.PI * 2)) * 16) % 1 - 0.5);
+    b.push(p.x, p.y + gauss(r) * 0.01, p.z, VIOLETA, 0.008, 0.6, { kind: 0, delay: 1 + 0.18 * (1 - 2 * medio) });
   }
   for (let i = 0; i < 9000; i++) {
     const p = campana(0.15 + r() * 0.85, r() * Math.PI * 2);
@@ -263,84 +266,13 @@ export const despierta: Escena = {
           p *= uCrece;
           p.y += 0.05 * sin(uTime * 0.8);
           float chispa = aKind < 0.5 ? smoothstep(0.88, 1.0, fract(aDelay * 2.0 - uTime * 0.7)) * 4.0 : 0.0;
-          em *= uNer * (1.0 + chispa) * step(aDelay, uNer * 1.2 + 0.05);
-          // (the nerves and tentacles are fibres of light now: their points only a grain on them)
-          em *= aKind > 0.5 && aKind < 1.5 ? 1.0 : 0.3;
+          // (each point lit as the net reaches it, softly, not switched on)
+          em *= uNer * (1.0 + chispa) * smoothstep(aDelay - 0.02, aDelay + 0.05, uNer * 1.2 + 0.05);
         `,
         uniforms: { uNer: { value: 0 }, uCrece: { value: 0.3 } },
       }),
     );
     nervios.u.uFuente.value = 0.4;
-    // The nerves as fibres of light (thin glowing tubes), growing as the net grows, sparks running
-    // along them.
-    const nervU = { uNer: { value: 0 }, uCrece: { value: 0.3 }, uTime: { value: 0 }, uFundido: { value: 1 }, uColor: { value: VIOLETA.clone() } };
-    const fibraNervio = (puntos: THREE.Vector3[], radio: number, chispa: number, demora: number) => {
-      const cv = new THREE.CatmullRomCurve3(puntos);
-      const m = new THREE.ShaderMaterial({
-        uniforms: { ...nervU, uChispa: { value: chispa }, uDemora: { value: demora } },
-        vertexShader: /* glsl */ `
-          uniform float uCrece, uTime;
-          varying vec2 vUv;
-          varying vec3 vN;
-          varying vec3 vV;
-          void main() {
-            vUv = uv;
-            vec3 p = position * uCrece;
-            p.y += 0.05 * sin(uTime * 0.8);
-            vN = normalize(normalMatrix * normal);
-            vec4 mv = modelViewMatrix * vec4(p, 1.0);
-            vV = mv.xyz;
-            gl_Position = projectionMatrix * mv;
-          }
-        `,
-        fragmentShader: /* glsl */ `
-          uniform float uNer, uTime, uFundido, uChispa, uDemora;
-          uniform vec3 uColor;
-          varying vec2 vUv;
-          varying vec3 vN;
-          varying vec3 vV;
-          void main() {
-            float t = uDemora >= 0.0 ? uDemora : vUv.x;
-            float ve = step(t, uNer * 1.2 + 0.05);
-            float c = abs(dot(normalize(vN), normalize(-vV)));
-            float luz = pow(c, 4.0) * 0.55 + 0.025;
-            float chispa = uChispa * smoothstep(0.88, 1.0, fract(t * 2.0 - uTime * 0.7)) * 4.0;
-            // (a fibre the camera passes right by fades, or it would fill the frame as a pipe)
-            float cerca = smoothstep(0.1, 0.45, length(vV));
-            gl_FragColor = vec4(uColor * luz * (1.0 + chispa) * uNer * ve * cerca * uFundido, 0.0);
-          }
-        `,
-        side: THREE.DoubleSide,
-        transparent: true,
-        depthTest: false,
-        depthWrite: false,
-        blending: THREE.CustomBlending,
-        blendSrc: THREE.OneFactor,
-        blendDst: THREE.OneMinusSrcAlphaFactor,
-      });
-      const tubo = new THREE.Mesh(new THREE.TubeGeometry(cv, 64, radio, 6, false), m);
-      tubo.frustumCulled = false;
-      tubo.renderOrder = 2;
-      root.add(tubo);
-    };
-    for (let k = 0; k < 16; k++) {
-      const a = (k / 16) * Math.PI * 2;
-      fibraNervio(Array.from({ length: 24 }, (_, i) => campana(i / 23, a)), 0.006, 1, -1);
-    }
-    fibraNervio(Array.from({ length: 65 }, (_, i) => campana(1, (i / 64) * Math.PI * 2)), 0.007, 1, 1);
-    for (let k = 0; k < 24; k++) {
-      const a = (k / 24) * Math.PI * 2;
-      const p0 = campana(1, a);
-      fibraNervio(
-        Array.from({ length: 20 }, (_, i) => {
-          const t = i / 19;
-          return V(p0.x * (1 - 0.15 * t) + Math.sin(t * 9 + k) * 0.03, p0.y - t * 1.4, p0.z * (1 - 0.15 * t) + Math.cos(t * 7 + k) * 0.03);
-        }),
-        0.0035,
-        0,
-        -1,
-      );
-    }
 
     let corteza: Nube | null = null;
     let red: Nube | null = null;
@@ -582,9 +514,6 @@ export const despierta: Escena = {
         membrana.u.uTime.value = t;
         nervios.u.uNer.value = tl.get('ner', p);
         nervios.u.uCrece.value = tl.get('crece', p);
-        nervU.uNer.value = tl.get('ner', p);
-        nervU.uCrece.value = tl.get('crece', p);
-        nervU.uTime.value = t;
         if (corteza) corteza.u.uCor.value = tl.get('cor', p);
         if (fibras) {
           fibras.uOn.value = tl.get('red', p) * (1 - THREE.MathUtils.smoothstep(tl.get('forma', p), 0, 0.3));
