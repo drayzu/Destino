@@ -272,48 +272,64 @@ export const cosmos: Escena = {
 
     tl.label('seis').caption(5.8, 'La eternidad en seis horas', 'O hacia afuera: con la luz de una estrella, en seis horas salen sondas a todas las galaxias alcanzables.');
     luego(0.8, 4.0, { sondas: HOR, bur: HOR * 0.85 });
+    // (the spark's way out as the relay left it: `prog`; from there on it flows without a stop through
+    // the caption change, `prog2`, the two blended once the relay is done)
     luego(0.6, 5.0, { prog: 0.55 });
+    tl.keyAt(0.6, { prog2: 0 });
+    tl.keyAt(5.6, { prog2: 0.52 });
+    tl.keyAt(10.4, { prog2: 0.72 });
     luego(1.2, 1.2, { seis: 1 });
     luego(4.4, 1.2, { seis: 0 });
     // (once the relay is done: down through home after the spark, the probes streaking out past the
     // camera on every side, and on behind it, galaxies rushing by; the web's own light lower, so the
-    // probes are what shines)
-    luego(2.5, 1.9, { ride: 1 });
-    luego(2.6, 0.9, { vel: 0.55 });
-    luego(3.6, 1.8, { vel: 0 });
-    luego(2.6, 1.6, { tenue: 1 });
+    // probes are what shines; the dive as long as the relay was, never a lunge)
+    luego(2.5, 3.0, { ride: 1 });
+    luego(3.0, 1.4, { vel: 0.5 });
+    luego(4.4, 1.8, { vel: 0 });
+    luego(2.6, 1.8, { tenue: 1 });
     luego(2.8, 1.6, { huida: 1 });
     tl.to(5.8, { az: 110, el: 24, ld: Math.log10(2.4) });
 
+    // Riding on behind the spark: the galaxy it chases is carried off faster than it goes, past the
+    // horizon's faint wall, reddening, dimming, a red ember out there. Then the camera lets go and
+    // falls back, slowly, the way it looks: home's galaxies slide past, our bubble opens round it in
+    // its horizon, the lost one a dim red point beyond; it comes to rest out on the far side, where
+    // the next bubble will come. (While it rides, its rig moves there unseen: the centre to where the
+    // two will touch, the distance in.)
+    const SEAM_C = OTRAS[0].c.clone().normalize().multiplyScalar(0.56);
+    const D_ESPERA = Math.log10(1.3);
     tl.label('prisa').caption(5.8, 'La prisa', 'Hay que apurarse: las galaxias se alejan cada vez más rápido, y las que cruzan el horizonte ya no se alcanzan.');
     tl.with(1.4, { hor: 1 });
     luego(0.6, 5.0, { exp: 1, prog: 0.72 });
     luego(2.4, 2.4, { tit: 1 });
-    // (riding on behind the spark: the galaxy it chases is carried off faster than it goes, past the
-    // horizon's faint wall, reddening, dimming, lost; then back out, to see it all)
-    luego(4.2, 1.6, { ride: 0, tenue: 0 });
-    luego(4.6, 1.0, { huida: 0 });
-    tl.to(5.8, { az: 140, el: 28, ld: Math.log10(3.3) });
+    luego(3.4, 4.0, { ride: 0 });
+    luego(3.6, 2.8, { tenue: 0 });
+    luego(7.2, 1.6, { huida: 0 });
+    luego(0.6, 2.6, { cx: SEAM_C.x, cy: SEAM_C.y, cz: SEAM_C.z });
+    tl.keyAt(tl.at('prisa') + 0.6, { ld: Math.log10(2.4) });
+    tl.keyAt(tl.at('prisa') + 3.0, { ld: D_ESPERA });
+    tl.to(5.8, { az: 140, el: 28, ld: D_ESPERA });
 
     // Ours, a cloud of teal galaxies, and the amber one growing towards it, each galaxy lit as its
     // front gets there; where they touch, a wall of light, and the galaxies along it flare. The
-    // camera goes in to the seam and through it: seen edge-on it is a line between the two colours.
-    const SEAM_C = OTRAS[0].c.clone().normalize().multiplyScalar(0.56);
-    tl.label('tocan').caption(6.4, 'Las expansivas se tocan', 'Si otras se expanden igual, las burbujas se tocan, y cada una se queda con su parte del cielo.');
+    // camera draws back to see both, the two colours either side of the wall, and goes in to it
+    // (close in, the wall seen edge-on: a line between the two colours; from nearer, the two lost
+    // their colours and the wall its line).
+    tl.label('tocan').caption(6.8, 'Las expansivas se tocan', 'Si otras se expanden igual, las burbujas se tocan, y cada una se queda con su parte del cielo.');
     luego(0.0, 1.6, { toca: 1 });
     luego(0.4, 4.6, { otras: 1.3 });
-    luego(0.6, 2.0, { cx: SEAM_C.x, cy: SEAM_C.y, cz: SEAM_C.z });
     luego(2.4, 1.6, { costura: 1 });
     tl.to(2.4, { az: 186, el: -10, ld: Math.log10(2.3) });
-    tl.to(2.0, { az: 199, el: -20, ld: Math.log10(1.45) });
-    tl.to(2.0, { az: 203, el: -24, ld: Math.log10(1.0) });
+    tl.to(2.2, { az: 199, el: -20, ld: Math.log10(1.4) });
+    tl.to(2.2, { az: 203, el: -24, ld: Math.log10(0.85) });
 
     // The reveal: all we reach, ours in teal among the others; the names a moment; still.
     // Into our share of the web: every light a galaxy, every one ours, the camera gliding among
     // them; then out again, to the whole island among the others'.
     tl.label('tipo').caption(16.0, 'Tipo IV', 'Tipo IV: todo lo que se puede alcanzar. Más allá no hay adónde ir.');
     tl.with(2.0, { bur: HOR * 1.02 });
-    luego(0.4, 2.0, { cerca: 1, toca: 0, costura: 0, cx: 0, cy: 0, cz: 0 });
+    luego(0.4, 2.0, { cerca: 1, toca: 0, costura: 0 });
+    luego(1.0, 2.6, { cx: 0, cy: 0, cz: 0 });
     luego(0.6, 2.8, { vuela: 1 });
     luego(0.6, 10.0, { sv: 1 });
     luego(8.8, 3.0, { vuela: 0 });
@@ -409,7 +425,10 @@ export const cosmos: Escena = {
         // Where it is: along the way to its galaxy (which the swell carries off), and home again at the end.
         const expC = tl.get('exp', p);
         const caminoCh: Camino = (sv, out) => out.copy(metaAntes).lerp(tmpM.copy(meta), THREE.MathUtils.smoothstep(sv, 0.2, 0.34)).multiplyScalar((1 + expC * 1.4) * Math.max(0, sv));
-        const prog = tl.get('prog', p);
+        // (as the relay left it, then flowing on: the two blended once the relay is done; equal again
+        // long before the spark comes home)
+        const wP = p < 20 ? THREE.MathUtils.smoothstep(p, 2.5, 3.6) : 0;
+        const prog = THREE.MathUtils.lerp(tl.get('prog', p), tl.get('prog2', p), wP);
         // Gliding through our galaxies (Type IV): the camera on its way among them, looking ahead.
         const vuela = tl.get('vuela', p);
         const ride = tl.get('ride', p);
@@ -443,7 +462,7 @@ export const cosmos: Escena = {
         // The galaxy it chases: carried off faster than the probe, reddening past the horizon.
         const huyeR = meta.length() * (1 + expC * 1.4 + expC * expC * 1.8);
         huida.points.position.copy(meta).setLength(huyeR);
-        huida.u.uOn.value = tl.get('huida', p) * (1 - 0.92 * THREE.MathUtils.smoothstep(huyeR, HOR * 1.1, HOR * 2.0));
+        huida.u.uOn.value = tl.get('huida', p) * (1 - 0.72 * THREE.MathUtils.smoothstep(huyeR, HOR * 1.1, HOR * 2.6));
         huida.u.uRojo.value = THREE.MathUtils.smoothstep(huyeR, HOR * 0.85, HOR * 1.35);
         huida.points.visible = huida.u.uOn.value > 0.002;
         huida.u.uSizeUnit.value = 1;
