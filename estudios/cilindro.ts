@@ -157,7 +157,7 @@ const CASCO = /* glsl */ `
     float k = f.x;
     float u = f.y;
     vec3 n = normalize(vN);
-    float rim = pow(1.0 - abs(dot(n, normalize(-vV))), 3.0);
+    float rim = pow(max(1.0 - abs(dot(n, normalize(-vV))), 0.0), 3.0);
     if (mod(k, 2.0) > 0.5) {
       // Glass: mostly clear (the land of the far side shows through); mullions across.
       float mull = raya(vL.z / uLC * 36.0, 0.05);
@@ -189,7 +189,7 @@ const PARED = /* glsl */ `
     float rayos = raya(fi / 6.2831853 * 24.0, 0.03);
     float borde = smoothstep(0.96, 1.0, r) + smoothstep(0.36, 0.32, r);
     vec3 n = normalize(vN);
-    float rim = pow(1.0 - abs(dot(n, normalize(-vV))), 3.0);
+    float rim = pow(max(1.0 - abs(dot(n, normalize(-vV))), 0.0), 3.0);
     vec3 col = vec3(0.03, 0.034, 0.04) + vec3(0.32, 0.36, 0.4) * (anillos * 0.1 + rayos * 0.06 + borde * 0.35) + vec3(0.3, 0.38, 0.46) * rim * 0.4;
     gl_FragColor = vec4(col * uOn * uFundido, uOn * uFundido);
   }
@@ -202,7 +202,7 @@ const ESPEJO = /* glsl */ `
   varying vec2 vUv;
   void main() {
     vec3 n = normalize(vN);
-    float fres = pow(1.0 - abs(dot(n, normalize(-vV))), 2.0);
+    float fres = pow(max(1.0 - abs(dot(n, normalize(-vV))), 0.0), 2.0);
     float marco = max(smoothstep(0.02, 0.0, vUv.x) + smoothstep(0.98, 1.0, vUv.x), smoothstep(0.012, 0.0, vUv.y) + smoothstep(0.988, 1.0, vUv.y));
     float vetas = raya(vUv.y * 12.0, 0.03) * 0.25;
     // (the Sun caught in it: a soft bright band that slides with the view)
@@ -379,7 +379,7 @@ const CASCO_ANILLO = /* glsl */ `
     if (fi < 0.0) fi += 6.2831853;
     float u = vL.z / uW + 0.5;
     vec3 n = normalize(vN);
-    float rim = pow(1.0 - abs(dot(n, normalize(-vV))), 3.0);
+    float rim = pow(max(1.0 - abs(dot(n, normalize(-vV))), 0.0), 3.0);
     float anillos = raya(fi / 6.2831853 * 90.0, 0.03);
     float costuras = raya(u * 4.0, 0.03);
     float bordes = smoothstep(0.04, 0.0, u) + smoothstep(0.96, 1.0, u);
@@ -404,7 +404,7 @@ const TECHO = /* glsl */ `
     float u = vL.z / uW + 0.5;
     float mull = max(raya(fi / 6.2831853 * 180.0, 0.03), raya(u * 6.0, 0.03));
     vec3 n = normalize(vN);
-    float rim = pow(1.0 - abs(dot(n, normalize(-vV))), 3.0);
+    float rim = pow(max(1.0 - abs(dot(n, normalize(-vV))), 0.0), 3.0);
     vec3 col = vec3(0.4, 0.48, 0.56) * (mull * 0.12 + rim * 0.3);
     gl_FragColor = vec4(col * uOn * uFundido, (0.04 + 0.3 * mull) * uOn * uFundido);
   }
@@ -419,7 +419,7 @@ const LADO = /* glsl */ `
     float rayos = raya(fi / 6.2831853 * 120.0, 0.03);
     float bordes = smoothstep(0.985, 1.0, r);
     vec3 n = normalize(vN);
-    float rim = pow(1.0 - abs(dot(n, normalize(-vV))), 3.0);
+    float rim = pow(max(1.0 - abs(dot(n, normalize(-vV))), 0.0), 3.0);
     vec3 col = vec3(0.025, 0.028, 0.034) + vec3(0.32, 0.36, 0.4) * (rayos * 0.08 + bordes * 0.5) + vec3(0.3, 0.38, 0.46) * rim * 0.4;
     gl_FragColor = vec4(col * uOn * uFundido, uOn * uFundido);
   }

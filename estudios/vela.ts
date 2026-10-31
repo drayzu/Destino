@@ -90,7 +90,7 @@ function velaMembrana() {
       }
       void main() {
         vec3 n = normalize(vN);
-        float c = abs(dot(n, normalize(-vV)));
+        float c = min(abs(dot(n, normalize(-vV))), 1.0);
         // Thin-film sheens: colour that shifts with the angle and slides across the film.
         float fase = (1.0 - c) * 9.0 + (vP.x + vP.y) * 2.0 + uTime * 0.15;
         vec3 iris = 0.5 + 0.5 * cos(6.2831853 * (fase + vec3(0.0, 0.33, 0.67)));

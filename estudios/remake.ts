@@ -155,8 +155,10 @@ export function capaLuz(color: THREE.Color, opciones: { cara?: number; grano?: n
                    mix(mix(h31(i + vec3(0, 0, 1)), h31(i + vec3(1, 0, 1)), f.x), mix(h31(i + vec3(0, 1, 1)), h31(i + vec3(1, 1, 1)), f.x), f.y), f.z);
       }
       void main() {
-        float c = abs(dot(normalize(vN), normalize(-vV)));
-        float borde = pow(1.0 - c, 2.4);
+        // (clamped: interpolated, the cosine can pass 1 where the shell faces the camera, and the pow of a
+        // negative is a NaN that the glow spreads into a black frame, a flicker)
+        float c = min(abs(dot(normalize(vN), normalize(-vV))), 1.0);
+        float borde = pow(max(1.0 - c, 0.0), 2.4);
         vec3 d = normalize(vL);
         float grano = 0.55 * ruido(d * 5.0 + uTime * 0.04) + 0.45 * ruido(d * 13.0 - uTime * 0.03);
         float luz = (borde * 0.9 + uCara) * (1.0 - uGrano + 2.0 * uGrano * grano);
