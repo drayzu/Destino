@@ -3,11 +3,12 @@ import * as THREE from 'three';
 
 /**
  * The ship that is a world, from outside, as surfaces (Diego, 30 Oct: «mostraría la nave e intentaría
- * mejorar su diseño exterior para que parezca más nave»; 31 Oct: the dish read as an antenna): a
- * spine braced by a truss, three rings (cilindro.ts) on their spokes, and ahead of them a long bow
- * like a rocket's, its nose of shielding plates against the dust; wide radiators aft, clear of the
- * rings, glowing with the heat of the life inside; running lights; and at the stern a drive with its
- * bell and plume. Its own units: about 1.3 long, along +Z (the bow); the rings 0.13 in radius.
+ * mejorar su diseño exterior para que parezca más nave»; 31 Oct: three rings, the radiators clear of
+ * them, a smaller dish, nothing toy-like aft): a spine braced along the rings, three rings
+ * (cilindro.ts) on their spokes, at the bow a shallow dish of shielding plates against the dust;
+ * aft the machinery with its tanks, pale radiators on booms, running lights, and a dark drive bell
+ * with its throat glowing and a faint plume. Its own units: 1 long, along +Z (the bow); the rings 0.13
+ * in radius.
  */
 
 const VERT = /* glsl */ `
@@ -70,10 +71,10 @@ const ESCUDO = /* glsl */ `
     return vec3(0.5 - max(dot(q, normalize(vec2(1.0, 1.7320508))), q.x), p - gv);
   }
   void main() {
-    vec3 hx = hexa(vL.xz * 70.0 + vec2(0.0, vL.y * 40.0));
+    vec3 hx = hexa(vL.xy * 70.0);
     float costura = 1.0 - smoothstep(0.02, 0.02 + 1.5 * fwidth(hx.x), hx.x);
     float tono = h21(hx.yz);
-    float r = length(vL.xz) / 0.155;
+    float r = length(vL.xy) / 0.13;
     vec3 col = vec3(0.045, 0.045, 0.05) * (0.7 + 0.6 * tono) * (1.0 - costura * 0.6);
     col += vec3(0.75, 0.72, 0.66) * smoothstep(0.9, 1.0, r) * 0.35;
     col += vec3(0.35, 0.42, 0.5) * borde() * 0.6;
@@ -85,12 +86,38 @@ const ESCUDO = /* glsl */ `
 const RADIADOR = /* glsl */ `
   ${COMUN}
   void main() {
+    // (pale panels in segments along the boom, fine ribs across them; warm only near the ship)
     float lejos = vUv.x;
-    float tubos = raya(vUv.y * 14.0, 0.06);
-    float marco = max(smoothstep(0.02, 0.0, vUv.y) + smoothstep(0.98, 1.0, vUv.y), smoothstep(0.98, 1.0, lejos));
-    float calor = mix(1.0, 0.25, lejos) * (0.85 + 0.15 * sin(uTime * 0.7 + vUv.y * 3.0));
-    vec3 col = vec3(0.03, 0.03, 0.035) + vec3(0.6, 0.18, 0.06) * calor * tubos * 0.45 + vec3(0.25, 0.27, 0.3) * marco * 0.35;
-    gl_FragColor = vec4(col * uOn * uFundido, 0.9 * uOn * uFundido);
+    float segmento = raya(lejos * 5.0, 0.03);
+    float costilla = raya(vUv.y * 24.0, 0.04) * 0.4;
+    float tono = 0.8 + 0.2 * h21(vec2(floor(lejos * 5.0), 3.0));
+    vec3 col = vec3(0.17, 0.18, 0.2) * tono * (1.0 - 0.6 * segmento) * (1.0 - 0.3 * costilla);
+    col += vec3(0.55, 0.22, 0.08) * (1.0 - smoothstep(0.0, 0.25, lejos)) * 0.25;
+    col += vec3(0.35, 0.4, 0.46) * borde() * 0.3;
+    gl_FragColor = vec4(col * uOn * uFundido, uOn * uFundido);
+  }
+`;
+
+/** Dark metal (tanks, booms): a soft sheen, a cold rim. */
+const METAL = /* glsl */ `
+  ${COMUN}
+  void main() {
+    float luz = 0.5 + 0.5 * dot(normalize(vN), normalize(vec3(0.4, 0.7, 0.6)));
+    vec3 col = vec3(0.05, 0.055, 0.06) * (0.6 + 0.8 * luz) + vec3(0.3, 0.36, 0.42) * borde() * 0.45;
+    gl_FragColor = vec4(col * uOn * uFundido, uOn * uFundido);
+  }
+`;
+
+/** The drive bell: dark metal outside, its inside glowing hot towards the throat. */
+const TOBERA = /* glsl */ `
+  ${COMUN}
+  void main() {
+    // (v: 0 at the wide mouth, 1 at the throat)
+    float garganta = vUv.y;
+    bool dentro = !gl_FrontFacing;
+    vec3 col = vec3(0.045, 0.045, 0.05) + vec3(0.28, 0.32, 0.38) * borde() * 0.35 + vec3(0.25, 0.25, 0.27) * raya(garganta * 8.0, 0.02) * 0.15;
+    if (dentro) col = mix(vec3(0.05, 0.04, 0.05), vec3(1.0, 0.55, 0.25), pow(garganta, 3.0)) + vec3(0.7, 0.85, 1.0) * pow(garganta, 10.0) * 1.5;
+    gl_FragColor = vec4(col * uOn * uFundido, uOn * uFundido);
   }
 `;
 
@@ -104,7 +131,7 @@ const PENACHO = /* glsl */ `
     float luz = pow(t, 2.4) * (0.35 + 0.65 * pow(1.0 - rim, 1.5)) * (0.85 + 0.15 * sin(uTime * 23.0 + t * 40.0));
     // (faint, and fading where it comes near the camera, so flying past it never floods the frame)
     luz = clamp(luz, 0.0, 4.0) * smoothstep(0.2, 0.7, length(vV));
-    gl_FragColor = vec4(vec3(0.62, 0.78, 1.0) * luz * 0.15 * uOn * uFundido, 0.0);
+    gl_FragColor = vec4(vec3(0.62, 0.78, 1.0) * luz * 0.12 * uOn * uFundido, 0.0);
   }
 `;
 
@@ -143,28 +170,30 @@ export function crearNaveMalla(anillos: number[], R: number): NaveMalla {
     }));
   const hull = (rejilla: [number, number]) => mat(CASCO, { uRejilla: { value: new THREE.Vector2(...rejilla) } });
 
-  // The spine, from the drive to the nose, braced by a truss of four longerons and hoops.
-  const espina = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.82, 32, 1), hull([24, 66]));
+  // The spine, from the drive to the antenna at the bow, braced along the rings by four longerons.
+  const espina = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.96, 32, 1), hull([24, 76]));
   espina.rotation.x = Math.PI / 2;
-  espina.position.z = -0.1;
+  espina.position.z = -0.03;
   grupo.add(espina);
   for (let k = 0; k < 4; k++) {
     const a = (k / 4) * Math.PI * 2 + Math.PI / 4;
-    const larguero = new THREE.Mesh(new THREE.CylinderGeometry(0.0022, 0.0022, 0.78, 8, 1), hull([2, 56]));
+    const larguero = new THREE.Mesh(new THREE.CylinderGeometry(0.0022, 0.0022, 0.6, 8, 1), hull([2, 44]));
     larguero.rotation.x = Math.PI / 2;
-    larguero.position.set(Math.cos(a) * 0.04, Math.sin(a) * 0.04, -0.09);
+    larguero.position.set(Math.cos(a) * 0.04, Math.sin(a) * 0.04, -0.02);
     grupo.add(larguero);
   }
-  for (let z = -0.46; z <= 0.3; z += 0.11) {
-    const aro = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.0018, 6, 32), hull([24, 2]));
-    aro.position.z = z;
-    grupo.add(aro);
-  }
-  // A wider core section between the rings and the drive (tanks, machinery).
+  // A wider core section between the rings and the drive (machinery), with four tanks round it.
   const nucleo = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.03, 0.16, 32, 1), hull([18, 10]));
   nucleo.rotation.x = Math.PI / 2;
   nucleo.position.z = -0.43;
   grupo.add(nucleo);
+  for (let k = 0; k < 4; k++) {
+    const a = (k / 4) * Math.PI * 2;
+    const tanque = new THREE.Mesh(new THREE.CapsuleGeometry(0.016, 0.07, 8, 24), mat(METAL));
+    tanque.rotation.x = Math.PI / 2;
+    tanque.position.set(Math.cos(a) * 0.05, Math.sin(a) * 0.05, -0.43);
+    grupo.add(tanque);
+  }
   // Spokes to each ring, and a hub.
   for (const z of anillos) {
     const cubo = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.03, 24, 1), hull([12, 2]));
@@ -180,48 +209,44 @@ export function crearNaveMalla(anillos: number[], R: number): NaveMalla {
       grupo.add(rayo);
     }
   }
-  // The bow, like a rocket's: a long hull ahead of the rings (a collar where it meets the truss),
-  // and its nose of shielding plates against the dust.
-  const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.05, 0.03, 48, 1), hull([24, 2]));
-  collar.rotation.x = Math.PI / 2;
-  collar.position.z = 0.3;
-  grupo.add(collar);
-  const proa = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.058, 0.24, 48, 1), hull([28, 14]));
-  proa.rotation.x = Math.PI / 2;
-  proa.position.z = 0.435;
-  grupo.add(proa);
-  const escudo = new THREE.Mesh(new THREE.ConeGeometry(0.155, 0.11, 96, 6, false), mat(ESCUDO, {}, false, THREE.DoubleSide));
-  escudo.scale.set(0.34, 1.5, 0.34);
-  escudo.rotation.x = Math.PI / 2;
-  escudo.position.z = 0.555 + 0.0825;
+  // At the bow, on the spine as it comes, the shield: a shallow dish of plates against the dust (a
+  // little smaller than it was: Diego, 31 Oct).
+  const escudoG = new THREE.SphereGeometry(0.3, 96, 16, 0, Math.PI * 2, 0, Math.asin(0.13 / 0.3));
+  escudoG.rotateX(Math.PI / 2);
+  const escudo = new THREE.Mesh(escudoG, mat(ESCUDO, {}, false, THREE.DoubleSide));
+  escudo.position.z = 0.46 - 0.3;
   grupo.add(escudo);
-  // Radiators, aft, either side: wide fins, the heat of everyone inside going out to space.
+  // Radiators, aft, either side on short booms: pale panels in segments (as a station's), warm only
+  // where they leave the ship.
   for (const s of [-1, 1]) {
-    const g = new THREE.PlaneGeometry(0.2, 0.18, 1, 1);
+    const brazo = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.0025, 0.03, 8, 1), mat(METAL));
+    brazo.rotation.z = Math.PI / 2;
+    brazo.position.set(s * 0.05, 0, -0.43);
+    grupo.add(brazo);
+    const g = new THREE.PlaneGeometry(0.17, 0.12, 1, 1);
     const rad = new THREE.Mesh(g, mat(RADIADOR, {}, false, THREE.DoubleSide));
     rad.rotation.set(-Math.PI / 2, 0, 0);
-    rad.position.set(s * (0.045 + 0.1), 0, -0.43);
+    rad.position.set(s * (0.065 + 0.085), 0, -0.43);
     // (u runs out from the spine)
     if (s < 0) rad.scale.x = -1;
     grupo.add(rad);
   }
-  // The drive: a bell and its plume.
-  const tobera = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.048, 0.075, 40, 1, true), hull([24, 3]));
-  tobera.material.side = THREE.DoubleSide;
+  // The drive: a dark bell, its throat glowing, and a faint plume.
+  const tobera = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.044, 0.07, 48, 1, true), mat(TOBERA, {}, false, THREE.DoubleSide));
   tobera.rotation.x = Math.PI / 2;
-  tobera.position.z = -0.55;
+  tobera.position.z = -0.545;
   grupo.add(tobera);
-  const penachoG = new THREE.CylinderGeometry(0.036, 0.075, 0.6, 48, 1, true);
+  const penachoG = new THREE.CylinderGeometry(0.03, 0.05, 0.4, 48, 1, true);
   const penacho = new THREE.Mesh(penachoG, mat(PENACHO, {}, true, THREE.DoubleSide));
   penacho.rotation.x = Math.PI / 2;
-  penacho.position.z = -0.59 - 0.3;
+  penacho.position.z = -0.58 - 0.2;
   penacho.renderOrder = 3;
   grupo.add(penacho);
-  // Running lights: red and green on the radiators' tips, white at the nose and the stern.
+  // Running lights: red and green on the radiators' tips, white at the dish and the stern.
   const luces: [THREE.Vector3, THREE.Color, number][] = [
-    [new THREE.Vector3(-0.245, 0, -0.43), new THREE.Color(1.0, 0.18, 0.12), 0.0],
-    [new THREE.Vector3(0.245, 0, -0.43), new THREE.Color(0.2, 1.0, 0.45), 0.0],
-    [new THREE.Vector3(0, 0, 0.723), new THREE.Color(1, 1, 1), 0.5],
+    [new THREE.Vector3(-0.235, 0, -0.43), new THREE.Color(1.0, 0.18, 0.12), 0.0],
+    [new THREE.Vector3(0.235, 0, -0.43), new THREE.Color(0.2, 1.0, 0.45), 0.0],
+    [new THREE.Vector3(0, 0, 0.466), new THREE.Color(1, 1, 1), 0.5],
     [new THREE.Vector3(0, 0.05, -0.5), new THREE.Color(1, 1, 1), 0.25],
   ];
   for (const [q, c, fase] of luces) {

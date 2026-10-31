@@ -6,7 +6,7 @@ import { ease, mapaTierra } from './comun';
 import { pantalla, FONDOS } from './motor/pantalla';
 import { tierra as tierraHorizontes } from '../src/horizontes';
 import { FONT, ink, type Cuenta, type Rotulo } from './placa';
-import { TEAL, caraHacia, potencia, puntoTu, anioEn } from './remake';
+import { TEAL, capaLuz, caraHacia, potencia, puntoTu, anioEn } from './remake';
 import { aplicarToma, toma } from './rig';
 import { CARA, SOL, S_CAIRO, luces, montarTierra, rutaTierra } from './tierra';
 import { crearChispa, montar, type Camino } from './chispa';
@@ -153,6 +153,9 @@ function cerebroDatos(img: ImageData) {
     }
   }
   const hechos = new Set<string>();
+  // (the links as continuous fibres too: drawn as lines while it is a brain)
+  const fibras: number[] = [];
+  const fibraT: number[] = [];
   nodos.forEach((n, i) => {
     const cerca = nodos
       .map((m, j) => ({ j, d: m.distanceTo(n) }))
@@ -166,6 +169,8 @@ function cerebroDatos(img: ImageData) {
       const m = nodos[j];
       const cuantos = Math.round(d * 160);
       const fase = r();
+      fibras.push(n.x, n.y, n.z, m.x, m.y, m.z);
+      fibraT.push(i < j ? 0 : 1, fase, i < j ? 1 : 0, fase);
       for (let q = 0; q < cuantos; q++) {
         const t = r();
         posiciones.push([n.x + (m.x - n.x) * t, n.y + (m.y - n.y) * t, n.z + (m.z - n.z) * t]);
@@ -189,7 +194,7 @@ function cerebroDatos(img: ImageData) {
     // The colour it ends with: the light's own (in `aDat.w`, its brightness).
     dat[i * 4 + 3] = (lc.r + lc.g + lc.b) / 3;
   }
-  return { corteza: corteza0.data(), red: red.data(), dat: new Float32Array(dat) };
+  return { corteza: corteza0.data(), red: red.data(), dat: new Float32Array(dat), fibras: new Float32Array(fibras), fibraT: new Float32Array(fibraT) };
 }
 
 export const despierta: Escena = {
@@ -237,7 +242,8 @@ export const despierta: Escena = {
             // It shrinks when the light touches it, and breathes.
             float enc = 1.0 - 0.14 * uToque * (0.5 + 0.5 * sin(uTime * 3.0));
             p *= enc * (1.0 + 0.02 * sin(uTime * 1.3 + p.y * 9.0));
-            em *= uCel;
+            // (its membrane is a shell of light now: its own points only a faint grain on it)
+            em *= uCel * (aKind < 0.5 ? 0.16 : 1.0);
           } else {
             p += vec3(sin(uTime * 0.11 + seed * 40.0), cos(uTime * 0.09 + seed * 30.0), sin(uTime * 0.07 + seed * 20.0)) * 0.06;
             em *= uMar;
@@ -247,6 +253,8 @@ export const despierta: Escena = {
       }),
     );
     celula.u.uFuente.value = 0.4;
+    const membrana = capaLuz(new THREE.Color(0.6, 0.86, 1.0), { cara: 0.04, grano: 0.45 });
+    root.add(membrana.mesh);
 
     const nervios = add(
       materia(redNerviosaDatos(), {
@@ -256,14 +264,87 @@ export const despierta: Escena = {
           p.y += 0.05 * sin(uTime * 0.8);
           float chispa = aKind < 0.5 ? smoothstep(0.88, 1.0, fract(aDelay * 2.0 - uTime * 0.7)) * 4.0 : 0.0;
           em *= uNer * (1.0 + chispa) * step(aDelay, uNer * 1.2 + 0.05);
+          // (the nerves and tentacles are fibres of light now: their points only a grain on them)
+          em *= aKind > 0.5 && aKind < 1.5 ? 1.0 : 0.3;
         `,
         uniforms: { uNer: { value: 0 }, uCrece: { value: 0.3 } },
       }),
     );
     nervios.u.uFuente.value = 0.4;
+    // The nerves as fibres of light (thin glowing tubes), growing as the net grows, sparks running
+    // along them.
+    const nervU = { uNer: { value: 0 }, uCrece: { value: 0.3 }, uTime: { value: 0 }, uFundido: { value: 1 }, uColor: { value: VIOLETA.clone() } };
+    const fibraNervio = (puntos: THREE.Vector3[], radio: number, chispa: number, demora: number) => {
+      const cv = new THREE.CatmullRomCurve3(puntos);
+      const m = new THREE.ShaderMaterial({
+        uniforms: { ...nervU, uChispa: { value: chispa }, uDemora: { value: demora } },
+        vertexShader: /* glsl */ `
+          uniform float uCrece, uTime;
+          varying vec2 vUv;
+          varying vec3 vN;
+          varying vec3 vV;
+          void main() {
+            vUv = uv;
+            vec3 p = position * uCrece;
+            p.y += 0.05 * sin(uTime * 0.8);
+            vN = normalize(normalMatrix * normal);
+            vec4 mv = modelViewMatrix * vec4(p, 1.0);
+            vV = mv.xyz;
+            gl_Position = projectionMatrix * mv;
+          }
+        `,
+        fragmentShader: /* glsl */ `
+          uniform float uNer, uTime, uFundido, uChispa, uDemora;
+          uniform vec3 uColor;
+          varying vec2 vUv;
+          varying vec3 vN;
+          varying vec3 vV;
+          void main() {
+            float t = uDemora >= 0.0 ? uDemora : vUv.x;
+            float ve = step(t, uNer * 1.2 + 0.05);
+            float c = abs(dot(normalize(vN), normalize(-vV)));
+            float luz = pow(c, 4.0) * 0.55 + 0.025;
+            float chispa = uChispa * smoothstep(0.88, 1.0, fract(t * 2.0 - uTime * 0.7)) * 4.0;
+            // (a fibre the camera passes right by fades, or it would fill the frame as a pipe)
+            float cerca = smoothstep(0.1, 0.45, length(vV));
+            gl_FragColor = vec4(uColor * luz * (1.0 + chispa) * uNer * ve * cerca * uFundido, 0.0);
+          }
+        `,
+        side: THREE.DoubleSide,
+        transparent: true,
+        depthTest: false,
+        depthWrite: false,
+        blending: THREE.CustomBlending,
+        blendSrc: THREE.OneFactor,
+        blendDst: THREE.OneMinusSrcAlphaFactor,
+      });
+      const tubo = new THREE.Mesh(new THREE.TubeGeometry(cv, 64, radio, 6, false), m);
+      tubo.frustumCulled = false;
+      tubo.renderOrder = 2;
+      root.add(tubo);
+    };
+    for (let k = 0; k < 16; k++) {
+      const a = (k / 16) * Math.PI * 2;
+      fibraNervio(Array.from({ length: 24 }, (_, i) => campana(i / 23, a)), 0.006, 1, -1);
+    }
+    fibraNervio(Array.from({ length: 65 }, (_, i) => campana(1, (i / 64) * Math.PI * 2)), 0.007, 1, 1);
+    for (let k = 0; k < 24; k++) {
+      const a = (k / 24) * Math.PI * 2;
+      const p0 = campana(1, a);
+      fibraNervio(
+        Array.from({ length: 20 }, (_, i) => {
+          const t = i / 19;
+          return V(p0.x * (1 - 0.15 * t) + Math.sin(t * 9 + k) * 0.03, p0.y - t * 1.4, p0.z * (1 - 0.15 * t) + Math.cos(t * 7 + k) * 0.03);
+        }),
+        0.0035,
+        0,
+        -1,
+      );
+    }
 
     let corteza: Nube | null = null;
     let red: Nube | null = null;
+    let fibras: { uOn: { value: number }; uTime: { value: number }; uFundido: { value: number } } | null = null;
     const tierraG = new THREE.Group();
     tierraG.quaternion.copy(caraHacia(CARA.lat, CARA.lon));
     root.add(tierraG);
@@ -287,6 +368,8 @@ export const despierta: Escena = {
             // On the Earth: the colour of night lights; the biggest knots turn cold white (the machines).
             vec3 noche = uLuz * (0.25 + 0.7 * aDat.w);
             em = mix(em, noche, uK) * (1.0 + pulso);
+            // (while it is a brain its links are fibres of light: their points only a grain on them)
+            em *= aDat.x > 0.5 ? mix(0.35, 1.0, smoothstep(0.0, 0.3, uK)) : 1.0;
             float maq = uMaq * step(0.5, 1.0 - aDat.x) * step(0.82, aDat.z);
             em = mix(em, uFria * 2.2, maq);
             em *= uRed;
@@ -299,6 +382,43 @@ export const despierta: Escena = {
       );
       red.u.uSpread.value = 1.2;
       red.u.uFuente.value = 0.45;
+      {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.BufferAttribute(d.fibras, 3));
+        g.setAttribute('aT', new THREE.BufferAttribute(d.fibraT, 2));
+        const u = { uOn: { value: 0 }, uTime: { value: 0 }, uFundido: { value: 1 } };
+        const m = new THREE.ShaderMaterial({
+          uniforms: u,
+          vertexShader: /* glsl */ `
+            attribute vec2 aT;
+            varying vec2 vT;
+            void main() {
+              vT = aT;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: /* glsl */ `
+            uniform float uOn, uTime, uFundido;
+            varying vec2 vT;
+            void main() {
+              // (a faint fibre, a spark running along it now and then, as the points' pulses)
+              float pulso = smoothstep(0.86, 1.0, fract(vT.x - uTime * 0.5 + vT.y * 9.0)) * 3.5;
+              gl_FragColor = vec4(vec3(1.0, 0.5, 0.42) * (0.12 + pulso * 0.5) * uOn * uFundido, 0.0);
+            }
+          `,
+          transparent: true,
+          depthTest: false,
+          depthWrite: false,
+          blending: THREE.CustomBlending,
+          blendSrc: THREE.OneFactor,
+          blendDst: THREE.OneMinusSrcAlphaFactor,
+        });
+        const lineas = new THREE.LineSegments(g, m);
+        lineas.frustumCulled = false;
+        lineas.renderOrder = 2;
+        root.add(lineas);
+        fibras = u;
+      }
       await planeta.listo;
     })();
 
@@ -456,9 +576,20 @@ export const despierta: Escena = {
         celula.u.uCel.value = tl.get('cel', p);
         celula.u.uMar.value = tl.get('mar', p);
         celula.u.uToque.value = tl.get('toque', p);
+        // (the membrane shrinks with the cell when the light touches it, and breathes)
+        membrana.mesh.scale.setScalar(0.42 * (1 - 0.14 * tl.get('toque', p) * (0.5 + 0.5 * Math.sin(t * 3))));
+        membrana.u.uOn.value = 0.6 * tl.get('cel', p);
+        membrana.u.uTime.value = t;
         nervios.u.uNer.value = tl.get('ner', p);
         nervios.u.uCrece.value = tl.get('crece', p);
+        nervU.uNer.value = tl.get('ner', p);
+        nervU.uCrece.value = tl.get('crece', p);
+        nervU.uTime.value = t;
         if (corteza) corteza.u.uCor.value = tl.get('cor', p);
+        if (fibras) {
+          fibras.uOn.value = tl.get('red', p) * (1 - THREE.MathUtils.smoothstep(tl.get('forma', p), 0, 0.3));
+          fibras.uTime.value = t;
+        }
         if (red) {
           red.u.uRed.value = tl.get('red', p);
           red.u.uK.value = tl.get('forma', p);

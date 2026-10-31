@@ -117,3 +117,63 @@ export function puntoTu(pos: THREE.Vector3, size: number): Nube {
   n.u.uFuente.value = 1;
   return n;
 }
+
+
+/**
+ * A shell of light, not points (Diego, 31 Oct: some things gain from not being dots): a sphere seen
+ * as a membrane, bright where it is seen edge-on (its rim), faint across its face, softly mottled and
+ * slowly moving; its far side fainter. Radius 1 (scale the mesh); `uOn` its light.
+ */
+export function capaLuz(color: THREE.Color, opciones: { cara?: number; grano?: number } = {}) {
+  const u = { uOn: { value: 0 }, uFundido: { value: 1 }, uTime: { value: 0 }, uColor: { value: color.clone() }, uCara: { value: opciones.cara ?? 0.06 }, uGrano: { value: opciones.grano ?? 0.35 } };
+  const mat = new THREE.ShaderMaterial({
+    uniforms: u,
+    vertexShader: /* glsl */ `
+      varying vec3 vN;
+      varying vec3 vV;
+      varying vec3 vL;
+      void main() {
+        vL = position;
+        vN = normalize(normalMatrix * normal);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vV = mv.xyz;
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uOn, uFundido, uTime, uCara, uGrano;
+      uniform vec3 uColor;
+      varying vec3 vN;
+      varying vec3 vV;
+      varying vec3 vL;
+      float h31(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+      float ruido(vec3 p) {
+        vec3 i = floor(p);
+        vec3 f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(mix(h31(i), h31(i + vec3(1, 0, 0)), f.x), mix(h31(i + vec3(0, 1, 0)), h31(i + vec3(1, 1, 0)), f.x), f.y),
+                   mix(mix(h31(i + vec3(0, 0, 1)), h31(i + vec3(1, 0, 1)), f.x), mix(h31(i + vec3(0, 1, 1)), h31(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+      }
+      void main() {
+        float c = abs(dot(normalize(vN), normalize(-vV)));
+        float borde = pow(1.0 - c, 2.4);
+        vec3 d = normalize(vL);
+        float grano = 0.55 * ruido(d * 5.0 + uTime * 0.04) + 0.45 * ruido(d * 13.0 - uTime * 0.03);
+        float luz = (borde * 0.9 + uCara) * (1.0 - uGrano + 2.0 * uGrano * grano);
+        // (its far side, seen through it, fainter)
+        if (!gl_FrontFacing) luz *= 0.4;
+        gl_FragColor = vec4(uColor * luz * uOn * uFundido, 0.0);
+      }
+    `,
+    side: THREE.DoubleSide,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
+  });
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 64), mat);
+  mesh.frustumCulled = false;
+  return { mesh, u };
+}

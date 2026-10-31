@@ -1,3 +1,4 @@
+import { DIR_VOZ } from './apertura';
 import * as THREE from 'three';
 import { Timeline } from './timeline';
 import { enfocar, materia, materiaBuilder, type Nube } from './motor/materia';
@@ -116,7 +117,10 @@ export const mente: Escena = {
     const curvas: THREE.Curve<THREE.Vector3>[] = [];
     for (let i = 0; i + 1 < cadena.length; i++) curvas.push(axon(cadena[i].c, cadena[i + 1].c, r));
     const ultima = cadena[cadena.length - 1].c;
-    curvas.push(new THREE.LineCurve3(ultima.clone(), ultima.clone().addScaledVector(dirGeneral, 9)));
+    // (out of the last neuron, bending round to the way the next act's spark sets off: no turn at
+    // the change of act)
+    const finVoz = ultima.clone().addScaledVector(dirGeneral, 3.5).addScaledVector(DIR_VOZ, 5.5);
+    curvas.push(new THREE.CubicBezierCurve3(ultima.clone(), ultima.clone().addScaledVector(dirGeneral, 3.0), finVoz.clone().addScaledVector(DIR_VOZ, -3.2), finVoz));
     // The axons drawn too (the ones the spark takes, and others between neighbours).
     const pintarAxon = (cv: THREE.Curve<THREE.Vector3>, luz: number) => {
       const L = cv.getLength();

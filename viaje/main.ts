@@ -265,6 +265,7 @@ function mapa(a: Ancla, b: Ancla) {
 const mapas = new Map<Tramo, { m: THREE.Matrix4; escala: number }>();
 /** Sparks moved during a relay (to start where the last act's was), and their own place. */
 const corridas = new Map<THREE.Object3D, THREE.Vector3>();
+let huecoRelevo: { t: Tramo; v: THREE.Vector3 } | null = null;
 
 const smooth = (x: number) => x * x * (3 - 2 * x);
 const camA = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), fov: 40 };
@@ -370,11 +371,15 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
       if (!corridas.has(pts)) corridas.set(pts, pts.position.clone());
       pts.position.copy(corridas.get(pts)!);
       pts.updateMatrixWorld();
+      // (the gap between the two sparks as the relay begins, closed over it while the spark keeps its
+      // own speed: nothing to close where the acts meet exactly at the spark)
       const p0 = new THREE.Vector3(sale.estela[0], sale.estela[1], sale.estela[2]).applyMatrix4(sale.nube.points.matrixWorld);
       const p1 = new THREE.Vector3(entra.estela[0], entra.estela[1], entra.estela[2]).applyMatrix4(pts.matrixWorld);
+      if (!huecoRelevo || huecoRelevo.t !== t) huecoRelevo = { t, v: p0.clone().sub(p1) };
+      const hueco = huecoRelevo.v;
       const lleva = 1 - smooth(clamp(p / RELEVO, 0, 1));
       if (pts.parent && Number.isFinite(p0.x)) {
-        const enPadre = pts.parent.worldToLocal(p1.clone().lerp(p0, lleva)).sub(pts.parent.worldToLocal(p1.clone()));
+        const enPadre = pts.parent.worldToLocal(p1.clone().addScaledVector(hueco, lleva)).sub(pts.parent.worldToLocal(p1.clone()));
         pts.position.add(enPadre);
         pts.updateMatrixWorld();
       }
@@ -393,6 +398,7 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
       pts.updateMatrixWorld();
     }
     corridas.clear();
+    huecoRelevo = null;
     if (t.film) {
       stage.bloom.strength = t.film.strength;
       stage.bloom.radius = t.film.radius;

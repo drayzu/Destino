@@ -2,11 +2,11 @@ import { tr } from './idioma';
 import * as THREE from 'three';
 import { Timeline } from './timeline';
 import { enfocar, materia, materiaBuilder, type MateriaData, type Nube } from './motor/materia';
-import { gauss } from './motor/math';
+import { gauss, rng } from './motor/math';
 import { crearAgujero } from './motor/agujero';
 import { ease, redCosmica } from './comun';
 import { FONT, ink, type Cuenta, type Rotulo } from './placa';
-import { TEAL, potencia, puntoTu, anioEn } from './remake';
+import { TEAL, capaLuz, potencia, puntoTu, anioEn } from './remake';
 import { aplicarToma, toma } from './rig';
 import { crearChispa, type Camino } from './chispa';
 import type { Escena, Frame, Instancia } from './tipos';
@@ -45,14 +45,102 @@ function anilloDatos(): MateriaData {
   return b.data();
 }
 
-function menteDatos(): MateriaData {
-  const b = materiaBuilder(277);
-  for (let i = 0; i < 700; i++) {
-    const [x, y, z] = b.onSphere();
-    const q = Math.cbrt(b.r()) * 0.9;
-    b.push(MENTE.x + x * q, MENTE.y + y * q, MENTE.z + z * q, b.r() < 0.3 ? 0xffffff : TEAL, 0.05, 0.9);
+/**
+ * The last mind, its thoughts counted (Diego, 31 Oct: a glowing cluster said nothing): a network of
+ * nodes, as the forest of neurons the work began in, each node one thought left. Each thought is a
+ * flash that runs out along its links, and its node goes dark for good; they come fast at first, then
+ * further and further apart, until one is left. `aKind`: when (0..1 of the moment) the node thinks
+ * its thought and goes out; above 1, never.
+ */
+const N_MENTE = 140;
+const R_MENTE = 1.7;
+function menteNodos() {
+  const r = rng(277);
+  const nodos: { p: THREE.Vector3; t: number }[] = [];
+  for (let i = 0; i < N_MENTE; i++) {
+    // (a ball of them, thicker towards the middle, not a shell)
+    const u = r() * 2 - 1;
+    const a = r() * Math.PI * 2;
+    const q = R_MENTE * Math.pow(r(), 0.6);
+    const d = V(Math.sqrt(1 - u * u) * Math.cos(a), u * 0.75, Math.sqrt(1 - u * u) * Math.sin(a));
+    nodos.push({ p: MENTE.clone().addScaledVector(d, q), t: 0 });
   }
+  // (who goes out when: densely at first, the gaps growing; the last one never)
+  const orden = nodos.map((_, i) => i).sort(() => r() - 0.5);
+  orden.forEach((k, j) => {
+    nodos[k].t = j === orden.length - 1 ? 2 : 0.04 + 0.9 * Math.pow(j / (orden.length - 1), 2);
+  });
+  return nodos;
+}
+function menteDatos(nodos: { p: THREE.Vector3; t: number }[]): MateriaData {
+  const b = materiaBuilder(278);
+  for (const n of nodos) b.push(n.p.x, n.p.y, n.p.z, b.r() < 0.25 ? 0xffffff : TEAL, 0.05, 0.9, { kind: n.t });
   return b.data();
+}
+/** Its links: each node to its nearest neighbours, a thought's flash running out along them. */
+function menteEnlaces(nodos: { p: THREE.Vector3; t: number }[]) {
+  const pos: number[] = [];
+  const t: number[] = [];
+  const lado: number[] = [];
+  const hecho = new Set<string>();
+  nodos.forEach((n, i) => {
+    const cerca = nodos
+      .map((m, j) => ({ j, d: m.p.distanceTo(n.p) }))
+      .filter((x) => x.j !== i)
+      .sort((x, y) => x.d - y.d)
+      .slice(0, 3);
+    for (const { j } of cerca) {
+      const clave = i < j ? `${i}-${j}` : `${j}-${i}`;
+      if (hecho.has(clave)) continue;
+      hecho.add(clave);
+      const m = nodos[j];
+      pos.push(n.p.x, n.p.y, n.p.z, m.p.x, m.p.y, m.p.z);
+      // (each end carries both nodes' times: the link flashes when either thinks, and is dark once
+      // both have gone out)
+      t.push(n.t, m.t, m.t, n.t);
+      lado.push(0, 1);
+    }
+  });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('aT', new THREE.Float32BufferAttribute(t, 2));
+  g.setAttribute('aLado', new THREE.Float32BufferAttribute(lado, 1));
+  const u = { uP: { value: 0 }, uOn: { value: 0 }, uFundido: { value: 1 } };
+  const mat = new THREE.ShaderMaterial({
+    uniforms: u,
+    vertexShader: /* glsl */ `
+      attribute vec2 aT;
+      attribute float aLado;
+      uniform float uP;
+      varying float vLuz;
+      float estado(float t) {
+        // (lit faintly while it waits, a flash as it thinks, then nothing)
+        float flash = exp(-pow((uP - t) / 0.012, 2.0)) * step(t, 1.5);
+        return (uP < t ? 0.18 : 0.0) + 2.2 * flash;
+      }
+      void main() {
+        vLuz = max(estado(aT.x), 0.6 * estado(aT.y));
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uOn, uFundido;
+      varying float vLuz;
+      void main() {
+        gl_FragColor = vec4(vec3(0.45, 0.92, 0.8) * vLuz * 0.35 * uOn * uFundido, 0.0);
+      }
+    `,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
+  });
+  const lineas = new THREE.LineSegments(g, mat);
+  lineas.frustumCulled = false;
+  lineas.renderOrder = 3;
+  return { lineas, u };
 }
 
 /** The new universe: a bubble of white (its points on a sphere) and the light inside that cools into a web. */
@@ -145,27 +233,35 @@ export const final: Escena = {
     root.add(hoyo.mesh);
     const anillo = add(materia(anilloDatos(), { pre: `uniform float uOn;`, move: `em *= uOn * (0.6 + 0.4 * sin(uTime * 0.7 + seed * 30.0));`, uniforms: { uOn: { value: 0 } } }), root, 2);
     anillo.u.uFuente.value = 0.5;
+    const nodos = menteNodos();
     const mente = add(
-      materia(menteDatos(), {
-        pre: /* glsl */ `uniform float uOn, uPeriodo;`,
+      materia(menteDatos(nodos), {
+        pre: /* glsl */ `uniform float uOn, uP;`,
         move: /* glsl */ `
-          // It thinks in flashes, each one further from the last.
-          float ph = fract(uTime / max(uPeriodo, 0.5));
-          em *= uOn * (0.08 + 1.6 * exp(-ph * 14.0));
+          // Each node one thought left: an ember while it waits, a flash as it thinks it, then dark.
+          float flash = exp(-pow((uP - aKind) / 0.012, 2.0)) * step(aKind, 1.5);
+          em *= uOn * ((uP < aKind ? 0.22 : 0.0) + 3.0 * flash);
+          sz *= 1.0 + 1.5 * flash;
         `,
-        uniforms: { uOn: { value: 0 }, uPeriodo: { value: 1 } },
+        uniforms: { uOn: { value: 0 }, uP: { value: 0 } },
       }),
       root,
       3,
     );
     mente.u.uFuente.value = 0.6;
-    const tuMente = add(puntoTu(MENTE.clone().add(V(1.6, 0.3, 0.6)), 0.1), root, 4);
+    const enlaces = menteEnlaces(nodos);
+    root.add(enlaces.lineas);
+    // (the one left, the last thought: yours)
+    const ultimo = nodos.find((n) => n.t > 1.5)!.p;
+    const tuMente = add(puntoTu(ultimo.clone(), 0.1), root, 4);
 
     const uniG = new THREE.Group();
     uniG.position.copy(NACE);
     root.add(uniG);
     const burbuja = add(materia(burbujaDatos(), { pre: `uniform float uOn;`, move: `em *= uOn;`, uniforms: { uOn: { value: 0 } } }), uniG, 5);
     burbuja.u.uFuente.value = 0.5;
+    const capaUni = capaLuz(new THREE.Color(1.0, 0.96, 0.9), { cara: 0.025, grano: 0.35 });
+    uniG.add(capaUni.mesh);
     // Inside: the light that spills and cools into a web (from a white fog to its knots).
     const rc = redCosmica(293, 110, (t, out) => out.setRGB(1.0, 0.86 - 0.1 * t, 0.7 - 0.15 * t), true);
     const luz = add(
@@ -196,7 +292,7 @@ export const final: Escena = {
       tl.wait(-off);
     };
     const Cn = (v: THREE.Vector3) => ({ cx: v.x, cy: v.y, cz: v.z });
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 240, el: 16, ld: Math.log10(150), yaw: 90, pitch: -90, roll: 0, fov: 40, pl: 0, frio: 0, hoyo: 1, anillo: 0, mente: 0, periodo: 1, tuM: 0, apagaM: 0, bur: 0, rb: 0, luz: 0, red: 0, tu: 0, apaga: 0, tarjeta: 0, baja: 0, chs: 0, chOn: 0 });
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 240, el: 16, ld: Math.log10(150), yaw: 90, pitch: -90, roll: 0, fov: 40, pl: 0, frio: 0, hoyo: 1, anillo: 0, mente: 0, periodo: 1, tuM: 0, apagaM: 0, cnt: 0, bur: 0, rb: 0, luz: 0, red: 0, tu: 0, apaga: 0, tarjeta: 0, baja: 0, chs: 0, chOn: 0 });
 
     tl.label('centrales').caption(5.6, 'Las últimas centrales', 'Cuando las estrellas se apagan, quedan los agujeros negros. Todavía se puede sacar energía de su giro.');
     luego(0.6, 1.8, { anillo: 1 });
@@ -207,6 +303,7 @@ export const final: Escena = {
     tl.with(6.6, { chs: 1 });
     luego(0.6, 1.0, { tuM: 1 });
     luego(0.4, 5.0, { periodo: 6 });
+    luego(0.3, 6.1, { cnt: 1 });
     luego(5.0, 1.2, { apagaM: 1 });
     tl.with(1.6, { ...Cn(MENTE) });
     tl.to(6.6, { ld: Math.log10(9), el: 28, az: 300 });
@@ -293,11 +390,15 @@ export const final: Escena = {
         hoyo.update({ camera, center: V(), normal: N_DISCO, rs: 1, sky, time: t, alpha: tl.get('hoyo', p) });
         anillo.u.uOn.value = tl.get('anillo', p);
         mente.u.uOn.value = tl.get('mente', p) * (1 - tl.get('apagaM', p));
-        mente.u.uPeriodo.value = tl.get('periodo', p);
+        mente.u.uP.value = tl.get('cnt', p);
+        enlaces.u.uP.value = tl.get('cnt', p);
+        enlaces.u.uOn.value = mente.u.uOn.value;
         tuMente.u.uGain.value = tl.get('tuM', p) * (1 + 0.25 * Math.sin(t * 1.5));
         const rb = tl.get('rb', p);
         uniG.scale.setScalar(Math.max(1e-3, R_UNI * rb));
-        burbuja.u.uOn.value = tl.get('bur', p);
+        burbuja.u.uOn.value = 0.5 * tl.get('bur', p);
+        capaUni.u.uOn.value = 0.32 * tl.get('bur', p);
+        capaUni.u.uTime.value = t;
         burbuja.u.uSizeUnit.value = uniG.scale.x * 0.25 + 0.2;
         luz.u.uLuz.value = tl.get('luz', p);
         luz.u.uRed.value = tl.get('red', p);

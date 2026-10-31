@@ -3,11 +3,11 @@ import * as THREE from 'three';
 import { Timeline } from './timeline';
 import { enfocar, materia, materiaBuilder, type Nube } from './motor/materia';
 import { redCosmica } from './comun';
-import { formaGalaxia } from './galaxias';
+import { brillosGalaxias, formaGalaxia, type FormaGalaxia } from './galaxias';
 import { gauss } from './motor/math';
 import { FONT, ink, type Cuenta, type Rotulo } from './placa';
 import { cuantas, enfocarMarcas, marcas, nombres, type Nombre } from './revelar';
-import { TEAL, potencia, anioEn } from './remake';
+import { TEAL, capaLuz, potencia, anioEn } from './remake';
 import { aplicarToma, toma } from './rig';
 import { crearChispa, montar, type Camino } from './chispa';
 import type { Escena, Frame, Instancia } from './tipos';
@@ -146,6 +146,9 @@ export const cosmos: Escena = {
       hb.push(x * HOR, y * HOR, z * HOR, new THREE.Color(0.55, 0.62, 0.8), 0.004, 0.12);
     }
     const horizonte = add(materia(hb.data(), { pre: `uniform float uOn;`, move: `em *= uOn;`, uniforms: { uOn: { value: 0 } } }), root, 1);
+    const capaHor = capaLuz(new THREE.Color(0.55, 0.62, 0.8), { cara: 0.03, grano: 0.3 });
+    capaHor.mesh.scale.setScalar(HOR);
+    root.add(capaHor.mesh);
 
     // Type IV up close: our share of the web is galaxies, every one ours. Spirals along our
     // filaments (where the web is once the swell has done), and a way among them for the camera.
@@ -160,12 +163,17 @@ export const cosmos: Escena = {
     const blanco = new THREE.Color(0.9, 1.0, 0.96);
     // (each its own kind of galaxy, all ours: teal, warmer at their hearts)
     const col = new THREE.Color();
+    const formas: { c: THREE.Vector3; f: FormaGalaxia }[] = [];
     for (const c of candidatas) {
-      formaGalaxia(gr, 420, 0.012, (x, y, z, t, luz, tinte) => {
+      const f = formaGalaxia(gr, 420, 0.012, (x, y, z, t, luz, tinte) => {
         col.copy(TEAL).lerp(blanco, 0.3 * gr()).lerp(tinte, t < 0.05 ? 0.55 : 0.25);
         gb.push(c.x + x, c.y + y, c.z + z, col, t < 0.05 ? 0.0007 : 0.0006, luz * (t < 0.05 ? 1.6 : 1.7));
       });
+      formas.push({ c, f });
     }
+    // (and under their points, each galaxy's soft light)
+    const brillos = brillosGalaxias(formas, TEAL);
+    root.add(brillos.mesh);
     const cercanas = add(materia(gb.data(), { pre: `uniform float uOn;`, move: `em *= uOn;`, uniforms: { uOn: { value: 0 } } }), root, 3);
     cercanas.u.uFuente.value = 0.6;
     // The way: through a ring of them round the middle, each passed close.
@@ -301,6 +309,7 @@ export const cosmos: Escena = {
         const miraV = mv.mira;
         aplicarToma(camera, toma(tl, p, tm, { punto: miraV, peso: vuela }, { punto: lugarV, peso: vuela }));
         cercanas.u.uOn.value = tl.get('cerca', p);
+        brillos.u.uOn.value = 0.55 * tl.get('cerca', p);
         sondas.u.uTenue.value = vuela;
         // Where it is: along the way to its galaxy (which the swell carries off), and home again at the end.
         const expC = tl.get('exp', p);
@@ -317,7 +326,9 @@ export const cosmos: Escena = {
         sondas.u.uSondas.value = tl.get('sondas', p);
         sondas.u.uExp.value = 0;
         sondas.u.uVacia.value = tl.get('vacia', p);
-        horizonte.u.uOn.value = tl.get('hor', p);
+        horizonte.u.uOn.value = 0.6 * tl.get('hor', p);
+        capaHor.u.uOn.value = 0.5 * tl.get('hor', p);
+        capaHor.u.uTime.value = t;
         oro.u.uGain.value = tl.get('oro', p);
         oro.u.uSizeUnit.value = (6 * camera.position.length()) / f.focal;
         for (const x of nubes) enfocar(x, f.focal, f.dpr, t);

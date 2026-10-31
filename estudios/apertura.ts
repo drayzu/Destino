@@ -5,7 +5,7 @@ import { enfocar, materia, materiaBuilder, type MateriaData, type Nube } from '.
 import { gauss, lerp } from './motor/math';
 import { ease } from './comun';
 import { FONT, ink, VIOLETA, type Cuenta, type Rotulo } from './placa';
-import { TEAL, potencia } from './remake';
+import { TEAL, capaLuz, potencia } from './remake';
 import { aplicarToma, toma } from './rig';
 import { crearChispa, montar, type Camino } from './chispa';
 import type { Escena, Frame, Instancia } from './tipos';
@@ -38,6 +38,9 @@ export const S = V(Math.sin(PHI_SOL) * R_SOL, 0.02, Math.cos(PHI_SOL) * R_SOL);
 /** A neighbourhood a little way from the Sun, where the camera flies among stars with planets. */
 const P = S.clone().add(V(0.09, 0.006, -0.07));
 const R_VOZ = P.distanceTo(S);
+/** Which way the spark leaves the Sun with our radio (the act before ends going this way: the relay
+ * only moves and scales the worlds, so the way is the same in both). */
+export const DIR_VOZ = P.clone().sub(S).normalize();
 
 /** A smooth 2D noise (0..1), two octaves: the disc is clumpy, not even. */
 function ruido2(x: number, y: number) {
@@ -408,6 +411,13 @@ export const apertura: Escena = {
 
     const voz = add(materia(vozDatos(), { pre: `uniform float uR, uOn; uniform vec3 uC;`, move: `p = uC + p * uR; sz *= uR; em *= uOn;`, uniforms: { uR: { value: 0 }, uOn: { value: 0 }, uC: { value: S.clone() } } }), galaxia, 4);
     voz.u.uFuente.value = 0.4;
+    // (its outer shells as shells of light; its points a faint grain on them)
+    const capasVoz = [1, 0.66].map((k) => {
+      const c = capaLuz(TEAL, { cara: 0.04, grano: 0.3 });
+      c.mesh.position.copy(S);
+      galaxia.add(c.mesh);
+      return { c, k };
+    });
 
     // The Sun as a star, and «tú» beside it: both points whose size follows the camera.
     const punto = (col: THREE.Color, luz: number) => {
@@ -581,6 +591,12 @@ export const apertura: Escena = {
         // The bubble grows with the distance until it reaches its hundred light years, so it always fits.
         voz.u.uR.value = tl.get('vaso', p) > 0.001 ? R_VOZ * 0.03 : Math.max(1e-5, Math.min(sc, 1) * R_VOZ);
         voz.u.uOn.value = Math.min(1, tl.get('voz', p) * 4) * tl.get('vozOn', p) * (1 - ease(0.4, 3, dSol)) + tl.get('vaso', p) * 1.6;
+        for (const { c, k } of capasVoz) {
+          c.mesh.scale.setScalar(Math.max(1e-6, voz.u.uR.value * k));
+          c.u.uOn.value = voz.u.uOn.value * (k === 1 ? 0.55 : 0.25);
+          c.u.uTime.value = f.time;
+        }
+        voz.u.uOn.value *= 0.55;
         // The two points keep a few pixels whatever the distance.
         const px = (n: number) => (n * dSol) / f.focal;
         tu.points.position.copy(S).add(V(px(9), px(2), 0));
