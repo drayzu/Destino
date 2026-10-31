@@ -291,6 +291,21 @@ export const final: Escena = {
     uniG.add(primera.mesh);
     // The corner where someone thinks: a knot of the new web, near its edge.
     const rincon = rc.nodos.slice().sort((a, z) => z.length() - a.length())[8].clone();
+    // Other universes, for the last moment («¿Y el nuestro?»): bubbles round the new one, rims of light
+    // seen as the camera leaves it.
+    const espuma: { c: ReturnType<typeof capaLuz>; base: number }[] = [];
+    {
+      const r = rng(301);
+      for (let i = 0; i < 18; i++) {
+        const c = capaLuz(new THREE.Color().setHSL(0.06 + r() * 0.55, 0.3, 0.72), { cara: 0.03, grano: 0.4 });
+        const d = V(r() * 2 - 1, (r() * 2 - 1) * 0.6, r() * 2 - 1).normalize();
+        const R = 4 + r() * 10;
+        c.mesh.position.copy(NACE).addScaledVector(d, 18 + r() * 45 + R);
+        c.mesh.scale.setScalar(R);
+        root.add(c.mesh);
+        espuma.push({ c, base: 0.16 + 0.2 * r() });
+      }
+    }
     const tu = add(puntoTu(rincon.clone(), 0.006), uniG, 7);
 
     // ---------------------------------------------------------------- the moments (GUION.md 52–57)
@@ -301,11 +316,19 @@ export const final: Escena = {
       tl.wait(-off);
     };
     const Cn = (v: THREE.Vector3) => ({ cx: v.x, cy: v.y, cz: v.z });
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 240, el: 16, ld: Math.log10(150), yaw: 90, pitch: -90, roll: 0, fov: 40, pl: 0, frio: 0, hoyo: 1, anillo: 0, mente: 0, periodo: 1, tuM: 0, apagaM: 0, cnt: 0, bur: 0, rb: 0, luz: 0, red: 0, tu: 0, apaga: 0, tarjeta: 0, baja: 0, chs: 0, chOn: 0 });
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 240, el: 16, ld: Math.log10(150), yaw: 90, pitch: -90, roll: 0, fov: 40, pl: 0, frio: 0, hoyo: 1, anillo: 0, mente: 0, periodo: 1, tuM: 0, apagaM: 0, cnt: 0, bur: 0, espuma: 0, rb: 0, luz: 0, red: 0, tu: 0, apaga: 0, tarjeta: 0, baja: 0, chs: 0, chOn: 0 });
 
-    tl.label('centrales').caption(5.6, 'Las últimas centrales', 'Cuando las estrellas se apagan, quedan los agujeros negros. Todavía se puede sacar energía de su giro.');
+    // The moment (Diego, 31 Oct: each idea its cinematic moment): down from afar onto the last hole,
+    // to graze its disk, the light bent above and below its shadow filling the frame, the side coming
+    // at us brighter; then up and out, to see our ring round it taking its spin. (Turning one way all
+    // along, into the next moment's.)
+    tl.label('centrales').caption(8.4, 'Las últimas centrales', 'Cuando las estrellas se apagan, quedan los agujeros negros. Todavía se puede sacar energía de su giro.');
     luego(0.6, 1.8, { anillo: 1 });
-    tl.to(5.6, { ld: Math.log10(60), el: 9, az: 262 });
+    // (just outside the disk's rim, low over its plane, the lens closing in: inside the rim the near
+    // disk filled half the frame in streaks)
+    tl.to(3.2, { ld: Math.log10(30), el: 9, az: 258, fov: 36 });
+    tl.to(2.8, { ld: Math.log10(20), el: 5, az: 284, roll: 6, fov: 30 });
+    tl.to(2.4, { ld: Math.log10(60), el: 10, az: 296, roll: 0, fov: 40 });
 
     tl.label('contados').caption(6.6, 'Pensamientos contados', 'Al universo le quedan pensamientos contados. Este que tienes ahora es uno de ellos.');
     tl.with(1.2, { mente: 1, chOn: 1 });
@@ -314,8 +337,13 @@ export const final: Escena = {
     luego(0.4, 5.0, { periodo: 6 });
     luego(0.3, 6.1, { cnt: 1 });
     luego(5.0, 1.2, { apagaM: 1 });
+    // The moment: into the last mind, among its thoughts as they go out round the camera, the hole
+    // right behind them (the camera on the far side of the mind from it: at az 41.6, el 28 it looks
+    // straight back at the hole), and out again when one is left: yours.
     tl.with(1.6, { ...Cn(MENTE) });
-    tl.to(6.6, { ld: Math.log10(9), el: 28, az: 300 });
+    tl.to(2.4, { ld: Math.log10(1.3), el: 24, az: 366, fov: 58 });
+    tl.to(2.4, { ld: Math.log10(1.6), el: 27, az: 392 });
+    tl.to(1.8, { ld: Math.log10(6), el: 28, az: 401.6, fov: 44 });
 
     // In the black, a white point grows into a bubble, and the camera goes in.
     tl.label('crear').caption(5.4, 'Crear un universo', 'La última obra posible: una burbuja que crece hasta ser un universo propio. Hoy no sabemos hacerlo.');
@@ -324,7 +352,13 @@ export const final: Escena = {
     luego(0.6, 3.0, { chs: 2 });
     luego(1.0, 4.2, { rb: 1 });
     luego(0.4, 1.6, { ...Cn(NACE) });
-    tl.to(5.4, { ld: Math.log10(26), el: 12, az: 330 });
+    // The moment: close by where it is born, the camera waits; the bubble swells towards it and its
+    // front of light sweeps over the camera (radius R_UNI · rb passes 7 near rb 0.78), into the
+    // first light inside.
+    // (the first light lit as the front reaches the camera: the wave of light that takes it in)
+    luego(3.9, 1.0, { pl: 1 });
+    tl.to(2.0, { ld: Math.log10(10), el: 10, az: 406, fov: 46 });
+    tl.to(3.4, { ld: Math.log10(7), el: 9, az: 420, fov: 52 });
 
     // Inside: the whole sky white with the first light; it cools to gold, red, black, and out of
     // its unevenness the web gathers, galaxies at its knots.
@@ -333,21 +367,30 @@ export const final: Escena = {
     luego(0.6, 1.6, { luz: 1 });
     luego(1.0, 2.0, { bur: 0 });
     luego(0.4, 4.0, { frio: 1 });
-    tl.to(4.6, { ld: Math.log10(R_UNI * 0.75), el: 10, az: 345 });
+    tl.to(4.6, { ld: Math.log10(R_UNI * 0.75), el: 10, az: 435 });
 
     const rinconW = rincon.clone().multiplyScalar(R_UNI).add(NACE);
     tl.label('alguien').caption(6.2, 'Alguien', 'En miles de millones de años, en algún rincón de ahí adentro, algo va a pensar por primera vez. Como tú, ahora.');
-    tl.with(3.6, { red: 1 });
+    // The moment: the web gathers, and the camera goes down through its threads as they form, past
+    // its knots (young galaxies), to the corner where a point lights.
+    tl.with(2.6, { red: 1 });
     luego(0.3, 1.8, { pl: 0 });
-    luego(1.6, 2.4, { ...Cn(rinconW), baja: 1 });
+    luego(0.6, 3.2, { ...Cn(rinconW), baja: 1 });
     luego(0.6, 3.4, { chs: 3 });
     luego(3.6, 1.4, { tu: 1, chOn: 0 });
-    tl.to(6.2, { ld: Math.log10(0.5), el: 6, az: 365 });
+    tl.to(2.6, { ld: Math.log10(3.2), el: 9, az: 446 });
+    tl.to(3.6, { ld: Math.log10(0.5), el: 6, az: 455 });
 
-    tl.label('nuestro').caption(6.0, '¿Y el nuestro?', '¿Y si alguien hizo también el nuestro?');
-    luego(0.6, 2.4, { apaga: 1 });
-    luego(3.2, 1.6, { tarjeta: 1 });
-    tl.to(6.0, { ld: Math.log10(0.6), az: 368 });
+    // The moment: back out of the new universe until it is a bubble of light with its web inside, a
+    // point of ours in it, and round it others, other universes; then all goes out but the point.
+    tl.label('nuestro').caption(7.0, '¿Y el nuestro?', '¿Y si alguien hizo también el nuestro?');
+    luego(0.2, 2.2, { bur: 1 });
+    luego(2.2, 2.4, { espuma: 1 });
+    luego(4.6, 1.6, { apaga: 1 });
+    luego(5.2, 1.6, { tarjeta: 1 });
+    tl.with(3.2, { ...Cn(NACE) });
+    tl.to(4.6, { ld: Math.log10(75), el: 14, az: 470, fov: 40 });
+    tl.to(2.4, { ld: Math.log10(85), az: 473 });
 
     const chispa = crearChispa();
     root.add(chispa.nube.points);
@@ -405,8 +448,13 @@ export const final: Escena = {
         tuMente.u.uGain.value = tl.get('tuM', p) * (1 + 0.25 * Math.sin(t * 1.5));
         const rb = tl.get('rb', p);
         uniG.scale.setScalar(Math.max(1e-3, R_UNI * rb));
-        burbuja.u.uOn.value = 0.5 * tl.get('bur', p);
-        capaUni.u.uOn.value = 0.32 * tl.get('bur', p);
+        const vivo = 1 - tl.get('apaga', p);
+        burbuja.u.uOn.value = 0.5 * tl.get('bur', p) * vivo;
+        capaUni.u.uOn.value = 0.32 * tl.get('bur', p) * vivo;
+        for (const e of espuma) {
+          e.c.u.uOn.value = e.base * tl.get('espuma', p) * vivo;
+          e.c.u.uTime.value = t;
+        }
         capaUni.u.uTime.value = t;
         burbuja.u.uSizeUnit.value = uniG.scale.x * 0.25 + 0.2;
         luz.u.uLuz.value = tl.get('luz', p);
