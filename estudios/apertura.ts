@@ -600,16 +600,18 @@ export const apertura: Escena = {
         // The bubble grows with the distance until it reaches its hundred light years, so it always fits.
         voz.u.uR.value = tl.get('vaso', p) > 0.001 ? R_VOZ * 0.03 : Math.max(1e-5, Math.min(sc, 1) * R_VOZ);
         voz.u.uOn.value = Math.min(1, tl.get('voz', p) * 4) * tl.get('vozOn', p) * (1 - ease(0.4, 3, dSol)) + tl.get('vaso', p) * 1.6;
-        // (a shell only from outside it: the camera that rides our voice's front would be inside its
-        // rim, a wall of light)
+        // (a shell only from well outside it: the camera that rides our voice's front would be inside
+        // its rim, a wall of light, and leaving it, half the frame)
         const camVoz = camera.position.clone().applyAxisAngle(V(0, 1, 0), -galaxia.rotation.y).distanceTo(S);
         for (const { c, k } of capasVoz) {
           const rr = Math.max(1e-6, voz.u.uR.value * k);
           c.mesh.scale.setScalar(rr);
-          c.u.uOn.value = voz.u.uOn.value * (k === 1 ? 0.55 : 0.25) * THREE.MathUtils.smoothstep(camVoz / rr, 1.4, 2.4);
+          c.u.uOn.value = voz.u.uOn.value * (k === 1 ? 0.55 : 0.25) * THREE.MathUtils.smoothstep(camVoz / rr, 2.2, 4.5);
           c.u.uTime.value = f.time;
         }
-        voz.u.uOn.value *= 0.55;
+        // (its points too: from inside the bubble they are a dotted wall across half the frame)
+        const dentro = tl.get('vaso', p) > 0.001 ? 1 : THREE.MathUtils.lerp(0.2, 1, THREE.MathUtils.smoothstep(camVoz / Math.max(1e-6, voz.u.uR.value), 1.3, 3.0));
+        voz.u.uOn.value *= 0.55 * dentro;
         // The two points keep a few pixels whatever the distance.
         const px = (n: number) => (n * dSol) / f.focal;
         tu.points.position.copy(S).add(V(px(9), px(2), 0));
