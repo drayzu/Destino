@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { rng } from './motor/math';
+import { materiaBuilder } from './motor/materia';
+import { DECADAS, LOG0, frente } from './burbuja';
 
 /**
  * Pieces for the galaxy act's moments (galaxia.ts), kept apart so the act stays readable.
@@ -121,3 +123,99 @@ export function escombros(n: number, seed: number, dentro: number, fuera: number
   mesh.frustumCulled = false;
   return { mesh, u };
 }
+
+/**
+ * The spark's branch in the bubble (burbuja.ts): the same stars, drawn from the same seed in the same
+ * order, the same tree; the stars along the branch from the Sun to its last star, each with the time
+ * (in the front's own `red`) the copies reach it. Positions relative to the Sun.
+ */
+export function ramaBurbuja(hacia: THREE.Vector3) {
+  const b = materiaBuilder(301);
+  const r = b.r;
+  const N = 6000;
+  const pos: THREE.Vector3[] = [];
+  const t: number[] = [];
+  for (let i = 0; i < N; i++) {
+    const u = (i + r()) / N;
+    const d = Math.pow(10, LOG0 + 0.12 + u * (DECADAS - 0.12));
+    const [x, y, z] = b.onSphere();
+    const grueso = Math.min(1, 0.12 / d);
+    pos.push(new THREE.Vector3(x, y * Math.max(grueso, 0.06), z).normalize().multiplyScalar(d));
+    t.push(Math.min(1, Math.max(0, (Math.log10(d) - LOG0) / DECADAS + (r() - 0.5) * 0.025)));
+  }
+  const orden = pos.map((_, i) => i).sort((a, c) => pos[a].length() - pos[c].length());
+  const padre = new Int32Array(N).fill(-1);
+  for (let k = 1; k < N; k++) {
+    const i = orden[k];
+    let mejor = -1;
+    let mejorD = Infinity;
+    const di = pos[i].length();
+    for (let m = Math.max(0, k - 900); m < k; m++) {
+      const j = orden[m];
+      const d = pos[i].distanceTo(pos[j]) + 0.25 * Math.abs(di - pos[j].length());
+      if (d < mejorD) {
+        mejorD = d;
+        mejor = j;
+      }
+    }
+    padre[i] = pos[i].length() < pos[i].distanceTo(pos[mejor]) * 1.2 ? -1 : mejor;
+  }
+  const dir = hacia.clone().normalize();
+  let hojaI = 0;
+  let mejor = -Infinity;
+  for (let i = 0; i < N; i++) {
+    const d = pos[i].length();
+    const score = Math.log10(d) * 1.0 + 3 * pos[i].clone().divideScalar(d).dot(dir);
+    if (d > frente(0.97) && score > mejor) {
+      mejor = score;
+      hojaI = i;
+    }
+  }
+  const camino: { p: THREE.Vector3; t: number }[] = [];
+  for (let i = hojaI; i >= 0; i = padre[i]) camino.unshift({ p: pos[i], t: t[i] });
+  return { camino, estrellas: pos.map((p, i) => ({ p, t: t[i] })) };
+}
+
+/**
+ * The copies: at every star of the spark's branch, the moment it gets there, a burst of probes leaves
+ * in all directions (flattened into the disc as the stars are), each a short streak of teal that
+ * flies out about as far as the next star and fades. `uRed` the front's time; `uOn` their light.
+ * Units: the galaxy's, round the Sun (place the cloud there).
+ */
+export function copiasDatos(camino: { p: THREE.Vector3; t: number }[], porEstrella: number, teal: THREE.Color) {
+  const b = materiaBuilder(311);
+  const r = b.r;
+  const origen: number[] = [];
+  const dirs: number[] = [];
+  const largo: number[] = [];
+  const t0: number[] = [];
+  const TRAZO = 7;
+  camino.forEach((c, k) => {
+    const sig = camino[Math.min(camino.length - 1, k + 1)].p;
+    const L = Math.max(c.p.distanceTo(sig), c.p.length() * 0.35, 0.0008);
+    for (let i = 0; i < porEstrella; i++) {
+      const [x, y, z] = b.onSphere();
+      const grueso = Math.min(1, 0.12 / Math.max(c.p.length(), 1e-4));
+      const d = new THREE.Vector3(x, y * Math.max(grueso, 0.12), z).normalize();
+      const l = L * (0.55 + 0.6 * r());
+      for (let j = 0; j < TRAZO; j++) {
+        b.push(c.p.x, c.p.y, c.p.z, teal, 0.00001, (j === 0 ? 1.6 : 1.0) * (1 - j / TRAZO), { delay: j / TRAZO });
+        origen.push(c.p.x, c.p.y, c.p.z);
+        dirs.push(d.x, d.y, d.z);
+        largo.push(l);
+        t0.push(c.t);
+      }
+    }
+  });
+  return { data: b.data(), extra: { aO: [new Float32Array(origen), 3], aD: [new Float32Array(dirs), 3], aL: [new Float32Array(largo), 1], aT0: [new Float32Array(t0), 1] } as Record<string, [Float32Array, number]> };
+}
+
+/** The copies' motion (materia `move`): out from their star, a streak, flashing as they leave. */
+export const COPIAS_MOVE = /* glsl */ `
+  float dt = uRed - aT0;
+  float f = clamp(dt / 0.07, 0.0, 1.0);
+  float ff = clamp(f - aDelay * 0.22, 0.0, 1.0);
+  ff = 1.0 - (1.0 - ff) * (1.0 - ff);
+  p = aO + aD * aL * ff;
+  em *= uOn * step(0.0, dt) * (1.0 - smoothstep(0.55, 1.0, f)) * (1.0 + 2.5 * exp(-max(dt, 0.0) * 140.0));
+`;

@@ -11,7 +11,7 @@ import { S, brazo, galaxiaBrillo, galaxiaDatos, polvoDatos } from './apertura';
 import { cuantas, enfocarMarcas, marcas, nombres, type Nombre } from './revelar';
 import type { Cuenta, Rotulo } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
-import { escombros } from './momentos-galaxia';
+import { COPIAS_MOVE, copiasDatos, escombros, ramaBurbuja } from './momentos-galaxia';
 
 /**
  * Scenes 16–17 of ESCALETA.md, «La burbuja» and «¿Dónde están?» (GUION.md, moments 36–42). The same
@@ -338,6 +338,20 @@ export const galaxia: Escena = {
     const burb = crearBurbuja(S, ZOO.clone().sub(S).setY(0));
     add(burb.estrellas, root, 3);
     add(burb.hilos, root, 3);
+    // At every star the copies reach, a burst of them flies out in all directions; and the threads
+    // between the stars, brighter once the camera lets go, so the network reads as a growing tree
+    // at every scale, not as a dim cloud.
+    // (on the spark's own branch, and at one star in ten of the rest, so the whole front sparkles)
+    const ramaB = ramaBurbuja(ZOO.clone().sub(S).setY(0));
+    const enLaRama = new Set(ramaB.camino.map((c) => c.p));
+    const copiasD = copiasDatos([...ramaB.camino, ...ramaB.estrellas.filter((e, i) => i % 10 === 3 && !enLaRama.has(e.p))], 9, TEAL);
+    const copias = add(
+      materia(copiasD.data, { pre: /* glsl */ `attribute vec3 aO, aD; attribute float aL, aT0; uniform float uRed, uOn;`, move: COPIAS_MOVE, uniforms: { uRed: { value: 0 }, uOn: { value: 0 } }, extra: copiasD.extra }),
+      root,
+      4,
+    );
+    copias.points.position.copy(S);
+    copias.u.uFuente.value = 1;
     // (Where the camera ends up at each, so the spark waits in sight: among the probes, in the
     // cluster where its call starts, among the dead collectors; and beside the single star.)
     const dirDe = (az: number, el: number) => V(Math.cos(D2R(el)) * Math.sin(D2R(az)), Math.sin(D2R(el)), Math.cos(D2R(el)) * Math.cos(D2R(az)));
@@ -366,12 +380,15 @@ export const galaxia: Escena = {
     tl.with(14.6, { ch: 1 }, EASE.sine);
     tl.with(14.6, { ld: LOG0 + DECADAS + 0.5 }, EASE.sine);
     luego(1.0, 1.4, { ...Cn(S) });
+    // (the new pieces come up only once the relay is done)
     luego(1.8, 2.4, { lw: 0 });
+    luego(2.6, 1.0, { copias: 1 });
     tl.to(15.0, { az: 172, el: 30 });
 
     // The reveal: far back, the bubble spreads over the galaxy.
     tl.label('freno').caption(7.8, 'La luz pone el freno', 'La luz tarda cien mil años en cruzar la galaxia. Desde aquí, el tiempo se mide en millones de años.');
     luego(1.6, 4.2, { bur: 34 });
+    luego(1.0, 3.0, { copias: 0 });
     luego(2.2, 2.6, { ...Cn(S.clone().lerp(G, 0.45)) });
     luego(3.4, 1.6, { mapa: 1 });
     luego(4.4, 1.4, { nombres: 1 });
@@ -535,6 +552,9 @@ export const galaxia: Escena = {
         estrellas.u.uBur.value = Math.max(tl.get('bur', p), frente(red));
         burb.estrellas.u.uRed.value = red;
         burb.hilos.u.uRed.value = red;
+        copias.u.uRed.value = red;
+        copias.u.uOn.value = tl.get('copias', p);
+        copias.points.visible = copias.u.uOn.value > 0.001;
         burb.hilos.u.uOn.value = 1 - 0.85 * tl.get('ir', p);
         // The reach counts from where the spark has been (the bubble's own edge once it spreads).
         alcanceR = Math.max(tl.get('bur', p), frente(red));
@@ -562,7 +582,7 @@ export const galaxia: Escena = {
         estrellas.u.uBulbo.value = bulbo;
         const hb = tl.get('hb', p);
         burb.estrellas.u.uOn.value = 1 - hb;
-        burb.hilos.u.uOn.value *= 1 - hb;
+        burb.hilos.u.uOn.value *= (1 - hb) * (1 + 1.8 * tl.get('copias', p));
         polvo.u.uGal.value = 1 - Math.max(zooOn, tl.get('filtro', p));
         brillo.u.uGal.value = estrellas.u.uGal.value * (1 - tl.get('ir', p)) * (1 - Math.max(zooOn, tl.get('filtro', p))) * (1 - 0.75 * bulbo);
         // (its star flares as it clears the limb: the dawn)
