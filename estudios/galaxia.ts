@@ -11,6 +11,7 @@ import { S, brazo, galaxiaBrillo, galaxiaDatos, polvoDatos } from './apertura';
 import { cuantas, enfocarMarcas, marcas, nombres, type Nombre } from './revelar';
 import type { Cuenta, Rotulo } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
+import { escombros } from './momentos-galaxia';
 
 /**
  * Scenes 16–17 of ESCALETA.md, «La burbuja» and «¿Dónde están?» (GUION.md, moments 36–42). The same
@@ -42,6 +43,10 @@ const CALLAN = enDisco(36, 1, 0.42);
 const FILTRO = enDisco(42, 0, 0.62);
 /** The single star past the edge. */
 const UNA = enDisco(57, 1, 0.55).add(V(0, 0.4, 0));
+/** Where the camera stands round the living world when its star is right behind it. */
+const AZ_ALBA = 238;
+/** How much the gaze goes with the spark as it flies from one encounter to the next. */
+const VIAJA = 0;
 
 /** The living world's own seas and lands (not ours): deep ocean, green and ochre lands, ice at the poles. */
 const MUNDO_VIVO = /* glsl */ `
@@ -98,12 +103,12 @@ function rojaDatos(): MateriaData {
   for (let i = 0; i < 14000; i++) {
     const [x, y, z] = b.onSphere();
     const q = Math.pow(r(), 0.25);
-    b.push(x * q, y * q, z * q, new THREE.Color(1.0, 0.26, 0.1), 0.03, 0.09);
+    b.push(x * q, y * q, z * q, new THREE.Color(1.0, 0.2, 0.07), 0.03, 0.045);
   }
   for (let i = 0; i < 2000; i++) {
     const [x, y, z] = b.onSphere();
     const q = 1 + r() * r() * 1.6;
-    b.push(x * q, y * q, z * q, new THREE.Color(0.8, 0.2, 0.08), 0.1, 0.018);
+    b.push(x * q, y * q, z * q, new THREE.Color(0.8, 0.16, 0.06), 0.1, 0.012);
   }
   return b.data();
 }
@@ -121,8 +126,8 @@ function muertosDatos(): MateriaData {
     if (roto && r() < 0.88) continue;
     const suelto = r() < 0.06;
     const q = suelto ? 3.3 + r() * 2.8 : 3.2 + gauss(r) * 0.06;
-    const g = 0.35 + r() * 0.25;
-    b.push(x * q, y * q, z * q, new THREE.Color(g * 1.1, g, g * 0.92), suelto ? 0.014 + r() * 0.03 : 0.012, 0.16 + r() * 0.12, { kind: suelto ? 1 : 0 });
+    const g = 0.22 + r() * 0.16;
+    b.push(x * q, y * q, z * q, new THREE.Color(g * 1.1, g, g * 0.92), suelto ? 0.014 + r() * 0.03 : 0.012, 0.09 + r() * 0.07, { kind: suelto ? 1 : 0 });
   }
   return b.data();
 }
@@ -149,7 +154,7 @@ export const galaxia: Escena = {
     };
     const estrellas = add(
       materia(galaxiaDatos(), {
-        pre: /* glsl */ `uniform float uGal, uBur, uIR; uniform vec3 uSol, uTeal, uCamG;`,
+        pre: /* glsl */ `uniform float uGal, uBulbo, uBur, uIR; uniform vec3 uSol, uTeal, uCamG;`,
         move: /* glsl */ `
           em *= smoothstep(0.25, 1.6, length(p - uCamG));
           // Ours: every star the front has reached is teal; the front itself brighter.
@@ -167,9 +172,12 @@ export const galaxia: Escena = {
           em *= mix(1.0, 0.35, smoothstep(26.0, 100.0, length(uCamG)));
           // (and its bulge, thick with stars, most of all: from above the disc it burnt into a white mass)
           em *= 1.0 - 0.6 * exp(-dot(p.xz, p.xz) / 50.0) * smoothstep(18.0, 40.0, length(uCamG));
+          // (and through the encounters and the reveal, dimmer still: from inside the disc it was a
+          // burnt band across them)
+          em *= 1.0 - uBulbo * 0.92 * exp(-dot(p.xz, p.xz) / 60.0);
           em *= uGal;
         `,
-        uniforms: { uGal: { value: 1 }, uBur: { value: 0 }, uIR: { value: 0 }, uSol: { value: S.clone() }, uTeal: { value: TEAL.clone() }, uCamG: { value: V() } },
+        uniforms: { uGal: { value: 1 }, uBulbo: { value: 0 }, uBur: { value: 0 }, uIR: { value: 0 }, uSol: { value: S.clone() }, uTeal: { value: TEAL.clone() }, uCamG: { value: V() } },
       }),
     );
     estrellas.u.uFuente.value = 0.55;
@@ -211,8 +219,9 @@ export const galaxia: Escena = {
     const zooG = grupo(ZOO, R_ZOO);
     const vivo = tierraH(base, { giro: 0.03, mar: false, puntos: 300000, superficie: { glsl: MUNDO_VIVO } });
     zooG.add(vivo.group);
-    // Its star off to the side the camera turns towards: the world more and more lit as it goes.
-    const SOL_ZOO = V(Math.cos(D2R(22)) * Math.sin(D2R(345)), Math.sin(D2R(22)), Math.cos(D2R(22)) * Math.cos(D2R(345)));
+    // Its star right behind it as the camera comes in on its night side: as the camera turns round
+    // it the star rises over its limb, a dawn on a living world.
+    const SOL_ZOO = V(Math.cos(D2R(-7)) * Math.sin(D2R(AZ_ALBA + 180)), Math.sin(D2R(-7)), Math.cos(D2R(-7)) * Math.cos(D2R(AZ_ALBA + 180)));
     const solZoo = add(punto(new THREE.Color(1.0, 0.92, 0.78), 2.6), root, 5);
     solZoo.points.position.copy(ZOO).addScaledVector(SOL_ZOO, R_ZOO * 90);
     const vigias = add(
@@ -230,28 +239,28 @@ export const galaxia: Escena = {
     );
     vigias.u.uFuente.value = 0.6;
 
-    // The cluster that keeps quiet: the spark calls, and every star the call reaches goes out.
+    // The cluster that keeps quiet: the spark calls from its edge, and the call sweeps through it; every
+    // star it passes flickers and goes out, a few a little later than the rest, until the whole ball is
+    // a dark ghost of embers where a crowd of lights was.
     const R_CALLAN = 0.006;
     const callanG = grupo(CALLAN, R_CALLAN);
-    const ORIGEN_LLAMADA = V(0.62, 0.22, 0.1);
+    const ORIGEN_LLAMADA = V(Math.cos(D2R(14)) * Math.sin(D2R(296)), Math.sin(D2R(14)), Math.cos(D2R(14)) * Math.cos(D2R(296))).multiplyScalar(0.78);
+    /** How far the call has gone at its end (its units: the cluster is ~1.2 across its halo). */
+    const LLAMA_R = 2.4;
     const callan = add(
       materia(callanDatos(), {
-        pre: /* glsl */ `uniform float uOn, uCalla, uLlama; uniform vec3 uOrigen;`,
+        pre: /* glsl */ `uniform float uOn, uLlama; uniform vec3 uOrigen;`,
         move: /* glsl */ `
-          float frente = uLlama * 1.5;
-          float dl = length(p - uOrigen);
-          float alcanzada = 1.0 - smoothstep(frente - 0.12, frente, dl);
-          // At the front they flicker, then go out.
-          float borde = smoothstep(frente - 0.35, frente - 0.12, dl) * alcanzada;
-          float parpadeo = 0.5 + 0.5 * sin(uTime * 22.0 + seed * 90.0);
-          em *= uOn * mix(1.0, 0.03, alcanzada * smoothstep(0.0, 0.05, uLlama)) * (1.0 + borde * parpadeo * 1.5);
+          float frente = uLlama * ${LLAMA_R.toFixed(2)};
+          float pasado = frente - length(p - uOrigen) - 1.4 * pow(fract(seed * 7.7), 8.0);
+          float apagada = smoothstep(0.04, 0.4, pasado) * step(0.0005, uLlama);
+          // (just after the front they tremble, then go out to an ember)
+          float tiembla = smoothstep(-0.03, 0.04, pasado) * (1.0 - apagada);
+          float parpadeo = 0.5 + 0.5 * sin(uTime * 23.0 + seed * 90.0);
+          vec3 brasa = vec3(0.55, 0.11, 0.05) * (0.3 + 0.3 * fract(seed * 13.0));
+          em = mix(em * (1.0 + tiembla * (parpadeo * 1.6 - 0.4)), brasa, apagada) * uOn;
         `,
-        post: /* glsl */ `
-          // And the ones you look at go out.
-          vec2 ndc = gl_Position.xy / gl_Position.w;
-          em *= mix(1.0, smoothstep(0.1, 0.5, length(ndc * vec2(1.6, 1.0))), uCalla);
-        `,
-        uniforms: { uOn: { value: 0 }, uCalla: { value: 0 }, uLlama: { value: 0 }, uOrigen: { value: ORIGEN_LLAMADA.clone() } },
+        uniforms: { uOn: { value: 0 }, uLlama: { value: 0 }, uOrigen: { value: ORIGEN_LLAMADA.clone() } },
       }),
       callanG,
       4,
@@ -261,9 +270,9 @@ export const galaxia: Escena = {
       materia(llamadaDatos(), {
         pre: /* glsl */ `uniform float uLlama; uniform vec3 uOrigen;`,
         move: /* glsl */ `
-          float rr = uLlama * 1.5;
+          float rr = uLlama * ${LLAMA_R.toFixed(2)};
           p = uOrigen + p * rr;
-          em *= smoothstep(0.0, 0.08, uLlama) * (1.0 - smoothstep(0.7, 1.0, uLlama));
+          em *= smoothstep(0.0, 0.06, uLlama) * (1.0 - smoothstep(0.6, 1.0, uLlama));
         `,
         uniforms: { uLlama: { value: 0 }, uOrigen: { value: ORIGEN_LLAMADA.clone() } },
       }),
@@ -285,8 +294,8 @@ export const galaxia: Escena = {
           // Drifting, and tumbling: now and then a face catches the red light.
           float ag = uTime * (aKind > 0.5 ? 0.02 : 0.008) * (0.6 + 0.8 * fract(seed * 9.1));
           p.xz = vec2(cos(ag) * p.x - sin(ag) * p.z, sin(ag) * p.x + cos(ag) * p.z);
-          float cara = pow(abs(sin(uTime * (0.3 + 0.9 * fract(seed * 5.3)) + seed * 30.0)), 10.0);
-          em = mix(em, vec3(1.0, 0.42, 0.22) * 0.9, cara * 0.8);
+          float cara = pow(abs(sin(uTime * (0.3 + 0.9 * fract(seed * 5.3)) + seed * 30.0)), 40.0);
+          em = mix(em, vec3(1.0, 0.36, 0.18) * 0.7, cara * 0.6);
           em *= uOn;
         `,
         uniforms: { uOn: { value: 0 } },
@@ -295,6 +304,10 @@ export const galaxia: Escena = {
       4,
     );
     muertos.u.uFuente.value = 0.3;
+    // And close by, the wreck itself: broken collectors the camera passes among, tumbling.
+    const restos = escombros(700, 233, 2.3, 4.4);
+    restos.mesh.renderOrder = 6;
+    filtroG.add(restos.mesh);
 
     // ---------------------------------------------------------------- the moments (GUION.md 36–42)
     // Revealing: home ringed in teal, its name a moment (the galaxy names itself).
@@ -328,13 +341,11 @@ export const galaxia: Escena = {
     // (Where the camera ends up at each, so the spark waits in sight: among the probes, in the
     // cluster where its call starts, among the dead collectors; and beside the single star.)
     const dirDe = (az: number, el: number) => V(Math.cos(D2R(el)) * Math.sin(D2R(az)), Math.sin(D2R(el)), Math.cos(D2R(el)) * Math.cos(D2R(az)));
-    const AZ_ZOO = 250;
-    const AZ_FIL = 385;
     const paradas = [
       burb.hoja.clone(),
-      ZOO.clone().addScaledVector(dirDe(AZ_ZOO + 30, 10), R_ZOO * 3.4).add(V(0, R_ZOO * 0.5, 0)),
+      ZOO.clone().addScaledVector(dirDe(AZ_ALBA + 40, 9), R_ZOO * 3.4),
       CALLAN.clone().addScaledVector(ORIGEN_LLAMADA, R_CALLAN),
-      FILTRO.clone().addScaledVector(dirDe(AZ_FIL + 8, 7), R_FILTRO * 3.6).add(V(0, R_FILTRO * 0.3, 0)),
+      FILTRO.clone().addScaledVector(dirDe(AZ_ALBA + 160 + 98, 5), R_FILTRO * 1.9).add(V(0, R_FILTRO * 0.2, 0)),
       UNA.clone().add(V(-0.0006, 0, 0)),
     ];
     const caminoCh: Camino = (sv, out) => {
@@ -375,63 +386,88 @@ export const galaxia: Escena = {
     tl.to(5.4, { ...Cn(G), ld: 2.02, el: 62, az: 210 });
 
     // Down into the disc: three encounters, each a place of its own. The camera goes with the spark,
-    // stays, and looks.
+    // stays, and looks. All the way to the edge it turns one way round (the encounters follow on in
+    // azimuth), and the galaxy behind them dims, so the bulge seen edge-on is no burnt white band.
     const cerca = (a: number, ref: number) => a + 360 * Math.round((ref - a) / 360);
 
     // A living world, its own seas and lands, and round it a still lattice of probes that never
-    // touch it. The spark takes its place among them.
+    // touch it. The camera comes in on its night side, its star right behind it: a dark disc ringed
+    // by its air; turning, the star rises over its limb, a dawn on a world we leave in peace. The
+    // spark takes its place among the probes.
     tl.label('zoo').caption(10.4, 'El zoológico', '¿Por qué no vemos a nadie? Quizá alguien nos vio y nos dejó tranquilos. Al pasar, nosotros también dejamos un mundo vivo en paz.');
     tl.with(1.2, { ...Cn(ZOO), ir: 0.35 });
     luego(0.6, 2.2, { zoo: 1 });
     luego(0.4, 3.4, { ch: 2 });
-    tl.to(3.2, { ld: Math.log10(R_ZOO * 9), el: 16, az: AZ_ZOO });
-    tl.to(3.4, { ld: Math.log10(R_ZOO * 4.4), el: 10, az: AZ_ZOO + 22, fov: 38 });
-    tl.to(3.8, { ld: Math.log10(R_ZOO * 4.0), el: 7, az: AZ_ZOO + 44 });
+    luego(0.2, 2.4, { fondo: 1, bulbo: 1, hb: 1 });
+    tl.to(3.2, { ld: Math.log10(R_ZOO * 9), el: 8, az: AZ_ALBA - 9 });
+    tl.to(3.4, { ld: Math.log10(R_ZOO * 4.2), el: 7, az: AZ_ALBA + 6, fov: 38 });
+    tl.to(3.8, { ld: Math.log10(R_ZOO * 4.0), el: 6, az: AZ_ALBA + 44 });
 
-    // A crowded cluster of old stars. In among them, the spark calls; every star the call reaches
-    // goes out, and the ones you look at too.
-    tl.label('callan').caption(10.0, 'Los que callan', 'O callan a propósito, porque hacerse oír puede ser peligroso.');
-    luego(0.6, 1.2, { zoo: 0 });
-    // (from one encounter to the next: out first, then across, then in; never across while close)
-    luego(1.2, 1.4, { ...Cn(CALLAN) });
-    luego(1.4, 1.4, { callan: 1 });
-    luego(0.6, 2.6, { ch: 3 });
-    luego(4.6, 4.2, { llama: 1 });
-    luego(6.4, 2.4, { calla: 1 });
-    tl.to(2.2, { ld: 0.4, el: 20, az: 300 });
-    tl.to(2.4, { ld: Math.log10(R_CALLAN * 1.8), el: 14, az: 322 });
-    tl.to(2.6, { ld: Math.log10(R_CALLAN * 0.55), el: 9, az: 345, fov: 54 });
-    tl.to(2.8, { az: 376, el: 3 });
+    // A crowded cluster of old stars, a ball of lights. From its edge the spark calls; the call
+    // sweeps through it, and every star it passes trembles and goes out, until the ball is a dark
+    // ghost of embers. The camera stays outside, turning, to watch it go quiet.
+    tl.label('callan').caption(11.0, 'Los que callan', 'O callan a propósito, porque hacerse oír puede ser peligroso.');
+    luego(1.2, 1.2, { zoo: 0 });
+    // (from one encounter to the next: out first, then across, then in; never across while close;
+    // backing away from the living world, its cage of probes round it a moment)
+    luego(1.6, 1.4, { ...Cn(CALLAN) });
+    luego(1.8, 1.4, { callan: 1 });
+    luego(0.9, 2.6, { ch: 3 });
+    luego(6.0, 4.6, { llama: 1 });
+    tl.to(1.2, { ld: Math.log10(R_ZOO * 13), el: 12, az: AZ_ALBA + 56 });
+    tl.to(1.4, { ld: 0.4, el: 18, az: AZ_ALBA + 66 });
+    tl.to(2.2, { ld: Math.log10(R_CALLAN * 4.2), el: 14, az: AZ_ALBA + 80 });
+    tl.to(3.0, { ld: Math.log10(R_CALLAN * 2.4), el: 10, az: AZ_ALBA + 110, fov: 44 });
+    tl.to(3.2, { ld: Math.log10(R_CALLAN * 2.05), el: 5, az: AZ_ALBA + 150 });
 
-    // A swarm that died: square collectors adrift round a cold red star, now and then one catching
-    // its light. The spark flickers, as if it too would go out.
-    tl.label('filtro').caption(10.6, 'El Gran Filtro', 'O casi todas se apagan antes de llegar tan lejos, como este enjambre muerto. ¿Ese filtro quedó atrás, o nos espera?');
-    luego(0.4, 1.2, { callan: 0, calla: 0 });
+    // A swarm that died, round a cold red star: the camera goes in through its wreck, broken
+    // collectors tumbling past close enough to touch, black against the star or catching its dull
+    // light. The spark flickers, as if it too would go out.
+    const AZ_FIL = AZ_ALBA + 158;
+    tl.label('filtro').caption(12.0, 'El Gran Filtro', 'O casi todas se apagan antes de llegar tan lejos, como este enjambre muerto. ¿Ese filtro quedó atrás, o nos espera?');
+    luego(0.4, 1.2, { callan: 0 });
     luego(1.2, 1.4, { ...Cn(FILTRO) });
     luego(1.6, 1.6, { filtro: 1 });
     luego(0.6, 2.8, { ch: 4 });
     luego(4.4, 2.0, { tit: 1 });
-    tl.to(2.2, { ld: 0.45, el: 22, az: 340 });
-    tl.to(2.6, { ld: Math.log10(R_FILTRO * 10), el: 14, az: AZ_FIL - 20 });
-    tl.to(3.0, { ld: Math.log10(R_FILTRO * 6.2), el: 9, az: AZ_FIL, fov: 46 });
-    tl.to(2.8, { ld: Math.log10(R_FILTRO * 5.4), az: AZ_FIL + 14, el: 5 });
+    tl.to(2.2, { ld: 0.45, el: 16, az: AZ_FIL });
+    tl.to(2.6, { ld: Math.log10(R_FILTRO * 9), el: 12, az: AZ_FIL + 18 });
+    tl.to(3.6, { ld: Math.log10(R_FILTRO * 4.0), el: 7, az: AZ_FIL + 48, fov: 50 });
+    tl.to(3.6, { ld: Math.log10(R_FILTRO * 2.9), el: 3, az: AZ_FIL + 92 });
 
-    // The edge. Out past the last stars: the whole galaxy from its rim, ours; then round, to face
-    // out: black, and one star.
-    const azFuera = cerca(angulos(UNA.clone().sub(G).setY(0)).az, AZ_FIL + 14);
-    tl.label('borde').caption(11.6, 'El borde y el silencio', 'Llegamos al borde, y vuelve la pregunta del principio: ¿dónde están todos? Quizá se fueron hacia adentro.');
+    // The edge. Up out of the disc as the spark crosses it: the whole galaxy below, ours, every
+    // star of it teal; then down to its rim, the galaxy behind the single star there; and round, to
+    // face out: black, and that one star. (Its last two stretches as they were: the act after takes
+    // up from there; one turn further on, the same place.)
+    const azFuera = cerca(angulos(UNA.clone().sub(G).setY(0)).az, 399) + 360;
+    const MEDIO = UNA.clone().lerp(G, 0.5);
+    tl.label('borde').caption(13.6, 'El borde y el silencio', 'Llegamos al borde, y vuelve la pregunta del principio: ¿dónde están todos? Quizá se fueron hacia adentro.');
     luego(0.4, 1.2, { filtro: 0 });
-    luego(1.3, 1.9, { ...Cn(UNA), una: 1 });
+    // (the galaxy whole, and then edge-on from its rim, dimmer than it was: from the rim its stars
+    // pile up into a burnt band; it is back to its light by the last stretch, turned away from it)
+    luego(0.2, 2.8, { fondo: 0.15 });
+    luego(5.0, 2.4, { fondo: 0.8 });
+    luego(7.6, 3.0, { fondo: 0 });
+    // (the bubble round the Sun, a bright knot now that the whole galaxy is ours, fades; the bulge and
+    // the haze stay dim for the reveal, and are back by the last stretch)
+    luego(7.4, 3.2, { hb: 0, bulbo: 0 });
+    luego(1.0, 2.6, { ...Cn(MEDIO) });
+    luego(3.8, 2.4, { ...Cn(UNA) });
+    luego(3.0, 1.4, { una: 1 });
     luego(0.2, 0.6, { tit: 0 });
-    luego(0.8, 4.4, { ch: 5 });
+    luego(0.8, 4.8, { ch: 5 });
     luego(0.4, 2.4, { ir: 0 });
-    tl.to(2.6, { ld: 1.1, el: 26, az: azFuera, fov: 46 });
-    tl.to(3.0, { ld: 0.95, el: 20, az: azFuera + 8 });
+    tl.to(2.0, { ld: 0.6, el: 24, az: AZ_FIL + 118 });
+    tl.to(3.0, { ld: 2.1, el: 42, az: azFuera - 46, fov: 46 });
+    tl.to(2.6, { ld: 0.95, el: 20, az: azFuera + 8 });
     tl.to(3.4, { ld: -0.4, el: 6, az: azFuera + 150 });
     tl.to(2.6, { ld: Math.log10(0.0021), el: 4, az: azFuera + 180, fov: 44 });
 
     const chispa = crearChispa();
     root.add(chispa.nube.points);
+    const occZoo = new THREE.Vector4();
+    const tmpO = V();
+    const tmpS = V();
     const tm = toma(tl, 0);
     const tmR = toma(tl, 0);
     const camFin = toma(tl, tl.length);
@@ -489,7 +525,7 @@ export const galaxia: Escena = {
           const propia = toma(tl, p, tmR);
           viaja *= THREE.MathUtils.smoothstep(propia.dir.dot(m.mira.clone().sub(propia.pos).normalize()), 0.0, 0.5);
         }
-        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: Math.max(lw, 0.85 * viaja), arriba: m.arriba, delante: m.delante }, { punto: m.lugar, peso: lw }));
+        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: Math.max(lw, VIAJA * viaja), arriba: m.arriba, delante: m.delante }, { punto: m.lugar, peso: lw }));
         // (a short wake in the bubble: there the way grows in logarithm, and a long one would be a line across it)
         chispa.update(caminoCh, ch, ch < 1 ? 0.0005 : 0.0015, 1, tl.get('tit', p), camera.position, f.focal, f.dpr, f.time);
         camera.updateProjectionMatrix();
@@ -515,18 +551,41 @@ export const galaxia: Escena = {
         zooG.visible = zooOn > 0.001;
         if (zooG.visible) vivo.update({ sol: SOL_ZOO, camara: camera.position.clone().sub(ZOO).divideScalar(R_ZOO), focal: f.focal, dpr: f.dpr, tiempo: t, presencia: zooOn });
         vigias.u.uOn.value = zooOn;
+        // (the world hides what is behind it: its star before the dawn, the probes and stars beyond it)
+        if (zooG.visible) {
+          zooG.getWorldPosition(tmpO).applyMatrix4(camera.matrixWorldInverse);
+          occZoo.set(tmpO.x, tmpO.y, tmpO.z, zooG.getWorldScale(tmpS).x * 0.995);
+        } else occZoo.set(0, 0, 0, 0);
+        for (const n of [solZoo, vigias, estrellas, burb.estrellas, burb.hilos, chispa.nube]) n.u.uOcc.value.copy(occZoo);
+        estrellas.u.uGal.value = 1 - 0.8 * tl.get('fondo', p) - 0.1 * tl.get('filtro', p);
+        const bulbo = tl.get('bulbo', p);
+        estrellas.u.uBulbo.value = bulbo;
+        const hb = tl.get('hb', p);
+        burb.estrellas.u.uOn.value = 1 - hb;
+        burb.hilos.u.uOn.value *= 1 - hb;
         polvo.u.uGal.value = 1 - Math.max(zooOn, tl.get('filtro', p));
-        brillo.u.uGal.value = estrellas.u.uGal.value * (1 - tl.get('ir', p)) * (1 - Math.max(zooOn, tl.get('filtro', p)));
-        solZoo.u.uGain.value = zooOn;
-        solZoo.u.uSizeUnit.value = px(9, solZoo.points.position);
+        brillo.u.uGal.value = estrellas.u.uGal.value * (1 - tl.get('ir', p)) * (1 - Math.max(zooOn, tl.get('filtro', p))) * (1 - 0.75 * bulbo);
+        // (its star flares as it clears the limb: the dawn)
+        let alba = 0;
+        if (zooG.visible) {
+          const dPl = camera.position.distanceTo(ZOO);
+          const aPl = Math.asin(Math.min(1, R_ZOO / dPl));
+          const aSt = tmpO.copy(solZoo.points.position).sub(camera.position).angleTo(tmpS.copy(ZOO).sub(camera.position));
+          alba = aSt > aPl - 0.004 ? Math.exp(-Math.max(0, aSt - aPl) / 0.06) : 0;
+        }
+        solZoo.u.uGain.value = zooOn * (1 + 4 * alba);
+        solZoo.u.uSizeUnit.value = px(9 + 16 * alba, solZoo.points.position);
         const callOn = tl.get('callan', p);
         callan.u.uOn.value = callOn;
-        callan.u.uCalla.value = tl.get('calla', p);
         callan.u.uLlama.value = tl.get('llama', p);
         llamada.u.uLlama.value = tl.get('llama', p) * callOn;
         const filOn = tl.get('filtro', p);
         roja.u.uOn.value = filOn;
         muertos.u.uOn.value = filOn;
+        restos.u.uOn.value = filOn;
+        restos.u.uTime.value = t;
+        restos.mesh.visible = filOn > 0.001;
+        if (restos.mesh.visible) filtroG.worldToLocal(restos.u.uCam.value.copy(camera.position));
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
         enfocarMarcas(aroSol, f.dpr, tl.get('mapa', p));
         estrellas.u.uMaxPx.value = 3.2 * f.dpr;
