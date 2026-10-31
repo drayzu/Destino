@@ -173,6 +173,8 @@ export const galaxia: Escena = {
     estrellas.u.uFuente.value = 0.55;
     const polvo = add(materia(polvoDatos(), { pre: `uniform float uGal; uniform vec3 uCamG;`, move: `occ *= uGal * smoothstep(1.0, 4.0, length(p - uCamG)) * (1.0 - smoothstep(30.0, 60.0, length(uCamG)));`, uniforms: { uGal: { value: 1 }, uCamG: { value: V() } } }), root, 2);
     polvo.u.uInk.value = 0.22;
+    // (no dust of points: up close they drew a dotted black line; the haze carries the lanes)
+    polvo.points.visible = false;
     const brillo = galaxiaBrillo();
     root.add(brillo.mesh);
 

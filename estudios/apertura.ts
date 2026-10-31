@@ -24,7 +24,8 @@ import type { Escena, Frame, Instancia } from './tipos';
  */
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
-const PITCH = THREE.MathUtils.degToRad(13);
+// (opened from 13°: wound that tight, the arms went round twice and read as rings)
+const PITCH = THREE.MathUtils.degToRad(21);
 const KW = 1 / Math.tan(PITCH);
 /**
  * Where arm j's centre is at radius R: a log spiral, but not a perfect one (Diego, 30 Oct: «galaxia
@@ -205,38 +206,42 @@ export function galaxiaBrillo() {
         float R = length(vL.xz);
         if (R < 0.05) R = 0.05;
         float th = atan(vL.x, vL.z);
-        // The arms (the two major and two minor ones of the points), patchy along their length, soft
-        // and broad: a haze, as in a photograph, not a band.
+        // The disc: exponential, its edge soft (Diego, 31 Oct: rings of bands read as no galaxy).
+        float disco = exp(-R / 9.0) * (1.0 - smoothstep(36.0, 56.0, R));
+        // The arms are not bands of their own: they brighten the disc where it is (density waves),
+        // broad, broken along their length, their dust lanes on their inner edges.
         float A = 0.0;
         float lane = 0.0;
         for (int k = 0; k < 4; k++) {
           float j = k == 0 ? 0.0 : k == 1 ? 1.0 : k == 2 ? 0.5 : 1.5;
-          float peso = k < 2 ? 1.0 : 0.5;
-          float w = k < 2 ? 3.6 + 0.09 * R : 2.4;
-          float fin = smoothstep(3.0, 7.0, R) * (1.0 - smoothstep(k < 2 ? 30.0 : 22.0, k < 2 ? 50.0 : 36.0, R));
+          float peso = k < 2 ? 1.0 : 0.45;
+          float w = (k < 2 ? 0.17 : 0.11) * R + 1.2;
+          float fin = smoothstep(2.5, 6.0, R) * (1.0 - smoothstep(k < 2 ? 38.0 : 26.0, k < 2 ? 55.0 : 40.0, R));
           float d = angDif(th, brazo(R, j)) * R;
-          // (broken along its length: bright stretches, gaps)
-          float parche = max(0.0, 0.45 + 0.8 * sin(R * 0.41 + j * 2.3) * sin(R * 0.23 + j * 0.7 + 1.1)) * (0.3 + 1.2 * ruido(vec2(R * 0.35 + j * 17.0, j * 3.0)));
+          float parche = 0.5 + 0.5 * ruido(vec2(R * 0.28 + j * 17.0, j * 3.0));
           A = max(A, peso * fin * parche * exp(-(d * d) / (2.0 * w * w)));
-          float dl = angDif(th, brazo(R, j) - 0.22) * R;
-          if (k < 2) lane = max(lane, fin * parche * exp(-(dl * dl) / (2.0 * 1.5 * 1.5)));
+          float dl = angDif(th, brazo(R, j) - 0.17) * R;
+          float wl = 0.32 * w;
+          if (k < 2) lane = max(lane, fin * exp(-(dl * dl) / (2.0 * wl * wl)));
         }
         // Texture: feathery streaks along the way the arms wind, clouds and gaps across the disc.
         float fase = th - uKW * log(R / 4.0);
-        float pluma = fbm(vec2(R * 0.32, fase * 2.6));
-        float nube = fbm(vL.xz * 0.22 + 3.0);
-        float grumo = 0.35 + 1.25 * pluma * (0.6 + 0.8 * nube);
-        // Pink knots where stars are born, in the arms.
-        float nudos = smoothstep(0.6, 0.78, fbm(vL.xz * 0.85 + 7.0)) * A;
-        // The bulge and the bar, warm (soft: a glow, not a burnt disc).
+        float pluma = fbm(vec2(R * 0.3, fase * 2.4));
+        float nube = fbm(vL.xz * 0.18 + 3.0);
+        float grumo = 0.5 + 0.95 * pluma * (0.6 + 0.8 * nube);
+        // Old warm light inside, bluer outside; the arms bluer still at their crests; pink knots.
+        vec3 tono = mix(vec3(1.0, 0.85, 0.66), vec3(0.74, 0.82, 1.0), smoothstep(4.0, 26.0, R));
+        vec3 col = tono * disco * (1.0 + 3.0 * A * grumo) * 0.55;
+        col += vec3(0.55, 0.7, 1.0) * disco * A * A * grumo * 0.8;
+        float nudos = smoothstep(0.62, 0.8, fbm(vL.xz * 0.9 + 7.0)) * A * smoothstep(5.0, 12.0, R);
+        col += vec3(1.0, 0.42, 0.62) * nudos * disco * 2.0;
+        col *= 1.0 - 0.6 * lane * (0.35 + 0.9 * fbm(vL.xz * 0.55 - 2.0)) * smoothstep(3.0, 7.0, R);
+        // The bulge, compact and warm, and the bar.
         float cb = cos(uBar);
         float sb = sin(uBar);
         vec2 b = vec2(vL.x * cb + vL.z * sb, -vL.x * sb + vL.z * cb);
-        float bulbo = exp(-R / 2.6) * 0.75 + exp(-(b.x * b.x / 18.0 + b.y * b.y / 2.4)) * 0.45;
-        float disco = exp(-R / 12.0) * 0.16 * (0.55 + 0.9 * nube);
-        vec3 col = vec3(1.0, 0.82, 0.58) * bulbo + vec3(0.6, 0.72, 1.0) * A * grumo * 0.3 * (0.6 + 0.4 * smoothstep(6.0, 26.0, R)) + vec3(1.0, 0.45, 0.66) * nudos * 0.32 + vec3(0.92, 0.84, 0.76) * disco;
-        // (the dust lanes a soft brown shading on the arms' inner edges, broken by the clouds)
-        col *= 1.0 - 0.5 * lane * (0.4 + 0.9 * fbm(vL.xz * 0.6 - 2.0));
+        float bulbo = exp(-pow(R / 1.7, 0.9)) * 0.7 + exp(-(b.x * b.x / 14.0 + b.y * b.y / 1.8)) * 0.3;
+        col += vec3(1.0, 0.86, 0.64) * bulbo;
         // Seen face-on, the haze; edge-on, nothing (the stars carry it).
         float cara = smoothstep(0.08, 0.5, abs(dot(normalize(vN), normalize(vV))));
         gl_FragColor = vec4(col * cara * 0.55 * uGal * uFundido, 0.0);
@@ -375,7 +380,10 @@ export const apertura: Escena = {
           float dS = length(p - uSol);
           float frente = uOla * 110.0;
           float ola = (1.0 - smoothstep(frente - 4.0, frente, dS)) * step(0.62, fract(seed * 17.3)) * uOlaOn;
-          em = mix(em, uTeal * 0.9, ola);
+          float luzE = max(max(em.r, em.g), em.b);
+          em = mix(em, uTeal * (luzE * 1.8 + 0.12), ola);
+          // (seen whole, the stars sparkle over the haze rather than draw it in grain)
+          em *= mix(1.0, 0.3, smoothstep(40.0, 110.0, length(uCamG)));
           em *= uGal;
         `,
         uniforms: { uGal: { value: 0 }, uOla: { value: 0 }, uOlaOn: { value: 0 }, uSol: { value: S.clone() }, uTeal: { value: TEAL.clone() }, uCamG: { value: V() } },
@@ -383,9 +391,10 @@ export const apertura: Escena = {
       galaxia,
     );
     estrellas.u.uFuente.value = 0.55;
-    const polvo = add(materia(polvoDatos(), { pre: `uniform float uGal; uniform vec3 uCamG;`, move: `occ *= uGal * smoothstep(1.0, 4.0, length(p - uCamG));`, uniforms: { uGal: { value: 0 }, uCamG: { value: V() } } }), galaxia, 2);
-    // (the dust a soft shading now, not black lines: the haze below carries the lanes)
+    const polvo = add(materia(polvoDatos(), { pre: `uniform float uGal; uniform vec3 uCamG;`, move: `occ *= uGal * smoothstep(1.0, 4.0, length(p - uCamG)) * (1.0 - smoothstep(30.0, 60.0, length(uCamG)));`, uniforms: { uGal: { value: 0 }, uCamG: { value: V() } } }), galaxia, 2);
+    // (no dust of points: up close they drew a dotted black line; the haze carries the lanes)
     polvo.u.uInk.value = 0.22;
+    polvo.points.visible = false;
     const brillo = galaxiaBrillo();
     galaxia.add(brillo.mesh);
 
@@ -591,9 +600,13 @@ export const apertura: Escena = {
         // The bubble grows with the distance until it reaches its hundred light years, so it always fits.
         voz.u.uR.value = tl.get('vaso', p) > 0.001 ? R_VOZ * 0.03 : Math.max(1e-5, Math.min(sc, 1) * R_VOZ);
         voz.u.uOn.value = Math.min(1, tl.get('voz', p) * 4) * tl.get('vozOn', p) * (1 - ease(0.4, 3, dSol)) + tl.get('vaso', p) * 1.6;
+        // (a shell only from outside it: the camera that rides our voice's front would be inside its
+        // rim, a wall of light)
+        const camVoz = camera.position.clone().applyAxisAngle(V(0, 1, 0), -galaxia.rotation.y).distanceTo(S);
         for (const { c, k } of capasVoz) {
-          c.mesh.scale.setScalar(Math.max(1e-6, voz.u.uR.value * k));
-          c.u.uOn.value = voz.u.uOn.value * (k === 1 ? 0.55 : 0.25);
+          const rr = Math.max(1e-6, voz.u.uR.value * k);
+          c.mesh.scale.setScalar(rr);
+          c.u.uOn.value = voz.u.uOn.value * (k === 1 ? 0.55 : 0.25) * THREE.MathUtils.smoothstep(camVoz / rr, 1.4, 2.4);
           c.u.uTime.value = f.time;
         }
         voz.u.uOn.value *= 0.55;
