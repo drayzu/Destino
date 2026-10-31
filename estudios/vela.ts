@@ -301,22 +301,54 @@ export const vela: Escena = {
     velaN.u.uFuente.value = 0.4;
     const membrana = velaMembrana();
     velaG.add(membrana.mesh);
-    // The beam that pushes it, from the swarm.
-    const hazB = materiaBuilder(199);
-    for (let i = 0; i < 12000; i++) hazB.push(gauss(hazB.r) * 0.004, gauss(hazB.r) * 0.004, hazB.r(), TEAL, 0.004, 0.5, { kind: hazB.r() });
-    const haz = add(
-      materia(hazB.data(), {
-        pre: /* glsl */ `uniform vec3 uDesde; uniform float uHaz;`,
-        move: /* glsl */ `
-          p = mix(uDesde, vec3(0.0, 0.0, -0.002), position.z) + vec3(position.xy * (1.0 + 30.0 * (1.0 - position.z)), 0.0);
-          em *= uHaz * (0.4 + 0.6 * smoothstep(0.86, 1.0, fract(position.z * 6.0 - uTime * 2.0)));
+    // The beam that pushes it, from the swarm: a laser, one thin line of light with pulses running up
+    // it to the sail (Diego, 31 Oct: as points, by the sail they swelled into blots like dust).
+    const hazU = { uHaz: { value: 0 }, uTime: { value: 0 }, uFundido: { value: 1 } };
+    const haz = new THREE.Mesh(
+      new THREE.CylinderGeometry(1, 1, 1, 24, 1, true),
+      new THREE.ShaderMaterial({
+        uniforms: hazU,
+        vertexShader: /* glsl */ `
+          varying vec2 vUv;
+          varying vec3 vN;
+          varying vec3 vV;
+          void main() {
+            vUv = uv;
+            vN = normalize(normalMatrix * normal);
+            vec4 mv = modelViewMatrix * vec4(position, 1.0);
+            vV = mv.xyz;
+            gl_Position = projectionMatrix * mv;
+          }
         `,
-        uniforms: { uDesde: { value: S0.clone() }, uHaz: { value: 0 } },
+        fragmentShader: /* glsl */ `
+          uniform float uHaz, uTime, uFundido;
+          varying vec2 vUv;
+          varying vec3 vN;
+          varying vec3 vV;
+          void main() {
+            // (a bright core along its middle, a soft glow round it; pulses running to the sail, at v = 1)
+            float c = abs(dot(normalize(vN), normalize(-vV)));
+            float luz = pow(c, 6.0) + 0.2 * pow(c, 1.5);
+            float v = vUv.y;
+            float pulso = smoothstep(0.82, 1.0, fract(v * 18.0 - uTime * 1.6));
+            float extremos = smoothstep(0.0, 0.1, v) * (1.0 - smoothstep(0.992, 1.0, v));
+            gl_FragColor = vec4(vec3(0.45, 0.95, 0.82) * luz * (0.45 + 1.1 * pulso) * extremos * 0.8 * uHaz * uFundido, 0.0);
+          }
+        `,
+        side: THREE.DoubleSide,
+        transparent: true,
+        depthTest: false,
+        depthWrite: false,
+        blending: THREE.CustomBlending,
+        blendSrc: THREE.OneFactor,
+        blendDst: THREE.OneMinusSrcAlphaFactor,
       }),
-      root,
-      4,
     );
-    haz.u.uFuente.value = 0.5;
+    haz.frustumCulled = false;
+    haz.renderOrder = 4;
+    root.add(haz);
+    const hazA = V();
+    const hazB = V(0, 0, -0.002);
     const pd = polvoDatos();
     const polvo = add(
       materia(pd.data, {
@@ -538,7 +570,13 @@ export const vela: Escena = {
         // The Sun falls behind and Alpha Centauri comes up ahead, both in logarithm.
         const dCen = Math.pow(10, tl.get('lcen', p));
         alfa.position.set(-3, 1.5, dCen);
-        haz.u.uDesde.value.copy(casa.position).add(V(0, 0, 3.2));
+        // (from home to the sail: the cylinder's +Y along it, its top at the sail)
+        hazA.copy(casa.position).add(V(0, 0, 3.2));
+        const dirH = hazB.clone().sub(hazA);
+        const largoH = dirH.length();
+        haz.position.copy(hazA).addScaledVector(dirH, 0.5);
+        haz.quaternion.setFromUnitVectors(V(0, 1, 0), dirH.divideScalar(largoH));
+        haz.scale.set(0.0025, largoH, 0.0025);
         const camC = camera.position.clone().sub(casa.position);
         sol.u.uBrillo.value = 2.2 * (1 - 0.86 * THREE.MathUtils.smoothstep(camC.length(), 2.6, 3.9));
         sol.update({ sol: V(1, 0, 0), camara: camC, focal: f.focal, dpr: f.dpr, tiempo: t, presencia: f.fundido ?? 1 });
@@ -571,7 +609,9 @@ export const vela: Escena = {
         // (and once the spark has gone over to the ship, the sail falls behind, dimming)
         // (centuries later, when the ships come, the sail is long gone)
         velaN.u.uGain.value = Math.min(1, 2 / Math.max(1e-6, camera.position.length())) * (1 - THREE.MathUtils.smoothstep(p, tl.at('nave') - 0.4, tl.at('nave') + 1.6));
-        haz.u.uHaz.value = tl.get('haz', p);
+        hazU.uHaz.value = tl.get('haz', p);
+        hazU.uTime.value = t;
+        haz.visible = hazU.uHaz.value > 0.002;
         membrana.u.uLuz.value = 0.5 * tl.get('haz', p);
         membrana.u.uLuzA.value = 0.6 * tl.get('luzA', p);
         membrana.u.uGain.value = velaN.u.uGain.value;

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { Camino } from './chispa';
 import { caraHacia, dirLatLon } from './remake';
 import { CARA } from './tierra';
-import { CIUDAD, DIR_CIUDAD, E, FIN_RIEL_LUNA, LUNA, M, MA, N_LUNA, RE, RL, RM, RMA, RV, SOL_V, U_LUNA, VE, caminoRio, enRiel, enRielLuna, enRielX } from './interior';
+import { E, FIN_RIEL_LUNA, LUNA, M, MA, N_LUNA, RE, RL, RM, RMA, RV, SOL_V, U_LUNA, VE, caminoRio, enRiel, enRielLuna, enRielX } from './interior';
 
 /**
  * A flight the spark makes without ever stopping, and the camera that chases it (Diego, 30 Oct: «el
@@ -71,7 +71,9 @@ export function crearVuelo(
       const dL = q1.distanceTo(q0);
       lTab[k] = lTab[k - 1] + dL;
       const Dk = escalaEn(q1);
-      wTab[k] = dL / (Dk * (1 + 3 * smooth(Dk, 1.5, 10)));
+      // (not quite in proportion: by a world it would all but stop, as if to land, and in the open
+      // surge away; a gentler curve)
+      wTab[k] = dL / (Math.pow(Dk, 0.75) * (1 + 2 * smooth(Dk, 1.5, 12)));
       q0.copy(q1);
     }
   }
@@ -284,19 +286,19 @@ export function vueloInterior(): Vuelo {
   pon(enMarte(235, 0.62, -0.3));
   pon(enMarte(290, 0.85, 0.0), 'marte2');
   pon(enMarte(323, 2.6, 0.15));
-  // Across, above the plane, to Venus' side; round behind it, low over a city on its night side,
-  // and up away from it (never between it and the parasol, sunward).
+  // Across, above the plane, to Venus' side; round behind it at an even height, over the lights of
+  // a city on its night side, and up away from it (never between it and the parasol, sunward; never
+  // so low it seems to land).
   pon(MA.clone().lerp(VE, 0.5).addScaledVector(Y, 1.6));
   pon(enVenus(72, 7, RV * 13));
   pon(enVenus(100, 8, RV * 4), 'venus');
   pon(enVenus(148, 5, RV * 3));
-  pon(enVenus(182, 4, RV * 2.8));
-  pon(enVenus(212, 8, RV * 2.2));
-  pon(enVenus(226, 11, RV * 1.6));
-  pon(CIUDAD.clone().addScaledVector(DIR_CIUDAD, 0.1));
-  pon(enVenus(244, 18, RV * 1.5), 'venus2');
-  pon(enVenus(258, 28, RV * 2.6));
-  pon(enVenus(272, 34, RV * 5));
+  pon(enVenus(182, 4, RV * 2.75));
+  pon(enVenus(210, 8, RV * 2.5));
+  pon(enVenus(232, 14, RV * 2.3));
+  pon(enVenus(252, 20, RV * 2.45), 'venus2');
+  pon(enVenus(268, 28, RV * 3.4));
+  pon(enVenus(280, 34, RV * 6));
   // Across to Mercury (the act changes here, in mid air), down onto its rail as onto the Moon's,
   // fired along it, and down the river of rock towards the Sun.
   pon(VE.clone().lerp(M, 0.5).addScaledVector(Y, 1.4), 'corte');

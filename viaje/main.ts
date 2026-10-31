@@ -309,7 +309,7 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
     prev.grupo.matrixAutoUpdate = false;
     prev.grupo.matrix.identity();
     prev.grupo.updateMatrixWorld(true);
-    pi.update({ ...f, p: prev.largo, fundido: 1 - smooth(clamp((p - 0.05) / (RELEVO * 0.8), 0, 1)) });
+    pi.update({ ...f, p: prev.largo, fundido: 1 - smooth(clamp((p - 0.05) / (RELEVO * 0.8), 0, 1)), saliente: !!inst.continuo });
     camA.pos.copy(camera.position);
     camA.quat.copy(camera.quaternion);
     camA.fov = camera.fov;
@@ -325,7 +325,9 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
     escalaPrev = mp.escala;
     k = smooth(clamp(p / RELEVO, 0, 1));
   }
-  if (enRelevo) f.fundido = smooth(clamp((p - 0.05) / (RELEVO * 0.8), 0, 1));
+  // (taking a flight on in mid air, this act is all there from the first beat: what it shares with
+  // the last act, that act no longer draws)
+  if (enRelevo) f.fundido = inst.continuo ? 1 : smooth(clamp((p - 0.05) / (RELEVO * 0.8), 0, 1));
   inst.update(f);
   if (enRelevo && prev) {
     // The camera: from where the last act left it to where this act wants it, turning round our
@@ -350,7 +352,7 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
     // The light: the last act's fades as this one's comes up (they add, so the sum holds).
     const c = smooth(clamp((p - 0.05) / (RELEVO * 0.8), 0, 1));
     fundir(prev.grupo, 1 - c, escalaPrev, prev.inst!.relevoMaxPx ?? 0);
-    fundir(t.grupo, c);
+    fundir(t.grupo, inst.continuo ? 1 : c);
     const fa = prev.film!;
     const fb = t.film!;
     stage.bloom.strength = fa.strength + (fb.strength - fa.strength) * k;

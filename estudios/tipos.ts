@@ -22,6 +22,9 @@ export interface Frame {
   chasis?: boolean;
   /** In a relay, how far this act has come up (0..1); its bodies' light follows it. */
   fundido?: number;
+  /** In a relay where the next act takes the flight on in mid air (`continuo`), this act is the one
+   * going out: its spark, and the worlds the next act draws too, are left to that act. */
+  saliente?: boolean;
 }
 
 /** Where an act hands over or takes over (journey): a point in its world and a size there. */

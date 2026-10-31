@@ -350,9 +350,10 @@ export const sistema: Escena = {
     stage.renderer.toneMappingExposure = 1.05;
     const base = `${import.meta.env.BASE_URL}texturas/`;
 
-    const sol = solH({ puntos: 200000, corona: 80000 });
+    // (the same Sun as Mercury's act draws: the flight goes on into it without its look changing)
+    const sol = solH({ puntos: 320000, corona: 160000 });
     root.add(sol.group);
-    sol.u.uBrillo.value = 2.0;
+    sol.u.uBrillo.value = 2.2;
     const tierra = tierraH(base, { giro: 0, puntos: 260000 });
     const tierraG = new THREE.Group();
     tierraG.position.copy(E);
@@ -713,6 +714,10 @@ export const sistema: Escena = {
         const lejosDe = (q: THREE.Vector3, d0: number, k = 1) => Math.min(1, Math.pow(d0 / Math.max(1e-6, camera.position.distanceTo(q)), k));
         // (its wake a third of a beat long: shorter than the camera's lag, so it never reaches past it)
         chispa.update(caminoCh, p, 0.0065, tl.get('on', p), 0, camera.position, f.focal, f.dpr, t);
+        // (handing the flight on to Mercury's act: the spark, the Sun and Mercury are its now)
+        chispa.nube.points.visible = !f.saliente;
+        sol.group.visible = !f.saliente;
+        if (f.saliente) merc.group.visible = false;
         // (Mars' mirrors, pole and domes only as it nears: from afar their thousands of points would
         // pile up in a pixel and bloom into a ball)
         const cercaMarte = 1 - THREE.MathUtils.smoothstep(camera.position.distanceTo(MA), 3, 8);
