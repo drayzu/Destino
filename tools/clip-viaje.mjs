@@ -47,11 +47,12 @@ function tempo(claves) {
   };
 }
 
-const port = 9336;
+// (CDP: another debugging port, so two can run at once, each with its own profile)
+const port = Number(process.env.CDP ?? 9336);
 const chrome = spawn(process.env.CHROME ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe', [
   '--headless=new',
   `--remote-debugging-port=${port}`,
-  `--user-data-dir=${join(tmpdir(), 'destino-clip-viaje')}`,
+  `--user-data-dir=${join(tmpdir(), `destino-clip-viaje-${port}`)}`,
   `--window-size=${W},${H}`,
   '--ignore-gpu-blocklist',
   '--hide-scrollbars',

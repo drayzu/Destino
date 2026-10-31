@@ -8,8 +8,9 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 const [m, s, expr] = process.argv.slice(2);
 const PUERTO = process.env.PUERTO ?? 5211;
-const port = 9338;
-const chrome = spawn(process.env.CHROME ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe', ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${join(tmpdir(), 'destino-remake-eval')}`, '--window-size=1600,900', '--ignore-gpu-blocklist', '--hide-scrollbars', '--mute-audio', 'about:blank'], { stdio: 'ignore' });
+// (CDP: another debugging port, so two can run at once, each with its own profile)
+const port = Number(process.env.CDP ?? 9338);
+const chrome = spawn(process.env.CHROME ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe', ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${join(tmpdir(), `destino-remake-eval-${port}`)}`, '--window-size=1600,900', '--ignore-gpu-blocklist', '--hide-scrollbars', '--mute-audio', 'about:blank'], { stdio: 'ignore' });
 let target;
 for (let i = 0; i < 50 && !target; i++) {
   await sleep(200);
