@@ -164,7 +164,9 @@ export const galaxia: Escena = {
           em = mix(em, vec3(0.22, 0.05, 0.02) * (0.4 + 0.6 * fract(seed * 7.1)), uIR);
           // (seen whole from outside, the stars, ours too, sparkle over the haze rather than pile up
           // into a burnt disc or draw the arms as bands)
-          em *= mix(1.0, 0.35, smoothstep(40.0, 110.0, length(uCamG)));
+          em *= mix(1.0, 0.35, smoothstep(26.0, 100.0, length(uCamG)));
+          // (and its bulge, thick with stars, most of all: from above the disc it burnt into a white mass)
+          em *= 1.0 - 0.6 * exp(-dot(p.xz, p.xz) / 50.0) * smoothstep(18.0, 40.0, length(uCamG));
           em *= uGal;
         `,
         uniforms: { uGal: { value: 1 }, uBur: { value: 0 }, uIR: { value: 0 }, uSol: { value: S.clone() }, uTeal: { value: TEAL.clone() }, uCamG: { value: V() } },
