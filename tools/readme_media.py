@@ -41,17 +41,17 @@ THEMES = {
 # name, frames dir, start, count, crop (x, y, w, h) in the 1840 x 1035 frames, power exponent (W), title, line, loop
 # (the remake: frames from viaje/, captured with tools/clip-viaje.mjs and tools/readme-viaje.json)
 MOMENTS = [
-    ('brains', 'r-brains', 0, 150, (0, 0, 1840, 1035), '13', 'Eight billion brains',
-     'One brain, then all of them: eight billion networks like yours, thinking at once.', 'forward'),
+    ('planets', 'r-planets', 0, 150, (0, 0, 1840, 1035), '37', 'Planets everywhere',
+     'At least one for every star: system after system, many where there could be water.', 'forward'),
     ('nerves', 'r-nerves2', 0, 150, (0, 0, 1840, 1035), '-3', 'Nerves',
      'Cells began passing sparks to each other: a whole body reacts at once.', 'forward'),
-    ('moon', 'r-moon', 0, 150, (0, 0, 1840, 1035), '16', 'The Moon, a quarry',
-     'No air and little gravity: the rock to build out there is cheap to launch.', 'forward'),
+    ('machines', 'r-machines', 0, 150, (0, 0, 1840, 1035), '13', 'Machines that think',
+     'Now we think outside our heads too, in halls of machines that grow every year.', 'forward'),
     ('sun', 'r-sun', 0, 150, (240, 0, 1600, 900), '25', 'Moving the Sun',
      'A mirror sends part of its light back and pushes it, slowly.', 'forward'),
     ('ship', 'r-ship2', 0, 150, (0, 0, 1840, 1035), '27', 'Ships that are worlds',
      'Centuries between stars: whoever arrives never saw the Earth.', 'forward'),
-    ('hole', 'r-hole', 0, 150, (0, 0, 1840, 1035), '29', 'The last power plants',
+    ('hole', 'r-hole2', 0, 150, (0, 0, 1840, 1035), '29', 'The last power plants',
      'When the stars go out, black holes remain: energy can still be drawn from their spin.', 'forward'),
 ]
 # The hero, as in Espacio and Tiempo: one unbroken flight from the Earth past the Moon, Mars, Venus and

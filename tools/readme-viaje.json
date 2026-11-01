@@ -13,5 +13,8 @@
   {"nombre": "r-moon", "b": 122.8, "d": 4.6, "n": 150},
   {"nombre": "r-sun", "b": 199.6, "d": 4.0, "n": 150},
   {"nombre": "r-ship2", "b": 256.6, "d": 4.6, "n": 150},
-  {"nombre": "r-hole", "b": 401.2, "d": 3.8, "n": 150}
+  {"nombre": "r-hole", "b": 401.2, "d": 3.8, "n": 150},
+  {"nombre": "r-planets", "b": 33.6, "d": 3.0, "n": 150},
+  {"nombre": "r-machines", "b": 83.0, "d": 3.4, "n": 150},
+  {"nombre": "r-hole2", "b": 412.4, "d": 4.4, "n": 150}
 ]

@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" type="image/avif" srcset="media/brains-dark.avif"><source media="(prefers-color-scheme: dark)" srcset="media/brains-dark.webp"><source type="image/avif" srcset="media/brains-light.avif"><img src="media/brains-light.webp" width="100%" alt="Eight billion brains"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" type="image/avif" srcset="media/planets-dark.avif"><source media="(prefers-color-scheme: dark)" srcset="media/planets-dark.webp"><source type="image/avif" srcset="media/planets-light.avif"><img src="media/planets-light.webp" width="100%" alt="Planets everywhere"></picture>
 </p>
 
 <p align="center">
@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" type="image/avif" srcset="media/moon-dark.avif"><source media="(prefers-color-scheme: dark)" srcset="media/moon-dark.webp"><source type="image/avif" srcset="media/moon-light.avif"><img src="media/moon-light.webp" width="100%" alt="The Moon, a quarry"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" type="image/avif" srcset="media/machines-dark.avif"><source media="(prefers-color-scheme: dark)" srcset="media/machines-dark.webp"><source type="image/avif" srcset="media/machines-light.avif"><img src="media/machines-light.webp" width="100%" alt="Machines that think"></picture>
 </p>
 
 <p align="center">
