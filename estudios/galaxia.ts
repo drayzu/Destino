@@ -406,7 +406,9 @@ export const galaxia: Escena = {
     luego(3.4, 1.4, { mapa: 0 });
     tl.with(2.4, { bur: 120 });
     luego(2.6, 2.2, { ir: 1 });
-    tl.to(5.4, { ...Cn(G), ld: 2.02, el: 62, az: 210 });
+    // (the moment: as it goes dark and warm the camera sweeps down round it to look across its disc,
+    // a dimmed, smouldering spiral seen low, before going down into it)
+    tl.to(5.4, { ...Cn(G), ld: 1.92, el: 16, az: 222 });
 
     // Down into the disc: three encounters, each a place of its own. The camera goes with the spark,
     // stays, and looks. All the way to the edge it turns one way round (the encounters follow on in
@@ -428,7 +430,7 @@ export const galaxia: Escena = {
 
     // A crowded cluster of old stars, a ball of lights. From its edge the spark calls; the call
     // sweeps through it, and every star it passes trembles and goes out, until the ball is a dark
-    // ghost of embers. The camera stays outside, turning, to watch it go quiet.
+    // ghost of embers. The camera goes in among them as they go quiet.
     tl.label('callan').caption(11.0, 'Los que callan', 'O callan a propósito, porque hacerse oír puede ser peligroso.');
     luego(1.2, 1.2, { zoo: 0 });
     // (from one encounter to the next: out first, then across, then in; never across while close;
@@ -440,8 +442,9 @@ export const galaxia: Escena = {
     tl.to(1.2, { ld: Math.log10(R_ZOO * 13), el: 12, az: AZ_ALBA + 56 });
     tl.to(1.4, { ld: 0.4, el: 18, az: AZ_ALBA + 66 });
     tl.to(2.2, { ld: Math.log10(R_CALLAN * 4.2), el: 14, az: AZ_ALBA + 80 });
-    tl.to(3.0, { ld: Math.log10(R_CALLAN * 2.4), el: 10, az: AZ_ALBA + 110, fov: 44 });
-    tl.to(3.2, { ld: Math.log10(R_CALLAN * 2.05), el: 5, az: AZ_ALBA + 150 });
+    // (and into the ball as the call sweeps it: its stars going out round the camera, not only seen)
+    tl.to(3.0, { ld: Math.log10(R_CALLAN * 1.6), el: 10, az: AZ_ALBA + 110, fov: 48 });
+    tl.to(3.2, { ld: Math.log10(R_CALLAN * 0.55), el: 5, az: AZ_ALBA + 150, fov: 54 });
 
     // A swarm that died, round a cold red star: the camera goes in through its wreck, broken
     // collectors tumbling past close enough to touch, black against the star or catching its dull
@@ -583,7 +586,10 @@ export const galaxia: Escena = {
           occZoo.set(tmpO.x, tmpO.y, tmpO.z, zooG.getWorldScale(tmpS).x * 0.995);
         } else occZoo.set(0, 0, 0, 0);
         for (const n of [solZoo, vigias, estrellas, burb.estrellas, burb.hilos, chispa.nube]) n.u.uOcc.value.copy(occZoo);
-        estrellas.u.uGal.value = 1 - 0.8 * tl.get('fondo', p) - 0.1 * tl.get('filtro', p);
+        // (dimmed while an encounter holds the frame; between them, as the spark flies on, the disc's
+        // stars come back round the camera instead of a black stretch)
+        const encuentro = Math.max(tl.get('zoo', p), tl.get('callan', p), tl.get('filtro', p));
+        estrellas.u.uGal.value = 1 - 0.8 * tl.get('fondo', p) * (0.35 + 0.65 * encuentro) - 0.1 * tl.get('filtro', p);
         const bulbo = tl.get('bulbo', p);
         estrellas.u.uBulbo.value = bulbo;
         const hb = tl.get('hb', p);
