@@ -628,10 +628,19 @@ export const apertura: Escena = {
     // way to its stars as the camera comes into the disc, the nearest rushing past)
     tl.label('amarilla').caption(5.0, 'Una estrella amarilla', 'No lo sabemos. Pero podemos imaginar cómo crecería una, empezando por la nuestra.');
     luego(0.6, 2.4, { solp: 1 });
-    tl.with(1.0, { ...C(lazo.getPoint(1)) });
+    tl.with(1.0, { ...C(S) });
     luego(0.5, 0.7, { velo: 0, cerca: 0.15 });
     luego(1.7, 0.8, { velo: 1, cerca: 1 });
-    tl.to(2.6, { ld: -2.2, el: 8, az: 236 });
+    // (first turned to it while still far, then straight down to it: turning and closing at once,
+    // the star slid out of the frame; the end pose, where despierta takes over, the same)
+    // (the rig's centre the star itself, and down the line that ends at the very place the ride takes
+    // the camera, so the star stays in the middle all the way and handing over to the ride moves the
+    // camera none: looking at the end of the spark's loop instead, the star slid off the frame)
+    const enS = montarEn(2).lugar.sub(S);
+    const enA = angulos(enS);
+    const azA = enA.az + 360 * Math.round((236 - enA.az) / 360);
+    tl.to(1.0, { el: enA.el, az: azA });
+    tl.to(1.6, { ld: Math.log10(enS.length()) });
     tl.with(1.0, { lw: 1 });
     luego(1.4, 1.2, { luzSol: 1 });
     tl.to(2.4, { sc: 3 });
@@ -722,12 +731,12 @@ export const apertura: Escena = {
         for (const { c, k } of capasVoz) {
           const rr = Math.max(1e-6, voz.u.uR.value * k);
           c.mesh.scale.setScalar(rr);
-          c.u.uOn.value = voz.u.uOn.value * (k === 1 ? 0.55 + 2.0 * punto : 0.25 * (1 - punto)) * THREE.MathUtils.smoothstep(camVoz / rr, 2.2, 4.5);
+          c.u.uOn.value = voz.u.uOn.value * (k === 1 ? 0.55 + 2.0 * punto : 0.25 * (1 - punto)) * THREE.MathUtils.smoothstep(camVoz / rr, 1.3, 2.1);
           c.u.uTime.value = f.time;
           c.mesh.visible = c.u.uOn.value > 1e-4;
         }
         // (its points too: from inside the bubble they are a dotted wall across half the frame)
-        const dentro = THREE.MathUtils.lerp(0.2, 1, THREE.MathUtils.smoothstep(camVoz / Math.max(1e-6, voz.u.uR.value), 1.3, 3.0));
+        const dentro = THREE.MathUtils.lerp(0.2, 1, THREE.MathUtils.smoothstep(camVoz / Math.max(1e-6, voz.u.uR.value), 1.1, 1.8));
         // (its points, once it is a small ring, give way to the ring: together in a few pixels they burn)
         const rPx = (voz.u.uR.value * f.focal) / Math.max(camVoz, 1e-9);
         voz.u.uOn.value *= 0.55 * dentro * THREE.MathUtils.lerp(1, THREE.MathUtils.smoothstep(rPx, 14, 60), punto);
@@ -739,8 +748,12 @@ export const apertura: Escena = {
         tu.u.uSizeUnit.value = px(7);
         tu.u.uGain.value = tl.get('tu', p) * (1 + 0.22 * Math.sin(t * 1.5)) * (1 - 0.65 * tl.get('solp', p));
         sol.points.position.copy(S);
-        sol.u.uSizeUnit.value = px(6 + 3 * tl.get('solp', p));
-        sol.u.uGain.value = Math.max(tl.get('cielo', p), tl.get('solp', p)) * (0.5 + 0.8 * tl.get('solp', p));
+        // (the yellow star grows as the dive comes down to it, the middle of the frame, until its light
+        // fills it: a few pixels before, a star after)
+        const aA = tl.at('amarilla');
+        const crece = THREE.MathUtils.smoothstep(p, aA + 1.0, aA + 3.8) * (1 - tl.get('luzSol', p));
+        sol.u.uSizeUnit.value = px(6 + 3 * tl.get('solp', p) + 70 * crece * crece);
+        sol.u.uGain.value = Math.max(tl.get('cielo', p), tl.get('solp', p)) * (0.5 + 0.8 * tl.get('solp', p)) * (1 + 0.6 * crece);
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
         for (const n of [estrellas, locales, vecinas]) n.u.uMaxPx.value = 3.2 * f.dpr;
         voz.u.uMaxPx.value = 4 * f.dpr;
