@@ -369,13 +369,16 @@ export const despierta: Escena = {
     luego(1.6, 1.4, { toque: 1 });
     luego(1.9, 0.6, { on: 1 });
     luego(1.9, 2.7, { sc: 1 });
-    tl.to(4.6, { az: 10, el: 10, ld: 0.12 });
+    // (the moment: once the hand-over is done the camera comes in close to its skin as the spark
+    // touches it and it flinches, then draws back for the jellyfish)
+    tl.to(2.4, { az: -6, el: 12, ld: 0.16 });
+    tl.to(2.2, { az: 10, el: 8, ld: Math.log10(0.72), fov: 46 });
 
     // It jumps from cell to cell along a nerve of the bell, and the camera goes with it.
     tl.label('nervios').caption(5.0, 'Nervios', 'Después, unas células empezaron a pasarse chispas. Con ellas, un cuerpo entero reacciona a la vez.');
     tl.with(1.6, { cel: 0, toque: 0 });
     luego(0.3, 2.4, { ner: 1, crece: 1 });
-    tl.to(1.6, { az: 40, el: 24, ld: 0.52 });
+    tl.to(1.6, { az: 40, el: 24, ld: 0.52, fov: 40 });
     luego(0.4, 1.0, { lw: 0.85 });
     tl.to(3.4, { sc: 2 });
 
