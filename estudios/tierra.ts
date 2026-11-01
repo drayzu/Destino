@@ -622,12 +622,14 @@ export const tierraNoche: Escena = {
 
     tl.label('luces').caption(4.4, 'Doscientos años de luces', 'En doscientos años encendimos el planeta: primero de a poco, después de golpe.');
     tl.with(1.8, { dc: 0, on: 0 });
-    tl.to(0.9, { anio: 1800, az: 8, el: 7, ld: 0.7 });
-    tl.to(3.5, { anio: 2026, az: 3, el: 5, ld: 0.64 });
+    // (the moment: down low over the night side as the lights come on, the horizon curving away and
+    // the towns igniting beneath, first a few, then all at once; then back up for «today»)
+    tl.to(0.9, { anio: 1800, az: 8, el: 7, ld: 0.5 });
+    tl.to(3.5, { anio: 2026, az: 3, el: 6, ld: Math.log10(1.2), pitch: -34, fov: 52 });
 
     tl.label('hoy').caption(3.6, 'Hoy', 'Hoy usamos diecinueve billones de vatios: tipo 0,73 en la escala de Kardashev. Unos pocos encienden la pantalla en que miras esto.');
     luego(0.4, 0.9, { tu: 1 });
-    tl.to(3.6, { az: 0, el: 4, ld: 0.58 });
+    tl.to(3.6, { az: 0, el: 4, ld: 0.58, pitch: -90, fov: 40 });
 
     tl.label('energia').caption(3.6, 'Más energía, más calor', 'Hay espacio para crecer: el Sol le da a la Tierra casi diez mil veces más. Pero lo que usamos termina como calor.');
     tl.with(1.0, { tu: 0 });
