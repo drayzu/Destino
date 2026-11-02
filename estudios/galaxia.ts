@@ -4,14 +4,14 @@ import { DECADAS, LOG0, crearBurbuja, frente } from './burbuja';
 import { enfocar, materia, materiaBuilder, type MateriaData, type Nube } from './motor/materia';
 import { gauss } from './motor/math';
 import { TEAL, potencia, anioEn } from './remake';
-import { angulos, aplicarToma, toma } from './rig';
+import { angulos, aplicarToma, toma, type Toma } from './rig';
 import { tierra as tierraH } from '../src/horizontes';
 import { crearChispa, montar, type Camino } from './chispa';
 import { S, brazo, galaxiaBrillo, galaxiaDatos, polvoDatos } from './apertura';
 import { cuantas, enfocarMarcas, marcas, nombres, type Nombre } from './revelar';
 import type { Cuenta, Rotulo } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
-import { COPIAS_MOVE, copiasDatos, escombros, ramaBurbuja } from './momentos-galaxia';
+import { COPIAS_MOVE, SALTOS_MOVE, SALTOS_POST, TOCADAS_MOVE, copiasDatos, curva, escombros, ramaBurbuja, saltosDatos, tocadasDatos } from './momentos-galaxia';
 
 /**
  * Scenes 16–17 of ESCALETA.md, «La burbuja» and «¿Dónde están?» (GUION.md, moments 36–42). The same
@@ -489,6 +489,164 @@ export const galaxia: Escena = {
     tl.to(3.4, { ld: -0.4, el: 6, az: azFuera + 150 });
     tl.to(2.6, { ld: Math.log10(0.0021), el: 4, az: azFuera + 180, fov: 44 });
 
+    // ---------------------------------------------------------------- «La burbuja» as a ride
+    // After the relay (as it was up to PB), the spark hops: three stars, each farther and sooner,
+    // each touched turning ours with a burst of copies to the stars round it (and from those, more);
+    // the camera rides behind it. Then it lifts and draws back as the front runs on through the
+    // disc, into the reveal ('freno', as it was). The front's clock (`ch`) is the act's own up to PB
+    // and from the end of the bubble on; between, it reaches each star as the spark does.
+    const PB = 2.5;
+    const P_ROJO = 14.6;
+    const K_I = [1008, 1501, 2484];
+    const P_TOCA = [4.2, 5.6, 6.7];
+    const KR = K_I.map((i) => ramaB.estrellas[i].p.clone());
+    const K = KR.map((k) => k.clone().add(S));
+    const tK = K_I.map((i) => ramaB.estrellas[i].t);
+    const ch25 = tl.get('ch', PB);
+    const dch25 = (tl.get('ch', PB) - tl.get('ch', PB - 0.002)) / 0.002;
+    const chCurva = curva([[PB, ch25], [P_TOCA[0], tK[0]], [P_TOCA[1], tK[1]], [P_TOCA[2], tK[2]], [9.6, 0.72], [P_ROJO, 1]], dch25, 0);
+    const chDe = (q: number) => (q <= PB || q >= P_ROJO ? tl.get('ch', q) : chCurva(q));
+    const dchDe = (q: number) => (chDe(q + 0.002) - chDe(q - 0.002)) / 0.004;
+    /** The beat the front's clock reaches c (between PB and the end of the bubble). */
+    const pDe = (c: number) => {
+      let a = PB;
+      let b = P_ROJO;
+      if (c >= 1) return P_ROJO;
+      for (let i = 0; i < 40; i++) {
+        const m = (a + b) / 2;
+        if (chDe(m) < c) a = m;
+        else b = m;
+      }
+      return (a + b) / 2;
+    };
+    // The spark's way in beats: as it was up to PB; then from star to star, slowing to touch each;
+    // after the last, on outwards with the front, taking up its own branch again by P_UNE.
+    const K0 = caminoCh(ch25, V());
+    const v0 = K0.clone().sub(caminoCh(chDe(PB - 0.01), V())).divideScalar(0.01);
+    const D_SUELTA = 2.2;
+    const dirK3 = KR[2].clone().normalize();
+    const escK3 = KR[2].length() / frente(tK[2]);
+    const P_UNE = 12.0;
+    const tmpU = V();
+    const arcos = [0, 1].map((i) => {
+      const L = K[i].distanceTo(K[i + 1]);
+      const lado = K[i + 1].clone().sub(K[i]).cross(Y).normalize();
+      return Y.clone().multiplyScalar(0.1 * L).addScaledVector(lado, 0.07 * L);
+    });
+    const ruta: Camino = (q, out) => {
+      if (q <= PB) return caminoCh(chDe(q), out);
+      if (q < P_TOCA[0]) {
+        const h = P_TOCA[0] - PB;
+        const u = (q - PB) / h;
+        const u2 = u * u;
+        const u3 = u2 * u;
+        return out.copy(K0).multiplyScalar(2 * u3 - 3 * u2 + 1).addScaledVector(v0, (u3 - 2 * u2 + u) * h).addScaledVector(K[0], -2 * u3 + 3 * u2);
+      }
+      if (q < P_TOCA[2]) {
+        const i = q < P_TOCA[1] ? 0 : 1;
+        const u = (q - P_TOCA[i]) / (P_TOCA[i + 1] - P_TOCA[i]);
+        const e = u * u * u * (u * (u * 6 - 15) + 10);
+        return out.copy(K[i]).lerp(K[i + 1], e).addScaledVector(arcos[i], Math.sin(Math.PI * e));
+      }
+      // (after the last, on outwards the way it went, at the front's pace; it takes up its own branch
+      // again only once the camera is far back, where that is a drift of a few pixels)
+      const u = Math.min(1, (q - P_TOCA[2]) / D_SUELTA);
+      const phi = u < 1 ? P_TOCA[2] + D_SUELTA * (2 * u * u - u * u * u) : q;
+      out.copy(dirK3).multiplyScalar(escK3 * frente(chDe(phi))).add(S);
+      const w = THREE.MathUtils.smoothstep(q, P_UNE - 2.0, P_UNE);
+      return w > 0 ? out.lerp(caminoCh(chDe(q), tmpU), w) : out;
+    };
+    /** Until when the spark goes by the beat (by then that way is its branch again, wake and all). */
+    const P_SUELTA = P_UNE + 0.8;
+
+    // The touched stars, and the copies: from each, to the stars about it it will reach first (the
+    // front's own), arriving as those turn ours; and from each of those, three more.
+    const tocadasD = tocadasDatos(KR.map((k, i) => ({ p: k, pt: P_TOCA[i], r: k.length() * 0.03 })));
+    const tocadas = add(
+      materia(tocadasD.data, {
+        pre: /* glsl */ `attribute float aPt; uniform float uP, uOn; uniform vec3 uTeal;`,
+        move: TOCADAS_MOVE,
+        uniforms: { uP: { value: 0 }, uOn: { value: 0 }, uTeal: { value: TEAL.clone() } },
+        extra: tocadasD.extra,
+      }),
+      root,
+      6,
+    );
+    tocadas.points.position.copy(S);
+    tocadas.u.uFuente.value = 1;
+    const vuelos: { de: THREE.Vector3; a: THREE.Vector3; p0: number; p1: number; luz: number }[] = [];
+    const usadas = new Set<number>(K_I);
+    const cercanas = (de: THREE.Vector3, t0: number, dt: number, dmax: number, n: number) => {
+      const c: { i: number; d: number }[] = [];
+      ramaB.estrellas.forEach((e, i) => {
+        if (usadas.has(i) || e.t <= t0 + 0.004 || e.t > t0 + dt) return;
+        const d = e.p.distanceTo(de);
+        if (d < dmax) c.push({ i, d });
+      });
+      c.sort((a, b) => a.d - b.d);
+      return c.slice(0, n).map((x) => {
+        usadas.add(x.i);
+        return x.i;
+      });
+    };
+    KR.forEach((k, i) => {
+      const L = i < 2 ? k.distanceTo(KR[i + 1]) : k.distanceTo(KR[1]) * 1.3;
+      for (const j of cercanas(k, tK[i], 0.1, 2.4 * L, 26)) {
+        const e = ramaB.estrellas[j];
+        const p0 = P_TOCA[i];
+        const p1 = THREE.MathUtils.clamp(pDe(e.t), p0 + 0.45, p0 + 1.6);
+        vuelos.push({ de: k, a: e.p, p0, p1, luz: 1.3 });
+        for (const j2 of cercanas(e.p, e.t, 0.07, 1.6 * e.p.distanceTo(k), 3)) {
+          const e2 = ramaB.estrellas[j2];
+          vuelos.push({ de: e.p, a: e2.p, p0: p1, p1: THREE.MathUtils.clamp(pDe(e2.t), p1 + 0.4, p1 + 1.4), luz: 0.6 });
+        }
+      }
+    });
+    const saltosD = saltosDatos(vuelos, TEAL);
+    const saltos = add(
+      materia(saltosD.data, { pre: /* glsl */ `attribute vec3 aO, aA; attribute vec2 aP; uniform float uP, uOn;`, move: SALTOS_MOVE, post: SALTOS_POST, uniforms: { uP: { value: 0 }, uOn: { value: 0 } }, extra: saltosD.extra }),
+      root,
+      5,
+    );
+    saltos.points.position.copy(S);
+    saltos.u.uFuente.value = 1;
+
+    // The camera: riding behind the spark from star to star (B); then the rig again, its own way up
+    // and back (C), until it is the act's own at the reveal.
+    // (C: looking at a point on the front ahead, from behind and above it; the point falls back to the
+    // Sun and the camera draws back past it, from a few hundredths of the front's radius to three
+    // times it: at the end, the act's own shot)
+    const frDe = (q: number) => frente(chDe(q));
+    const kC = curva([[6.0, -0.3], [7.8, 0.0], [10.2, 0.32], [P_ROJO, 0.5]], 0, 0);
+    const cC = curva([[6.0, 1.0], [7.0, 0.9], [9.6, 0]], 0, 0);
+    const azC = curva([[6.0, 161.5], [P_ROJO, tl.get('az', P_ROJO)]], 0, (tl.get('az', P_ROJO) - tl.get('az', P_ROJO - 0.01)) / 0.01);
+    const elC = curva([[6.0, 14], [P_ROJO, tl.get('el', P_ROJO)]], 0, (tl.get('el', P_ROJO) - tl.get('el', P_ROJO - 0.01)) / 0.01);
+    const cenC = V();
+    const propia = (n: string, q: number) => {
+      if (n === 'az') return azC(q);
+      if (n === 'el') return elC(q);
+      if (n === 'ld') return Math.log10(frDe(q)) + kC(q);
+      cenC.copy(dirK3).multiplyScalar(escK3 * frDe(q) * Math.max(0, cC(q))).add(S);
+      return n === 'cx' ? cenC.x : n === 'cy' ? cenC.y : cenC.z;
+    };
+    const PROPIAS = new Set(['cx', 'cy', 'cz', 'az', 'el', 'ld']);
+    const sgDe = (q: number) => THREE.MathUtils.smoothstep(q, PB, PB + 1.3) * (1 - THREE.MathUtils.smoothstep(q, 7.2, 9.4));
+    const krDe = (q: number) => THREE.MathUtils.smoothstep(q, 5.0, 6.2) * (1 - THREE.MathUtils.smoothstep(q, 13.6, P_ROJO));
+    const tlA = {
+      get: (n: string, q: number) => {
+        const v = tl.get(n, q);
+        const w = PROPIAS.has(n) ? krDe(q) : 0;
+        return w > 0 ? v + (propia(n, q) - v) * w : v;
+      },
+    } as unknown as Timeline;
+    const tmB = toma(tl, 0);
+    const qA = new THREE.Quaternion();
+    const qB = new THREE.Quaternion();
+    const mq = new THREE.Matrix4();
+    const tmpL = V();
+    const quatDe = (tt: Toma, out: THREE.Quaternion) => out.setFromRotationMatrix(mq.lookAt(tt.pos, tmpL.copy(tt.pos).add(tt.dir), tt.up));
+    const hkDe = (q: number) => THREE.MathUtils.smoothstep(q, PB + 0.1, PB + 0.8) * (1 - THREE.MathUtils.smoothstep(q, 9.0, 11.5));
+
     const chispa = crearChispa();
     root.add(chispa.nube.points);
     const occZoo = new THREE.Vector4();
@@ -533,7 +691,7 @@ export const galaxia: Escena = {
         const t = f.time;
         camera.near = 1e-8;
         camera.far = 2000;
-        const ch = tl.get('ch', p);
+        const ch = chDe(p);
         const lw = tl.get('lw', p);
         // (On the branch, looking well ahead along it, so the hops from star to star do not jerk the gaze.)
         // (the branch grows in logarithm: smoothed only a little, or the camera would average far
@@ -551,9 +709,29 @@ export const galaxia: Escena = {
           const propia = toma(tl, p, tmR);
           viaja *= THREE.MathUtils.smoothstep(propia.dir.dot(m.mira.clone().sub(propia.pos).normalize()), 0.0, 0.5);
         }
-        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: Math.max(lw, VIAJA * viaja), arriba: m.arriba, delante: m.delante }, { punto: m.lugar, peso: lw }));
+        const sg = p > PB && p < P_ROJO ? sgDe(p) : 0;
+        const tA = toma(p > PB && p < P_ROJO ? tlA : tl, p, tm, { punto: m.mira, peso: Math.max(lw, VIAJA * viaja), arriba: m.arriba, delante: m.delante }, { punto: m.lugar, peso: lw });
+        if (sg <= 0) aplicarToma(camera, tA);
+        else {
+          // (behind the spark, by the beat: its place a little back on its way and above, its gaze a little ahead)
+          const mB = montar(ruta, p, 0.8, 0.25, 0.16 * frente(ch), Y, 0.38, false, 0.8);
+          const tB = toma(tl, p, tmB, { punto: mB.mira, peso: 1, arriba: mB.arriba, delante: mB.delante }, { punto: mB.lugar, peso: 1 });
+          quatDe(tA, qA);
+          quatDe(tB, qB);
+          camera.position.copy(tA.pos).lerp(tB.pos, sg);
+          camera.quaternion.copy(qA).slerp(qB, sg);
+          camera.fov = tA.fov + (tB.fov - tA.fov) * sg;
+        }
         // (a short wake in the bubble: there the way grows in logarithm, and a long one would be a line across it)
-        chispa.update(caminoCh, ch, ch < 1 ? 0.0005 : 0.0015, 1, tl.get('tit', p), camera.position, f.focal, f.dpr, f.time);
+        if (p > PB && p < P_SUELTA) chispa.update(ruta, p, 0.0005 / Math.max(dchDe(p), 0.02), 1, tl.get('tit', p), camera.position, f.focal, f.dpr, f.time);
+        else chispa.update(caminoCh, ch, ch < 1 ? 0.0005 : 0.0015, 1, tl.get('tit', p), camera.position, f.focal, f.dpr, f.time);
+        const hk = p > PB && p < P_ROJO ? hkDe(p) : 0;
+        tocadas.u.uP.value = p;
+        tocadas.u.uOn.value = hk;
+        tocadas.points.visible = hk > 0.001;
+        saltos.u.uP.value = p;
+        saltos.u.uOn.value = hk;
+        saltos.points.visible = hk > 0.001;
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
 
@@ -562,7 +740,9 @@ export const galaxia: Escena = {
         burb.estrellas.u.uRed.value = red;
         burb.hilos.u.uRed.value = red;
         copias.u.uRed.value = red;
-        copias.u.uOn.value = tl.get('copias', p);
+        // (during the hops only the spark's own bursts; the rest come up as the camera lifts)
+        const copOn = tl.get('copias', p) * (p > PB && p < 15 ? THREE.MathUtils.smoothstep(p, 7.6, 9.4) : 1);
+        copias.u.uOn.value = copOn;
         copias.points.visible = copias.u.uOn.value > 0.001;
         burb.hilos.u.uOn.value = 1 - 0.85 * tl.get('ir', p);
         // The reach counts from where the spark has been (the bubble's own edge once it spreads).
@@ -594,7 +774,7 @@ export const galaxia: Escena = {
         estrellas.u.uBulbo.value = bulbo;
         const hb = tl.get('hb', p);
         burb.estrellas.u.uOn.value = 1 - hb;
-        burb.hilos.u.uOn.value *= (1 - hb) * (1 + 1.8 * tl.get('copias', p));
+        burb.hilos.u.uOn.value *= (1 - hb) * (1 + 1.8 * copOn);
         polvo.u.uGal.value = 1 - Math.max(zooOn, tl.get('filtro', p));
         brillo.u.uGal.value = estrellas.u.uGal.value * (1 - tl.get('ir', p)) * (1 - Math.max(zooOn, tl.get('filtro', p))) * (1 - 0.75 * bulbo);
         // (its star flares as it clears the limb: the dawn)
@@ -621,6 +801,8 @@ export const galaxia: Escena = {
         restos.mesh.visible = filOn > 0.001;
         if (restos.mesh.visible) filtroG.worldToLocal(restos.u.uCam.value.copy(camera.position));
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
+        tocadas.u.uMaxPx.value = 14 * f.dpr;
+        saltos.u.uMinPx.value = 2.4 * f.dpr;
         enfocarMarcas(aroSol, f.dpr, tl.get('mapa', p));
         estrellas.u.uMaxPx.value = 3.2 * f.dpr;
         vigias.u.uSizeUnit.value = R_ZOO;
