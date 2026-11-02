@@ -13,6 +13,7 @@ import type { Cuenta, Rotulo } from './placa';
 import type { Escena, Frame, Instancia } from './tipos';
 import { crearAnillo } from './cilindro';
 import { crearNaveMalla } from './nave';
+import { pulsosNube, puntoLejano } from './momentos-vela';
 
 /**
  * Scenes 14–15 of ESCALETA.md, «La vela» and «La nave-mundo» (GUION.md, moments 32–35).
@@ -30,6 +31,19 @@ import { crearNaveMalla } from './nave';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const S0 = V(0, -1.2, -14);
+/** Home seen from the sail: the Sun's direction (it only falls back along it). */
+const U_CASA = V(S0.x / 14, S0.y / 14, -1).normalize();
+/**
+ * «La luz es lenta»: the messages home. The echo leaves the sail ECO_SALE beats into the moment, and
+ * then one every CADA beats (PULSOS after it), all at VEL_MSG units a beat along the way home: fast
+ * across the frame at first, then crawling towards the Sun, so far away, while the years go by. They
+ * get smaller as they go, from REF_MSG (units from the camera) on.
+ */
+const ECO_SALE = 2.9;
+const CADA = 0.75;
+const PULSOS = 5;
+const VEL_MSG = 0.5;
+const REF_MSG = 0.45;
 
 /** The sky: stars at «infinity» (a sphere far away), coloured by their temperature. */
 function cieloDatos(): MateriaData {
@@ -410,8 +424,13 @@ export const vela: Escena = {
     root.add(chispa.nube.points);
     const eco = crearChispa();
     root.add(eco.nube.points);
-    // The echo home, named while it goes.
+    // The echo home, named while it goes; the messages after it; and home, a warm point far off.
     const NOMBRE_ECO: Nombre[] = [{ pos: eco.pos, texto: 'Mensaje a casa · llega en 4 años y medio', nuestro: true, aire: 6 }];
+    const pulsos = pulsosNube(PULSOS, REF_MSG);
+    add(pulsos.nube, root, 45);
+    const solLejos = add(puntoLejano(new THREE.Color(1.0, 0.8, 0.58)), casa, 12);
+    const NOMBRE_SOL: Nombre[] = [{ pos: casa.position, texto: 'Sol', nuestro: true, aire: 2 }];
+    const miraP = V();
 
     const listo = Promise.all([sol.listo, A.listo, B.listo]);
 
@@ -423,7 +442,7 @@ export const vela: Escena = {
       tl.wait(-off);
     };
     // Where the Sun's scene leaves the camera (sol.ts, «tipo»): relative to the Sun, here S0.
-    tl.set({ cx: S0.x, cy: S0.y, cz: S0.z, ox: 0, oy: 0, oz: 0, az: angulos(LEJOS).az + 150, el: 30, ld: 2.2, yaw: 90, pitch: -90, roll: 0, fov: 34, haz: 0, lsol: Math.log10(14), lcen: 4.5, beta: 0, polvo: 0, abre: 1, luzA: 0, nave: 0, tu: 0, nz: -3, eco: 0, ecoS: 0, chH: 0, salta: 0, mapa: 0, nombres: 0, ecoN: 0, lw: 0, adentro: 0, sube: 0 });
+    tl.set({ cx: S0.x, cy: S0.y, cz: S0.z, ox: 0, oy: 0, oz: 0, az: angulos(LEJOS).az + 150, el: 30, ld: 2.2, yaw: 90, pitch: -90, roll: 0, fov: 34, haz: 0, lsol: Math.log10(14), lcen: 4.5, beta: 0, polvo: 0, abre: 1, luzA: 0, nave: 0, tu: 0, nz: -3, eco: 0, chH: 0, salta: 0, mapa: 0, nombres: 0, ecoN: 0, lw: 0, adentro: 0, sube: 0, mira: 0, solP: 0, solN: 0 });
 
     tl.label('velas').caption(5.6, 'Velas de luz', 'Para ir a otra estrella, un láser empuja una vela de pocos gramos. En minutos va a un quinto de la luz.');
     tl.with(1.2, { cx: 0, cy: 0, cz: 0 });
@@ -440,19 +459,36 @@ export const vela: Escena = {
     tl.to(2.6, { az: -60, el: 8, ld: -1.15, fov: 60 });
     tl.to(3.2, { az: -182, el: 6, ld: -1.25, fov: 66 });
 
-    // The wall: light is slow. An echo goes home, so slowly the camera slows with it.
+    // The wall: light is slow. The camera keeps turning, round the sail, until it looks back home
+    // (behind us the sky is redder and sparser): the echo leaves the sail for home, then another
+    // message, and another; fast across the frame at first, then crawling towards the Sun, a warm
+    // point far off, while the years go by. The gaze leads the turn, looking between the sail and
+    // home (`mira`: how far along the way home it looks, in camera distances).
     tl.label('lenta').caption(6.0, 'La luz es lenta', 'Cada mensaje a casa tarda más de cuatro años. Allá solo saben de nosotros lo que fuimos.');
     tl.with(0.8, { eco: 1 });
-    tl.with(6.0, { ecoS: 1 });
-    luego(1.6, 1.2, { ecoN: 1 });
-    luego(5.2, 1.0, { ecoN: 0 });
-    tl.to(6.0, { az: -200, el: 12, ld: -0.42, fov: 46 });
+    luego(1.4, 4.2, { mira: 1 });
+    luego(ECO_SALE - 0.7, 0.8, { solP: 1 });
+    luego(ECO_SALE + 0.4, 0.8, { ecoN: 1 });
+    luego(ECO_SALE + 1.1, 0.8, { solN: 1 });
+    luego(5.6, 0.8, { ecoN: 0 });
+    // (the dust thins while we look back: the messages are what moves there)
+    luego(1.8, 1.4, { polvo: 0.22 });
+    tl.to(3.0, { az: -300, el: 15, ld: -0.8, fov: 54 });
+    tl.to(3.0, { az: -385, el: 22, ld: -0.5, fov: 48 });
 
+    // On round the sail, the same way, until it is behind it again, looking ahead: home leaves the
+    // frame, Alpha Centauri comes up, and the sail opens in its light.
     tl.label('freno').caption(6.0, 'Frenar con su luz', 'Al llegar no hay con qué frenar. Una vela más grande usa la luz de la estrella como freno.');
-    tl.with(3.6, { lcen: 1.35, beta: 0.03 });
-    luego(1.4, 2.4, { abre: 5, luzA: 1 });
+    luego(0.4, 3.6, { mira: 0 });
+    luego(0.6, 0.8, { solN: 0 });
+    luego(1.2, 1.4, { polvo: 1 });
+    luego(1.4, 1.0, { eco: 0, solP: 0 });
+    luego(1.0, 3.6, { lcen: 1.35, beta: 0.03 });
+    luego(2.6, 2.4, { abre: 5, luzA: 1 });
     luego(3.0, 2.0, { polvo: 0 });
-    tl.to(6.0, { az: -218, el: 16, ld: -0.6, fov: 50 });
+    tl.to(3.4, { az: -480, el: 18, ld: -0.5, fov: 50 });
+    // (az a whole turn on from here: the same places, the camera never turning back)
+    tl.to(2.6, { az: -578, el: 16, ld: -0.6, fov: 50 });
 
     // The reveal: out until both stars fit, the Sun drawn near (short), ours, with the route between
     // them; the names a moment; then back in to the sail, where something enormous passes.
@@ -462,26 +498,26 @@ export const vela: Escena = {
     const popaC = enNaveW(-0.5);
     // (three-quarters from ahead at the bow, the shield and the rings beyond; three-quarters from
     // behind at the stern, the drive and the rings ahead; turning the same way all along)
-    const proa = { cx: proaC.x, cy: proaC.y, cz: proaC.z, az: -318, el: 20, ld: Math.log10(0.95) };
-    const popa = { cx: popaC.x, cy: popaC.y, cz: popaC.z, az: -425, el: 12, ld: Math.log10(0.7) };
+    const proa = { cx: proaC.x, cy: proaC.y, cz: proaC.z, az: -678, el: 20, ld: Math.log10(0.95) };
+    const popa = { cx: popaC.x, cy: popaC.y, cz: popaC.z, az: -785, el: 12, ld: Math.log10(0.7) };
     const MEDIO = V(-1.5, -2.6, -29);
     tl.label('nave').caption(27.6, 'Naves que son mundos', 'El viaje dura siglos. Quien llega es nieto de los nietos de quien salió: alguien como tú, que nunca vio la Tierra.');
     tl.with(1.0, { beta: 0 });
     tl.with(3.6, { lsol: Math.log10(80) });
-    luego(0.2, 4.2, { ld: Math.log10(150), el: 22, az: -264, fov: 34 });
+    luego(0.2, 4.2, { ld: Math.log10(150), el: 22, az: -624, fov: 34 });
     luego(1.8, 2.6, { cx: MEDIO.x, cy: MEDIO.y, cz: MEDIO.z });
     luego(2.6, 2.0, { mapa: 1 });
     luego(4.0, 1.4, { nombres: 1 });
     tl.wait(5.0);
-    tl.to(3.2, { az: -270 });
+    tl.to(3.2, { az: -630 });
     tl.with(1.0, { nombres: 0 });
     luego(0.4, 1.4, { mapa: 0 });
     luego(1.2, 4.0, { lsol: 4.2 });
     luego(0.4, 2.4, { cx: 0, cy: 0, cz: 0 });
     // The ship passes the sail, slowly: its shield, its turning rings, the lights along its spine.
     tl.with(1.6, { nave: 1 });
-    tl.to(5.2, { nz: 0.6, cx: 0.9, cy: 0.1, cz: 0.2, az: -300, el: 10, ld: -0.35, fov: 40 });
-    tl.to(2.4, { az: -318, el: 16, ld: -0.6 });
+    tl.to(5.2, { nz: 0.6, cx: 0.9, cy: 0.1, cz: 0.2, az: -660, el: 10, ld: -0.35, fov: 40 });
+    tl.to(2.4, { az: -678, el: 16, ld: -0.6 });
     // The spark jumps across to it and goes in through a ring's glass roof, to someone; the camera
     // flies down the ship, close: the shield at the bow, the rings turning past, the radiators
     // glowing with the heat of the life inside, the drive and its plume; then back, to see it whole
@@ -491,7 +527,7 @@ export const vela: Escena = {
     tl.to(2.6, { ...proa, fov: 44 });
     tl.to(5.6, { ...popa });
     // (back to see it whole, from beside it: the galaxy takes over from here)
-    tl.to(3.2, { fov: 40, cx: centroNave.x, cy: centroNave.y, cz: centroNave.z, az: -455, el: 14, ld: Math.log10(1.25) });
+    tl.to(3.2, { fov: 40, cx: centroNave.x, cy: centroNave.y, cz: centroNave.z, az: -815, el: 14, ld: Math.log10(1.25) });
 
     const tm = toma(tl, 0);
     const velV = V();
@@ -514,6 +550,7 @@ export const vela: Escena = {
       placa(g, f) {
         nombres(g, f, NOMBRES, tl.get('nombres', f.p));
         nombres(g, f, NOMBRE_ECO, tl.get('ecoN', f.p));
+        nombres(g, f, NOMBRE_SOL, tl.get('solN', f.p));
       },
       // The years: the sail leaves, a fifth of the speed of light, twenty-odd years to arrive; the
       // ships that are worlds, centuries later.
@@ -567,6 +604,11 @@ export const vela: Escena = {
           const alto = THREE.MathUtils.lerp(0.012, 0.0075, kIn) + 0.006 * THREE.MathUtils.smoothstep(chS, 2.84, 3) + 0.07 * tl.get('sube', p);
           const m = montar(caminoCh, chS, 0.05, THREE.MathUtils.lerp(0.12, 0.5, kIn), alto, arriba, 0.035, false, 0.05);
           aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: lw, arriba: m.arriba, delante: m.delante }, { punto: m.lugar, peso: lw }));
+        } else if (tl.get('mira', p) > 1e-6) {
+          // Looking back home: at a point on the way home, `mira` camera distances from the sail (at
+          // 0 the sail itself, the rig's own gaze; at 1 halfway between the sail and the Sun).
+          miraP.set(tl.get('cx', p), tl.get('cy', p), tl.get('cz', p)).addScaledVector(U_CASA, tl.get('mira', p) * Math.pow(10, tl.get('ld', p)));
+          aplicarToma(camera, toma(tl, p, tm, { punto: miraP, peso: 1 }));
         } else aplicarToma(camera, toma(tl, p, tm));
         camera.updateProjectionMatrix();
         camera.updateMatrixWorld();
@@ -628,11 +670,26 @@ export const vela: Escena = {
         const cola: Camino = (sv, out) => caminoCh(Math.max(sv, piso), out);
         const pasoCola = chS > 2 ? 0.0012 : chS < 1 ? 0.004 * THREE.MathUtils.clamp((1 - chS) / 0.15, 0.12, 1) : 0.004;
         chispa.update(cola, chS, pasoCola, 1, 0, camera.position, f.focal, f.dpr, f.time);
-        // The echo home: from the sail back towards the Sun, slow.
-        // (slow, and in sight: it crawls back towards home while the camera watches from the side)
+        // The messages home: the echo first, then one every CADA beats, all leaving the sail at the
+        // same pace along the way home (its distance from the sail is the echo's `s`), born at the
+        // chip and getting smaller as they go, like the pulses after it.
         const haciaCasa = casa.position.clone().sub(enVela).normalize();
-        const caminoEco: Camino = (sv, out) => out.copy(enVela).addScaledVector(haciaCasa, 0.13 * Math.max(0, sv));
-        eco.update(caminoEco, tl.get('ecoS', p), 0.002, tl.get('eco', p) * (1 - tl.get('salta', p)), 0, camera.position, f.focal, f.dpr, f.time);
+        const caminoEco: Camino = (sv, out) => out.copy(enVela).addScaledVector(haciaCasa, Math.max(0, sv));
+        const msgOn = tl.get('eco', p) * (1 - tl.get('salta', p));
+        const sale = (i: number) => tl.at('lenta') + ECO_SALE + i * CADA;
+        const nace = (i: number) => THREE.MathUtils.smoothstep(p - sale(i), 0, 0.15);
+        eco.update(caminoEco, VEL_MSG * Math.max(0, p - sale(0)), 0.002, msgOn * nace(0), 0, camera.position, f.focal, f.dpr, f.time);
+        eco.nube.u.uSizeUnit.value *= THREE.MathUtils.clamp(REF_MSG / Math.max(1e-9, camera.position.distanceTo(eco.pos)), 0.45, 1);
+        pulsos.poner(
+          (i, out) => caminoEco(VEL_MSG * Math.max(0, p - sale(i + 1)), out),
+          (i) => msgOn * nace(i + 1),
+          f.dpr,
+        );
+        pulsos.nube.points.visible = msgOn > 0.001;
+        // Home, a warm point far off (its own disc is far below a pixel there).
+        solLejos.u.uPx.value = f.dpr;
+        solLejos.u.uGain.value = tl.get('solP', p);
+        solLejos.points.visible = solLejos.u.uGain.value > 0.001;
         naveG.scale.setScalar(1);
         naveG.rotation.y = 0.15;
         nave.u.uNave.value = tl.get('nave', p);
