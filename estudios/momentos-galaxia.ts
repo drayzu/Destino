@@ -219,3 +219,111 @@ export const COPIAS_MOVE = /* glsl */ `
   p = aO + aD * aL * ff;
   em *= uOn * step(0.0, dt) * (1.0 - smoothstep(0.55, 1.0, f)) * (1.0 + 2.5 * exp(-max(dt, 0.0) * 140.0));
 `;
+
+/**
+ * A smooth curve through keys [beat, value], its slopes at the two ends given (value per beat) and
+ * monotone in between (Fritsch–Butland, as the timeline's tracks): for a clock or a pace that must
+ * take up exactly where another leaves off.
+ */
+export function curva(keys: [number, number][], m0: number, m1: number) {
+  const n = keys.length;
+  const m = new Array<number>(n).fill(0);
+  m[0] = m0;
+  m[n - 1] = m1;
+  for (let k = 1; k < n - 1; k++) {
+    const h0 = keys[k][0] - keys[k - 1][0];
+    const h1 = keys[k + 1][0] - keys[k][0];
+    const d0 = (keys[k][1] - keys[k - 1][1]) / h0;
+    const d1 = (keys[k + 1][1] - keys[k][1]) / h1;
+    if (d0 * d1 <= 0) continue;
+    const w1 = 2 * h1 + h0;
+    const w2 = h1 + 2 * h0;
+    m[k] = (w1 + w2) / (w1 / d0 + w2 / d1);
+  }
+  return (p: number) => {
+    if (p <= keys[0][0]) return keys[0][1] + m0 * (p - keys[0][0]);
+    if (p >= keys[n - 1][0]) return keys[n - 1][1];
+    let i = 0;
+    while (keys[i + 1][0] <= p) i++;
+    const [pa, a] = keys[i];
+    const [pb, b] = keys[i + 1];
+    const h = pb - pa;
+    const t = (p - pa) / h;
+    const t2 = t * t;
+    const t3 = t2 * t;
+    return (2 * t3 - 3 * t2 + 1) * a + (t3 - 2 * t2 + t) * h * m[i] + (-2 * t3 + 3 * t2) * b + (t3 - t2) * h * m[i + 1];
+  };
+}
+
+/**
+ * The copies that leave a star the spark touches, each a streak of teal flying to a star near it
+ * (and from there, a few more): beat-driven, so a burst plays out whatever the front's own clock
+ * does. `vuelos`: from, to, the beat it leaves and the beat it gets there, and how bright.
+ */
+export function saltosDatos(vuelos: { de: THREE.Vector3; a: THREE.Vector3; p0: number; p1: number; luz: number }[], teal: THREE.Color) {
+  const b = materiaBuilder(331);
+  const O: number[] = [];
+  const T: number[] = [];
+  const P: number[] = [];
+  const TRAZO = 24;
+  for (const v of vuelos) {
+    for (let j = 0; j < TRAZO; j++) {
+      b.push(v.de.x, v.de.y, v.de.z, teal, 0.00001, v.luz * (j === 0 ? 2.6 : 1.3) * Math.pow(1 - j / TRAZO, 1.2), { delay: j / TRAZO });
+      O.push(v.de.x, v.de.y, v.de.z);
+      T.push(v.a.x, v.a.y, v.a.z);
+      P.push(v.p0, v.p1);
+    }
+  }
+  return { data: b.data(), extra: { aO: [new Float32Array(O), 3], aA: [new Float32Array(T), 3], aP: [new Float32Array(P), 2] } as Record<string, [Float32Array, number]> };
+}
+
+/** Their motion: shot out fast, slowing as they reach their star; a flash as they leave and as they arrive. */
+export const SALTOS_MOVE = /* glsl */ `
+  float dur = max(aP.y - aP.x, 0.05);
+  float f = clamp((uP - aP.x) / dur, 0.0, 1.0);
+  float g = clamp(f - aDelay * 0.22, 0.0, 1.0);
+  g = 1.0 - (1.0 - g) * (1.0 - g) * (1.0 - g);
+  p = mix(aO, aA, g);
+  float vivo = step(aP.x, uP) * (1.0 - smoothstep(0.92, 1.0, f - aDelay * 0.22));
+  float sale = exp(-max(uP - aP.x, 0.0) * 5.0);
+  float lf = (f - 1.0) / 0.06;
+  float llega = exp(-lf * lf) * step(aDelay, 0.01);
+  em *= uOn * vivo * (1.0 + 2.0 * sale + 2.5 * llega);
+`;
+
+/** Their sizes in pixels (the head larger, the streak thinning behind it), wherever they are. */
+export const SALTOS_POST = /* glsl */ `
+  float ddS = max(-mv.z, 1e-14);
+  sz = (aDelay < 0.01 ? 4.2 : 2.6 - 1.2 * aDelay) * (uMinPx / 1.6) * ddS / max(uSizeUnit * uEscalaMundo * uFocal, 1e-20);
+`;
+
+/**
+ * The stars the spark touches, drawn as stars (a core and a soft glow, warm), each turning ours as it
+ * is touched: a flare, then teal. `estrellas`: where, the beat it is touched, its size (world units).
+ */
+export function tocadasDatos(estrellas: { p: THREE.Vector3; pt: number; r: number }[]) {
+  const b = materiaBuilder(337);
+  const PT: number[] = [];
+  const calida = new THREE.Color(1.0, 0.86, 0.66);
+  for (const e of estrellas) {
+    b.push(e.p.x, e.p.y, e.p.z, calida, e.r * 0.3, 2.6, { kind: 1 });
+    PT.push(e.pt);
+    for (let i = 0; i < 160; i++) {
+      const [x, y, z] = b.onSphere();
+      const q = Math.pow(b.r(), 1.6) * e.r;
+      b.push(e.p.x + x * q, e.p.y + y * q, e.p.z + z * q, calida, e.r * 0.05, 0.03);
+      PT.push(e.pt);
+    }
+  }
+  return { data: b.data(), extra: { aPt: [new Float32Array(PT), 1] } as Record<string, [Float32Array, number]> };
+}
+
+export const TOCADAS_MOVE = /* glsl */ `
+  float dt = uP - aPt;
+  float tocada = smoothstep(-0.04, 0.25, dt);
+  float luzE = max(max(em.r, em.g), em.b);
+  em = mix(em, uTeal * min(luzE * 1.3, 1.5), tocada);
+  float flare = step(0.0, dt) * exp(-max(dt, 0.0) * 3.5);
+  em *= (1.0 + 1.4 * flare) * uOn;
+  sz *= 1.0 + 0.5 * flare;
+`;
