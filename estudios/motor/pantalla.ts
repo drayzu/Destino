@@ -40,6 +40,8 @@ export function pantalla(frag: string, uniforms: Record<string, THREE.IUniform> 
     uAspect: { value: 16 / 9 },
     uTime: { value: 0 },
     uRes: { value: new THREE.Vector2(1, 1) },
+    /** The film's crossfade across a seam (pelicula.ts sets it): the background fades, never switches. */
+    uFundido: { value: 1 },
     ...uniforms,
   };
   const mat = new THREE.ShaderMaterial({
@@ -49,11 +51,19 @@ export function pantalla(frag: string, uniforms: Record<string, THREE.IUniform> 
       uniform vec2 uRes;
       varying vec2 vUv;
       varying vec3 vDir;
-      ${frag}
+      uniform float uFundido;
+      ${frag.replace(/void\s+main\s*\(\s*\)/, 'void principal()')}
+      void main() {
+        principal();
+        gl_FragColor.rgb *= uFundido;
+      }
     `,
     uniforms: u,
     depthTest: false,
     depthWrite: false,
+    // (added onto the black clear: two backgrounds crossing over at a seam sum to one)
+    blending: THREE.AdditiveBlending,
+    transparent: true,
   });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);
   mesh.frustumCulled = false;

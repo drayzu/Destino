@@ -184,7 +184,6 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
   function fundir(grupo: THREE.Object3D, k: number, escala: number) {
     grupo.traverse((o) => {
       const un = ((o as THREE.Mesh).material as THREE.ShaderMaterial | undefined)?.uniforms;
-      if (o.renderOrder === -100) o.visible = k > 0.3;
       if (!un) return;
       if (un.uEscalaMundo) un.uEscalaMundo.value = escala;
       if (un.uFundido) un.uFundido.value = k;

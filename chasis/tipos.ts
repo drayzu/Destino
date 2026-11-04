@@ -58,15 +58,13 @@ export interface Acto {
   /** Its film (bloom, exposure). The engine blends them across a seam. */
   film: Film;
   /**
-   * How the film comes into this act from the one before:
-   * - `chispa` (default): through the spark. The engine places this act's world so that its spark at
-   *   its first beat is the last act's spark at its last beat, and the camera's ride is the same
-   *   distance there: nothing to blend, the camera simply goes on. Both acts are drawn for `relevo`
-   *   beats, the last one fading.
-   * - `corte`: a cut, hidden by the last act's own cover (`tapa` at 1 there: its light filling the frame).
+   * How the film comes into this act from the one before (the camera needs nothing at a seam: its
+   * baked keys already go on; only the scene is placed and the light crosses over for RELEVO beats):
+   * - `chispa` (default): through the spark. The camera and the spark are the same on both sides, and
+   *   those two points place this act's world in the last one's.
    * - `mundo`: through a world both acts show (the Earth, the Sun): this act's `entrada` lands on the
-   *   last act's `salida`, and the camera goes from where the last act left it to this act's own over
-   *   the seam, turning round that world (the one blend in the film).
+   *   last act's `salida`.
+   * - `corte`: a cut, hidden by the last act's own cover (`tapa` at 1 there: its light filling the frame).
    */
   costura?: 'chispa' | 'corte' | 'mundo';
   /** A seam through a world: where this act meets the last one, and a size there (the two sizes match). */
