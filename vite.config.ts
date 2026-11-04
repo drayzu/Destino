@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, normalize, sep } from 'node:path';
 
 /**
- * Dev only: the prototypes can save what they render (contact sheets, frames) into the project, so
+ * Dev only: the page can save what they render (contact sheets, frames) into the project, so
  * captures land as files without a screenshot tool. POST /__guardar?f=docs/conceptos/x.jpg with the
  * image bytes as the body. Paths stay inside docs/ and tools/.
  */
@@ -42,9 +42,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: 'index.html',
-        laboratorio: 'prototypes/index.html',
-        sistema: 'prototypes/sistema.html',
-        estudios: 'prototypes/estudios.html',
       },
     },
   },
