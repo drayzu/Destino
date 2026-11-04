@@ -376,7 +376,8 @@ export const despierta: EscenaChasis = {
     tl.with(1.6, { cel: 0, toque: 0 });
     luego(0.3, 2.4, { ner: 1, crece: 1 });
     tl.to(1.6, { az: 40, el: 24, ld: 0.52, fov: 40 });
-    luego(0.4, 1.0, { lw: 0.85 });
+    // (all of it the ride: a share of the rig, looking the other way, pulled the gaze as the spark turned)
+    luego(0.4, 1.0, { lw: 1 });
     tl.to(3.4, { sc: 2 });
 
     // The net folds into a brain; the spark goes in, among neurons, to the point.
@@ -441,18 +442,15 @@ export const despierta: EscenaChasis = {
         // round the rim.
         const t = sv - 1;
         if (t < 0.15) return out.copy(salto.getPoint(t / 0.15));
-        const u = (t - 0.15) / 0.85;
-        // (from the nerve onto the rim round a curve, not a corner: the spark there goes fast, and the
-        // camera behind it took the corner at once)
+        let u = (t - 0.15) / 0.85;
+        // (on the drawn nerve and rim exactly, never cutting inside the bell: the spark slows into the
+        // corner where the nerve meets the rim, turns there, and speeds off along it)
         const nervio = (x: number) => campana(0.3 + (x / 0.65) * 0.7, 0);
         const borde = (x: number) => campana(1, ((x - 0.65) / 0.35) * (Math.PI / 2));
-        if (u > 0.45 && u < 0.85) {
-          const q = (u - 0.45) / 0.4;
-          const A = nervio(0.45);
-          const E = campana(1, 0);
-          const B = borde(0.85);
-          return out.copy(A).multiplyScalar((1 - q) * (1 - q)).addScaledVector(E, 2 * q * (1 - q)).addScaledVector(B, q * q);
-        }
+        const W_ESQ = 0.3;
+        const dq = (u - 0.65) / W_ESQ;
+        // (to a third of its pace, never to a stop: stopped, the camera turned at once as it left)
+        if (Math.abs(dq) < 1) u = 0.65 + W_ESQ * (0.35 * dq + 1.3 * dq ** 3 - 0.65 * dq ** 5);
         return u < 0.65 ? out.copy(nervio(u)) : out.copy(borde(u));
       }
       if (sv <= 3) return out.copy(enCerebro.getPoint(sv - 2));
