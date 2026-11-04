@@ -70,7 +70,9 @@ export function rutaTierra(sv: number, out = V()) {
   const w = a.angleTo(b);
   const sw = Math.sin(w) || 1;
   out.copy(a).multiplyScalar(Math.sin((1 - t) * w) / sw).addScaledVector(b, Math.sin(t * w) / sw);
-  const h = PASOS[i][2] + (PASOS[i + 1][2] - PASOS[i][2]) * t + (PASOS[i][2] > 0.005 && PASOS[i + 1][2] > 0.005 ? 0.012 * Math.sin(Math.PI * t) : 0);
+  // (each hop an arc that leaves and lands softly, level at the city: an arc ending in a point made a
+  // corner at every city, and the camera riding behind saw the spark dip at each)
+  const h = PASOS[i][2] + (PASOS[i + 1][2] - PASOS[i][2]) * t + (PASOS[i][2] > 0.005 && PASOS[i + 1][2] > 0.005 ? 0.012 * Math.sin(Math.PI * t) ** 2 : 0);
   return out.normalize().multiplyScalar(1 + h);
 }
 /** How far along the route (radians of the Earth's arc) each stop is: the legs differ a lot in length. */

@@ -300,8 +300,6 @@ function mapa(a: Ancla, b: Ancla) {
     .multiply(new THREE.Matrix4().makeTranslation(-b.pos.x, -b.pos.y, -b.pos.z));
 }
 const mapas = new Map<Tramo, { m: THREE.Matrix4; escala: number }>();
-/** Sparks moved during a relay (to start where the last act's was), and their own place. */
-const corridas = new Map<THREE.Object3D, THREE.Vector3>();
 /** Each act's spark at its first beat (its world), for the relay into it. */
 const inicioChispa = new Map<Tramo, THREE.Vector3 | null>();
 
@@ -505,10 +503,6 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
   if (enRelevo) f.fundido = inst.continuo ? 1 : smooth(clamp((p - 0.05) / (RELEVO * 0.8), 0, 1));
   // (where this act's spark is at its first beat, once: the relay's spark keeps its gap to it)
   if (enRelevo && !inicioChispa.has(t)) {
-    for (const [pts, o] of corridas) {
-      pts.position.copy(o);
-      pts.updateMatrixWorld();
-    }
     inst.update({ ...f, p: 0 });
     const c = chispasEn(t.grupo)[0];
     if (c) c.nube.points.updateWorldMatrix(true, false);
@@ -546,9 +540,8 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
     const sale = chispasEn(prev.grupo)[0];
     const entra = chispasEn(t.grupo)[0];
     if (sale && entra) {
+      // (its update has just put it at its own place: the slide is added on top)
       const pts = entra.nube.points;
-      if (!corridas.has(pts)) corridas.set(pts, pts.position.clone());
-      pts.position.copy(corridas.get(pts)!);
       pts.updateMatrixWorld();
       // (the gap between the two sparks at the relay's first beat, closed over it while the spark
       // keeps its own speed: nothing to close where the acts meet exactly at the spark. Measured at
@@ -590,12 +583,6 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
     stage.renderer.toneMappingExposure = fa.exposure + (fb.exposure - fa.exposure) * k;
   } else {
     fundir(t.grupo, 1);
-    // (a spark moved for a relay goes back to its own place)
-    for (const [pts, o] of corridas) {
-      pts.position.copy(o);
-      pts.updateMatrixWorld();
-    }
-    corridas.clear();
     if (t.film) {
       stage.bloom.strength = t.film.strength;
       stage.bloom.radius = t.film.radius;

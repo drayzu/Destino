@@ -64,6 +64,13 @@ export function toma(tl: Timeline, p: number, out?: Toma, mira?: { punto: THREE.
   }
   // East and north of that place (round the centre's own vertical).
   o.e.crossVectors(Y, o.r);
+  // (near the vertical that east spins round with the least move of the place, and the gaze with
+  // it: there it gives way to the shot's own east, from its azimuth)
+  const largoE = o.e.length();
+  const polo = 1 - THREE.MathUtils.smoothstep(largoE, 0.02, 0.12);
+  if (largoE > 1e-9) o.e.divideScalar(largoE);
+  else o.e.set(0, 0, 0);
+  if (polo > 0) o.e.lerp(new THREE.Vector3(Math.cos(az), 0, -Math.sin(az)), polo);
   if (o.e.lengthSq() < 1e-10) o.e.set(1, 0, 0);
   o.e.normalize();
   o.n.crossVectors(o.r, o.e).normalize();

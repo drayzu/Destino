@@ -371,6 +371,20 @@ export const apertura: Escena = {
       nubes.push(n);
       return n;
     };
+    /** Its coordinates (the named attributes) kept round C, C its own place: among P's stars the
+     * camera passes a ten-thousandth from them a whole galaxy away from the origin, and the GPU's
+     * rounding of such big coordinates made them shake. */
+    const enTorno = (n: Nube, C: THREE.Vector3, nombres: string[]) => {
+      const g = n.points.geometry;
+      for (const k of nombres) {
+        const a = g.getAttribute(k) as THREE.BufferAttribute;
+        for (let i = 0; i < a.count; i++) a.setXYZ(i, a.getX(i) - C.x, a.getY(i) - C.y, a.getZ(i) - C.z);
+        a.needsUpdate = true;
+      }
+      g.computeBoundingSphere();
+      n.points.position.add(C);
+      return n;
+    };
 
     const estrellas = add(
       materia(galaxiaDatos(), {
@@ -439,6 +453,7 @@ export const apertura: Escena = {
       3,
     );
     vecinas.u.uFuente.value = 0.9;
+    enTorno(vecinas, P, ['position', 'aC']);
 
     const voz = add(materia(vozDatos(), { pre: `uniform float uR, uOn; uniform vec3 uC;`, move: `p = uC + p * uR; sz *= uR; em *= uOn;`, uniforms: { uR: { value: 0 }, uOn: { value: 0 }, uC: { value: S.clone() } } }), galaxia, 4);
     voz.u.uFuente.value = 0.4;
@@ -556,7 +571,7 @@ export const apertura: Escena = {
       };
       // (among the planets, closer behind the spark, so they go by near; back to its distance before
       // the loop turns home)
-      const kP = k1 * (1 - THREE.MathUtils.smoothstep(sc, 1.7, 1.85));
+      const kP = k1 * (1 - THREE.MathUtils.smoothstep(sc, 1.55, 1.95));
       // (and a wider hand there: the way snakes between the systems, and a camera nailed to it would
       // swing at each one)
       // (the wide hand kept on through the loop's last bend, until the spark rests: narrowed where
@@ -575,6 +590,10 @@ export const apertura: Escena = {
     const sisOrbitas = add(materia(orbitasDatos(sis.S), { pre: `uniform float uSis;`, move: `em *= uSis;`, post: LENTE, uniforms: { uSis: { value: 0 } } }), galaxia, 3);
     const pd = planetasDatos(sis.S);
     const sisPlanetas = add(materia(pd.data, { ...GLSL_PLANETAS, post: LENTE, uniforms: { uSis: { value: 0 } }, extra: { aC: [pd.C, 3], aU: [pd.U, 3], aV: [pd.W, 3], aO: [pd.O, 3] } }), galaxia, 3);
+    // (the planets' position is only their dots' direction round each planet: their centres move)
+    enTorno(sisEstrellas, P, ['position']);
+    enTorno(sisOrbitas, P, ['position']);
+    enTorno(sisPlanetas, P, ['aC']);
 
     tl.set({ ...C(P), ox: 0, oy: 0, oz: 0, az: 0, el: 4, ld: -1.2, yaw: 90, pitch: -90, roll: 0, fov: 42, tu: 0, cue: 0, voz: 0, vozOn: 1, cielo: 0.4, gal: 0.4, titulo: 0, vatios: 0, giro: 0, pla: 0, vaso: 0, ola: 0, olaOn: 0, solp: 0, luzSol: 0, sc: 0, lw: 1, on: 1, tit: 0, frenteV: 0, punto: 0, velo: 1, cerca: 1 });
 
@@ -734,7 +753,9 @@ export const apertura: Escena = {
         // The stars round the Sun: on with the sky, gone once the camera is far from them.
         Sw.copy(S).applyAxisAngle(V(0, 1, 0), galaxia.rotation.y);
         const dSol = camera.position.distanceTo(Sw);
-        locales.u.uLoc.value = tl.get('cielo', p) * (1 - ease(1.2, 5, dSol));
+        // (over a wide range, in logarithm: the dive onto the yellow star goes through decades of
+        // distance in a moment, and in a narrow one they burst in)
+        locales.u.uLoc.value = tl.get('cielo', p) * (1 - THREE.MathUtils.smoothstep(Math.log10(Math.max(dSol, 1e-9)), Math.log10(0.8), Math.log10(15)));
         vecinas.u.uPla.value = tl.get('pla', p);
         // (and the stars round P only from near: from afar their hundreds fall in a few pixels, add up
         // into one burning blob, and flicker as the camera moves the least)

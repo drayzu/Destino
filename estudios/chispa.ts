@@ -219,11 +219,15 @@ export function crearChispa(): Chispa {
     pos,
     update(camino, s, paso, on, titila, camPos, focal, dpr, time) {
       camino(s, pos);
-      posAttr.setXYZ(0, pos.x, pos.y, pos.z);
-      posAttr.setXYZ(1, pos.x, pos.y, pos.z);
+      // (its points kept round its head, the head the points' own place: far from the scene's origin,
+      // a whole galaxy away, the GPU's rounding of big coordinates made the spark shake as it moved)
+      nube.points.position.copy(pos);
+      nube.points.updateMatrixWorld();
+      posAttr.setXYZ(0, 0, 0, 0);
+      posAttr.setXYZ(1, 0, 0, 0);
       const p2 = (paso * LARGO) / (ESTELA - 1);
       for (let i = 0; i < ESTELA; i++) {
-        camino(s - i * p2, tmp);
+        camino(s - i * p2, tmp).sub(pos);
         posAttr.setXYZ(i + 2, tmp.x, tmp.y, tmp.z);
         viva.estela[i * 3] = tmp.x;
         viva.estela[i * 3 + 1] = tmp.y;
@@ -277,7 +281,7 @@ export function montar(camino: Camino, s: number, atras: number, adelante: numbe
   return { lugar, mira, arriba: arriba.clone().normalize(), delante };
 }
 
-const MUESTRAS = 16;
+const MUESTRAS = 48;
 const PESOS = Array.from({ length: MUESTRAS }, (_, i) => {
   const u = ((i + 0.5) / MUESTRAS) * 2 - 1;
   return (1 - u * u) ** 2;

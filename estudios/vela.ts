@@ -528,6 +528,9 @@ export const vela: Escena = {
     tl.to(5.6, { ...popa });
     // (back to see it whole, from beside it: the galaxy takes over from here)
     tl.to(3.2, { fov: 40, cx: centroNave.x, cy: centroNave.y, cz: centroNave.z, az: -815, el: 14, ld: Math.log10(1.25) });
+    // (and it fades there, before the galaxy takes over: still lit through the relay, it swept across
+    // the frame as the camera turned to the galaxy's view)
+    luego(-1.1, 1.1, { nave: 0 });
 
     const tm = toma(tl, 0);
     const velV = V();
