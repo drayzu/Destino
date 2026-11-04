@@ -17,6 +17,9 @@ import { lamina } from '../viaje/lamina';
 import { dibujarEstelas } from '../estudios/chispa';
 import { EXTRA } from '../viaje/textos';
 import { crearPelicula, FUNDIDO_MIN } from './pelicula';
+import { final } from './actos/final';
+import { cosmos } from './actos/cosmos';
+import { estrella } from './actos/estrella';
 import { galaxia } from './actos/galaxia';
 import { vela } from './actos/vela';
 import { solTrabajado } from './actos/sol';
@@ -58,7 +61,7 @@ const stage = createStage(canvas, fixed);
 const spacer = document.querySelector<HTMLElement>('#spacer')!;
 
 // ---------------------------------------------------------------- the film
-const peli = crearPelicula(stage, [mente, apertura, despierta, tierraNoche, sistema, mercurio, solTrabajado, vela, galaxia]);
+const peli = crearPelicula(stage, [mente, apertura, despierta, tierraNoche, sistema, mercurio, solTrabajado, vela, galaxia, estrella, cosmos, final]);
 const { tramos, TOTAL } = peli;
 spacer.style.height = `${TOTAL * PX_PER_BEAT + innerHeight}px`;
 
@@ -402,7 +405,7 @@ const api = {
       const pose = peli.camara(at);
       let x = NaN;
       let y = NaN;
-      if (pose.chispa && tramos[pose.i].acto.tl.get('on', pose.p) > 0.05) {
+      if (pose.chispa && (tramos[pose.i].acto.luz?.(pose.p) ?? tramos[pose.i].acto.tl.get('on', pose.p)) > 0.05) {
         cam.position.copy(pose.pos);
         cam.quaternion.copy(pose.quat);
         cam.fov = pose.fov;

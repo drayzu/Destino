@@ -48,10 +48,12 @@ node tools/referencia.mjs --puerto 5213 --ruta chasis/index.html --desde 0 --has
 node tools/comparar.mjs docs/chasis/referencia docs/chasis/nuevo docs/chasis/x.jpg 12 30 48
 ```
 
-## Estado (fase 1)
+## Estado (4 de noviembre, fase 2 completa)
 
-- Portados: `mente`, `apertura` y `despierta` (`chasis/actos/`), compases 0–74. La página es `chasis/index.html`.
-- La costura mente → apertura es continua por construcción. Apertura → despierta es un corte bajo la luz de la estrella.
-- El giro de la galaxia (`giro`) se quitó: la galaxia giraba junto con la cámara, así que en pantalla no se veía nada.
-- Arreglado (4 nov): despierta 58–61 (la esquina del nervio al borde, ahora curva) y 64–67 (la chispa llega a «tú» de lado; la cámara ya no se adelanta al camino que la chispa aún no toma). Giro máximo 0–74: 236 °/compás (antes del chasis, 403).
-- Pendiente: la precisión. La cámara no está en el origen; three.js compone las matrices en doble precisión. Lo que falta es que cada objeto que se ve de muy cerca tenga su propio origen local, como ya hace `enTorno`.
+- **Toda la obra corre en el chasis** (`chasis/index.html`, 449 compases, 12 actos en `chasis/actos/`). La imagen es la misma que antes (hojas en `docs/chasis/cmp-*.jpg`).
+- Costuras: mente → apertura, despierta → tierra y sistema → mercurio, por la **chispa** (sistema → mercurio es `continuo`); apertura → despierta, un **corte** bajo la luz de la estrella; las demás, por un **mundo** (la Tierra, Mercurio, el Sol, la vela, la galaxia…), la única mezcla de cámaras que queda, pura y en un solo lugar.
+- Los actos con un seguimiento propio (el vuelo del sistema interior, la vuelta al Sol, la nave, la galaxia y el cosmos) lo dan con `rig()`. El motor les mantiene la chispa en cuadro con una rodilla suavizada en el tiempo, calculada para cada compás (sin tabla medida al cargar). Suelta la chispa donde cruza rápido o pasa junto a la cámara: sale de cuadro en los mismos compases que ya estaban aprobados (180–186, 269–274, 308–309, 332).
+- Medido en toda la obra: el giro más brusco bajó de 403 a 275 °/compás. Los giros de más de 150 °/compás quedaron casi todos en despierta (la célula, 58–61), con 93 muestras contra 69 de antes.
+- Lo que el motor ganó en el camino: `costura: 'mundo'` con `entrada`/`salida`; `continuo` y `saliente`; `rig(p, paseo, t)` para planos propios; `radial` para caminos sobre un planeta; la chispa y los planos reciben el tiempo ambiente (el anillo de la nave gira solo); `luz` y `titila` para la chispa; `relevoMaxPx`; las pistas del seguimiento con prefijo `m` (`mLd`, `mAlto`, …).
+- Pendiente (fase 3): quitar los actos viejos de `estudios/` y `viaje/`, que ahora están duplicados; que `chasis/` sea la página publicada (`index.html` del sitio, README); el móvil; el sonido.
+- Pendiente: la precisión. Cada objeto que se ve de muy cerca debe tener su propio origen local, como `enTorno`.

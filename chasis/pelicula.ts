@@ -593,7 +593,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     cam.updateMatrixWorld();
     // The spark: one, on the film's way, in this act's units.
     camino.j = i;
-    const on = pose.chispa ? A.tl.get('on', p) : 0;
+    const on = pose.chispa ? (A.luz ? A.luz(p) : A.tl.get('on', p)) : 0;
     chispa.nube.points.visible = on > 0.001;
     if (pose.chispa && on > 0.001) {
       // (its wake: the way back over about its ride's distance on screen)
