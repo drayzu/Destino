@@ -39,6 +39,12 @@ export interface FrameActo {
   propio: boolean;
   /** The journey's page draws its own chrome. */
   chasis?: boolean;
+  /** Going out across a `continuo` seam: hide what the act coming in draws too. */
+  saliente?: boolean;
+  /** How much of the act's light is up (1, or less across a seam). */
+  presencia: number;
+  /** The film's spark (its points' uniforms: an act sets what hides it, `uOcc`). */
+  nubeChispa: import('../estudios/motor/materia').Nube;
 }
 
 /** The ride at a beat (act units): where the camera would stand, the point it would look at, its up and the way ahead. */
@@ -74,8 +80,17 @@ export interface Acto {
    *   distance there: nothing to blend, the camera simply goes on. Both acts are drawn for `relevo`
    *   beats, the last one fading.
    * - `corte`: a cut, hidden by the last act's own cover (`tapa` at 1 there: its light filling the frame).
+   * - `mundo`: through a world both acts show (the Earth, the Sun): this act's `entrada` lands on the
+   *   last act's `salida`, and the camera goes from where the last act left it to this act's own over
+   *   the seam, turning round that world (the one blend in the film).
    */
-  costura?: 'chispa' | 'corte';
+  costura?: 'chispa' | 'corte' | 'mundo';
+  /** A seam through a world: where this act meets the last one, and a size there (the two sizes match). */
+  entrada?: { pos: THREE.Vector3; escala: number };
+  salida?: { pos: THREE.Vector3; escala: number };
+  /** A seam through the spark in mid flight, where both acts draw the same worlds: this act is all
+   * there from its first beat, and the one going out (told `saliente`) leaves those worlds to it. */
+  continuo?: boolean;
   /** Where the spark is at beat p (act units); false when there is none. Pure. */
   chispa(p: number, out: THREE.Vector3): boolean;
   /** How much the spark's way runs over a sphere round the act's origin now (0..1): the ride keeps to its height. */
@@ -87,7 +102,7 @@ export interface Acto {
    * at Mumbai, level with its floor). It gets the ride (act units) when there is a spark, blends it
    * itself, and says how much it rides; null where the tracks' rig serves.
    */
-  rig?(p: number, paseo: Paseo | null): { pos: THREE.Vector3; dir: THREE.Vector3; up: THREE.Vector3; fov: number; lw: number } | null;
+  rig?(p: number, paseo: Paseo | null): { pos: THREE.Vector3; dir: THREE.Vector3; up: THREE.Vector3; fov: number; lw: number; /** a chase of its own: the film's ride is not needed */ propio?: boolean } | null;
   /** How much the frame is covered by the act's own light or dark (0..1): a cut may happen only under it. */
   tapa?(p: number): number;
   /** Lights and moves what the act owns. Never touches the camera. */

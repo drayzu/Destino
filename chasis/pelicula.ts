@@ -55,8 +55,12 @@ export interface Tramo {
   acto: Acto;
   inicio: number;
   largo: number;
-  /** Shots between cuts: the spark's way is continuous within one. */
+  /** Shots between cuts and world seams: the spark's way is continuous within one. */
   plano: number;
+  /** Stretches between cuts: their acts' units map into each other. */
+  cadena: number;
+  /** How it came in from the act before. */
+  costura: 'chispa' | 'corte' | 'mundo' | null;
 }
 
 /** The camera at a beat: in the units of the act `i` that holds it. */
@@ -95,6 +99,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
   const tramos: Tramo[] = [];
   let cursor = 0;
   let plano = 0;
+  let cadena = 0;
   for (const [k, e] of escenas.entries()) {
     const grupo = new THREE.Group();
     stage.root.add(grupo);
@@ -102,8 +107,10 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     stage.reset();
     const acto = e.montar(s);
     acto.grupo = grupo;
-    if (k > 0 && acto.costura === 'corte') plano++;
-    tramos.push({ acto, inicio: cursor, largo: acto.tl.length, plano });
+    const costura = k === 0 ? null : (acto.costura ?? 'chispa');
+    if (costura === 'corte' || costura === 'mundo') plano++;
+    if (costura === 'corte') cadena++;
+    tramos.push({ acto, inicio: cursor, largo: acto.tl.length, plano, cadena, costura });
     cursor += acto.tl.length;
   }
   const TOTAL = cursor;
@@ -113,7 +120,14 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
   for (let k = 1; k < tramos.length; k++) {
     const A = tramos[k - 1].acto;
     const B = tramos[k].acto;
-    if (tramos[k].plano !== tramos[k - 1].plano) continue;
+    if (tramos[k].costura === 'corte') continue;
+    if (tramos[k].costura === 'mundo') {
+      // (a seam through a world: this act's `entrada` lands on the last one's `salida`, same place, same size)
+      if (!A.salida || !B.entrada) throw new Error(`costura ${A.id} → ${B.id}: falta salida o entrada`);
+      const s = A.salida.escala / B.entrada.escala;
+      aPrev[k] = new Sim(s, A.salida.pos.clone().sub(B.entrada.pos.clone().multiplyScalar(s)));
+      continue;
+    }
     const a = V();
     const c = V();
     if (!A.chispa(tramos[k - 1].largo, a) || !B.chispa(0, c)) throw new Error(`costura ${A.id} → ${B.id}: sin chispa en el encuentro`);
@@ -124,7 +138,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
   /** Act i's units into act j's (same shot only; identity otherwise). */
   const sims = tramos.map((_, i) =>
     tramos.map((__, j) => {
-      if (i === j || tramos[i].plano !== tramos[j].plano) return new Sim();
+      if (i === j || tramos[i].cadena !== tramos[j].cadena) return new Sim();
       let m = new Sim();
       if (i > j) for (let k = i; k > j; k--) m = aPrev[k]!.tras(m);
       else for (let k = j; k > i; k--) m = m.tras(aPrev[k]!.inversa());
@@ -198,13 +212,46 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
   function pista(i: number, p: number, nombre: string, defecto = 0) {
     const tl = tramos[i].acto.tl;
     const v = tl.get(nombre, p) || defecto;
-    if (i === 0 || tramos[i - 1].plano !== tramos[i].plano || p >= RELEVO) return v;
+    if (tramos[i].costura !== 'chispa' || p >= RELEVO) return v;
     let a = tramos[i - 1].acto.tl.get(nombre, tramos[i - 1].largo) || defecto;
     if (nombre === 'mLd') a -= Math.log10(aPrev[i]!.s);
     return a + (v - a) * smooth(clamp(p / RELEVO, 0, 1));
   }
 
+  /** Each act's last pose (the camera as it leaves it), for a seam through a world. */
+  const finales = new Map<number, Pose>();
   function camara(b: number): Pose {
+    const pose = camaraActo(b);
+    const { i, p } = pose;
+    if (tramos[i].costura !== 'mundo' || p >= RELEVO) return pose;
+    // Through a world: from where the last act left the camera (in this act's units) to this act's
+    // own, turning round the world they meet at and through distance in logarithm, the roll that is
+    // left between them spread over the seam. The one blend in the film, and only here.
+    let fin = finales.get(i - 1);
+    if (!fin) {
+      fin = camaraActo(tramos[i].inicio - 1e-7);
+      finales.set(i - 1, fin);
+    }
+    const sim = sims[i - 1][i];
+    const p0 = sim.aplicar(fin.pos, V());
+    const k = smooth(clamp(p / RELEVO, 0, 1));
+    const ancla = tramos[i].acto.entrada!.pos;
+    const v0 = p0.clone().sub(ancla);
+    const v1 = pose.pos.clone().sub(ancla);
+    const l0 = Math.max(v0.length(), 1e-300);
+    const l1 = Math.max(v1.length(), 1e-300);
+    const q = new THREE.Quaternion().setFromUnitVectors(v0.clone().divideScalar(l0), v1.clone().divideScalar(l1));
+    const dir = v0.clone().divideScalar(l0).applyQuaternion(new THREE.Quaternion().slerp(q, k));
+    const quatB = pose.quat.clone();
+    pose.pos.copy(ancla).addScaledVector(dir, Math.exp(Math.log(l0) + (Math.log(l1) - Math.log(l0)) * k));
+    const twist = q.clone().multiply(fin.quat).invert().multiply(quatB);
+    pose.quat.copy(new THREE.Quaternion().slerp(q, k).multiply(fin.quat).multiply(new THREE.Quaternion().slerp(twist, k)));
+    pose.fov = fin.fov + (pose.fov - fin.fov) * k;
+    pose.dist = Math.exp(Math.log(fin.dist * sim.s) * (1 - k) + Math.log(pose.dist) * k);
+    return pose;
+  }
+
+  function camaraActo(b: number): Pose {
     const { i, p } = enTramo(b);
     const A = tramos[i].acto;
     const tl = A.tl;
@@ -216,7 +263,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     m4.lookAt(rig.pos, rig.pos.clone().add(rig.dir), rig.up);
     pose.quat.setFromRotationMatrix(m4);
     const propio = A.rig ? A.rig(p, null) : null;
-    if (!hay || (lw0 <= 0 && !A.rig)) return conRig(pose, propio);
+    if (!hay || (lw0 <= 0 && !A.rig) || propio?.propio) return conRig(pose, propio);
 
     // The ride: the way round the spark, sampled; its length from the spark either way.
     const D = Math.pow(10, pista(i, p, 'mLd'));
@@ -383,7 +430,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     m4.lookAt(r.pos, r.pos.clone().add(r.dir), r.up);
     pose.quat.setFromRotationMatrix(m4);
     pose.fov = r.fov;
-    pose.lw = 0;
+    pose.lw = r.lw;
     return pose;
   }
 
@@ -405,7 +452,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
 
   const filmEn = (i: number, p: number): Film => {
     const a = tramos[i].acto;
-    if (i === 0 || tramos[i].plano !== tramos[i - 1].plano || p >= RELEVO) return a.film;
+    if (!tramos[i].costura || tramos[i].costura === 'corte' || p >= RELEVO) return a.film;
     const b = tramos[i - 1].acto.film;
     const k = smooth(clamp(p / RELEVO, 0, 1));
     return { strength: b.strength + (a.film.strength - b.strength) * k, radius: b.radius + (a.film.radius - b.radius) * k, threshold: b.threshold + (a.film.threshold - b.threshold) * k, exposure: b.exposure + (a.film.exposure - b.exposure) * k };
@@ -415,7 +462,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
    * Places everything for beat b (the camera, every act, the spark) without drawing; returns the
    * frame for the plate. `f` gives the page's own (time, size).
    */
-  function poner(b: number, f: Omit<FrameActo, 'p' | 'camera' | 'chispa' | 'propio' | 'focal'>, soloCamara = false) {
+  function poner(b: number, f: Omit<FrameActo, 'p' | 'camera' | 'chispa' | 'propio' | 'focal' | 'presencia' | 'nubeChispa'>, soloCamara = false) {
     const pose = camara(b);
     const { i, p } = pose;
     const cam = stage.camera;
@@ -430,8 +477,11 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     if (soloCamara) return { pose, frame: null };
     const focal = f.H / 2 / Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
     // The act before, across a seam through the spark: still drawn, fading.
-    const prev = i > 0 && tramos[i - 1].plano === tramos[i].plano && p < RELEVO ? i - 1 : -1;
-    const c = smooth(clamp((p - 0.05) / (RELEVO * 0.8), 0, 1));
+    const prev = tramos[i].costura && tramos[i].costura !== 'corte' && p < RELEVO ? i - 1 : -1;
+    // (an act that takes the flight on in mid air, `continuo`, is all there from its first beat; the
+    // one going out leaves to it what both draw)
+    const continuo = tramos[i].costura === 'chispa' && !!A.continuo;
+    const c = continuo ? 1 : smooth(clamp((p - 0.05) / (RELEVO * 0.8), 0, 1));
     const enCam = V();
     const mPrev = new THREE.Matrix4();
     for (const [k, t] of tramos.entries()) {
@@ -443,7 +493,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
       sims[k][i].matriz(mPrev);
       g.matrix.copy(mPrev);
       g.updateMatrixWorld(true);
-      fundir(g, k === i ? (prev >= 0 ? c : 1) : 1 - c, sims[k][i].s);
+      fundir(g, k === i ? (prev >= 0 ? c : 1) : 1 - smooth(clamp((p - 0.05) / (RELEVO * 0.8), 0, 1)), sims[k][i].s);
       // (its update reads the camera in its own units)
       const inv = sims[i][k];
       cam.position.copy(inv.aplicar(pose.pos, enCam));
@@ -451,7 +501,8 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
       cam.far = A.lejos * inv.s;
       cam.updateMatrixWorld();
       const ch = pose.chispa ? inv.aplicar(pose.chispa, V()) : null;
-      t.acto.update({ ...f, p: k === i ? p : t.largo, camera: cam, focal, chispa: ch, propio: k === i });
+      const luz = k === i ? (prev >= 0 ? c : 1) : 1 - smooth(clamp((p - 0.05) / (RELEVO * 0.8), 0, 1));
+      t.acto.update({ ...f, p: k === i ? p : t.largo, camera: cam, focal, chispa: ch, propio: k === i, saliente: k !== i && continuo, presencia: luz, nubeChispa: chispa.nube });
     }
     cam.position.copy(pose.pos);
     cam.near = A.cerca;
@@ -484,7 +535,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     stage.bloom.radius = film.radius;
     stage.bloom.threshold = film.threshold;
     stage.renderer.toneMappingExposure = film.exposure;
-    const frame: FrameActo = { ...f, p, camera: cam, focal, chispa: pose.chispa, propio: true };
+    const frame: FrameActo = { ...f, p, camera: cam, focal, chispa: pose.chispa, propio: true, presencia: 1, nubeChispa: chispa.nube };
     return { pose, frame };
   }
 

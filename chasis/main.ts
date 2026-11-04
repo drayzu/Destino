@@ -21,6 +21,7 @@ import { mente } from './actos/mente';
 import { apertura } from './actos/apertura';
 import { despierta } from './actos/despierta';
 import { tierraNoche } from './actos/tierra';
+import { sistema } from './actos/sistema';
 
 /**
  * Destino on the new chassis (CHASIS.md): the page. It scrolls the film, draws the plate and the
@@ -53,7 +54,7 @@ const stage = createStage(canvas, fixed);
 const spacer = document.querySelector<HTMLElement>('#spacer')!;
 
 // ---------------------------------------------------------------- the film
-const peli = crearPelicula(stage, [mente, apertura, despierta, tierraNoche]);
+const peli = crearPelicula(stage, [mente, apertura, despierta, tierraNoche, sistema]);
 const { tramos, TOTAL } = peli;
 spacer.style.height = `${TOTAL * PX_PER_BEAT + innerHeight}px`;
 
@@ -257,7 +258,7 @@ function vistaEn(at: number): Vista {
 }
 /** Each act's units in the first act's of its shot, as a log (so distances compare across seams). */
 const escalaLog = tramos.map((_, i) => {
-  const j = tramos.findIndex((t) => t.plano === tramos[i].plano);
+  const j = tramos.findIndex((t) => t.cadena === tramos[i].cadena);
   return Math.log(peli.sims[i][j].s);
 });
 function momentos() {
@@ -435,7 +436,7 @@ const api = {
   },
   /** Each seam: what the spark's ride does across it (the camera's own move there, no drawing). */
   costuras() {
-    return tramos.slice(1).map((t, k) => ({ de: tramos[k].acto.id, a: t.acto.id, en: t.inicio, tipo: t.plano === tramos[k].plano ? 'chispa' : 'corte', tapa: +(tramos[k].acto.tapa?.(tramos[k].largo) ?? 0).toFixed(2) }));
+    return tramos.slice(1).map((t, k) => ({ de: tramos[k].acto.id, a: t.acto.id, en: t.inicio, tipo: t.costura, tapa: +(tramos[k].acto.tapa?.(tramos[k].largo) ?? 0).toFixed(2) }));
   },
   async listo() {
     await Promise.all(tramos.map((t) => t.acto.listo));

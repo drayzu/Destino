@@ -740,6 +740,8 @@ export const tierraNoche: EscenaChasis = {
       listo,
       cerca: 2e-9,
       lejos: 400,
+      // (sistema takes over round the Earth: its centre, a radius)
+      salida: { pos: V(), escala: 1 },
       film: { strength: 0.7, radius: 0.5, threshold: 0.42, exposure: 1.15 },
       // (`ir` switches at once, but under its curtain: what shows is `wipe`)
       presencias: ['cable', 'dc', 'copias', 'cables', 'resto', 'tu', 'presencia', 'ind', 'ani', 'on'],
