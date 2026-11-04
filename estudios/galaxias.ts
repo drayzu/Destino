@@ -189,11 +189,16 @@ export function brillosGalaxias(galaxias: { c: THREE.Vector3; f: FormaGalaxia }[
       varying vec2 vQ;
       varying vec4 vForma;
       varying float vCara;
+      varying float vLente;
       void main() {
         vQ = position.xy;
         vForma = aForma;
         vec3 w = aCentro + aE1 * position.x + aE2 * position.y;
         vec4 mv = modelViewMatrix * vec4(w, 1.0);
+        // (a glow the camera comes through fades as it nears it, instead of vanishing at once as the
+        // camera crosses its disc)
+        float R = length(aE1);
+        vLente = smoothstep(0.5 * R, 1.6 * R, length((modelViewMatrix * vec4(aCentro, 1.0)).xyz));
         vec3 nrm = normalize(normalMatrix * cross(aE1, aE2));
         vCara = abs(dot(nrm, normalize(-mv.xyz)));
         gl_Position = projectionMatrix * mv;
@@ -205,6 +210,7 @@ export function brillosGalaxias(galaxias: { c: THREE.Vector3; f: FormaGalaxia }[
       varying vec2 vQ;
       varying vec4 vForma;
       varying float vCara;
+      varying float vLente;
       void main() {
         float r = length(vQ);
         if (r > 1.0) discard;
@@ -219,7 +225,7 @@ export function brillosGalaxias(galaxias: { c: THREE.Vector3; f: FormaGalaxia }[
         float liso = vForma.x > 0.5 && vForma.x < 1.5 ? exp(-r * 4.5) * 1.2 : 0.0;
         vec3 col = mix(uTinte, vec3(1.0, 0.82, 0.6), 0.6) * (corazon * 0.9 + liso * 0.5) + uTinte * (disco * 0.22 + brazos * 0.5);
         float cara = mix(0.25, 1.0, smoothstep(0.05, 0.6, vCara));
-        gl_FragColor = vec4(col * cara * uOn * uFundido, 0.0);
+        gl_FragColor = vec4(col * cara * uOn * uFundido * vLente, 0.0);
       }
     `,
     side: THREE.DoubleSide,

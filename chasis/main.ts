@@ -419,6 +419,39 @@ const api = {
       return out;
     });
   },
+  /**
+   * The picture over [a, b] every `res` beats, small (48 × 27, luminance): for each beat, how much it
+   * changed from the one before (mean, 0..255) and how bright it is. The guard looks for a change
+   * much bigger than its neighbours' (something that pops in or out, a flash). Flat: beat, change, light.
+   */
+  imagen(a: number, b: number, res = 0.05) {
+    const w = 48;
+    const h = 27;
+    const c = (medio ??= document.createElement('canvas'));
+    c.width = w;
+    c.height = h;
+    const o = c.getContext('2d', { willReadFrequently: true })!;
+    const out: number[] = [];
+    let prev: Float32Array | null = null;
+    for (let at = a; at <= b + 1e-9; at += res) {
+      step(0, 1 / 60, at);
+      // (as the viewer sees it: the film and the plate over it, its light that covers a cut included)
+      o.drawImage(canvas, 0, 0, w, h);
+      o.drawImage(plate, 0, 0, w, h);
+      const d = o.getImageData(0, 0, w, h).data;
+      const l = new Float32Array(w * h);
+      let luz = 0;
+      for (let i = 0; i < w * h; i++) {
+        l[i] = 0.2126 * d[i * 4] + 0.7152 * d[i * 4 + 1] + 0.0722 * d[i * 4 + 2];
+        luz += l[i];
+      }
+      let dif = 0;
+      if (prev) for (let i = 0; i < w * h; i++) dif += Math.abs(l[i] - prev[i]);
+      out.push(+at.toFixed(3), prev ? +(dif / (w * h)).toFixed(3) : 0, +(luz / (w * h)).toFixed(2));
+      prev = l;
+    }
+    return out;
+  },
   /** The film with the plate, as the page shows it (JPEG data URL). */
   cuadroPlaca(b: number, now: number, q = 0.9) {
     return shot(b).toDataURL('image/jpeg', q);
