@@ -652,10 +652,13 @@ export const apertura: Escena = {
     // the camera, so the star stays in the middle all the way and handing over to the ride moves the
     // camera none: looking at the end of the spark's loop instead, the star slid off the frame)
     const enS = montarEn(2).lugar.sub(S);
+    const LEJOS_S = 2;
     const enA = angulos(enS);
     const azA = enA.az + 360 * Math.round((236 - enA.az) / 360);
     tl.to(1.0, { el: enA.el, az: azA });
-    tl.to(1.6, { ld: Math.log10(enS.length()) });
+    // (stopping a little short of it: right there, still looking at the star, the spark beside the
+    // line slid off to the corner; the ride takes the camera the last stretch)
+    tl.to(1.6, { ld: Math.log10(enS.length() * LEJOS_S) });
     tl.with(1.0, { lw: 1 });
     luego(1.4, 1.2, { luzSol: 1 });
     tl.to(2.4, { sc: 3 });
@@ -747,16 +750,17 @@ export const apertura: Escena = {
         oidas.u.uOn.value = vaso;
         locales.u.uRG.value = R_GOTA;
         // (a shell only from well outside it: the camera that rides our voice's front would be inside
-        // its rim, a wall of light, and leaving it, half the frame)
+        // its rim, a wall of light, and leaving it, half the frame; coming in slowly as the camera draws
+        // back, not all at once while it still fills the frame)
         for (const { c, k } of capasVoz) {
           const rr = Math.max(1e-6, voz.u.uR.value * k);
           c.mesh.scale.setScalar(rr);
-          c.u.uOn.value = voz.u.uOn.value * (k === 1 ? 0.55 + 2.0 * punto : 0.25 * (1 - punto)) * THREE.MathUtils.smoothstep(camVoz / rr, 1.3, 2.1);
+          c.u.uOn.value = voz.u.uOn.value * (k === 1 ? 0.55 + 2.0 * punto : 0.25 * (1 - punto)) * THREE.MathUtils.smoothstep(camVoz / rr, 1.5, 4.0);
           c.u.uTime.value = f.time;
           c.mesh.visible = c.u.uOn.value > 1e-4;
         }
         // (its points too: from inside the bubble they are a dotted wall across half the frame)
-        const dentro = THREE.MathUtils.lerp(0.2, 1, THREE.MathUtils.smoothstep(camVoz / Math.max(1e-6, voz.u.uR.value), 1.1, 1.8));
+        const dentro = THREE.MathUtils.lerp(0.2, 1, THREE.MathUtils.smoothstep(camVoz / Math.max(1e-6, voz.u.uR.value), 1.2, 3.2));
         // (its points, once it is a small ring, give way to the ring: together in a few pixels they burn)
         const rPx = (voz.u.uR.value * f.focal) / Math.max(camVoz, 1e-9);
         voz.u.uOn.value *= 0.55 * dentro * THREE.MathUtils.lerp(1, THREE.MathUtils.smoothstep(rPx, 14, 60), punto);
