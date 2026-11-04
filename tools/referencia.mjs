@@ -2,8 +2,8 @@
 // reference: the journey as it was before the new chassis). Headless Chrome with the GPU against a
 // running dev server; frames land in <out>/<beat>.jpg, and a sheet of all of them in <out>.jpg.
 //
-//   node tools/referencia.mjs --puerto 5211 --desde 0 --hasta 72 --paso 0.5 --out docs/chasis/referencia
-//   (--ruta viaje/index.html, --ancho 960, --alto 540; --cdp 9351 for a second one at once)
+//   node tools/referencia.mjs --desde 0 --hasta 72 --paso 0.5 --out docs/chasis/nuevo
+//   (--puerto 5213, --ruta for another page (the old journey was viaje/index.html), --ancho 960, --alto 540; --cdp 9351 for a second one at once)
 import { spawn, execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -14,8 +14,8 @@ const arg = (k, d) => {
   const i = process.argv.indexOf(`--${k}`);
   return i < 0 ? d : process.argv[i + 1];
 };
-const PUERTO = arg('puerto', '5211');
-const RUTA = arg('ruta', 'viaje/index.html');
+const PUERTO = arg('puerto', '5213');
+const RUTA = arg('ruta', '');
 const DESDE = Number(arg('desde', '0'));
 const HASTA = Number(arg('hasta', '72'));
 const PASO = Number(arg('paso', '0.5'));

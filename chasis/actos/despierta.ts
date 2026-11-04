@@ -8,7 +8,7 @@ import { tierra as tierraHorizontes } from '../../src/horizontes';
 import { FONT, ink, type Cuenta, type Rotulo } from '../../estudios/placa';
 import { TEAL, capaLuz, caraHacia, potencia, puntoTu, anioEn } from '../../estudios/remake';
 import { toma } from '../../estudios/rig';
-import { CARA, SOL, S_CAIRO, luces, rutaTierra } from '../../estudios/tierra';
+import { CARA, SOL, S_CAIRO, luces, rutaTierra } from './tierra';
 import type { Camino } from '../../estudios/chispa';
 import type { Acto, EscenaChasis, FrameActo } from '../tipos';
 

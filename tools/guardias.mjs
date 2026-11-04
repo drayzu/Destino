@@ -36,7 +36,7 @@ const r = run(`(() => ({
 const fallos = [];
 const acto = (b) => {
   let s = r.tramos[0][0];
-  for (const t of r.tramos) if (b >= t[1]) s = t[0];
+  for (const t of r.tramos) if (b >= t[2]) s = t[0];
   return s;
 };
 // 1. The camera.

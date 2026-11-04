@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { Camino } from './chispa';
 import { caraHacia, dirLatLon } from './remake';
-import { CARA } from './tierra';
+import { CARA } from '../chasis/actos/tierra';
 import { E, FIN_RIEL_LUNA, LUNA, M, MA, N_LUNA, RE, RL, RM, RMA, RV, SOL_V, U_LUNA, VE, caminoRio, enRiel, enRielLuna, enRielX } from './interior';
 
 /**

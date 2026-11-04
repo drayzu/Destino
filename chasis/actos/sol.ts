@@ -7,7 +7,7 @@ import { sol as solH } from '../../src/horizontes';
 import { TEAL, potencia, anioEn } from '../../estudios/remake';
 import { angulos, toma } from '../../estudios/rig';
 import { crearChispa, type Camino } from '../../estudios/chispa';
-import { LEJOS, enjambreNube } from '../../estudios/mercurio';
+import { LEJOS, enjambreNube } from './mercurio';
 import type { Rotulo } from '../../estudios/placa';
 import type { Acto, EscenaChasis, FrameActo } from '../tipos';
 

@@ -6,7 +6,7 @@ import { sol as solH } from '../../src/horizontes';
 import { TEAL, potencia, puntoTu, anioEn } from '../../estudios/remake';
 import { toma } from '../../estudios/rig';
 import { crearChispa, montar, type Camino } from '../../estudios/chispa';
-import { LEJOS, enjambreNube } from '../../estudios/mercurio';
+import { LEJOS, enjambreNube } from './mercurio';
 import { angulos } from '../../estudios/rig';
 import { enfocarMarcas, marcas, nombres, trazo, type Nombre } from '../../estudios/revelar';
 import type { Cuenta, Rotulo } from '../../estudios/placa';

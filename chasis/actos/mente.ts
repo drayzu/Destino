@@ -1,4 +1,4 @@
-import { DIR_VOZ } from '../../estudios/apertura';
+import { DIR_VOZ } from './apertura';
 import * as THREE from 'three';
 import { Timeline } from '../../estudios/timeline';
 import { enfocar, materia, materiaBuilder, type Nube } from '../../estudios/motor/materia';

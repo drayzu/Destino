@@ -4,7 +4,7 @@ import { materia, materiaBuilder, type Nube } from './motor/materia';
 import { TEAL } from './remake';
 import { FONT, ink, proyectar, violeta } from './placa';
 import { smoothstep } from './motor/math';
-import type { Frame } from './tipos';
+import type { FrameActo as Frame } from '../chasis/tipos';
 
 /**
  * Revealing (GUION.md v2, the beat «revelar»): once an act, the camera lets go of the spark and

@@ -7,7 +7,7 @@ import { TEAL, potencia, anioEn } from '../../estudios/remake';
 import { angulos, toma, type Toma } from '../../estudios/rig';
 import { tierra as tierraH } from '../../src/horizontes';
 import { crearChispa, montar, type Camino } from '../../estudios/chispa';
-import { S, brazo, galaxiaBrillo, galaxiaDatos, polvoDatos } from '../../estudios/apertura';
+import { S, brazo, galaxiaBrillo, galaxiaDatos, polvoDatos } from './apertura';
 import { cuantas, enfocarMarcas, marcas, nombres, type Nombre } from '../../estudios/revelar';
 import type { Cuenta, Rotulo } from '../../estudios/placa';
 import type { Acto, EscenaChasis, FrameActo } from '../tipos';

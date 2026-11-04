@@ -1,11 +1,11 @@
 // Frames of the remake's journey (viaje/) for the README: headless Chrome (with the GPU) against the
-// dev server on 5211, the film only (no page, no plate), at 1840 × 1035. Each segment glides from beat `b` over `d` beats in
+// dev server on 5213, the film only (no page, no plate), at 1840 × 1035. Each segment glides from beat `b` over `d` beats in
 // `n` frames, or follows its `claves`, [seconds, beat] pairs that set the tempo (eased between them,
 // never backwards, so it can linger on a moment and rush through the next flight); the frames land in <out>/<segment>/0000.jpg (quality 0.95: PNG is several times slower), and the power at its middle is printed (the
 // exponent of its row). Segments already captured are kept (pass --fresh <name>[,<name>…] to redo some).
 // A segment with `sub` (and `shutter`, 0.3 of a frame by default) is drawn with motion blur.
 //
-//   npm run dev -- --port 5211   (in another terminal)
+//   npm run dev -- --port 5213   (in another terminal)
 //   node tools/clip-viaje.mjs [list = tools/readme-viaje.json] [out = tools/readme]
 //   python tools/readme_media.py
 import { spawn } from 'node:child_process';
@@ -89,7 +89,7 @@ const ev = (expression) => send('Runtime.evaluate', { expression, awaitPromise: 
 
 await send('Runtime.enable');
 await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
-await send('Page.navigate', { url: `http://localhost:${process.env.PUERTO ?? 5211}/viaje/index.html?debug&lang=en&cap=${W}x${H}` });
+await send('Page.navigate', { url: `http://localhost:${process.env.PUERTO ?? 5213}/?debug&lang=en&cap=${W}x${H}` });
 // Full quality, nothing else drawing: frames come only from our steps; and the film only. A mark on the
 // page tells us when the dev server reloads it (an edit elsewhere): then this is done again and the
 // segment in progress starts over.

@@ -7,7 +7,7 @@ import { luna as lunaH, marte as marteH, mercurio as mercurioH, sol as solH, tie
 import { HORIZONTE, TEAL, caraHacia, dirLatLon, potencia, anioEn } from '../../estudios/remake';
 import { angulos, toma } from '../../estudios/rig';
 import type { Camino } from '../../estudios/chispa';
-import { CARA, SOL as SOL_TIERRA } from '../../estudios/tierra';
+import { CARA, SOL as SOL_TIERRA } from './tierra';
 import { CIUDAD, COLOR, DIR_CIUDAD, E, FIN_RIEL_LUNA, LUNA, M, MA, N_LUNA, RE, RL, RM, RMA, RV, SOL_V, U_LUNA, VE, enOrbita, enRielLuna } from '../../estudios/interior';
 import { DIR7, suelo, vueloInterior } from '../../estudios/vuelo';
 import { enfocarMarcas, marcas, nombres, orbitas, type Nombre } from '../../estudios/revelar';

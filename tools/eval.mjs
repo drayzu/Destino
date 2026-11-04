@@ -1,16 +1,17 @@
-// Evaluates an expression in a study page (headless Chrome, with the GPU) and prints the result.
-//   node tools/eval.mjs mercurio 1 "estudio.camara(9.4)"
-//   node tools/eval.mjs viaje 0 "viaje.tramos()"  (the journey page)
+// Evaluates an expression on Destino's page (headless Chrome with the GPU), once it is ready, and
+// prints the result. `viaje` is the page's debug handle, `peli` the film.
+//   node tools/eval.mjs viaje 0 "viaje.costuras()"
+//   (PUERTO=5213 by default; CDP=93xx for a second one at once; EXTRA="&x" more of the URL)
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 
-const [m, s, expr] = process.argv.slice(2);
-const PUERTO = process.env.PUERTO ?? 5211;
-// (CDP: another debugging port, so two can run at once, each with its own profile)
+// (the first two arguments are kept for the tools that pass them: the page is always the film)
+const expr = process.argv[4] ?? process.argv[2];
+const PUERTO = process.env.PUERTO ?? 5213;
 const port = Number(process.env.CDP ?? 9338);
-const chrome = spawn(process.env.CHROME ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe', ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${join(tmpdir(), `destino-remake-eval-${port}`)}`, '--window-size=1600,900', '--ignore-gpu-blocklist', '--hide-scrollbars', '--mute-audio', 'about:blank'], { stdio: 'ignore' });
+const chrome = spawn(process.env.CHROME ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe', ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${join(tmpdir(), `destino-eval-${port}`)}`, '--window-size=1600,900', '--ignore-gpu-blocklist', '--hide-scrollbars', '--mute-audio', 'about:blank'], { stdio: 'ignore' });
 let target;
 for (let i = 0; i < 50 && !target; i++) {
   await sleep(200);
@@ -33,9 +34,8 @@ ws.addEventListener('message', (e) => {
 });
 const send = (method, params = {}) => new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 await send('Runtime.enable');
-await send('Page.navigate', { url: m === 'viaje' ? `http://localhost:${PUERTO}/viaje/index.html?debug&cap=1600x900${process.env.EXTRA ?? ""}` : `http://localhost:${PUERTO}/estudios/index.html?m=${m}&s=${s}&debug&cap=1600x900` });
+await send('Page.navigate', { url: `http://localhost:${PUERTO}/?debug&cap=1600x900${process.env.EXTRA ?? ''}` });
 await sleep(3000);
-const r = await send('Runtime.evaluate', { awaitPromise: true, returnByValue: true, expression: m === 'viaje' ? `(async () => { await viaje.listo(); return JSON.stringify(await (${expr})); })()` : `(async () => { await estudio.inst?.listo; return JSON.stringify(await (${expr})); })()` });
+const r = await send('Runtime.evaluate', { awaitPromise: true, returnByValue: true, expression: `(async () => { await viaje.listo(); return JSON.stringify(await (${expr})); })()` });
 console.log(r.result?.result?.value ?? JSON.stringify(r.result?.exceptionDetails ?? r));
 await send('Browser.close');
-chrome.kill();

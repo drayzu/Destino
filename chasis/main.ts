@@ -291,6 +291,7 @@ function medir(presupuesto: number) {
 
 let last = performance.now();
 let grabando = false;
+let medio: HTMLCanvasElement | undefined;
 function frame(now: number) {
   if (grabando) return;
   const dt = Math.min((now - last) / 1000, 0.1);
@@ -348,6 +349,35 @@ const api = {
     step(now, 1 / 30, b);
     return canvas.toDataURL('image/jpeg', q);
   },
+  /** The same with motion blur: the film drawn at each beat `bs[k]`, time `ts[k]`, and averaged. */
+  cuadroMedio(bs: number[], ts: number[], q = 0.95) {
+    const out = (medio ??= document.createElement('canvas'));
+    if (out.width !== canvas.width || out.height !== canvas.height) {
+      out.width = canvas.width;
+      out.height = canvas.height;
+    }
+    const o = out.getContext('2d')!;
+    bs.forEach((b, k) => {
+      step(ts[k], 1 / 30 / bs.length, b);
+      o.globalAlpha = 1 / (k + 1);
+      o.drawImage(canvas, 0, 0);
+    });
+    return out.toDataURL('image/jpeg', q);
+  },
+  /** The camera from beat a to b every `res` beats (no drawing): beat, position, gaze, up, fov and its
+   * distance to what it frames, flat (each in the units of the act that holds that beat). */
+  trayecto(a: number, b: number, res = 0.02) {
+    const out: number[] = [];
+    const d = new THREE.Vector3();
+    const u = new THREE.Vector3();
+    for (let at = a; at <= b + 1e-9; at += res) {
+      const pose = peli.camara(at);
+      d.set(0, 0, -1).applyQuaternion(pose.quat);
+      u.set(0, 1, 0).applyQuaternion(pose.quat);
+      out.push(at, pose.pos.x, pose.pos.y, pose.pos.z, d.x, d.y, d.z, u.x, u.y, u.z, pose.fov, pose.dist);
+    }
+    return out;
+  },
   /** The film with the plate, as the page shows it (JPEG data URL). */
   cuadroPlaca(b: number, now: number, q = 0.9) {
     return shot(b).toDataURL('image/jpeg', q);
@@ -364,7 +394,8 @@ const api = {
     for (const a of ritmo.auto) s += RES / a;
     return { px: Math.round(pagina!.alto), minutosAuto: +(s / 60).toFixed(1) };
   },
-  tramos: () => tramos.map((t) => [t.acto.id, +t.inicio.toFixed(2), +t.largo.toFixed(2), t.plano]),
+  /** Each act: its name, 1 (the way, as the studies had it), where it starts and how long it is, in beats. */
+  tramos: () => tramos.map((t) => [t.acto.id, 1, +t.inicio.toFixed(2), +t.largo.toFixed(2)]),
   etiquetas: () => tramos.map((t) => [t.acto.id, Object.fromEntries([...(t.acto.tl as unknown as { labels: Map<string, number> }).labels].map(([k, v]) => [k, +(v + t.inicio).toFixed(2)]))]),
   /**
    * The guards' measure of the camera (no drawing): every `res` beats, how far it moved relative to
