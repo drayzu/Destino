@@ -649,6 +649,7 @@ export const apertura: Escena = {
     const tm = toma(tl, 0);
     const largo = tl.length;
     const Sw = V();
+    const Pw = V();
     return {
       tl,
       entrada: { pos: S.clone(), escala: 0.004 },
@@ -710,6 +711,10 @@ export const apertura: Escena = {
         const dSol = camera.position.distanceTo(Sw);
         locales.u.uLoc.value = tl.get('cielo', p) * (1 - ease(1.2, 5, dSol));
         vecinas.u.uPla.value = tl.get('pla', p);
+        // (and the stars round P only from near: from afar their hundreds fall in a few pixels, add up
+        // into one burning blob, and flicker as the camera moves the least)
+        const dP = camera.position.distanceTo(Pw.copy(P).applyAxisAngle(V(0, 1, 0), galaxia.rotation.y));
+        vecinas.u.uGain.value = 1 - ease(0.6, 2.5, dP);
         for (const n of [sisEstrellas, sisOrbitas, sisPlanetas]) n.u.uSis.value = tl.get('pla', p);
         // The bubble grows with the distance until it reaches its hundred light years, so it always fits.
         // (and seen from afar it never goes below a small ring round the Sun: all our voice, a point)
