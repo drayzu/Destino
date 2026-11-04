@@ -33,7 +33,7 @@ ws.addEventListener('message', (e) => {
 });
 const send = (method, params = {}) => new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 await send('Runtime.enable');
-await send('Page.navigate', { url: m === 'viaje' ? `http://localhost:${PUERTO}/viaje/index.html?debug&cap=1600x900` : `http://localhost:${PUERTO}/estudios/index.html?m=${m}&s=${s}&debug&cap=1600x900` });
+await send('Page.navigate', { url: m === 'viaje' ? `http://localhost:${PUERTO}/viaje/index.html?debug&cap=1600x900${process.env.EXTRA ?? ""}` : `http://localhost:${PUERTO}/estudios/index.html?m=${m}&s=${s}&debug&cap=1600x900` });
 await sleep(3000);
 const r = await send('Runtime.evaluate', { awaitPromise: true, returnByValue: true, expression: m === 'viaje' ? `(async () => { await viaje.listo(); return JSON.stringify(await (${expr})); })()` : `(async () => { await estudio.inst?.listo; return JSON.stringify(await (${expr})); })()` });
 console.log(r.result?.result?.value ?? JSON.stringify(r.result?.exceptionDetails ?? r));

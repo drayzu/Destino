@@ -42,6 +42,9 @@ export interface Instancia {
   /** The act before it hands over in mid flight, its camera already where this act's is: the relay
    * blends only the light, not the camera. */
   continuo?: boolean;
+  /** Journey: how much the framing keeps the spark in frame at beat p (0..1, default 1); 0 where it
+   * leaves the frame on purpose (it passes the camera, it dives into something). */
+  encuadre?(p: number): number;
   /** Journey: what this act ends on (the next act's `entrada` lands here). */
   salida?: Ancla;
   /** Places the camera and moves the world (before rendering). */

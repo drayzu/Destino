@@ -269,6 +269,134 @@ let huecoRelevo: { t: Tramo; v: THREE.Vector3 } | null = null;
 
 const smooth = (x: number) => x * x * (3 - 2 * x);
 const camA = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), fov: 40 };
+/** This act's own camera through a relay, before it is blended with the last act's. */
+const camB = { pos: new THREE.Vector3(), quat: new THREE.Quaternion() };
+
+// The framing: whatever an act's camera does, the spark we follow stays in the picture. Near the
+// middle it is left alone; towards the edge the camera turns just enough to keep it inside a soft
+// border (a knee, so nothing is felt as a stop). The turn each beat wants is measured once over the
+// whole film (the camera alone, in the background as the page starts) and smoothed over the beats
+// round it, so the camera never copies the spark's own jolts (a hop between neurons, a pass close
+// by); it is the beat's own, so scrolling back shows the same. It lets go where the spark is far off
+// the axis (passing the camera, behind it) or sweeps across the view, as a turn could not follow it
+// without a lurch.
+const sinEncuadre = new URLSearchParams(location.search).has('sinEncuadre');
+const SEGURO = 0.55;
+const BORDE = 0.82;
+/** The most the framing turns, in radians (reached softly). */
+const TOPE_ENC = 0.2;
+const RES_ENC = 0.05;
+/** Its smoothing: a gaussian of this many beats. */
+const SIGMA_ENC = 0.22;
+const camV = new THREE.Vector3();
+function rodilla(n: number) {
+  const a = Math.abs(n);
+  if (a <= SEGURO) return n;
+  return Math.sign(n) * (SEGURO + (BORDE - SEGURO) * Math.tanh((a - SEGURO) / (BORDE - SEGURO)));
+}
+/** The turn (yaw, pitch; radians) that would bring the spark back inside the border from the camera
+ * as it is now, and the spark's direction from the camera (its own frame; zero if there is none). */
+function giroEncuadre(peso: number, out: Float32Array, o: number) {
+  out.fill(0, o, o + 5);
+  if (peso <= 0) return;
+  const camera = stage.camera;
+  camera.updateMatrixWorld();
+  let on = 0;
+  for (const c of chispasEn(stage.scene)) {
+    if (c.on < 0.05 || c.on <= on) continue;
+    let vis = true;
+    for (let x: THREE.Object3D | null = c.nube.points; x; x = x.parent) if (!x.visible) vis = false;
+    if (!vis) continue;
+    c.nube.points.updateWorldMatrix(true, false);
+    camV.set(c.estela[0], c.estela[1], c.estela[2]).applyMatrix4(c.nube.points.matrixWorld).applyMatrix4(camera.matrixWorldInverse);
+    on = c.on;
+  }
+  if (!on) return;
+  const v = camV.normalize();
+  out[o + 2] = v.x;
+  out[o + 3] = v.y;
+  out[o + 4] = v.z;
+  const ty = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  const tx = ty * camera.aspect;
+  // (off the axis: full hold within 40°, none past 65°)
+  const fuera = Math.acos(clamp(-v.z, -1, 1));
+  const w = peso * smooth(clamp((on - 0.05) / 0.4, 0, 1)) * (1 - smooth(clamp((fuera - 0.7) / 0.44, 0, 1)));
+  if (w <= 0 || v.z >= 0) return;
+  const ax = Math.atan2(v.x, -v.z);
+  const ay = Math.atan2(v.y, -v.z);
+  out[o] = (ax - Math.atan(rodilla(Math.tan(ax) / tx) * tx)) * w;
+  out[o + 1] = (ay - Math.atan(rodilla(Math.tan(ay) / ty) * ty)) * w;
+}
+let encCrudo: Float32Array | null = null;
+let encTabla: Float32Array | null = null;
+let encMedido = 0;
+/** When the table came in (ms): it comes in over half a second, not at once. */
+let encDesde = 0;
+let midiendoEnc = false;
+let encEn = 0;
+/** Measures the framing's turns for a while (ms), and smooths them once all are in. */
+function medirEncuadre(presupuesto: number) {
+  if (encTabla || sinEncuadre) return;
+  const n = Math.ceil(TOTAL / RES_ENC) + 1;
+  encCrudo ??= new Float32Array(n * 5);
+  const t0 = performance.now();
+  midiendoEnc = true;
+  while (encMedido < n && performance.now() - t0 < presupuesto) {
+    encEn = encMedido * 5;
+    step(0, 1 / 60, Math.min(TOTAL, encMedido * RES_ENC), true);
+    encMedido++;
+  }
+  midiendoEnc = false;
+  if (encMedido < n) return;
+  // (none while the spark sweeps fast across the view, a hop or a pass close by: its speed on the
+  // screen, from its direction a sample either side; full under 1 radian a beat, none over 2)
+  const c = encCrudo;
+  const giro = new Float32Array(n * 2);
+  for (let i = 0; i < n; i++) {
+    const a = Math.max(0, i - 1) * 5;
+    const b = Math.min(n - 1, i + 1) * 5;
+    const da = Math.hypot(c[a + 2], c[a + 3], c[a + 4]);
+    const db = Math.hypot(c[b + 2], c[b + 3], c[b + 4]);
+    let w = 0;
+    if (da > 0.5 && db > 0.5) {
+      const vel = Math.acos(clamp(c[a + 2] * c[b + 2] + c[a + 3] * c[b + 3] + c[a + 4] * c[b + 4], -1, 1)) / ((b - a) / 5 * RES_ENC || 1);
+      w = 1 - smooth(clamp(vel - 1, 0, 1));
+    }
+    giro[i * 2] = c[i * 5] * w;
+    giro[i * 2 + 1] = c[i * 5 + 1] * w;
+  }
+  const tabla = new Float32Array(n * 2);
+  const r = Math.ceil((SIGMA_ENC * 3) / RES_ENC);
+  const g = Array.from({ length: 2 * r + 1 }, (_, k) => Math.exp(-0.5 * (((k - r) * RES_ENC) / SIGMA_ENC) ** 2));
+  for (let i = 0; i < n; i++) {
+    let sx = 0, sy = 0, sw = 0;
+    for (let k = -r; k <= r; k++) {
+      const j = i + k;
+      if (j < 0 || j >= n) continue;
+      sx += giro[j * 2] * g[k + r];
+      sy += giro[j * 2 + 1] * g[k + r];
+      sw += g[k + r];
+    }
+    tabla[i * 2] = sx / sw;
+    tabla[i * 2 + 1] = sy / sw;
+  }
+  encTabla = tabla;
+  encDesde = performance.now();
+}
+/** The framing at beat `at`: the camera turned by the smoothed table (nothing until it is measured). */
+function encuadrar(at: number) {
+  if (!encTabla) return;
+  const x = clamp(at / RES_ENC, 0, encTabla.length / 2 - 1);
+  const i = Math.min(Math.floor(x), encTabla.length / 2 - 2);
+  const f = x - i;
+  const gx = encTabla[i * 2] * (1 - f) + encTabla[i * 2 + 2] * f;
+  const gy = encTabla[i * 2 + 1] * (1 - f) + encTabla[i * 2 + 3] * f;
+  const entra = smooth(clamp((performance.now() - encDesde) / 500, 0, 1));
+  const camera = stage.camera;
+  camera.rotateY(-TOPE_ENC * Math.tanh(gx / TOPE_ENC) * entra);
+  camera.rotateX(TOPE_ENC * Math.tanh(gy / TOPE_ENC) * entra);
+  camera.updateMatrixWorld();
+}
 
 /** One frame at journey beat `at`, ambient time `now` (ms), step `dt` (s). `soloCamara`: place the
  * acts and the camera, and stop there (the pace measures the camera this way). */
@@ -342,6 +470,8 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
     // The camera: from where the last act left it to where this act wants it, turning round our
     // entrada and moving through distance in log (worlds of very different sizes meet here). (Not
     // when the last act hands over in mid flight: this act's camera is already there.)
+    camB.pos.copy(camera.position);
+    camB.quat.copy(camera.quaternion);
     if (!inst.continuo) {
       const ancla = inst.entrada!.pos;
       const v0 = camA.pos.clone().sub(ancla);
@@ -383,6 +513,25 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
         pts.position.add(enPadre);
         pts.updateMatrixWorld();
       }
+      // (and through the relay the spark is seen where it would be between the two cameras, the last
+      // act's and this act's, mixed as the relay goes: the cameras' turns no longer throw it about
+      // between, while its own way is left as it is)
+      if (!sinEncuadre) {
+        camera.updateMatrixWorld();
+        const pc = new THREE.Vector3(entra.estela[0], entra.estela[1], entra.estela[2]).applyMatrix4(pts.matrixWorld);
+        const dA = pc.clone().sub(camA.pos).applyQuaternion(camA.quat.clone().invert()).normalize();
+        const dB = pc.clone().sub(camB.pos).applyQuaternion(camB.quat.clone().invert()).normalize();
+        const dc = pc.applyMatrix4(camera.matrixWorldInverse).normalize();
+        // (only while it is well ahead of the three, letting go gradually: behind one, it has no
+        // straight way across)
+        const delante = (d: THREE.Vector3) => smooth(clamp((-d.z - 0.25) / 0.35, 0, 1));
+        const w = delante(dA) * delante(dB) * delante(dc);
+        if (w > 0 && Number.isFinite(dc.x + dA.x + dB.x)) {
+          const dt = dA.lerp(dB, smooth(clamp(p / RELEVO, 0, 1))).normalize();
+          camera.quaternion.multiply(new THREE.Quaternion().slerp(new THREE.Quaternion().setFromUnitVectors(dt, dc), w));
+          camera.updateMatrixWorld();
+        }
+      }
     }
     const fa = prev.film!;
     const fb = t.film!;
@@ -406,6 +555,8 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
       if (!enRelevo && t.escena.id !== 'agujero') stage.renderer.toneMappingExposure = t.film.exposure;
     }
   }
+  if (midiendoEnc) giroEncuadre(inst.encuadre?.(p) ?? 1, encCrudo!, encEn);
+  else if (!sinEncuadre) encuadrar(at);
   if (soloCamara) return;
   const ef = inst.efectos?.(p) ?? {};
   stage.finish.uniforms.uCalor.value = ef.calor ?? 0;
@@ -581,6 +732,7 @@ function frame(now: number) {
     for (let k = 0; k < 3 && porCalentar.length; k++) step(now, dt, porCalentar.shift()!);
     if (!porCalentar.length) calentarListo();
   } else if (!ritmo && !grabando) medir(6);
+  else if (!encTabla && !grabando) medirEncuadre(5);
   step(now, dt, P);
   requestAnimationFrame(frame);
 }
@@ -680,11 +832,34 @@ const api = {
     }
     return out;
   },
+  /** Debug: where the spark is on the screen from beat a to b: beat, x, y (−1..1 is in frame, z > 1 behind), how lit; flat. */
+  enCuadro(a: number, b: number, res = 0.05) {
+    const out: number[] = [];
+    const v = new THREE.Vector3();
+    for (let at = a; at <= b + 1e-9; at += res) {
+      step(0, 1 / 60, at);
+      let x = NaN, y = NaN, on = 0;
+      for (const c of chispasEn(stage.scene)) {
+        let vis = true;
+        for (let o: THREE.Object3D | null = c.nube.points; o; o = o.parent) if (!o.visible) vis = false;
+        if (!vis || c.on <= on) continue;
+        v.set(c.estela[0], c.estela[1], c.estela[2]).applyMatrix4(c.nube.points.matrixWorld).project(stage.camera);
+        const atras = v.z > 1 ? 1 : 0;
+        x = atras ? 9 : v.x;
+        y = atras ? 9 : v.y;
+        on = c.on;
+      }
+      out.push(+at.toFixed(2), +x.toFixed(2), +y.toFixed(2), +on.toFixed(2));
+    }
+    return out;
+  },
   async listo() {
     await Promise.all(tramos.map((t) => t.inst?.listo));
     await calentado;
     await calentadoTodo;
     await document.fonts.ready;
+    while (!encTabla && !sinEncuadre) medirEncuadre(1000);
+    encDesde = -1e9;
   },
   async hoja(path: string, beats: number[], cols = 5, tw = 384) {
     await api.listo();
