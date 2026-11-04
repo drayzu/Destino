@@ -13,32 +13,25 @@ Destino se rompía cada vez que se le agregaba algo. Había cuatro causas:
 
 ## Las reglas de la casa
 
-1. **Una sola cámara, la de la película** (`chasis/pelicula.ts`). Los actos no la tocan: ponen el decorado y la leen ya ubicada en sus propias unidades.
-2. **Una sola chispa.** Cada acto dice dónde está la chispa en sus unidades (`chispa(p)`). En una costura, el motor ubica el mundo del acto siguiente de modo que su chispa empiece exactamente donde termina la del anterior, a la misma distancia de la cámara. Por eso la cámara simplemente sigue de largo: no hay nada que mezclar.
-3. **La cámara sigue la chispa** (`lw` = 1) o se queda en su rig (`lw` = 0). El seguimiento suaviza el camino de la chispa según su largo, no según el compás, así que los vuelos rápidos y los paseos lentos se sienten igual. La chispa queda dentro del cuadro por construcción.
-4. **Todo depende solo del compás.** El mismo compás da la misma imagen, llegues desde antes, desde después o directamente. No se mide nada mientras la película corre.
-5. **Costuras:** `chispa` (por defecto) o `corte`. Un corte solo es válido bajo la tapa del acto anterior (su luz llenando el cuadro).
-6. **Lo que se muestra se declara.** Cada acto nombra sus `presencias` (pistas de 0 a 1), y nada entra ni sale en menos de `FUNDIDO_MIN` compases.
-7. **Ojo con `tl.set`:** las pistas fluyen entre claves. Un valor puesto lejos del anterior se desliza durante todo el tramo. Para cambiar los parámetros del seguimiento, primero se fija el valor viejo y después el nuevo (`keyAt`), y solo mientras la cámara está en su rig.
-8. **Una sesión por obra.** Los cambios al motor van separados de los cambios de contenido.
+1. **La cámara son claves, como en Tiempo** (`chasis/camaras.json`, leídas por `chasis/pista.ts`). La película pasa por ellas con la misma curva suave de las pistas de los actos. Nada persigue nada y nada corrige la cámara después. Cambiar una clave cambia la película solo entre sus dos vecinas.
+2. **Los actos ponen el decorado, no la cámara.** La leen ya ubicada en sus propias unidades. Las pistas de rig que algunos actos conservan (`cx … fov`) ya no son la cámara: quedan solo donde el contenido las usa (por ejemplo, para ubicar «tú»).
+3. **Una sola chispa.** Cada acto dice dónde está (`chispa(p)`, pura). La chispa ya no mueve la cámara.
+4. **Costuras:** `chispa` (la cámara y la chispa son las mismas a ambos lados y fijan la escala), `mundo` (`entrada` sobre `salida`) o `corte` (solo bajo la tapa del acto anterior). En la costura solo se cruza la luz; la cámara no necesita nada, porque sus claves ya siguen de largo.
+5. **Todo depende del compás.** Lo único que puede depender además del tiempo ambiente es el camino de la chispa en un mundo que gira solo (el anillo de la nave).
+6. **Lo que aparece se declara** (`presencias`, con un fundido mínimo de `FUNDIDO_MIN`), y lo que pasa junto al lente se desvanece en lugar de cortarse (por ejemplo, los resplandores de las galaxias).
+7. **Una sesión por obra.** Los cambios al motor van separados de los cambios de contenido.
 
-## Las pistas que lee la cámara
+## Cómo se edita la cámara
 
-| Pista | Qué es |
-|---|---|
-| `cx cy cz az el ld ox oy oz yaw pitch roll fov` | el rig (`estudios/rig.ts`) |
-| `lw` | cuánto sigue a la chispa (0..1) |
-| `mLd` | a qué distancia detrás de la chispa (log10, unidades del acto) |
-| `mAlto` | cuánto más arriba que el camino (grados) |
-| `mAde` | cuánto mira por delante de la chispa (fracción de la distancia) |
-| `mSuave`, `mSuaveMira` | cuánto camino promedia el lugar y la mirada (en distancias; 2,5 y 1 por defecto) |
-| `on`, `tit` | la luz de la chispa y su parpadeo |
+- **Un plano nuevo en un tramo:** `node tools/plano.mjs <acto> <desde> <hasta> --centro x,y,z --az … --el … --ld … [--az2 … --el2 … --ld2 … --centro2 …] [--fov …] [--mezcla 0.8]`. Usa compases dentro del acto y sus unidades. Se funde con la cámara de antes y después.
+- **El horneado** (`tools/hornear.mjs`) se hizo una sola vez, desde la cámara vieja, el 4 de noviembre: limitó el giro a ~110 °/compás y mantuvo la chispa en cuadro donde la cámara la seguía. Las claves son ahora la fuente; no hace falta volver a hornear.
 
 ## Antes de cada commit
 
 ```
 npx tsc --noEmit -p .
 node tools/guardias.mjs          # cámara, chispa en cuadro, presencias, costuras (dev server 5213)
+node tools/destellos.mjs         # la imagen misma: nada aparece, se apaga ni destella de golpe (unos minutos)
 ```
 
 Para comparar con la referencia (la versión de antes, en `docs/chasis/referencia/`, fuera de git; se rehace desde la rama `remake` en 0de191a con el mismo comando contra su servidor):
@@ -59,3 +52,10 @@ node tools/comparar.mjs docs/chasis/referencia docs/chasis/nuevo docs/chasis/x.j
 - Pendiente (fase 3): publicar (main + Pages), el README, el móvil, el sonido.
 - Hecho (4 nov): borrado también el código de la primera Destino (`src/actos`, `src/mundo`, `src/engine`, `prototypes/`). En `src/` quedan `i18n.ts`, `horizontes/` (los planetas) y `lib/` (lo usa el agujero negro).
 - Pendiente: la precisión. Cada objeto que se ve de muy cerca debe tener su propio origen local, como `enTorno`.
+
+## Estado (4 de noviembre, noche): la cámara horneada
+
+- Toda la obra lee su cámara de claves (2 683, unos 320 KB). Se borraron el seguimiento de la chispa, sus suavizadores, los planos propios de los actos, el encuadre en vivo y la mezcla de cámaras en las costuras.
+- Medido en toda la obra: el giro más brusco es de 130 °/compás (antes del chasis eran 403). Las revisiones no encuentran ningún salto ni tirón. La chispa sale de cuadro solo en 9 puntos sueltos (casi todos aprobados antes).
+- `tools/destellos.mjs` (la imagen, cada 0,05 compases) encuentra seis lugares. Cuatro son destellos buscados (86.5, 87.6, 272.5 y 275, los estallidos de la burbuja). El de 396.9 (el resplandor de una galaxia que la cámara atraviesa) quedó arreglado. El de 319.85 (la cámara subiendo sobre el borde de la galaxia) ya existía igual en la versión vieja: revisar con Diego.
+- La medusa (despierta 6.8–9.8) es ahora un plano: la campana entera desde afuera.
