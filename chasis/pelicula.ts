@@ -85,6 +85,9 @@ const VENTANA = 2.4;
 const LUGAR = 2.5;
 const MIRA = 1.0;
 const SIGMA = 0.7;
+/** Ahead of the spark the bell is shorter: the camera does not peek down the way the spark has not taken yet
+ * (a resting spark is ridden from the way it came; the way out opens as it takes it). */
+const SIGMA_ANTES = 0.3;
 const TIEMPO_MIN = 0.45;
 const N = Math.round(VENTANA / PASO);
 
@@ -237,7 +240,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     let wm = 0;
     for (let k = -N; k <= N; k++) {
       if (!ok[k + N]) continue;
-      const tb = Math.exp(-0.5 * ((k * PASO) / SIGMA) ** 2) * (paso[k + N] + 0.02 * D);
+      const tb = Math.exp(-0.5 * ((k * PASO) / (k > 0 ? SIGMA_ANTES : SIGMA)) ** 2) * (paso[k + N] + 0.02 * D);
       const ul = arco[k + N] / (LUG * D);
       const um = arco[k + N] / (MIR * D);
       const a = ul * ul < 1 ? (1 - ul * ul) ** 2 * tb : 0;
@@ -258,7 +261,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     let am = 0;
     const pm = V();
     const pesoR = (k: number) => {
-      const tb = Math.exp(-0.5 * ((k * PASO) / SIGMA) ** 2) * (paso[k + N] + 0.02 * D);
+      const tb = Math.exp(-0.5 * ((k * PASO) / (k > 0 ? SIGMA_ANTES : SIGMA)) ** 2) * (paso[k + N] + 0.02 * D);
       const ul = arco[k + N] / LUGd;
       return ul * ul < 1 ? (1 - ul * ul) ** 2 * tb : 0;
     };

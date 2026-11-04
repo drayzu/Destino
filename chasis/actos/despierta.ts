@@ -417,7 +417,11 @@ export const despierta: EscenaChasis = {
     const haciaL = londres.clone().sub(tuPos);
     const sale = haciaL.clone().addScaledVector(tm.dir, -haciaL.dot(tm.dir)).normalize();
     const aLondres = new THREE.CubicBezierCurve3(tuPos.clone(), tuPos.clone().addScaledVector(sale, 0.5), londres.clone().multiplyScalar(1.22).addScaledVector(rumbo, -0.3), londres.clone());
-    const enCerebro = new THREE.CatmullRomCurve3([campana(1, Math.PI / 2).multiplyScalar(1), V(0.35, 0.25, 0.3), V(-0.1, 0.1, 0.15), tuPos.clone()]);
+    // (it comes to «tú» across the view, not straight at the camera that waits there: riding behind a
+    // spark that flies at the rig, the camera had to turn right round between the two)
+    const deLado = new THREE.Vector3().crossVectors(tm.dir, V(0, 1, 0)).normalize();
+    const lado = deLado.dot(V(-0.1, 0.1, 0.15).sub(tuPos)) > 0 ? 1 : -1;
+    const enCerebro = new THREE.CatmullRomCurve3([campana(1, Math.PI / 2).multiplyScalar(1), V(0.35, 0.25, 0.3), V(-0.1, 0.1, 0.15), tuPos.clone().addScaledVector(deLado, 0.22 * lado).addScaledVector(tm.dir, 0.05), tuPos.clone()]);
     /**
      * The spark's way: a loop inside the cell (0..1), down a nerve of the bell and round its rim
      * (1..2), through the brain to «tú» (2..3), out to London (3..3.4), and over the Earth to Cairo
@@ -438,7 +442,18 @@ export const despierta: EscenaChasis = {
         const t = sv - 1;
         if (t < 0.15) return out.copy(salto.getPoint(t / 0.15));
         const u = (t - 0.15) / 0.85;
-        return u < 0.65 ? out.copy(campana(0.3 + (u / 0.65) * 0.7, 0)) : out.copy(campana(1, ((u - 0.65) / 0.35) * (Math.PI / 2)));
+        // (from the nerve onto the rim round a curve, not a corner: the spark there goes fast, and the
+        // camera behind it took the corner at once)
+        const nervio = (x: number) => campana(0.3 + (x / 0.65) * 0.7, 0);
+        const borde = (x: number) => campana(1, ((x - 0.65) / 0.35) * (Math.PI / 2));
+        if (u > 0.45 && u < 0.85) {
+          const q = (u - 0.45) / 0.4;
+          const A = nervio(0.45);
+          const E = campana(1, 0);
+          const B = borde(0.85);
+          return out.copy(A).multiplyScalar((1 - q) * (1 - q)).addScaledVector(E, 2 * q * (1 - q)).addScaledVector(B, q * q);
+        }
+        return u < 0.65 ? out.copy(nervio(u)) : out.copy(borde(u));
       }
       if (sv <= 3) return out.copy(enCerebro.getPoint(sv - 2));
       if (sv <= 3.4) return out.copy(aLondres.getPoint((sv - 3) / 0.4));
