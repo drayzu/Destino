@@ -475,16 +475,8 @@ export const despierta: EscenaChasis = {
         camino(tl.get('sc', p), out);
         return true;
       },
-      // (over the Earth, «up» is the Earth's own, taken on as the spark reaches it)
-      arriba(p, donde, out) {
-        const k = THREE.MathUtils.smoothstep(tl.get('sc', p), sTierra, sTierra + 0.35);
-        return out.set(0, 1, 0).lerp(donde.clone().normalize(), k).normalize();
-      },
       tapa(p) {
         return tl.get('blanco', p);
-      },
-      radial(p) {
-        return THREE.MathUtils.smoothstep(tl.get('sc', p), sTierra, sTierra + 0.35);
       },
       efectos(p) {
         return { vel: tl.get('vel', p) };

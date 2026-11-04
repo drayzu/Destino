@@ -3,20 +3,13 @@ import type { Timeline } from '../estudios/timeline';
 import type { Cuenta, Rotulo } from '../estudios/placa';
 
 /**
- * The new chassis (CHASIS.md). An act is scenery and choreography; it never places the camera.
+ * The chassis (CHASIS.md). An act is scenery and choreography; it never places the camera.
  *
- * The film has ONE camera, the engine's (pelicula.ts): it rides the spark, which is one continuous
- * path through every act, and it lets go of it for the act's own shots (the rig tracks). Every act
- * reads the camera, already placed in its own units, and only lights and moves what it owns.
- *
- * Tracks the engine reads from an act's timeline (any it lacks take their default):
- * - the rig (rig.ts): `cx cy cz az el ld ox oy oz yaw pitch roll fov`;
- * - `lw` (0..1): how much the camera rides the spark instead of standing in the rig;
- * - `mLd`: how far behind the spark it rides (log10, the act's units);
- * - `mAlto` (degrees): how far above the spark's way; `mAde` (fraction of that distance): how far
- *   ahead of the spark it looks; `mSuave`, `mSuaveMira`: how much way its place and gaze smooth
- *   (in ride distances). (The `m` keeps them apart from an act's own tracks: tierra's `alto`.)
- * - `on`, `tit` (0..1): the spark's light and its flicker.
+ * The film's camera is baked into keys (chasis/camaras.json, tools/hornear.mjs, tools/plano.mjs), as
+ * Tiempo's is: the film flows through them. Every act reads the camera, already placed in its own
+ * units, and only lights and moves what it owns. Its spark, its lights and its words come from its
+ * own timeline. (The rig tracks some acts still keep, `cx … fov`, are no longer the camera: only
+ * where the act's content reads them.)
  */
 
 /** One frame, for an act: the camera is already where it is, in the act's own units. */
@@ -45,15 +38,6 @@ export interface FrameActo {
   presencia: number;
   /** The film's spark (its points' uniforms: an act sets what hides it, `uOcc`). */
   nubeChispa: import('../estudios/motor/materia').Nube;
-}
-
-/** The ride at a beat (act units): where the camera would stand, the point it would look at, its up and the way ahead. */
-export interface Paseo {
-  lugar: THREE.Vector3;
-  mira: THREE.Vector3;
-  arriba: THREE.Vector3;
-  delante: THREE.Vector3;
-  quat: THREE.Quaternion;
 }
 
 export interface Film {
@@ -97,16 +81,6 @@ export interface Acto {
   /** Going out across a seam, its points no bigger than this many px (its far stars, seen at the next
    * act's scale, would swell). */
   relevoMaxPx?: number;
-  /** How much the spark's way runs over a sphere round the act's origin now (0..1): the ride keeps to its height. */
-  radial?(p: number): number;
-  /** The ride's «up» at a place (act units, unit vector); +Y when absent. */
-  arriba?(p: number, donde: THREE.Vector3, out: THREE.Vector3): THREE.Vector3;
-  /**
-   * A shot of the act's own where the rig tracks will not do (a rig in a turned frame: tierra's hall
-   * at Mumbai, level with its floor). It gets the ride (act units) when there is a spark, blends it
-   * itself, and says how much it rides; null where the tracks' rig serves.
-   */
-  rig?(p: number, paseo: Paseo | null, t: number): { pos: THREE.Vector3; dir: THREE.Vector3; up: THREE.Vector3; fov: number; lw: number; /** a chase of its own: the film's ride is not needed */ propio?: boolean } | null;
   /** How lit the spark is (0..1); the `on` track when absent. */
   luz?(p: number): number;
   /** How much the spark flickers (0..1); the `tit` track when absent. */

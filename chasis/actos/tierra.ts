@@ -749,27 +749,6 @@ export const tierraNoche: EscenaChasis = {
         rutaMia(tl.get('rs', p), out).applyQuaternion(earth.quaternion);
         return true;
       },
-      radial() {
-        return 1;
-      },
-      // (over the Earth, «up» is the Earth's own)
-      arriba(_p, donde, out) {
-        return out.copy(donde).normalize();
-      },
-      // From the cable down into the hall and back up: a rig of its own in the hall's frame, riding
-      // the same spark at first (the ride, turned into that frame).
-      rig(p, paseo) {
-        if (p < P0 || p >= P1) return null;
-        const rw2 = tl2.get('rw', p);
-        let miraL: { punto: THREE.Vector3; peso: number; arriba?: THREE.Vector3; delante?: THREE.Vector3 } | undefined;
-        let lugarL: { punto: THREE.Vector3; peso: number } | undefined;
-        if (paseo && rw2 > 0.001) {
-          miraL = { punto: aLocal(paseo.mira), peso: rw2, arriba: dirLocal(paseo.arriba), delante: dirLocal(paseo.delante) };
-          lugarL = { punto: aLocal(paseo.lugar), peso: rw2 };
-        }
-        const t2 = toma(tl2, p, undefined, miraL, lugarL);
-        return { pos: aMundo(t2.pos, V()), dir: vT.copy(t2.dir).applyQuaternion(qL).clone(), up: t2.up.clone().applyQuaternion(qL), fov: t2.fov, lw: paseo ? rw2 : 0 };
-      },
       escalera: false,
       cuenta(p) {
         const anio = tl.get('anio', p);

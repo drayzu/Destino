@@ -497,29 +497,6 @@ export const mercurio: EscenaChasis = {
         caminoCh(p, out);
         return true;
       },
-      // The camera: the flight's chase (vuelo.ts), on from the system's act just as it left it; then
-      // round the Sun (see the orbit's keys), taking over from the river.
-      rig(p) {
-        const lugarP = V();
-        const objetivo = V();
-        const Tv = vuelo.seguir(T_C + p, lugarP, objetivo);
-        suelo(lugarP);
-        const sw = tl.get('sw', p);
-        if (sw > 0.0005) {
-          const A = tl.get('swA', p);
-          const R = Math.pow(10, tl.get('swR', p));
-          const E = THREE.MathUtils.degToRad(tl.get('swE', p));
-          const orbita = V(Math.sin(A) * Math.cos(E), Math.sin(E), Math.cos(A) * Math.cos(E)).multiplyScalar(R);
-          // (the gaze on the Sun, turned a little ahead: the Sun to one side, the way ahead open)
-          const ahead = V(Math.sin(A + 0.9), 0, Math.cos(A + 0.9)).multiplyScalar(R * 0.8);
-          const mira = V().lerp(ahead, tl.get('swK', p));
-          lugarP.lerp(orbita, sw);
-          objetivo.lerp(mira, sw);
-        }
-        const t2 = toma(tl, p, undefined, { punto: objetivo, peso: 1, arriba: Y, delante: Tv.multiplyScalar(1 - sw) }, { punto: lugarP, peso: 1 });
-        const fov = sw > 0.0005 ? THREE.MathUtils.lerp(t2.fov, tl.get('swF', p), sw) : t2.fov;
-        return { pos: t2.pos, dir: t2.dir, up: t2.up, fov, lw: 1, propio: true };
-      },
       escalera: false,
       efectos(p) {
         const rap = vuelo.velEn(T_C + p, V()).length() * (1 - tl.get('sw', p));

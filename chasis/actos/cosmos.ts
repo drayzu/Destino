@@ -409,17 +409,6 @@ export const cosmos: EscenaChasis = {
         return true;
       },
       luz: (p) => 1 - tl.get('oro', p),
-      // The camera: riding the probe to its galaxy, and gliding among our galaxies (Type IV).
-      rig(p) {
-        const r = rutaEn(p);
-        const vuela = tl.get('vuela', p);
-        const ride = tl.get('ride', p);
-        const sv = THREE.MathUtils.clamp(tl.get('sv', p), 0, 1);
-        const mv = ride > 0 ? montar(r.caminoCh, r.prog, 0.09, 0.3, 0.015, V(0, 1, 0), 0.06) : montar(caminoRuta, sv * 0.9, 0, 0.3, 0, V(0, 1, 0), 0.2, false, 0.2);
-        const peso = Math.max(vuela, ride);
-        const t2 = toma(tl, p, tm, { punto: mv.mira, peso }, { punto: mv.lugar, peso });
-        return { pos: t2.pos.clone(), dir: t2.dir.clone(), up: t2.up.clone(), fov: t2.fov, lw: ride, propio: true };
-      },
       escalera: false,
       cuenta(p) {
         const c: Cuenta = p < tl.at('tipo') ? potencia(37 + 8 * Math.min(1, tl.get('bur', p) / (HOR * 0.85)), '') : p < tl.at('horizonte') ? potencia(46) : potencia(46 - 6 * tl.get('vacia', p));

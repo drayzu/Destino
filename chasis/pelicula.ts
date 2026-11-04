@@ -8,20 +8,19 @@ import CAMARAS from './camaras.json';
 /**
  * The film (CHASIS.md): every act on one line of beats, ONE camera, ONE spark.
  *
- * - **One spark.** Each act says where the spark is in its own units (`chispa(p)`). Across a seam
- *   the engine places the next act's world so that its spark starts exactly where the last one's
- *   ends: the spark is one continuous way through the whole film (until a cut, under a cover).
- * - **One camera.** It rides that way: behind the spark by the act's `mLd`, its place and its gaze the
- *   way smoothed over a stretch of it (by its length, not its beats, so a fast flight and a slow
- *   drift ride alike), and the way crosses seams like any other stretch. Where an act wants a shot
- *   of its own, the camera turns from the ride to its rig (`lw`). Nothing corrects it afterwards.
- * - **Pure.** Everything here is a function of the beat: the same beat is the same picture, reached
- *   from before, from after, or straight away. Nothing is measured while the film plays.
- * - The camera lives in the units of the act that holds the beat; the other act across a seam is
- *   placed in them by a similarity (scale and shift, the acts share their axes), composed in double
- *   precision between those two acts only.
+ * - **The camera is baked**: per act, keys of position, orientation, fov and distance the film
+ *   flows through (chasis/camaras.json). Nothing chases anything, nothing corrects it afterwards;
+ *   changing a key changes the film only between its two neighbours.
+ * - **One spark.** Each act says where the spark is in its own units (`chispa(p)`); it is drawn
+ *   once, with its wake, wherever the film is.
+ * - **Seams.** The next act's world is placed in the last one's units by a similarity (scale and
+ *   shift): through the spark (`chispa`: the spark and the camera's distance meet), through a world
+ *   (`mundo`: `entrada` on `salida`), or a cut under the last act's cover (`corte`). Across a seam
+ *   both acts are drawn for RELEVO beats, the light crossing over; the camera needs nothing there,
+ *   its keys already go on.
+ * - **Pure.** Everything here is a function of the beat (and, for a world that turns by itself, of
+ *   the ambient time): the same beat is the same picture, however it is reached.
  */
-
 /** Beats across a seam during which the last act is still drawn, fading. */
 export const RELEVO = 1.8;
 /** The quickest anything may come or go, in beats (the guard checks every act's `presencias`). */
@@ -99,6 +98,14 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
   }
   const TOTAL = cursor;
 
+  // ---- The camera: baked (tools/hornear.mjs, chasis/camaras.json), as Tiempo's is. Each act's
+  // camera is a set of keys the film flows through; nothing chases anything, nothing corrects it.
+  const pistas = tramos.map((t) => {
+    const c = (CAMARAS as Record<string, CamaraHorneada>)[t.acto.id];
+    if (!c) throw new Error(`sin cámara horneada para ${t.acto.id} (node tools/hornear.mjs)`);
+    return pistasDe(c);
+  });
+
   // ---- The seams: each act's units into the one before's.
   const aPrev: (Sim | null)[] = tramos.map(() => null);
   for (let k = 1; k < tramos.length; k++) {
@@ -115,8 +122,12 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     const a = V();
     const c = V();
     if (!A.chispa(tramos[k - 1].largo, a, 0) || !B.chispa(0, c, 0)) throw new Error(`costura ${A.id} → ${B.id}: sin chispa en el encuentro`);
-    // (the ride the same distance on both sides: the camera simply goes on)
-    const s = Math.pow(10, A.tl.get('mLd', tramos[k - 1].largo) - B.tl.get('mLd', 0));
+    // (the camera is the same camera on both sides, and so is the spark: the two points fix the scale)
+    const ka = pistas[k - 1];
+    const kb = pistas[k];
+    const camA = V(ka.x.get(tramos[k - 1].largo), ka.y.get(tramos[k - 1].largo), ka.z.get(tramos[k - 1].largo));
+    const camB = V(kb.x.get(0), kb.y.get(0), kb.z.get(0));
+    const s = camA.distanceTo(a) / Math.max(camB.distanceTo(c), 1e-300);
     aPrev[k] = new Sim(s, a.clone().sub(c.clone().multiplyScalar(s)));
   }
   /** Act i's units into act j's (same shot only; identity otherwise). */
@@ -155,14 +166,6 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
   }
 
   // ---- The camera.
-  // ---- The camera: baked (tools/hornear.mjs, chasis/camaras.json), as Tiempo's is. Each act's
-  // camera is a set of keys the film flows through; nothing chases anything, nothing corrects it.
-  const pistas = tramos.map((t) => {
-    const c = (CAMARAS as Record<string, CamaraHorneada>)[t.acto.id];
-    if (!c) throw new Error(`sin cámara horneada para ${t.acto.id} (node tools/hornear.mjs)`);
-    return pistasDe(c);
-  });
-
   function camara(b: number): Pose {
     const { i, p } = enTramo(b);
     const k = pistas[i];

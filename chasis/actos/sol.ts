@@ -262,20 +262,6 @@ export const solTrabajado: EscenaChasis = {
       titila(p) {
         return tl.get('satura', p);
       },
-      // The camera: round the Sun with the spark, then the rig's shots.
-      rig(p) {
-        const centro = EMPUJE.clone().multiplyScalar(tl.get('mueve', p));
-        const orb = tl.get('orb', p);
-        let t2;
-        if (orb > 0.0005) {
-          const A = p * 0.18 * 2.2 + DESFASE + ADELANTO;
-          const R = Math.pow(10, tl.get('oR', p));
-          const el = THREE.MathUtils.degToRad(tl.get('oEl', p));
-          const sitio = centro.clone().add(V(Math.sin(A) * Math.cos(el), Math.sin(el), Math.cos(A) * Math.cos(el)).multiplyScalar(R));
-          t2 = toma(tl, p, undefined, { punto: centro, peso: orb }, { punto: sitio, peso: orb });
-        } else t2 = toma(tl, p);
-        return { pos: t2.pos, dir: t2.dir, up: t2.up, fov: t2.fov, lw: orb, propio: true };
-      },
       escalera: false,
       cuenta(p) {
         return { ...(p < tl.at('tipo') ? potencia(25.6) : potencia(26.58)), alcance: '1 estrella' };

@@ -572,28 +572,6 @@ export const vela: EscenaChasis = {
         r.caminoCh(r.chS, out);
         return true;
       },
-      // The camera: riding the spark along the beam, onto the ship and into its ring (a chase of its
-      // own: «up» turns from the ship's way to the spine inside the turning ring); looking back home;
-      // the rig's shots.
-      rig(p, _paseo, t) {
-        const r = rutaEn(p, t);
-        const chS = r.chS;
-        const lw = tl.get('lw', p);
-        let t2;
-        if (lw > 0.0005) {
-          const kIn = THREE.MathUtils.smoothstep(chS, 1.85, 2.3);
-          const radial = V(Math.cos(r.angIn(Math.max(0, chS - 2)) + r.ag), Math.sin(r.angIn(Math.max(0, chS - 2)) + r.ag), 0).applyAxisAngle(Yv, 0.15);
-          const arriba = Yv.clone().lerp(radial.clone().negate(), kIn).normalize();
-          const alto = THREE.MathUtils.lerp(0.012, 0.0075, kIn) + 0.006 * THREE.MathUtils.smoothstep(chS, 2.84, 3) + 0.07 * tl.get('sube', p);
-          const m = montar(r.caminoCh, chS, 0.05, THREE.MathUtils.lerp(0.12, 0.5, kIn), alto, arriba, 0.035, false, 0.05);
-          t2 = toma(tl, p, undefined, { punto: m.mira, peso: lw, arriba: m.arriba, delante: m.delante }, { punto: m.lugar, peso: lw });
-        } else if (tl.get('mira', p) > 1e-6) {
-          // Looking back home: at a point on the way home, `mira` camera distances from the sail.
-          miraP.set(tl.get('cx', p), tl.get('cy', p), tl.get('cz', p)).addScaledVector(U_CASA, tl.get('mira', p) * Math.pow(10, tl.get('ld', p)));
-          t2 = toma(tl, p, undefined, { punto: miraP, peso: 1 });
-        } else t2 = toma(tl, p);
-        return { pos: t2.pos, dir: t2.dir, up: t2.up, fov: t2.fov, lw, propio: true };
-      },
       escalera: false,
       cuenta(p) {
         const c: Cuenta = p < tl.at('nave') ? potencia(26.7, 'vela · ') : potencia(27.4);

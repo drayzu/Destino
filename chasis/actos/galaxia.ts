@@ -669,29 +669,6 @@ export const galaxia: EscenaChasis = {
         else caminoCh(chDe(p), out);
         return true;
       },
-      // The camera: a chase of its own, from encounter to encounter, the gaze going with the spark as
-      // it flies; in the bubble, behind the spark by the beat.
-      rig(p) {
-        const ch = chDe(p);
-        const lw = tl.get('lw', p);
-        const kE = THREE.MathUtils.smoothstep(ch, 0.95, 1.1);
-        const m = montar(caminoCh, ch, THREE.MathUtils.lerp(0.07, 0.03, kE), THREE.MathUtils.lerp(0.22, 0.06, kE), THREE.MathUtils.lerp(0.3 * frente(ch), 0.02, kE), V(0, 1, 0), THREE.MathUtils.lerp(0.015, 0.06, kE));
-        const fT = ch - Math.floor(ch);
-        let viaja = ch > 1.0 && ch < 5 ? THREE.MathUtils.smoothstep(fT, 0.04, 0.24) * (1 - THREE.MathUtils.smoothstep(fT, 0.8, 0.98)) : 0;
-        if (viaja > 0) {
-          const propia = toma(tl, p, tmR);
-          viaja *= THREE.MathUtils.smoothstep(propia.dir.dot(m.mira.clone().sub(propia.pos).normalize()), 0.0, 0.5);
-        }
-        const sg = p > PB && p < P_ROJO ? sgDe(p) : 0;
-        const tA = toma(p > PB && p < P_ROJO ? tlA : tl, p, tm, { punto: m.mira, peso: Math.max(lw, VIAJA * viaja), arriba: m.arriba, delante: m.delante }, { punto: m.lugar, peso: lw });
-        if (sg <= 0) return { pos: tA.pos.clone(), dir: tA.dir.clone(), up: tA.up.clone(), fov: tA.fov, lw: Math.max(lw, viaja), propio: true };
-        const mB = montar(ruta, p, 0.8, 0.25, 0.16 * frente(ch), Y, 0.38, false, 0.8);
-        const tB = toma(tl, p, tmB, { punto: mB.mira, peso: 1, arriba: mB.arriba, delante: mB.delante }, { punto: mB.lugar, peso: 1 });
-        quatDe(tA, qA);
-        quatDe(tB, qB);
-        const q = qA.clone().slerp(qB, sg);
-        return { pos: tA.pos.clone().lerp(tB.pos, sg), dir: V(0, 0, -1).applyQuaternion(q), up: V(0, 1, 0).applyQuaternion(q), fov: tA.fov + (tB.fov - tA.fov) * sg, lw: 1, propio: true };
-      },
       escalera: false,
       cuenta(p) {
         // The power: the light of every star reached (two at first, the whole galaxy at the end).

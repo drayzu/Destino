@@ -656,17 +656,6 @@ export const sistema: EscenaChasis = {
         caminoCh(p, out);
         return true;
       },
-      // The camera: the flight's own chase (vuelo.ts), which leans to each world as it passes, the
-      // same one Mercury's act goes on with; the rig's shot until the spark leaves.
-      rig(p) {
-        const lw = tl.get('lw', p);
-        const mw = tl.get('mw', p);
-        const T = seguir(p, lugar, mira);
-        const centro = V(tl.get('cx', p), tl.get('cy', p), tl.get('cz', p));
-        if (lw < 0.999) mira.lerp(centro, 1 - lw);
-        const t2 = toma(tl, p, undefined, { punto: mira, peso: mw, arriba: Y, delante: T.multiplyScalar(lw) }, { punto: lugar, peso: lw });
-        return { pos: t2.pos, dir: t2.dir, up: t2.up, fov: t2.fov, lw, propio: true };
-      },
       escalera: false,
       efectos(p) {
         // (a little speed blur in the open, where the spark goes fastest)
