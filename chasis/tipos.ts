@@ -1,0 +1,96 @@
+import type * as THREE from 'three';
+import type { Timeline } from '../estudios/timeline';
+import type { Cuenta, Rotulo } from '../estudios/placa';
+
+/**
+ * The new chassis (CHASIS.md). An act is scenery and choreography; it never places the camera.
+ *
+ * The film has ONE camera, the engine's (pelicula.ts): it rides the spark, which is one continuous
+ * path through every act, and it lets go of it for the act's own shots (the rig tracks). Every act
+ * reads the camera, already placed in its own units, and only lights and moves what it owns.
+ *
+ * Tracks the engine reads from an act's timeline (any it lacks take their default):
+ * - the rig (rig.ts): `cx cy cz az el ld ox oy oz yaw pitch roll fov`;
+ * - `lw` (0..1): how much the camera rides the spark instead of standing in the rig;
+ * - `ldm`: how far behind the spark it rides (log10, the act's units);
+ * - `alto` (degrees): how far above the spark's way; `ade` (fraction of that distance): how far
+ *   ahead of the spark it looks;
+ * - `on`, `tit` (0..1): the spark's light and its flicker.
+ */
+
+/** One frame, for an act: the camera is already where it is, in the act's own units. */
+export interface FrameActo {
+  /** Ambient seconds (still with reduced motion). */
+  time: number;
+  dt: number;
+  /** Beats into the act (clamped to it: an act drawn past its end holds its last picture). */
+  p: number;
+  W: number;
+  H: number;
+  u: number;
+  dpr: number;
+  /** The camera's focal length in device pixels. */
+  focal: number;
+  camera: THREE.PerspectiveCamera;
+  /** Where the spark is (act units), when there is one now. */
+  chispa: THREE.Vector3 | null;
+  /** Whether this act holds the camera now (false: it is the act before, still drawn across the seam). */
+  propio: boolean;
+  /** The journey's page draws its own chrome. */
+  chasis?: boolean;
+}
+
+export interface Film {
+  strength: number;
+  radius: number;
+  threshold: number;
+  exposure: number;
+}
+
+export interface Acto {
+  id: string;
+  tl: Timeline;
+  /** The group it built into (the engine places it). */
+  grupo: THREE.Group;
+  /** The camera's near and far planes in the act's units. */
+  cerca: number;
+  lejos: number;
+  /** Its film (bloom, exposure). The engine blends them across a seam. */
+  film: Film;
+  /**
+   * How the film comes into this act from the one before:
+   * - `chispa` (default): through the spark. The engine places this act's world so that its spark at
+   *   its first beat is the last act's spark at its last beat, and the camera's ride is the same
+   *   distance there: nothing to blend, the camera simply goes on. Both acts are drawn for `relevo`
+   *   beats, the last one fading.
+   * - `corte`: a cut, hidden by the last act's own cover (`tapa` at 1 there: its light filling the frame).
+   */
+  costura?: 'chispa' | 'corte';
+  /** Where the spark is at beat p (act units); false when there is none. Pure. */
+  chispa(p: number, out: THREE.Vector3): boolean;
+  /** The ride's «up» at a place (act units, unit vector); +Y when absent. */
+  arriba?(p: number, donde: THREE.Vector3, out: THREE.Vector3): THREE.Vector3;
+  /** How much the frame is covered by the act's own light or dark (0..1): a cut may happen only under it. */
+  tapa?(p: number): number;
+  /** Lights and moves what the act owns. Never touches the camera. */
+  update(f: FrameActo): void;
+  placa?(g: CanvasRenderingContext2D, f: FrameActo): void;
+  cuenta(p: number): Cuenta | null;
+  anio?(p: number): number | null;
+  rotulo(p: number): Rotulo | null;
+  outro?(p: number): number;
+  escalera?: boolean;
+  efectos?(p: number): { calor?: number; vel?: number };
+  /**
+   * What the act shows and hides on its own, by name: each a track of the timeline (0..1). The
+   * guard checks none of them comes or goes faster than the film allows (FUNDIDO_MIN beats).
+   */
+  presencias?: string[];
+  listo?: Promise<unknown>;
+}
+
+/** A study scene built for the new chassis: builds its act into the stage's root. */
+export interface EscenaChasis {
+  id: string;
+  montar(stage: import('../estudios/stage').Stage): Acto;
+}

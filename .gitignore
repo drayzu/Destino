@@ -13,3 +13,7 @@ tools/readme/
 
 # the README preview (python tools/preview_readme.py)
 tools/preview-readme.html
+
+# the chassis comparisons: frames regenerated with tools/referencia.mjs (the reference from remake 0de191a)
+docs/chasis/referencia/
+docs/chasis/nuevo/
