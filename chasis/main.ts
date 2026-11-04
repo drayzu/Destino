@@ -22,6 +22,7 @@ import { apertura } from './actos/apertura';
 import { despierta } from './actos/despierta';
 import { tierraNoche } from './actos/tierra';
 import { sistema } from './actos/sistema';
+import { mercurio } from './actos/mercurio';
 
 /**
  * Destino on the new chassis (CHASIS.md): the page. It scrolls the film, draws the plate and the
@@ -54,7 +55,7 @@ const stage = createStage(canvas, fixed);
 const spacer = document.querySelector<HTMLElement>('#spacer')!;
 
 // ---------------------------------------------------------------- the film
-const peli = crearPelicula(stage, [mente, apertura, despierta, tierraNoche, sistema]);
+const peli = crearPelicula(stage, [mente, apertura, despierta, tierraNoche, sistema, mercurio]);
 const { tramos, TOTAL } = peli;
 spacer.style.height = `${TOTAL * PX_PER_BEAT + innerHeight}px`;
 

@@ -431,7 +431,35 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     pose.quat.setFromRotationMatrix(m4);
     pose.fov = r.fov;
     pose.lw = r.lw;
+    if (pose.chispa && r.lw > 0) encuadrar(pose, r.lw);
     return pose;
+  }
+
+  /**
+   * An act's own chase keeps the spark in frame as the ride does: near the middle it is left alone;
+   * towards an edge the camera turns just enough to keep it inside a soft border (a knee per axis, by
+   * the frame's own width and height). Pure: the spark and the pose at this beat, nothing measured.
+   */
+  function encuadrar(pose: Pose, peso: number) {
+    const v = pose.chispa!.clone().sub(pose.pos).applyQuaternion(pose.quat.clone().invert());
+    if (v.z >= 0) return;
+    // (let go where the spark passes the camera: far off the axis, it cannot be followed without a lurch)
+    const ty = Math.tan(THREE.MathUtils.degToRad(pose.fov / 2));
+    const tx = ty * stage.camera.aspect;
+    const semi = Math.atan(Math.hypot(tx, ty));
+    const fuera = Math.acos(clamp(-v.z / v.length(), -1, 1));
+    const w = peso * (1 - smooth(clamp((fuera - 1.15 * semi) / 0.44, 0, 1)));
+    if (w <= 0) return;
+    const rodilla = (n: number) => {
+      const a = Math.abs(n);
+      if (a <= 0.55) return n;
+      return Math.sign(n) * (0.55 + 0.27 * Math.tanh((a - 0.55) / 0.27));
+    };
+    const ax = Math.atan2(v.x, -v.z);
+    const ay = Math.atan2(v.y, -v.z);
+    const gx = (ax - Math.atan(rodilla(Math.tan(ax) / tx) * tx)) * w;
+    const gy = (ay - Math.atan(rodilla(Math.tan(ay) / ty) * ty)) * w;
+    pose.quat.multiply(new THREE.Quaternion().setFromAxisAngle(V(0, 1, 0), -gx)).multiply(new THREE.Quaternion().setFromAxisAngle(V(1, 0, 0), gy));
   }
 
   // ---- Drawing a beat.
