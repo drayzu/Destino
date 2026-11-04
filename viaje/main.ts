@@ -220,7 +220,7 @@ playBtn.addEventListener('click', () => setAutoplay(!autoplay));
 soundBtn.addEventListener('click', toggleSound);
 plateBtn.addEventListener('click', () => showToggle(plateBtn, (plateOn = !plateOn)));
 addEventListener('keydown', (ev) => {
-  if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  if (ev.metaKey || ev.ctrlKey || ev.altKey || ev.target instanceof HTMLInputElement) return;
   const k = ev.key.toLowerCase();
   if (k === 'a') setAutoplay(!autoplay);
   if (k === 's') toggleSound();
@@ -230,8 +230,45 @@ addEventListener('keydown', (ev) => {
 let leido = '';
 let marcaOn = params.has('marca');
 addEventListener('keydown', (ev) => {
+  if (ev.target instanceof HTMLInputElement) return;
   if (!ev.metaKey && !ev.ctrlKey && !ev.altKey && ev.key.toLowerCase() === 'm') marcaOn = !marcaOn;
 });
+// The beat counter is a field: click it, type a beat, Enter goes there (Escape leaves it as it was).
+const marcaEl = document.createElement('input');
+marcaEl.type = 'text';
+marcaEl.inputMode = 'decimal';
+marcaEl.spellcheck = false;
+marcaEl.setAttribute('aria-label', 'Compás');
+Object.assign(marcaEl.style, {
+  position: 'fixed', zIndex: '20', display: 'none', width: '6ch', padding: '2px 4px', textAlign: 'right',
+  background: 'transparent', border: '0', borderBottom: '1px solid transparent', outline: 'none',
+  color: ink(0.5), textShadow: '0 0 8px rgba(0,0,0,0.9)', cursor: 'text',
+});
+marcaEl.addEventListener('focus', () => {
+  marcaEl.style.color = ink(0.95);
+  marcaEl.style.borderBottomColor = ink(0.4);
+  marcaEl.select();
+});
+marcaEl.addEventListener('blur', () => {
+  marcaEl.style.color = ink(0.5);
+  marcaEl.style.borderBottomColor = 'transparent';
+});
+marcaEl.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape') marcaEl.blur();
+  if (ev.key !== 'Enter') return;
+  const b = Number(marcaEl.value.replace(',', '.'));
+  if (Number.isFinite(b)) irA(b);
+  marcaEl.blur();
+});
+document.body.appendChild(marcaEl);
+/** Straight to beat b: the film is there at once, the page scrolled to it. */
+function irA(b: number) {
+  const x = clamp(b, 0, TOTAL);
+  setAutoplay(false);
+  P = x;
+  target = x;
+  scrollTo(0, pagina ? pagina.yDe(x) : x * PX_PER_BEAT);
+}
 const mouse = new THREE.Vector2();
 const mouseTarget = new THREE.Vector2();
 addEventListener('pointermove', (ev) => mouseTarget.set((ev.clientX / innerWidth) * 2 - 1, -((ev.clientY / innerHeight) * 2 - 1)));
@@ -654,17 +691,15 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
   outroEl.classList.toggle('is-in', !fixed && (inst.outro?.(p) ?? 0) > 0.5);
   // For reviewing: the beat, small, bottom right, so a moment can be named by its number («193.4»).
   // Off unless ?marca; M toggles it.
-  if (marcaOn && !fixed) {
-    g.save();
-    g.font = FONT.mono(11 * u);
-    g.letterSpacing = `${1 * u}px`;
-    g.textAlign = 'right';
-    g.textBaseline = 'alphabetic';
-    g.fillStyle = ink(0.5);
-    g.shadowColor = 'rgba(0,0,0,0.9)';
-    g.shadowBlur = 8 * u;
-    g.fillText(at.toFixed(1), W - 30 * u, H - 24 * u);
-    g.restore();
+  // (a field over the film, so it can be clicked and changed: see irA)
+  const verMarca = marcaOn && !fixed;
+  marcaEl.style.display = verMarca ? 'block' : 'none';
+  if (verMarca) {
+    marcaEl.style.font = FONT.mono(11 * u);
+    marcaEl.style.letterSpacing = `${1 * u}px`;
+    marcaEl.style.right = `${30 * u - 4}px`;
+    marcaEl.style.bottom = `${24 * u - 6}px`;
+    if (document.activeElement !== marcaEl) marcaEl.value = at.toFixed(1);
   }
   if (c && inst.escalera !== false) escalera(g, u, W, H, c.h, (c.a ?? 1) * vis);
 }
