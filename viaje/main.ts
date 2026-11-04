@@ -265,7 +265,8 @@ function mapa(a: Ancla, b: Ancla) {
 const mapas = new Map<Tramo, { m: THREE.Matrix4; escala: number }>();
 /** Sparks moved during a relay (to start where the last act's was), and their own place. */
 const corridas = new Map<THREE.Object3D, THREE.Vector3>();
-let huecoRelevo: { t: Tramo; v: THREE.Vector3 } | null = null;
+/** Each act's spark at its first beat (its world), for the relay into it. */
+const inicioChispa = new Map<Tramo, THREE.Vector3 | null>();
 
 const smooth = (x: number) => x * x * (3 - 2 * x);
 const camA = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), fov: 40 };
@@ -465,6 +466,17 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
   // (taking a flight on in mid air, this act is all there from the first beat: what it shares with
   // the last act, that act no longer draws)
   if (enRelevo) f.fundido = inst.continuo ? 1 : smooth(clamp((p - 0.05) / (RELEVO * 0.8), 0, 1));
+  // (where this act's spark is at its first beat, once: the relay's spark keeps its gap to it)
+  if (enRelevo && !inicioChispa.has(t)) {
+    for (const [pts, o] of corridas) {
+      pts.position.copy(o);
+      pts.updateMatrixWorld();
+    }
+    inst.update({ ...f, p: 0 });
+    const c = chispasEn(t.grupo)[0];
+    if (c) c.nube.points.updateWorldMatrix(true, false);
+    inicioChispa.set(t, c ? new THREE.Vector3(c.estela[0], c.estela[1], c.estela[2]).applyMatrix4(c.nube.points.matrixWorld) : null);
+  }
   inst.update(f);
   if (enRelevo && prev) {
     // The camera: from where the last act left it to where this act wants it, turning round our
@@ -501,15 +513,15 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
       if (!corridas.has(pts)) corridas.set(pts, pts.position.clone());
       pts.position.copy(corridas.get(pts)!);
       pts.updateMatrixWorld();
-      // (the gap between the two sparks as the relay begins, closed over it while the spark keeps its
-      // own speed: nothing to close where the acts meet exactly at the spark)
+      // (the gap between the two sparks at the relay's first beat, closed over it while the spark
+      // keeps its own speed: nothing to close where the acts meet exactly at the spark. Measured at
+      // that beat, so it is the same however the relay was reached, scrolling on or back)
       const p0 = new THREE.Vector3(sale.estela[0], sale.estela[1], sale.estela[2]).applyMatrix4(sale.nube.points.matrixWorld);
       const p1 = new THREE.Vector3(entra.estela[0], entra.estela[1], entra.estela[2]).applyMatrix4(pts.matrixWorld);
-      if (!huecoRelevo || huecoRelevo.t !== t) huecoRelevo = { t, v: p0.clone().sub(p1) };
-      const hueco = huecoRelevo.v;
+      const ini = inicioChispa.get(t);
       const lleva = 1 - smooth(clamp(p / RELEVO, 0, 1));
-      if (pts.parent && Number.isFinite(p0.x)) {
-        const enPadre = pts.parent.worldToLocal(p1.clone().addScaledVector(hueco, lleva)).sub(pts.parent.worldToLocal(p1.clone()));
+      if (pts.parent && ini && Number.isFinite(p0.x)) {
+        const enPadre = pts.parent.worldToLocal(p1.clone().addScaledVector(p0.clone().sub(ini), lleva)).sub(pts.parent.worldToLocal(p1.clone()));
         pts.position.add(enPadre);
         pts.updateMatrixWorld();
       }
@@ -547,7 +559,6 @@ function step(now: number, dt: number, at: number, soloCamara = false) {
       pts.updateMatrixWorld();
     }
     corridas.clear();
-    huecoRelevo = null;
     if (t.film) {
       stage.bloom.strength = t.film.strength;
       stage.bloom.radius = t.film.radius;
