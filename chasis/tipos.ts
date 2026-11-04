@@ -91,8 +91,12 @@ export interface Acto {
   /** A seam through the spark in mid flight, where both acts draw the same worlds: this act is all
    * there from its first beat, and the one going out (told `saliente`) leaves those worlds to it. */
   continuo?: boolean;
-  /** Where the spark is at beat p (act units); false when there is none. Pure. */
-  chispa(p: number, out: THREE.Vector3): boolean;
+  /** Where the spark is at beat p (act units), at ambient time t (seconds; a ring turning by itself
+   * carries it); false when there is none. Pure in both. */
+  chispa(p: number, out: THREE.Vector3, t: number): boolean;
+  /** Going out across a seam, its points no bigger than this many px (its far stars, seen at the next
+   * act's scale, would swell). */
+  relevoMaxPx?: number;
   /** How much the spark's way runs over a sphere round the act's origin now (0..1): the ride keeps to its height. */
   radial?(p: number): number;
   /** The ride's «up» at a place (act units, unit vector); +Y when absent. */
@@ -102,7 +106,7 @@ export interface Acto {
    * at Mumbai, level with its floor). It gets the ride (act units) when there is a spark, blends it
    * itself, and says how much it rides; null where the tracks' rig serves.
    */
-  rig?(p: number, paseo: Paseo | null): { pos: THREE.Vector3; dir: THREE.Vector3; up: THREE.Vector3; fov: number; lw: number; /** a chase of its own: the film's ride is not needed */ propio?: boolean } | null;
+  rig?(p: number, paseo: Paseo | null, t: number): { pos: THREE.Vector3; dir: THREE.Vector3; up: THREE.Vector3; fov: number; lw: number; /** a chase of its own: the film's ride is not needed */ propio?: boolean } | null;
   /** How much the spark flickers (0..1); the `tit` track when absent. */
   titila?(p: number): number;
   /** How much the frame is covered by the act's own light or dark (0..1): a cut may happen only under it. */

@@ -130,7 +130,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     }
     const a = V();
     const c = V();
-    if (!A.chispa(tramos[k - 1].largo, a) || !B.chispa(0, c)) throw new Error(`costura ${A.id} → ${B.id}: sin chispa en el encuentro`);
+    if (!A.chispa(tramos[k - 1].largo, a, 0) || !B.chispa(0, c, 0)) throw new Error(`costura ${A.id} → ${B.id}: sin chispa en el encuentro`);
     // (the ride the same distance on both sides: the camera simply goes on)
     const s = Math.pow(10, A.tl.get('mLd', tramos[k - 1].largo) - B.tl.get('mLd', 0));
     aPrev[k] = new Sim(s, a.clone().sub(c.clone().multiplyScalar(s)));
@@ -151,6 +151,8 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
   });
 
   /** The act at beat b, and the beat inside it. */
+  /** The ambient time the spark's way is read at (the frame's; 0 for the pace and the guards). */
+  let tiempo = 0;
   function enTramo(b: number) {
     let i = 0;
     for (let k = 0; k < tramos.length; k++) if (b >= tramos[k].inicio) i = k;
@@ -163,7 +165,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     const bb = clamp(b, pl.desde, pl.hasta);
     const { i, p } = enTramo(Math.min(bb, pl.hasta - 1e-9));
     if (tramos[i].plano !== tramos[j].plano) return false;
-    if (!tramos[i].acto.chispa(p, out)) return false;
+    if (!tramos[i].acto.chispa(p, out, tiempo)) return false;
     sims[i][j].aplicar(out, out);
     return true;
   }
@@ -262,7 +264,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     const pose: Pose = { i, p, pos: rig.pos.clone(), quat: new THREE.Quaternion(), fov: rig.fov, chispa: hay ? chispa : null, dist: Math.pow(10, tl.get('ld', p)), lw: hay ? lw0 : 0 };
     m4.lookAt(rig.pos, rig.pos.clone().add(rig.dir), rig.up);
     pose.quat.setFromRotationMatrix(m4);
-    const propio = A.rig ? A.rig(p, null) : null;
+    const propio = A.rig ? A.rig(p, null, tiempo) : null;
     if (!hay || (lw0 <= 0 && !A.rig) || propio?.propio) return conRig(pose, propio);
 
     // The ride: the way round the spark, sampled; its length from the spark either way.
@@ -395,7 +397,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     // through distance in logarithm, and levels the horizon on the ride's «up».
     // (an act with a rig of its own blends it with the ride itself, in its own frame)
     if (A.rig) {
-      const r = A.rig(p, { lugar: pos, mira: blanco, arriba: upP, delante: dir, quat: qRide });
+      const r = A.rig(p, { lugar: pos, mira: blanco, arriba: upP, delante: dir, quat: qRide }, tiempo);
       if (r) {
         pose.pos.copy(r.pos);
         m4.lookAt(r.pos, r.pos.clone().add(r.dir), r.up);
@@ -491,6 +493,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
    * frame for the plate. `f` gives the page's own (time, size).
    */
   function poner(b: number, f: Omit<FrameActo, 'p' | 'camera' | 'chispa' | 'propio' | 'focal' | 'presencia' | 'nubeChispa'>, soloCamara = false) {
+    tiempo = soloCamara ? 0 : f.time;
     const pose = camara(b);
     const { i, p } = pose;
     const cam = stage.camera;
@@ -531,6 +534,11 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
       const ch = pose.chispa ? inv.aplicar(pose.chispa, V()) : null;
       const luz = k === i ? (prev >= 0 ? c : 1) : 1 - smooth(clamp((p - 0.05) / (RELEVO * 0.8), 0, 1));
       t.acto.update({ ...f, p: k === i ? p : t.largo, camera: cam, focal, chispa: ch, propio: k === i, saliente: k !== i && continuo, presencia: luz, nubeChispa: chispa.nube });
+      const tope = t.acto.relevoMaxPx;
+      if (k !== i && tope) g.traverse((o) => {
+        const un = ((o as THREE.Mesh).material as THREE.ShaderMaterial | undefined)?.uniforms;
+        if (un?.uMaxPx) un.uMaxPx.value = Math.min(un.uMaxPx.value, tope * f.dpr);
+      });
     }
     cam.position.copy(pose.pos);
     cam.near = A.cerca;
