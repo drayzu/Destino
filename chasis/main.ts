@@ -378,6 +378,47 @@ const api = {
     }
     return out;
   },
+  /**
+   * The camera as the film has it now, every `h` beats of each act (tools/hornear.mjs bakes it into
+   * keys): per act its name, where it starts, how long it is, its chain (acts that map into each
+   * other) and, flat, p, position (3), gaze (3), up (3), fov, distance to what it frames, how much it
+   * rides the spark.
+   */
+  muestras(h = 0.02) {
+    const f = new THREE.Vector3();
+    const u = new THREE.Vector3();
+    return tramos.map((t) => {
+      const out: number[] = [];
+      for (let p = 0; p < t.largo - 1e-9; p += h) {
+        const pose = peli.camara(t.inicio + p);
+        f.set(0, 0, -1).applyQuaternion(pose.quat);
+        u.set(0, 1, 0).applyQuaternion(pose.quat);
+        out.push(p, pose.pos.x, pose.pos.y, pose.pos.z, f.x, f.y, f.z, u.x, u.y, u.z, pose.fov, pose.dist, pose.lw);
+      }
+      // (and its very end, just before the next act takes over)
+      const pose = peli.camara(t.inicio + t.largo - 1e-7);
+      f.set(0, 0, -1).applyQuaternion(pose.quat);
+      u.set(0, 1, 0).applyQuaternion(pose.quat);
+      out.push(t.largo, pose.pos.x, pose.pos.y, pose.pos.z, f.x, f.y, f.z, u.x, u.y, u.z, pose.fov, pose.dist, pose.lw);
+      return { id: t.acto.id, inicio: t.inicio, largo: t.largo, cadena: t.cadena, costura: t.costura, s: out };
+    });
+  },
+  /** Where the spark is, every `h` beats of each act (its units) and how lit: p, x, y, z, light; flat. */
+  chispas(h = 0.02) {
+    const c = new THREE.Vector3();
+    return tramos.map((t, i) => {
+      const out: number[] = [];
+      const poner1 = (p: number) => {
+        const b = t.inicio + p;
+        const hay = peli.chispaEn(b, i, c);
+        const luz = hay ? (t.acto.luz ? t.acto.luz(p) : t.acto.tl.get('on', p)) : 0;
+        out.push(p, hay ? c.x : 0, hay ? c.y : 0, hay ? c.z : 0, luz);
+      };
+      for (let p = 0; p < t.largo - 1e-9; p += h) poner1(p);
+      poner1(t.largo - 1e-7);
+      return out;
+    });
+  },
   /** The film with the plate, as the page shows it (JPEG data URL). */
   cuadroPlaca(b: number, now: number, q = 0.9) {
     return shot(b).toDataURL('image/jpeg', q);
