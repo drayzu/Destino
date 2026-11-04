@@ -543,7 +543,10 @@ export const apertura: Escena = {
       const kP = k1 * (1 - THREE.MathUtils.smoothstep(sc, 1.7, 1.85));
       // (and a wider hand there: the way snakes between the systems, and a camera nailed to it would
       // swing at each one)
-      const m = montar(cam, sc, 0.04 + 0.02 * k1 - 0.01 * k2 - 0.03 * kP, 0.12 - 0.02 * k1, 0.0006 - 0.0002 * k1 - 0.0002 * kP, V(0, 1, 0), 0.006 + 0.03 * kP);
+      // (the wide hand kept on through the loop's last bend, until the spark rests: narrowed where
+      // the loop turns home, the camera took that bend at once, a lurch)
+      const kS = k1 * (1 - THREE.MathUtils.smoothstep(sc, 1.9, 2.25));
+      const m = montar(cam, sc, 0.04 + 0.02 * k1 - 0.01 * k2 - 0.03 * kP, 0.12 - 0.02 * k1, 0.0006 - 0.0002 * k1 - 0.0002 * kP, V(0, 1, 0), 0.006 + 0.03 * kS);
       // (the systems all stand to one side of the way: the gaze leans that way as they go by)
       m.mira.addScaledVector(sis.fueraFijo, 0.0014 * kP);
       return m;
@@ -603,8 +606,9 @@ export const apertura: Escena = {
     // the gaze stays on it; it draws back from it, and only then, far enough, turns to the drop,
     // its centre going to the Sun: never through the drop's skin, never a turn right round)
     const finLazo = lazo.getPoint(1);
-    const enL = montarEn(2).lugar.sub(finLazo);
-    luego(0, 0.4, { ...C(finLazo), ...angulos(enL), ld: Math.log10(enL.length()) });
+    // (the camera is already out at the rig's place, watching the loop: its centre only moves onto
+    // the resting spark)
+    luego(0, 1.0, { ...C(finLazo) });
     tl.with(1.4, { lw: 0 });
     luego(0.2, 1.2, { pla: 0 });
     luego(0.6, 1.4, { vaso: 1 });
@@ -687,7 +691,11 @@ export const apertura: Escena = {
         const sc = tl.get('sc', p);
         const m = montarEn(sc);
         const lw = tl.get('lw', p);
-        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: lw, arriba: m.arriba, delante: m.delante }, { punto: m.lugar, peso: lw }));
+        // (where the spark hairpins back into its loop the camera stops riding behind it, which would
+        // turn it right round and have the spark pass through it: it stays out at the rig's place,
+        // outside the loop, its gaze on the spark as it goes round)
+        const fuera = THREE.MathUtils.smoothstep(sc, 1.45, 1.65) * (1 - THREE.MathUtils.smoothstep(sc, 2.0, 2.2));
+        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: lw, arriba: m.arriba, delante: m.delante }, { punto: m.lugar, peso: lw * (1 - fuera) }));
         camera.position.applyAxisAngle(V(0, 1, 0), galaxia.rotation.y);
         camera.up.applyAxisAngle(V(0, 1, 0), galaxia.rotation.y);
         camera.lookAt(camera.position.clone().add(tm.dir.clone().applyAxisAngle(V(0, 1, 0), galaxia.rotation.y)));
