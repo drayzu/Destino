@@ -356,8 +356,8 @@ export const despierta: EscenaChasis = {
     };
     // The ride (the film's camera): in the sea, along the nerve and in the brain, a little behind and
     // above the spark; over the Earth, tierra.ts's: low over the night side, «up» the Earth's own.
-    const RIDE_VIDA = { ldm: Math.log10(0.13), alto: 17, ade: 0.55, suave: 3, suaveMira: 1.35 };
-    const RIDE_TIERRA = { ldm: Math.log10(0.02), alto: 37, ade: 0.77, suave: 2.5, suaveMira: 4.5 };
+    const RIDE_VIDA = { mLd: Math.log10(0.13), mAlto: 17, mAde: 0.55, mSuave: 3, mSuaveMira: 1.35 };
+    const RIDE_TIERRA = { mLd: Math.log10(0.02), mAlto: 37, mAde: 0.77, mSuave: 2.5, mSuaveMira: 4.5 };
     tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: -20, el: 14, ld: 0.18, yaw: 90, pitch: -90, roll: 0, fov: 40, blanco: 1, agua: 1, cel: 1, mar: 1, toque: 0, ner: 0, crece: 0.3, cor: 0, red: 0, forma: 0, tu: 0, tierra: 0, maq: 0, sc: 0, lw: 0, on: 0, vel: 0, ...RIDE_VIDA });
 
     // The first spark: the light touches the cell, and something goes round inside it.
@@ -484,6 +484,9 @@ export const despierta: EscenaChasis = {
       },
       tapa(p) {
         return tl.get('blanco', p);
+      },
+      radial(p) {
+        return THREE.MathUtils.smoothstep(tl.get('sc', p), sTierra, sTierra + 0.35);
       },
       efectos(p) {
         return { vel: tl.get('vel', p) };

@@ -10,7 +10,7 @@ import type { Acto, EscenaChasis, Film, FrameActo } from './tipos';
  * - **One spark.** Each act says where the spark is in its own units (`chispa(p)`). Across a seam
  *   the engine places the next act's world so that its spark starts exactly where the last one's
  *   ends: the spark is one continuous way through the whole film (until a cut, under a cover).
- * - **One camera.** It rides that way: behind the spark by the act's `ldm`, its place and its gaze the
+ * - **One camera.** It rides that way: behind the spark by the act's `mLd`, its place and its gaze the
  *   way smoothed over a stretch of it (by its length, not its beats, so a fast flight and a slow
  *   drift ride alike), and the way crosses seams like any other stretch. Where an act wants a shot
  *   of its own, the camera turns from the ride to its rig (`lw`). Nothing corrects it afterwards.
@@ -118,7 +118,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     const c = V();
     if (!A.chispa(tramos[k - 1].largo, a) || !B.chispa(0, c)) throw new Error(`costura ${A.id} → ${B.id}: sin chispa en el encuentro`);
     // (the ride the same distance on both sides: the camera simply goes on)
-    const s = Math.pow(10, A.tl.get('ldm', tramos[k - 1].largo) - B.tl.get('ldm', 0));
+    const s = Math.pow(10, A.tl.get('mLd', tramos[k - 1].largo) - B.tl.get('mLd', 0));
     aPrev[k] = new Sim(s, a.clone().sub(c.clone().multiplyScalar(s)));
   }
   /** Act i's units into act j's (same shot only; identity otherwise). */
@@ -200,7 +200,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     const v = tl.get(nombre, p) || defecto;
     if (i === 0 || tramos[i - 1].plano !== tramos[i].plano || p >= RELEVO) return v;
     let a = tramos[i - 1].acto.tl.get(nombre, tramos[i - 1].largo) || defecto;
-    if (nombre === 'ldm') a -= Math.log10(aPrev[i]!.s);
+    if (nombre === 'mLd') a -= Math.log10(aPrev[i]!.s);
     return a + (v - a) * smooth(clamp(p / RELEVO, 0, 1));
   }
 
@@ -215,12 +215,13 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     const pose: Pose = { i, p, pos: rig.pos.clone(), quat: new THREE.Quaternion(), fov: rig.fov, chispa: hay ? chispa : null, dist: Math.pow(10, tl.get('ld', p)), lw: hay ? lw0 : 0 };
     m4.lookAt(rig.pos, rig.pos.clone().add(rig.dir), rig.up);
     pose.quat.setFromRotationMatrix(m4);
-    if (!hay || lw0 <= 0) return pose;
+    const propio = A.rig ? A.rig(p, null) : null;
+    if (!hay || (lw0 <= 0 && !A.rig)) return conRig(pose, propio);
 
     // The ride: the way round the spark, sampled; its length from the spark either way.
-    const D = Math.pow(10, pista(i, p, 'ldm'));
-    const LUG = pista(i, p, 'suave', LUGAR);
-    const MIR = pista(i, p, 'suaveMira', MIRA);
+    const D = Math.pow(10, pista(i, p, 'mLd'));
+    const LUG = pista(i, p, 'mSuave', LUGAR);
+    const MIR = pista(i, p, 'mSuaveMira', MIRA);
     for (let k = -N; k <= N; k++) ok[k + N] = chispaEn(b + k * PASO, i, pts[k + N]) ? 1 : 0;
     arco[N] = 0;
     for (let k = 1; k <= N; k++) {
@@ -238,6 +239,8 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     const mira = V();
     let wl = 0;
     let wm = 0;
+    let rl = 0;
+    let rm = 0;
     for (let k = -N; k <= N; k++) {
       if (!ok[k + N]) continue;
       const tb = Math.exp(-0.5 * ((k * PASO) / (k > 0 ? SIGMA_ANTES : SIGMA)) ** 2) * (paso[k + N] + 0.02 * D);
@@ -247,11 +250,20 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
       const c = um * um < 1 ? (1 - um * um) ** 2 * tb : 0;
       lugar.addScaledVector(pts[k + N], a);
       mira.addScaledVector(pts[k + N], c);
+      rl += pts[k + N].length() * a;
+      rm += pts[k + N].length() * c;
       wl += a;
       wm += c;
     }
     lugar.divideScalar(wl);
     mira.divideScalar(wm);
+    // (a way over a sphere round the act's origin: the average cuts under its surface; back up to the
+    // way's own height there)
+    const radial = A.radial ? A.radial(p) : 0;
+    if (radial > 0) {
+      lugar.setLength(lugar.length() + (rl / wl - lugar.length()) * radial);
+      mira.setLength(mira.length() + (rm / wm - mira.length()) * radial);
+    }
     // Which way it goes: the slope of the way (a line fitted through it by its length), over a stretch
     // never shorter than the way covered in TIEMPO_MIN beats (a fast spark that turns sharply turns the
     // camera over at least that long, never at once); where the spark rests, the way it last came by.
@@ -303,9 +315,9 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     const upP = arriba.clone().addScaledVector(dir, -arriba.dot(dir));
     if (upP.lengthSq() < 1e-12) upP.copy(rig.up);
     upP.normalize();
-    const alto = THREE.MathUtils.degToRad(pista(i, p, 'alto'));
+    const alto = THREE.MathUtils.degToRad(pista(i, p, 'mAlto'));
     const pos = lugar.clone().addScaledVector(dir, -D * Math.cos(alto)).addScaledVector(upP, D * Math.sin(alto));
-    const blanco = mira.clone().addScaledVector(dir, pista(i, p, 'ade') * D);
+    const blanco = mira.clone().addScaledVector(dir, pista(i, p, 'mAde') * D);
     const mirada = blanco.clone().sub(pos).normalize();
     // The spark stays in frame by construction: where looking ahead of it would leave it (the
     // smoothed one, so its own jolts are not copied) near the edge, the gaze turns back to it softly.
@@ -334,6 +346,20 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
 
     // From the rig to the ride: the rig's own blend (rig.ts), which turns round what it looks at and
     // through distance in logarithm, and levels the horizon on the ride's «up».
+    // (an act with a rig of its own blends it with the ride itself, in its own frame)
+    if (A.rig) {
+      const r = A.rig(p, { lugar: pos, mira: blanco, arriba: upP, delante: dir, quat: qRide });
+      if (r) {
+        pose.pos.copy(r.pos);
+        m4.lookAt(r.pos, r.pos.clone().add(r.dir), r.up);
+        pose.quat.setFromRotationMatrix(m4);
+        pose.fov = r.fov;
+        pose.lw = r.lw;
+        pose.dist = Math.exp(Math.log(pose.dist) * (1 - r.lw) + Math.log(D) * r.lw);
+        return pose;
+      }
+    }
+    if (lw0 <= 0) return pose;
     const w = smooth(lw0);
     if (w >= 1) {
       pose.pos.copy(pos);
@@ -347,6 +373,17 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     }
     void qRide;
     pose.dist = Math.exp(Math.log(pose.dist) * (1 - w) + Math.log(D) * w);
+    return pose;
+  }
+
+  /** The pose from an act's own rig, where it has one now. */
+  function conRig(pose: Pose, r: ReturnType<NonNullable<Acto['rig']>>) {
+    if (!r) return pose;
+    pose.pos.copy(r.pos);
+    m4.lookAt(r.pos, r.pos.clone().add(r.dir), r.up);
+    pose.quat.setFromRotationMatrix(m4);
+    pose.fov = r.fov;
+    pose.lw = 0;
     return pose;
   }
 

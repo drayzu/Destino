@@ -28,10 +28,10 @@ Destino se rompía cada vez que se le agregaba algo. Había cuatro causas:
 |---|---|
 | `cx cy cz az el ld ox oy oz yaw pitch roll fov` | el rig (`estudios/rig.ts`) |
 | `lw` | cuánto sigue a la chispa (0..1) |
-| `ldm` | a qué distancia detrás de la chispa (log10, unidades del acto) |
-| `alto` | cuánto más arriba que el camino (grados) |
-| `ade` | cuánto mira por delante de la chispa (fracción de la distancia) |
-| `suave`, `suaveMira` | cuánto camino promedia el lugar y la mirada (en distancias; 2,5 y 1 por defecto) |
+| `mLd` | a qué distancia detrás de la chispa (log10, unidades del acto) |
+| `mAlto` | cuánto más arriba que el camino (grados) |
+| `mAde` | cuánto mira por delante de la chispa (fracción de la distancia) |
+| `mSuave`, `mSuaveMira` | cuánto camino promedia el lugar y la mirada (en distancias; 2,5 y 1 por defecto) |
 | `on`, `tit` | la luz de la chispa y su parpadeo |
 
 ## Antes de cada commit

@@ -541,16 +541,16 @@ export const apertura: EscenaChasis = {
     };
     // The ride (the film's camera, chasis/pelicula.ts): its distances, the old ride's in world units.
     // Out from the Sun on our radio's front: a straight way, ridden close and level.
-    const RIDE_VOZ = { ldm: Math.log10(0.0046), alto: 7.4, ade: 1.0, suave: 0.6, suaveMira: 0.3 };
+    const RIDE_VOZ = { mLd: Math.log10(0.0046), mAlto: 7.4, mAde: 1.0, mSuave: 0.6, mSuaveMira: 0.3 };
     // Among the planets: closer behind the spark, so they go by near; a wide hand (the way bends
     // between the systems, and a camera nailed to it would swing at each).
-    const RIDE_PASO = { ldm: Math.log10(0.00037), alto: 12, ade: 1.0, suave: 2.6, suaveMira: 1.2 };
+    const RIDE_PASO = { mLd: Math.log10(0.00037), mAlto: 12, mAde: 1.0, mSuave: 2.6, mSuaveMira: 1.2 };
     // The dive to the yellow star.
-    const RIDE_SOL = { ldm: Math.log10(0.0055), alto: 4, ade: 0.7, suave: 0.6, suaveMira: 0.3 };
+    const RIDE_SOL = { mLd: Math.log10(0.0055), mAlto: 4, mAde: 0.7, mSuave: 0.6, mSuaveMira: 0.3 };
     /** Where the ride stands while the spark rests at the end of its bend (the rig meets it there). */
     const lugarEnReposo = (r: typeof RIDE_PASO) => {
-      const D = Math.pow(10, r.ldm);
-      const a = THREE.MathUtils.degToRad(r.alto);
+      const D = Math.pow(10, r.mLd);
+      const a = THREE.MathUtils.degToRad(r.mAlto);
       return finPase.clone().addScaledVector(dirFin, -D * Math.cos(a)).add(V(0, D * Math.sin(a), 0));
     };
 

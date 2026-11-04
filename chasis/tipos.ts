@@ -12,9 +12,10 @@ import type { Cuenta, Rotulo } from '../estudios/placa';
  * Tracks the engine reads from an act's timeline (any it lacks take their default):
  * - the rig (rig.ts): `cx cy cz az el ld ox oy oz yaw pitch roll fov`;
  * - `lw` (0..1): how much the camera rides the spark instead of standing in the rig;
- * - `ldm`: how far behind the spark it rides (log10, the act's units);
- * - `alto` (degrees): how far above the spark's way; `ade` (fraction of that distance): how far
- *   ahead of the spark it looks;
+ * - `mLd`: how far behind the spark it rides (log10, the act's units);
+ * - `mAlto` (degrees): how far above the spark's way; `mAde` (fraction of that distance): how far
+ *   ahead of the spark it looks; `mSuave`, `mSuaveMira`: how much way its place and gaze smooth
+ *   (in ride distances). (The `m` keeps them apart from an act's own tracks: tierra's `alto`.)
  * - `on`, `tit` (0..1): the spark's light and its flicker.
  */
 
@@ -38,6 +39,15 @@ export interface FrameActo {
   propio: boolean;
   /** The journey's page draws its own chrome. */
   chasis?: boolean;
+}
+
+/** The ride at a beat (act units): where the camera would stand, the point it would look at, its up and the way ahead. */
+export interface Paseo {
+  lugar: THREE.Vector3;
+  mira: THREE.Vector3;
+  arriba: THREE.Vector3;
+  delante: THREE.Vector3;
+  quat: THREE.Quaternion;
 }
 
 export interface Film {
@@ -68,8 +78,16 @@ export interface Acto {
   costura?: 'chispa' | 'corte';
   /** Where the spark is at beat p (act units); false when there is none. Pure. */
   chispa(p: number, out: THREE.Vector3): boolean;
+  /** How much the spark's way runs over a sphere round the act's origin now (0..1): the ride keeps to its height. */
+  radial?(p: number): number;
   /** The ride's «up» at a place (act units, unit vector); +Y when absent. */
   arriba?(p: number, donde: THREE.Vector3, out: THREE.Vector3): THREE.Vector3;
+  /**
+   * A shot of the act's own where the rig tracks will not do (a rig in a turned frame: tierra's hall
+   * at Mumbai, level with its floor). It gets the ride (act units) when there is a spark, blends it
+   * itself, and says how much it rides; null where the tracks' rig serves.
+   */
+  rig?(p: number, paseo: Paseo | null): { pos: THREE.Vector3; dir: THREE.Vector3; up: THREE.Vector3; fov: number; lw: number } | null;
   /** How much the frame is covered by the act's own light or dark (0..1): a cut may happen only under it. */
   tapa?(p: number): number;
   /** Lights and moves what the act owns. Never touches the camera. */

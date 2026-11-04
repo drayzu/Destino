@@ -174,7 +174,7 @@ export const mente: EscenaChasis = {
     const ATRAS = 0.009 * largoTotal;
     const ALTO = 0.085;
     const D = Math.hypot(ATRAS, ALTO);
-    const ride = { ldm: Math.log10(D), alto: THREE.MathUtils.radToDeg(Math.atan2(ALTO, ATRAS)), ade: (0.02 * 0.35 * largoTotal) / D, suave: (0.03 * 2.2 * largoTotal) / D, suaveMira: (0.03 * largoTotal) / D };
+    const ride = { mLd: Math.log10(D), mAlto: THREE.MathUtils.radToDeg(Math.atan2(ALTO, ATRAS)), mAde: (0.02 * 0.35 * largoTotal) / D, mSuave: (0.03 * 2.2 * largoTotal) / D, mSuaveMira: (0.03 * largoTotal) / D };
     tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 20, el: 8, ld: 1.0, yaw: 90, pitch: -90, roll: 0, fov: 40, red: 0, brota: 0, tu: 1, cue: 1, sc: 0, on: 0, lw: 0, vel: 0, ...ride });
 
     tl.label('pensamiento').caption(4.0, 'Un pensamiento', 'Estás pensando. Eso cuesta unos veinte vatios.');
