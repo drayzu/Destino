@@ -533,6 +533,7 @@ export const apertura: Escena = {
       const t = Math.min(sv - 2, 1);
       return out.copy(finPaseR).lerp(S, t);
     };
+    const rectaV = V();
     /** The camera riding the spark at `sc` (galaxy frame). */
     const montarEn = (sc: number) => {
       // (the ride's distances change from leg to leg gradually, never at once)
@@ -546,7 +547,13 @@ export const apertura: Escena = {
       // (once among the planets, the way behind the spark is the planets' way drawn back straight
       // past P, not the way it came from the Sun: that corner at P, averaged behind the spark,
       // swung the camera as the ride took over)
-      const cam: Camino = (sv, out) => (sc > 0.99 && sv < 1 ? out.copy(P).addScaledVector(salida, largoPase * (sv - 1)) : camino(Math.min(sv, tope), out));
+      // (taken on gradually as the spark comes to P: switched at once, the camera jumped)
+      const kRecta = THREE.MathUtils.smoothstep(sc, 0.8, 1.0);
+      const cam: Camino = (sv, out) => {
+        camino(Math.min(sv, tope), out);
+        if (sv < 1 && kRecta > 0) out.lerp(rectaV.copy(P).addScaledVector(salida, largoPase * (sv - 1)), kRecta);
+        return out;
+      };
       // (among the planets, closer behind the spark, so they go by near; back to its distance before
       // the loop turns home)
       const kP = k1 * (1 - THREE.MathUtils.smoothstep(sc, 1.7, 1.85));

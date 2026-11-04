@@ -806,6 +806,10 @@ const api = {
     grabando = true;
   },
   /** One frame of the film at beat b, ambient time `now` (ms), as a JPEG data URL (needs ?cap=WxH). */
+  /** Debug: draws the film at beat b, ambient time `now` (ms), and nothing more (for reading the canvas back). */
+  dibujar(b: number, now: number) {
+    step(now, 1 / 30, b);
+  },
   cuadro(b: number, now: number, q = 0.95) {
     step(now, 1 / 30, b);
     return canvas.toDataURL('image/jpeg', q);
