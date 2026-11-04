@@ -103,6 +103,8 @@ export interface Acto {
    * itself, and says how much it rides; null where the tracks' rig serves.
    */
   rig?(p: number, paseo: Paseo | null): { pos: THREE.Vector3; dir: THREE.Vector3; up: THREE.Vector3; fov: number; lw: number; /** a chase of its own: the film's ride is not needed */ propio?: boolean } | null;
+  /** How much the spark flickers (0..1); the `tit` track when absent. */
+  titila?(p: number): number;
   /** How much the frame is covered by the act's own light or dark (0..1): a cut may happen only under it. */
   tapa?(p: number): number;
   /** Lights and moves what the act owns. Never touches the camera. */

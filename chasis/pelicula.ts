@@ -554,7 +554,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
         z.copy(a);
         if (largo > 0.7 * D) break;
       }
-      chispa.update(camino.f, b, atras / 55, on, A.tl.get('tit', p), pose.pos, focal, f.dpr, f.time);
+      chispa.update(camino.f, b, atras / 55, on, A.titila ? A.titila(p) : A.tl.get('tit', p), pose.pos, focal, f.dpr, f.time);
       chispa.nube.u.uFundido.value = 1;
       chispa.nube.u.uEscalaMundo.value = 1;
     }
