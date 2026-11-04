@@ -53,5 +53,5 @@ node tools/comparar.mjs docs/chasis/referencia docs/chasis/nuevo docs/chasis/x.j
 - Portados: `mente`, `apertura` y `despierta` (`chasis/actos/`), compases 0–74. La página es `chasis/index.html`.
 - La costura mente → apertura es continua por construcción. Apertura → despierta es un corte bajo la luz de la estrella.
 - El giro de la galaxia (`giro`) se quitó: la galaxia giraba junto con la cámara, así que en pantalla no se veía nada.
-- Pendiente: las mezclas entre rig y seguimiento donde el rig queda delante de la chispa mirándola (despierta 64–67 y la célula 58–61) giran rápido. Hay que arreglarlas en la coreografía, no en el motor.
+- Arreglado (4 nov): despierta 58–61 (la esquina del nervio al borde, ahora curva) y 64–67 (la chispa llega a «tú» de lado; la cámara ya no se adelanta al camino que la chispa aún no toma). Giro máximo 0–74: 236 °/compás (antes del chasis, 403).
 - Pendiente: la precisión. La cámara no está en el origen; three.js compone las matrices en doble precisión. Lo que falta es que cada objeto que se ve de muy cerca tenga su propio origen local, como ya hace `enTorno`.
