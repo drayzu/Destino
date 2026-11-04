@@ -265,7 +265,7 @@ export const despierta: Escena = {
         move: /* glsl */ `
           p *= uCrece;
           p.y += 0.05 * sin(uTime * 0.8);
-          float chispa = aKind < 0.5 ? smoothstep(0.88, 1.0, fract(aDelay * 2.0 - uTime * 0.7)) * 4.0 : 0.0;
+          float chispa = aKind < 0.5 ? (smoothstep(0.88, 0.952, fract(aDelay * 2.0 - uTime * 0.7)) * (1.0 - smoothstep(0.952, 1.0, fract(aDelay * 2.0 - uTime * 0.7)))) * 4.0 : 0.0;
           // (each point lit as the net reaches it, softly, not switched on)
           em *= uNer * (1.0 + chispa) * smoothstep(aDelay - 0.02, aDelay + 0.05, uNer * 1.2 + 0.05);
         `,
@@ -296,7 +296,7 @@ export const despierta: Escena = {
             uniform vec3 uLuz, uFria, uCamW;
           `,
           move: /* glsl */ `
-            float pulso = aDat.x > 0.5 ? smoothstep(0.86, 1.0, fract(aDat.y - uTime * 0.5 + aDat.z * 9.0)) * 3.5 * (1.0 - uK) : 0.0;
+            float pulso = aDat.x > 0.5 ? (smoothstep(0.86, 0.944, fract(aDat.y - uTime * 0.5 + aDat.z * 9.0)) * (1.0 - smoothstep(0.944, 1.0, fract(aDat.y - uTime * 0.5 + aDat.z * 9.0)))) * 3.5 * (1.0 - uK) : 0.0;
             // On the Earth: the colour of night lights; the biggest knots turn cold white (the machines).
             vec3 noche = uLuz * (0.25 + 0.7 * aDat.w);
             em = mix(em, noche, uK) * (1.0 + pulso);
@@ -334,7 +334,7 @@ export const despierta: Escena = {
             varying vec2 vT;
             void main() {
               // (a faint fibre, a spark running along it now and then, as the points' pulses)
-              float pulso = smoothstep(0.86, 1.0, fract(vT.x - uTime * 0.5 + vT.y * 9.0)) * 3.5;
+              float pulso = (smoothstep(0.86, 0.944, fract(vT.x - uTime * 0.5 + vT.y * 9.0)) * (1.0 - smoothstep(0.944, 1.0, fract(vT.x - uTime * 0.5 + vT.y * 9.0)))) * 3.5;
               gl_FragColor = vec4(vec3(1.0, 0.5, 0.42) * (0.12 + pulso * 0.5) * uOn * uFundido, 0.0);
             }
           `,

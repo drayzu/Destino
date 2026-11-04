@@ -279,7 +279,7 @@ export const estrella: Escena = {
           uniform vec3 uTeal, uAzul;
         `,
         move: /* glsl */ `
-          float pulso = aDat.x > 0.5 ? smoothstep(0.86, 1.0, fract(aDat.y - uTime * 0.55 + aDat.z * 9.0)) * 3.5 : 0.0;
+          float pulso = aDat.x > 0.5 ? (smoothstep(0.86, 0.944, fract(aDat.y - uTime * 0.55 + aDat.z * 9.0)) * (1.0 - smoothstep(0.944, 1.0, fract(aDat.y - uTime * 0.55 + aDat.z * 9.0)))) * 3.5 : 0.0;
           vec3 tinte = mix(uTeal, uAzul, uFrioR);
           em = tinte * length(em) * 0.6 * (1.0 + pulso);
           em *= uRed;

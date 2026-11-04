@@ -150,11 +150,19 @@ export const mente: Escena = {
           // The network comes on round «tú», from near to far.
           float dO = length(p);
           em *= uRed * (1.0 - smoothstep(uBrota - 1.2, uBrota, dO));
-          // Each neuron flares as the spark passes.
+          // Each neuron warms as the spark passes (gently: a sharp flare round a spark the camera rides
+          // just behind lit the whole frame at once).
           float dC = length(p - uChispa);
-          em *= 1.0 + 3.0 * exp(-dC * dC / 0.08);
+          em *= 1.0 + 1.4 * exp(-dC * dC / 0.12);
           // Its own small activity.
-          if (aKind < 0.5) em *= 0.7 + 0.3 * sin(uTime * (1.0 + seed * 3.0) + seed * 50.0);
+          if (aKind < 0.5) em *= 0.8 + 0.2 * sin(uTime * (1.0 + seed * 3.0) + seed * 50.0);
+        `,
+        // (what passes right by the camera fades instead of filling the frame: a dendrite brushing the
+        // lens was a blink of light)
+        post: /* glsl */ `
+          float dCam = length(mv.xyz);
+          em *= smoothstep(0.012, 0.05, dCam);
+          occ *= smoothstep(0.012, 0.05, dCam);
         `,
         uniforms: { uRed: { value: 0 }, uChispa: { value: V() }, uBrota: { value: 0 } },
       }),
@@ -224,7 +232,10 @@ export const mente: Escena = {
         red.u.uBrota.value = tl.get('brota', p);
         chispa.update(camino, sc, 0.0006, tl.get('on', p), 0, camera.position, f.focal, f.dpr, t);
         red.u.uChispa.value.copy(chispa.pos);
-        tu.u.uGain.value = tl.get('tu', p) * (1 + 0.22 * Math.sin(t * 1.5));
+        // («tú» gives way as the camera goes through it after the spark: its dots, met at the lens, were
+        // a burst of teal)
+        const dTu = camera.position.length();
+        tu.u.uGain.value = tl.get('tu', p) * (1 + 0.22 * Math.sin(t * 1.5)) * THREE.MathUtils.smoothstep(dTu, 0.16, 0.34);
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
         red.u.uMaxPx.value = 5 * f.dpr;
         void TEAL;

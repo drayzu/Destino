@@ -891,4 +891,4 @@ const api = {
     return [out.width, out.height];
   },
 };
-if (params.has('debug')) Object.assign(window, { viaje: api, escena: stage.scene });
+if (params.has('debug')) Object.assign(window, { viaje: api, escena: stage.scene, stage });

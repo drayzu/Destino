@@ -305,7 +305,7 @@ export const mercurio: Escena = {
       materia(rielDatos(), {
         pre: /* glsl */ `uniform float uRiel;`,
         move: /* glsl */ `
-          float pulso = smoothstep(0.86, 1.0, fract(aKind * 6.0 + uTime * 1.1));
+          float pulso = (smoothstep(0.86, 0.944, fract(aKind * 6.0 + uTime * 1.1)) * (1.0 - smoothstep(0.944, 1.0, fract(aKind * 6.0 + uTime * 1.1))));
           em *= uRiel * (0.35 + 4.0 * pulso) * step(aKind, uRiel * 1.05);
         `,
         uniforms: { uRiel: { value: 0 } },

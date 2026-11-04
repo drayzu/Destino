@@ -346,7 +346,7 @@ export const vela: Escena = {
             float c = abs(dot(normalize(vN), normalize(-vV)));
             float luz = pow(c, 6.0) + 0.2 * pow(c, 1.5);
             float v = vUv.y;
-            float pulso = smoothstep(0.82, 1.0, fract(v * 18.0 - uTime * 1.6));
+            float pulso = (smoothstep(0.82, 0.928, fract(v * 18.0 - uTime * 1.6)) * (1.0 - smoothstep(0.928, 1.0, fract(v * 18.0 - uTime * 1.6))));
             float extremos = smoothstep(0.0, 0.1, v) * (1.0 - smoothstep(0.992, 1.0, v));
             gl_FragColor = vec4(vec3(0.45, 0.95, 0.82) * luz * (0.45 + 1.1 * pulso) * extremos * 0.8 * uHaz * uFundido, 0.0);
           }

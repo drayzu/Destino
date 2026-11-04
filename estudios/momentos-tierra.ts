@@ -167,7 +167,7 @@ export const GLSL_RED = {
       float cabeza = exp(-dF * dF / (2.0 * 0.01 * 0.01));
       float estela = llego * exp(-max(dF, 0.0) / 0.07);
       // (and after it, the data keeps flowing: dashes running out along every cable)
-      float tren = smoothstep(0.7, 1.0, fract((aKind - uTime * 0.1) / 0.05)) * smoothstep(0.0, 0.15, dF);
+      float tren = (smoothstep(0.7, 0.88, fract((aKind - uTime * 0.1) / 0.05)) * (1.0 - smoothstep(0.88, 1.0, fract((aKind - uTime * 0.1) / 0.05)))) * smoothstep(0.0, 0.15, dF);
       em *= (cabeza * 3.0 + estela * 1.8) * mix(0.25, 1.0, smoothstep(0.0, 0.12, aKind)) + llego * uResto * (0.35 + 1.1 * tren);
       sz *= 1.0 + 1.5 * cabeza;
     }
