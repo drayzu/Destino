@@ -509,16 +509,29 @@ export const apertura: Escena = {
     const dirFin = salida.clone().applyAxisAngle(V(0, 1, 0), THREE.MathUtils.degToRad(80));
     const finPase = P.clone().addScaledVector(salida, 0.009).addScaledVector(lado, 0.006).add(V(0, 0.0005, 0));
     const pase = new THREE.CubicBezierCurve3(P.clone(), P.clone().addScaledVector(salida, 0.005), finPase.clone().addScaledVector(dirFin, -0.004), finPase.clone());
+    // The systems stand right on that bend: the spark does not just go by them, it threads through
+    // each, past its star between its first orbits, the star on one side and then the other, a little
+    // over or under its planets' plane. (The way stays the one smooth bend, the camera riding behind:
+    // a way that zigzagged through the systems where they stood swung it at each.)
+    const sis = sistemas(pase);
+    const ALTO_PASO = 0.00012;
+    sis.S.forEach((st, i) => {
+      const f = [0.14, 0.32, 0.5, 0.68, 0.85][i];
+      const t = pase.getTangentAt(f);
+      const n = st.n.clone().normalize();
+      const ladoP = n.clone().cross(t).normalize().multiplyScalar(i % 2 ? 1 : -1);
+      const d = (st.planetas[0].R + st.planetas[1].R) / 2;
+      st.c.copy(pase.getPointAt(f)).addScaledVector(ladoP, d).addScaledVector(n, ALTO_PASO * (i % 2 ? 1 : -1));
+    });
+    const largoPase = pase.getLength();
+    const finPaseR = finPase;
     // (an even pace along it: the scene's own easing brings it to rest; slowing it here as well let
     // the camera, which rides a stretch of way behind, catch it up)
-    const uPase = (sv: number) => THREE.MathUtils.clamp(sv - 1, 0, 1);
-    const largoPase = pase.getLength();
-    const sis = sistemas(pase);
     const camino: Camino = (sv, out) => {
       if (sv <= 1) return out.copy(S).lerp(P, Math.max(sv, -0.3));
-      if (sv <= 2) return out.copy(pase.getPointAt(uPase(sv)));
+      if (sv <= 2) return out.copy(pase.getPointAt(THREE.MathUtils.clamp(sv - 1, 0, 1)));
       const t = Math.min(sv - 2, 1);
-      return out.copy(finPase).lerp(S, t);
+      return out.copy(finPaseR).lerp(S, t);
     };
     /** The camera riding the spark at `sc` (galaxy frame). */
     const montarEn = (sc: number) => {
@@ -542,18 +555,19 @@ export const apertura: Escena = {
       // (the wide hand kept on through the loop's last bend, until the spark rests: narrowed where
       // the loop turns home, the camera took that bend at once, a lurch)
       const kS = k1 * (1 - THREE.MathUtils.smoothstep(sc, 1.9, 2.25));
-      const m = montar(cam, sc, 0.04 + 0.02 * k1 - 0.01 * k2 - 0.03 * kP, 0.12 - 0.02 * k1, 0.0006 - 0.0002 * k1 - 0.0002 * kP, V(0, 1, 0), 0.006 + 0.03 * kS);
-      // (the systems all stand to one side of the way: the gaze leans that way as they go by)
-      m.mira.addScaledVector(sis.fueraFijo, 0.0003 * kP);
+      const m = montar(cam, sc, 0.04 + 0.02 * k1 - 0.01 * k2 - 0.03 * kP, 0.12 - 0.02 * k1, 0.0006 - 0.0002 * k1 - 0.00032 * kP, V(0, 1, 0), 0.006 + 0.03 * kS);
       return m;
     };
 
     // (the systems the spark flies past: their stars, their orbits, their planets)
-    const sisEstrellas = add(materia(estrellasDatos(sis.S), { pre: `uniform float uSis;`, move: `em *= uSis;`, uniforms: { uSis: { value: 0 } } }), galaxia, 3);
+    // (what goes right by the lens fades instead of filling the frame for an instant: a planet or a
+    // star brushed past was a flash of light)
+    const LENTE = /* glsl */ `float dLente = length(mv.xyz); em *= smoothstep(0.00012, 0.0005, dLente); occ *= smoothstep(0.00012, 0.0005, dLente);`;
+    const sisEstrellas = add(materia(estrellasDatos(sis.S), { pre: `uniform float uSis;`, move: `em *= uSis;`, post: LENTE, uniforms: { uSis: { value: 0 } } }), galaxia, 3);
     sisEstrellas.u.uFuente.value = 1;
-    const sisOrbitas = add(materia(orbitasDatos(sis.S), { pre: `uniform float uSis;`, move: `em *= uSis;`, uniforms: { uSis: { value: 0 } } }), galaxia, 3);
+    const sisOrbitas = add(materia(orbitasDatos(sis.S), { pre: `uniform float uSis;`, move: `em *= uSis;`, post: LENTE, uniforms: { uSis: { value: 0 } } }), galaxia, 3);
     const pd = planetasDatos(sis.S);
-    const sisPlanetas = add(materia(pd.data, { ...GLSL_PLANETAS, uniforms: { uSis: { value: 0 } }, extra: { aC: [pd.C, 3], aU: [pd.U, 3], aV: [pd.W, 3], aO: [pd.O, 3] } }), galaxia, 3);
+    const sisPlanetas = add(materia(pd.data, { ...GLSL_PLANETAS, post: LENTE, uniforms: { uSis: { value: 0 } }, extra: { aC: [pd.C, 3], aU: [pd.U, 3], aV: [pd.W, 3], aO: [pd.O, 3] } }), galaxia, 3);
 
     tl.set({ ...C(P), ox: 0, oy: 0, oz: 0, az: 0, el: 4, ld: -1.2, yaw: 90, pitch: -90, roll: 0, fov: 42, tu: 0, cue: 0, voz: 0, vozOn: 1, cielo: 0.4, gal: 0.4, titulo: 0, vatios: 0, giro: 0, pla: 0, vaso: 0, ola: 0, olaOn: 0, solp: 0, luzSol: 0, sc: 0, lw: 1, on: 1, tit: 0, frenteV: 0, punto: 0, velo: 1, cerca: 1 });
 
@@ -601,7 +615,7 @@ export const apertura: Escena = {
     // (the rig starts round the resting spark from where the ride already is, so letting go of it
     // the gaze stays on it; it draws back from it, and only then, far enough, turns to the drop,
     // its centre going to the Sun: never through the drop's skin, never a turn right round)
-    const finLazo = finPase;
+    const finLazo = finPaseR;
     const enL = montarEn(2).lugar.sub(finLazo);
     luego(0, 0.4, { ...C(finLazo), ...angulos(enL), ld: Math.log10(enL.length()) });
     // (letting go of the ride only once the rig stands where the ride is: let go while it still moved
