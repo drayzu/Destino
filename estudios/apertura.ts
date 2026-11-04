@@ -498,34 +498,27 @@ export const apertura: Escena = {
     const G = V();
     const hacia = (a: THREE.Vector3, b: THREE.Vector3, t: number) => a.clone().lerp(b, t);
     // The spark's way (galaxy frame): out from the Sun with our radio to the neighbourhood P (s 0..1),
-    // a loop among its stars with planets (1..2), and back to the yellow star (2..3).
-    const lazo = new THREE.CatmullRomCurve3([P.clone(), P.clone().add(V(0.007, 0.001, 0.004)), P.clone().add(V(0.004, -0.0015, 0.011)), P.clone().add(V(-0.006, 0.001, 0.008)), P.clone().add(V(-0.002, 0.0005, 0.001))]);
-    // Planets everywhere: a string of stars between P and the loop's third point, each with its
-    // planets, that the spark flies past; it joins the loop where the loop turns home (its last
-    // quarter, the way to the yellow star, stays as it was).
-    // (a wide bend from P to the loop's third point, arriving
-    // the way the loop goes on from there and as fast: one long turn, always the same way)
-    const L3 = lazo.points[3];
-    const tL3 = lazo.getTangent(0.75).normalize();
-    const vL3 = lazo.getPoint(0.752).distanceTo(lazo.getPoint(0.748)) / 0.004;
+    // one wide bend among its stars with planets, coming to rest (1..2), and on to the yellow star (2..3).
     // (it sets off straight away from where the camera waits, at azimuth 96: the camera falls in
     // behind it instead of the spark passing it by)
     const salida = V(Math.sin(THREE.MathUtils.degToRad(276)), 0, Math.cos(THREE.MathUtils.degToRad(276)));
-    const pase = new THREE.CubicBezierCurve3(P.clone(), P.clone().addScaledVector(salida, 0.008), L3.clone().addScaledVector(tL3, -0.008), L3.clone());
+    // Planets everywhere: a string of stars along the bend, each with its planets, that the spark
+    // flies past. (One long turn of some 80°, always the same way: it used to hairpin back into a
+    // loop, and the camera riding behind it turned right round as the spark came back through it.)
+    const lado = V(0, 1, 0).cross(salida).normalize();
+    const dirFin = salida.clone().applyAxisAngle(V(0, 1, 0), THREE.MathUtils.degToRad(80));
+    const finPase = P.clone().addScaledVector(salida, 0.009).addScaledVector(lado, 0.006).add(V(0, 0.0005, 0));
+    const pase = new THREE.CubicBezierCurve3(P.clone(), P.clone().addScaledVector(salida, 0.005), finPase.clone().addScaledVector(dirFin, -0.004), finPase.clone());
+    // (an even pace along it: the scene's own easing brings it to rest; slowing it here as well let
+    // the camera, which rides a stretch of way behind, catch it up)
+    const uPase = (sv: number) => THREE.MathUtils.clamp(sv - 1, 0, 1);
     const largoPase = pase.getLength();
-    // (its pace along it: from an even start to the loop's own speed where it joins it)
-    const X_PASE = 0.75;
-    const v0Pase = Math.max(0.35 * (largoPase / X_PASE), (2 * largoPase) / X_PASE - vL3);
-    const recorrido = (x: number) => v0Pase * x + ((vL3 - v0Pase) * x * x) / (2 * X_PASE);
-    const uPase = (sv: number) => THREE.MathUtils.clamp(recorrido(sv - 1) / recorrido(X_PASE), 0, 1);
     const sis = sistemas(pase);
     const camino: Camino = (sv, out) => {
       if (sv <= 1) return out.copy(S).lerp(P, Math.max(sv, -0.3));
-      if (sv <= 1 + X_PASE) return out.copy(pase.getPointAt(uPase(sv)));
-      if (sv <= 2) return out.copy(lazo.getPoint(sv - 1));
-      const fin = lazo.getPoint(1);
+      if (sv <= 2) return out.copy(pase.getPointAt(uPase(sv)));
       const t = Math.min(sv - 2, 1);
-      return out.copy(fin).lerp(S, t);
+      return out.copy(finPase).lerp(S, t);
     };
     /** The camera riding the spark at `sc` (galaxy frame). */
     const montarEn = (sc: number) => {
@@ -537,7 +530,10 @@ export const apertura: Escena = {
       // (and while the spark rests at the end of its loop, the gaze does not peek down the long way
       // to the yellow star; that way opens as the spark takes it)
       const tope = sc <= 2 ? 2 : 2 + (sc - 2) * 3;
-      const cam: Camino = (sv, out) => camino(Math.min(sv, tope), out);
+      // (once among the planets, the way behind the spark is the planets' way drawn back straight
+      // past P, not the way it came from the Sun: that corner at P, averaged behind the spark,
+      // swung the camera as the ride took over)
+      const cam: Camino = (sv, out) => (sc > 0.99 && sv < 1 ? out.copy(P).addScaledVector(salida, largoPase * (sv - 1)) : camino(Math.min(sv, tope), out));
       // (among the planets, closer behind the spark, so they go by near; back to its distance before
       // the loop turns home)
       const kP = k1 * (1 - THREE.MathUtils.smoothstep(sc, 1.7, 1.85));
@@ -548,7 +544,7 @@ export const apertura: Escena = {
       const kS = k1 * (1 - THREE.MathUtils.smoothstep(sc, 1.9, 2.25));
       const m = montar(cam, sc, 0.04 + 0.02 * k1 - 0.01 * k2 - 0.03 * kP, 0.12 - 0.02 * k1, 0.0006 - 0.0002 * k1 - 0.0002 * kP, V(0, 1, 0), 0.006 + 0.03 * kS);
       // (the systems all stand to one side of the way: the gaze leans that way as they go by)
-      m.mira.addScaledVector(sis.fueraFijo, 0.0014 * kP);
+      m.mira.addScaledVector(sis.fueraFijo, 0.0003 * kP);
       return m;
     };
 
@@ -605,11 +601,12 @@ export const apertura: Escena = {
     // (the rig starts round the resting spark from where the ride already is, so letting go of it
     // the gaze stays on it; it draws back from it, and only then, far enough, turns to the drop,
     // its centre going to the Sun: never through the drop's skin, never a turn right round)
-    const finLazo = lazo.getPoint(1);
-    // (the camera is already out at the rig's place, watching the loop: its centre only moves onto
-    // the resting spark)
-    luego(0, 1.0, { ...C(finLazo) });
-    tl.with(1.4, { lw: 0 });
+    const finLazo = finPase;
+    const enL = montarEn(2).lugar.sub(finLazo);
+    luego(0, 0.4, { ...C(finLazo), ...angulos(enL), ld: Math.log10(enL.length()) });
+    // (letting go of the ride only once the rig stands where the ride is: let go while it still moved
+    // there, its move showed as a small jolt)
+    luego(0.4, 1.4, { lw: 0 });
     luego(0.2, 1.2, { pla: 0 });
     luego(0.6, 1.4, { vaso: 1 });
     luego(0.4, 1.3, { ld: -1.05 });
@@ -691,11 +688,7 @@ export const apertura: Escena = {
         const sc = tl.get('sc', p);
         const m = montarEn(sc);
         const lw = tl.get('lw', p);
-        // (where the spark hairpins back into its loop the camera stops riding behind it, which would
-        // turn it right round and have the spark pass through it: it stays out at the rig's place,
-        // outside the loop, its gaze on the spark as it goes round)
-        const fuera = THREE.MathUtils.smoothstep(sc, 1.45, 1.65) * (1 - THREE.MathUtils.smoothstep(sc, 2.0, 2.2));
-        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: lw, arriba: m.arriba, delante: m.delante }, { punto: m.lugar, peso: lw * (1 - fuera) }));
+        aplicarToma(camera, toma(tl, p, tm, { punto: m.mira, peso: lw, arriba: m.arriba, delante: m.delante }, { punto: m.lugar, peso: lw }));
         camera.position.applyAxisAngle(V(0, 1, 0), galaxia.rotation.y);
         camera.up.applyAxisAngle(V(0, 1, 0), galaxia.rotation.y);
         camera.lookAt(camera.position.clone().add(tm.dir.clone().applyAxisAngle(V(0, 1, 0), galaxia.rotation.y)));
