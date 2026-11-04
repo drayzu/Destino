@@ -17,6 +17,7 @@ import { lamina } from '../viaje/lamina';
 import { dibujarEstelas } from '../estudios/chispa';
 import { EXTRA } from '../viaje/textos';
 import { crearPelicula, FUNDIDO_MIN } from './pelicula';
+import { galaxia } from './actos/galaxia';
 import { vela } from './actos/vela';
 import { solTrabajado } from './actos/sol';
 import { mente } from './actos/mente';
@@ -57,7 +58,7 @@ const stage = createStage(canvas, fixed);
 const spacer = document.querySelector<HTMLElement>('#spacer')!;
 
 // ---------------------------------------------------------------- the film
-const peli = crearPelicula(stage, [mente, apertura, despierta, tierraNoche, sistema, mercurio, solTrabajado, vela]);
+const peli = crearPelicula(stage, [mente, apertura, despierta, tierraNoche, sistema, mercurio, solTrabajado, vela, galaxia]);
 const { tramos, TOTAL } = peli;
 spacer.style.height = `${TOTAL * PX_PER_BEAT + innerHeight}px`;
 

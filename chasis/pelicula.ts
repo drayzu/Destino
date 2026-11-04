@@ -21,6 +21,9 @@ import type { Acto, EscenaChasis, Film, FrameActo } from './tipos';
  *   precision between those two acts only.
  */
 
+/** For the guards: switches to compare (the knee of an act's own chase). */
+export const opciones = { encuadre: true };
+
 /** Beats across a seam during which the last act is still drawn, fading. */
 export const RELEVO = 1.8;
 /** The quickest anything may come or go, in beats (the guard checks every act's `presencias`). */
@@ -265,7 +268,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     m4.lookAt(rig.pos, rig.pos.clone().add(rig.dir), rig.up);
     pose.quat.setFromRotationMatrix(m4);
     const propio = A.rig ? A.rig(p, null, tiempo) : null;
-    if (!hay || (lw0 <= 0 && !A.rig) || propio?.propio) return conRig(pose, propio);
+    if (!hay || (lw0 <= 0 && !A.rig) || propio?.propio) return conRig(pose, propio, b);
 
     // The ride: the way round the spark, sampled; its length from the spark either way.
     const D = Math.pow(10, pista(i, p, 'mLd'));
@@ -426,31 +429,58 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
   }
 
   /** The pose from an act's own rig, where it has one now. */
-  function conRig(pose: Pose, r: ReturnType<NonNullable<Acto['rig']>>) {
+  function conRig(pose: Pose, r: ReturnType<NonNullable<Acto['rig']>>, b: number) {
     if (!r) return pose;
     pose.pos.copy(r.pos);
     m4.lookAt(r.pos, r.pos.clone().add(r.dir), r.up);
     pose.quat.setFromRotationMatrix(m4);
     pose.fov = r.fov;
     pose.lw = r.lw;
-    if (pose.chispa && r.lw > 0) encuadrar(pose, r.lw);
+    if (pose.chispa && r.lw > 0 && opciones.encuadre) encuadrar(pose, r.lw, b);
     return pose;
   }
 
   /**
    * An act's own chase keeps the spark in frame as the ride does: near the middle it is left alone;
    * towards an edge the camera turns just enough to keep it inside a soft border (a knee per axis, by
-   * the frame's own width and height). Pure: the spark and the pose at this beat, nothing measured.
+   * the frame's own width and height). The turn is the average of the turns the beats round this one
+   * want (a bell of SIGMA_ENC beats), so the camera never copies the spark's own jolts; it lets go
+   * where the spark sweeps fast across the view or passes the camera. Pure: computed for this beat,
+   * the same however it is reached.
    */
-  function encuadrar(pose: Pose, peso: number) {
-    const v = pose.chispa!.clone().sub(pose.pos).applyQuaternion(pose.quat.clone().invert());
+  const SIGMA_ENC = 0.22;
+  const PASO_ENC = 0.06;
+  const N_ENC = 4;
+  const qTmp = new THREE.Quaternion();
+  function giroEn(i: number, bb: number, out: { gx: number; gy: number }) {
+    out.gx = 0;
+    out.gy = 0;
+    const { i: j, p } = enTramo(bb);
+    if (j !== i) return;
+    const r = tramos[i].acto.rig?.(p, null, tiempo);
+    if (!r || !r.propio || r.lw <= 0) return;
+    const ch = V();
+    if (!chispaEn(bb, i, ch)) return;
+    m4.lookAt(r.pos, r.pos.clone().add(r.dir), r.up);
+    qTmp.setFromRotationMatrix(m4).invert();
+    const v = ch.clone().sub(r.pos).applyQuaternion(qTmp);
     if (v.z >= 0) return;
-    // (let go where the spark passes the camera: far off the axis, it cannot be followed without a lurch)
-    const ty = Math.tan(THREE.MathUtils.degToRad(pose.fov / 2));
+    // (let go where the spark sweeps fast across the view, a hop or a pass close by: full hold under
+    // 1 radian a beat, none over 2)
+    const a0 = V();
+    const a1 = V();
+    if (chispaEn(bb - 0.05, i, a0) && chispaEn(bb + 0.05, i, a1)) {
+      const d0 = a0.sub(r.pos).applyQuaternion(qTmp).normalize();
+      const d1 = a1.sub(r.pos).applyQuaternion(qTmp).normalize();
+      if (d0.angleTo(d1) > 0.2) return;
+      r.lw *= 1 - smooth(clamp(d0.angleTo(d1) / 0.1 - 1, 0, 1));
+    }
+    const ty = Math.tan(THREE.MathUtils.degToRad(r.fov / 2));
     const tx = ty * stage.camera.aspect;
     const semi = Math.atan(Math.hypot(tx, ty));
+    // (and where it passes the camera: far off the axis, it cannot be followed without a lurch)
     const fuera = Math.acos(clamp(-v.z / v.length(), -1, 1));
-    const w = peso * (1 - smooth(clamp((fuera - 1.15 * semi) / 0.44, 0, 1)));
+    const w = r.lw * (1 - smooth(clamp((fuera - 1.15 * semi) / 0.44, 0, 1)));
     if (w <= 0) return;
     const rodilla = (n: number) => {
       const a = Math.abs(n);
@@ -459,9 +489,25 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     };
     const ax = Math.atan2(v.x, -v.z);
     const ay = Math.atan2(v.y, -v.z);
-    const gx = (ax - Math.atan(rodilla(Math.tan(ax) / tx) * tx)) * w;
-    const gy = (ay - Math.atan(rodilla(Math.tan(ay) / ty) * ty)) * w;
-    pose.quat.multiply(new THREE.Quaternion().setFromAxisAngle(V(0, 1, 0), -gx)).multiply(new THREE.Quaternion().setFromAxisAngle(V(1, 0, 0), gy));
+    out.gx = (ax - Math.atan(rodilla(Math.tan(ax) / tx) * tx)) * w;
+    out.gy = (ay - Math.atan(rodilla(Math.tan(ay) / ty) * ty)) * w;
+  }
+  function encuadrar(pose: Pose, _peso: number, b: number) {
+    let gx = 0;
+    let gy = 0;
+    let sw = 0;
+    const g = { gx: 0, gy: 0 };
+    for (let k = -N_ENC; k <= N_ENC; k++) {
+      const w = Math.exp(-0.5 * ((k * PASO_ENC) / SIGMA_ENC) ** 2);
+      giroEn(pose.i, b + k * PASO_ENC, g);
+      gx += g.gx * w;
+      gy += g.gy * w;
+      sw += w;
+    }
+    gx /= sw;
+    gy /= sw;
+    const TOPE = 0.2;
+    pose.quat.multiply(new THREE.Quaternion().setFromAxisAngle(V(0, 1, 0), -TOPE * Math.tanh(gx / TOPE))).multiply(new THREE.Quaternion().setFromAxisAngle(V(1, 0, 0), TOPE * Math.tanh(gy / TOPE)));
   }
 
   // ---- Drawing a beat.
@@ -575,7 +621,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     return { pose, frame };
   }
 
-  return { tramos, TOTAL, enTramo, chispaEn, camara, poner, sims };
+  return { tramos, TOTAL, enTramo, chispaEn, camara, poner, sims, opciones };
 }
 
 export type Pelicula = ReturnType<typeof crearPelicula>;
