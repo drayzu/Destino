@@ -7,6 +7,7 @@ import type { Rotulo } from '../../estudios/placa';
 import { puntoTu } from '../../estudios/remake';
 import type { Camino } from '../../estudios/chispa';
 import type { Acto, EscenaChasis, FrameActo } from '../tipos';
+import { CONTRATO, toma } from '../toma';
 
 /**
  * The opening of GUION.md v2, moments 1–2: «Un pensamiento» and «Se apaga contigo».
@@ -169,13 +170,10 @@ export const mente: EscenaChasis = {
       tl.with(dur, v);
       tl.wait(-off);
     };
-    // The ride: a little behind the spark and well above it, so it passes over each neuron's body,
-    // round each neuron in a wide curve (the spark turns sharply there; the camera need not).
-    const ATRAS = 0.009 * largoTotal;
-    const ALTO = 0.085;
-    const D = Math.hypot(ATRAS, ALTO);
-    const ride = { mLd: Math.log10(D), mAlto: THREE.MathUtils.radToDeg(Math.atan2(ALTO, ATRAS)), mAde: (0.02 * 0.35 * largoTotal) / D, mSuave: (0.03 * 2.2 * largoTotal) / D, mSuaveMira: (0.03 * largoTotal) / D };
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 20, el: 8, ld: 1.0, yaw: 90, pitch: -90, roll: 0, fov: 40, red: 0, brota: 0, tu: 1, cue: 1, sc: 0, on: 0, lw: 0, vel: 0, ...ride });
+    // The shots (chasis/toma.ts): close in on «tú», then ride the spark from behind and above, round
+    // each neuron in a wide curve (the spark turns sharply there; the camera need not), out into the
+    // black and onto the contract (CONTRATO), where the next act takes it.
+    tl.set({ cx: 0, cy: 0, cz: 0, az: 20, el: 8, ld: 1.0, roll: 0, fov: 40, mx: 0, my: 0, red: 0, brota: 0, tu: 1, cue: 1, sc: 0, on: 0, lw: 0, vel: 0 });
 
     tl.label('pensamiento').caption(4.0, 'Un pensamiento', 'Estás pensando. Eso cuesta unos veinte vatios.');
     luego(0.5, 1.4, { cue: 0 });
@@ -191,6 +189,21 @@ export const mente: EscenaChasis = {
     tl.to(2.4, { sc: sSale, vel: 0.45 });
     tl.label('fuera');
     tl.to(1.6, { sc: 1, vel: 0.2, red: 0.15 });
+    // (round the spark as it goes, over the network: from above as it climbs through it, so the
+    // neurons it passes are under it in the frame, never the black beyond; then level behind it out
+    // into the black, the spark where the contract puts it)
+    const a = tl.at('apaga');
+    for (const [dp, az, el, ld, my] of [
+      [1.2, 40, 42, -0.75, -8],
+      [2.4, 22, 16, -0.74, -8],
+      [3.4, 22, 20, -0.72, -6],
+      [4.3, 38, 40, -0.65, -5],
+      [5.3, 12, 64, -0.66, -5],
+      [6.2, 6, 64, -0.7, -7],
+      [7.0, -18, 38, -0.78, -5],
+      [7.6, -42, 26, -0.7, -4],
+    ]) tl.keyAt(a + dp, { az, el, ld, my });
+    tl.keyAt(a + 0.6, { my: 0 }).keyAt(tl.length, { az: -52, el: 11, ld: -0.45, ...CONTRATO });
 
     const grupo = root as THREE.Group;
     return {
@@ -204,6 +217,9 @@ export const mente: EscenaChasis = {
       chispa(p, out) {
         camino(tl.get('sc', p), out);
         return true;
+      },
+      camara(p, ch, out) {
+        toma(tl, p, ch, out);
       },
       escalera: false,
       cuenta() {
