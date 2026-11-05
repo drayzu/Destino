@@ -95,6 +95,9 @@ void calentado.then(() => {
 
 // ---------------------------------------------------------------- scroll and autoplay
 let P = clamp(Number(params.get('p') ?? 0), 0, TOTAL);
+/** How fast the film follows the scroll (beats/s, the spring's speed) and its rate. */
+let V = 0;
+const RESORTE = 9;
 let target = P;
 let autoplay = false;
 const frozen: number | null = params.has('ver') ? Number(params.get('ver')) : null;
@@ -170,6 +173,7 @@ function irA(b: number) {
   const x = clamp(b, 0, TOTAL);
   setAutoplay(false);
   P = x;
+  V = 0;
   target = x;
   scrollTo(0, pagina ? pagina.yDe(x) : x * PX_PER_BEAT);
 }
@@ -306,11 +310,19 @@ function frame(now: number) {
   }
   if (frozen !== null) P = frozen;
   else {
-    let siguiente = damp(P, target, 4.2, dt);
+    // A critically damped spring, not a plain glide: a glide's speed jumps at every notch of the
+    // wheel, and a small light moving across the frame showed each jump as a tremor. The spring's
+    // speed never jumps; it settles as fast as the glide did.
+    const x = P - target;
+    const e = Math.exp(-RESORTE * dt);
+    const k = (V + RESORTE * x) * dt;
+    V = (V - RESORTE * k) * e;
+    let siguiente = target + (x + k) * e;
     if (ritmo && pagina && !autoplay) {
       const lejos = Math.max(0, Math.abs(target - P) - 1.5);
-      const tope = pagina.en(ritmo.tope, P) * (1 + lejos * lejos * 0.6) * dt;
-      siguiente = P + clamp(siguiente - P, -tope, tope);
+      const tope = pagina.en(ritmo.tope, P) * (1 + lejos * lejos * 0.6);
+      V = clamp(V, -tope, tope);
+      siguiente = P + clamp(siguiente - P, -tope * dt, tope * dt);
     }
     P = siguiente;
   }
@@ -523,6 +535,38 @@ const api = {
         y = v.z > 1 ? 9 : v.y;
       }
       out.push(+at.toFixed(2), +x.toFixed(3), +y.toFixed(3), +pose.lw.toFixed(2));
+    }
+    return out;
+  },
+  /**
+   * The spark on the screen, precise, every `res` beats: beat, x, y (pixels of a 1600 × 900 frame; NaN
+   * where unlit or behind), its light.
+   */
+  pantalla(a: number, b: number, res = 0.01) {
+    const out: number[] = [];
+    const cam = new THREE.PerspectiveCamera(40, 16 / 9, 1e-9, 1e9);
+    const c = new THREE.Vector3();
+    for (let at = a; at <= b + 1e-9; at += res) {
+      const pose = peli.camara(at);
+      const acto = tramos[pose.i].acto;
+      const luz = pose.chispa ? (acto.luz?.(pose.p) ?? acto.tl.get('on', pose.p)) : 0;
+      let x = NaN;
+      let y = NaN;
+      if (luz > 0.05 && peli.chispaEn(at, pose.i, c)) {
+        cam.position.copy(pose.pos);
+        cam.quaternion.copy(pose.quat);
+        cam.fov = pose.fov;
+        cam.near = pose.dist * 1e-6;
+        cam.far = pose.dist * 1e6;
+        cam.updateProjectionMatrix();
+        cam.updateMatrixWorld();
+        const v = c.project(cam);
+        if (v.z < 1) {
+          x = (v.x * 0.5 + 0.5) * 1600;
+          y = (0.5 - v.y * 0.5) * 900;
+        }
+      }
+      out.push(at, x, y, luz);
     }
     return out;
   },

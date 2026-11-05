@@ -266,11 +266,17 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
       let largo = 0;
       const a = V();
       const z = pose.chispa.clone();
+      // (to the exact beat where it reaches that length, not the next step past it: a wake that grew
+      // and shrank by whole steps as the spark changed pace flickered)
       for (; atras < 3; atras += 0.05) {
         if (!chispaEn(b - atras, i, a)) break;
-        largo += a.distanceTo(z);
+        const tramo = a.distanceTo(z);
+        if (largo + tramo > 0.7 * D) {
+          atras -= 0.05 * (1 - (0.7 * D - largo) / tramo);
+          break;
+        }
+        largo += tramo;
         z.copy(a);
-        if (largo > 0.7 * D) break;
       }
       chispa.update(camino.f, b, atras / 55, on, A.titila ? A.titila(p) : A.tl.get('tit', p), pose.pos, focal, f.dpr, f.time);
       chispa.nube.u.uFundido.value = 1;
