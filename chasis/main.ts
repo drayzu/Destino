@@ -608,6 +608,61 @@ const api = {
       return { de: A.id, a: B.id, en: +t.inicio.toFixed(2), tipo: t.costura, chispa: [cA.map((x) => +x.toFixed(1)), cB.map((x) => +x.toFixed(1))], luz: [+luzA.toFixed(2), +luzB.toFixed(2)], salto: +Math.hypot(cA[0] - cB[0], cA[1] - cB[1]).toFixed(1), mundo: +mundo.toFixed(1), tapa: +(A.tapa?.(tramos[k].largo) ?? 0).toFixed(2) };
     });
   },
+  /**
+   * The camera of act i over [desde, hasta] (beats in the act) written as a shot (chasis/toma.ts), for
+   * moving a stretch of baked camera onto written keys: every `cada` beats, averaged over the stretch
+   * round it (its jitter out), what it looks at being the act's centre (`cx…`) drawn to the spark as
+   * much as the camera rode it (`lw`): p, az, el, ld, lw, mx, my, fov, roll.
+   */
+  transcribir(i: number, desde: number, hasta: number, cada = 1.2) {
+    const t = tramos[i];
+    const tl = t.acto.tl;
+    const h = 0.05;
+    const filas: number[][] = [];
+    const f = new THREE.Vector3();
+    const u = new THREE.Vector3();
+    const c = new THREE.Vector3();
+    const v = new THREE.Vector3();
+    const q = new THREE.Quaternion();
+    let azAnt = NaN;
+    for (let p = Math.max(0, desde - cada); p <= Math.min(t.largo, hasta + cada) + 1e-9; p += h) {
+      const pose = peli.camara(t.inicio + Math.min(p, t.largo - 1e-6));
+      const lw = pose.chispa ? pose.lw : 0;
+      c.set(tl.get('cx', p), tl.get('cy', p), tl.get('cz', p));
+      if (pose.chispa) c.lerp(pose.chispa, lw);
+      v.copy(pose.pos).sub(c);
+      const d = v.length();
+      v.divideScalar(d);
+      let az = THREE.MathUtils.radToDeg(Math.atan2(v.x, v.z));
+      if (Number.isFinite(azAnt)) az += 360 * Math.round((azAnt - az) / 360);
+      azAnt = az;
+      const el = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(v.y, -1, 1)));
+      // (where that centre sits on the screen, and the roll against a level horizon)
+      q.copy(pose.quat).invert();
+      const enCam = c.clone().sub(pose.pos).applyQuaternion(q);
+      const mx = THREE.MathUtils.radToDeg(Math.atan2(enCam.x, -enCam.z));
+      const my = THREE.MathUtils.radToDeg(Math.atan2(enCam.y, Math.hypot(enCam.x, enCam.z)));
+      f.set(0, 0, -1).applyQuaternion(pose.quat);
+      u.set(0, 1, 0).applyQuaternion(pose.quat);
+      const nivel = new THREE.Vector3(0, 1, 0).addScaledVector(f, -f.y).normalize();
+      const roll = THREE.MathUtils.radToDeg(Math.atan2(nivel.clone().cross(u).dot(f), nivel.dot(u)));
+      filas.push([p, az, el, Math.log10(d), lw, mx, my, pose.fov, roll]);
+    }
+    const out: number[][] = [];
+    for (let p = desde; p <= hasta + 1e-9; p += cada) {
+      const s = cada * 0.45;
+      const k = new Array(9).fill(0);
+      let w = 0;
+      for (const r of filas) {
+        const x = Math.exp(-0.5 * ((r[0] - p) / s) ** 2);
+        if (x < 1e-4) continue;
+        for (let j = 1; j < 9; j++) k[j] += r[j] * x;
+        w += x;
+      }
+      out.push([+p.toFixed(3), ...k.slice(1).map((x, j) => +(x / w).toFixed(j === 2 || j === 3 ? 3 : 2))]);
+    }
+    return out;
+  },
   /** The fastest each act's own lights come and go (their `presencias`), against FUNDIDO_MIN. */
   presencias(res = 0.01) {
     const out: [string, string, number, number][] = [];

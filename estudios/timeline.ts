@@ -113,6 +113,17 @@ export class Timeline {
     return this.labels.get(label) ?? 0;
   }
 
+  /** Drops these tracks' keys strictly between `desde` and `hasta` (to write a stretch anew). */
+  quitar(names: readonly string[], desde: number, hasta: number) {
+    for (const name of names) {
+      const keys = this.tracks.get(name);
+      if (!keys) continue;
+      this.tracks.set(name, keys.filter((k) => k.p <= desde + 1e-9 || k.p >= hasta - 1e-9));
+      this.slopes.delete(name);
+    }
+    return this;
+  }
+
   /** Whether the track has keys of its own. */
   has(name: string) {
     return (this.tracks.get(name)?.length ?? 0) > 0;

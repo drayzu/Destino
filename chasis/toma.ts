@@ -185,3 +185,16 @@ export function aMarco(tl: Timeline, p0: number, p1: number, az: number, el: num
   }
   return ant;
 }
+
+/** The tracks a written stretch sets (see `escribir`). */
+const PISTAS_TOMA = ['az', 'el', 'ld', 'lw', 'mx', 'my', 'fov', 'roll'] as const;
+
+/**
+ * A stretch of shot written as keys: rows of p, az, el, ld, lw, mx, my, fov, roll (from
+ * `viaje.transcribir` and then edited by hand, or written by hand). Whatever keys those tracks had
+ * inside the stretch give way to these. What it looks at between whiles stays the act's `cx…`.
+ */
+export function escribir(tl: Timeline, filas: readonly (readonly number[])[]) {
+  tl.quitar(PISTAS_TOMA, filas[0][0], filas[filas.length - 1][0]);
+  for (const f of filas) tl.keyAt(f[0], Object.fromEntries(PISTAS_TOMA.map((k, j) => [k, f[j + 1]])));
+}
