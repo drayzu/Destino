@@ -171,6 +171,8 @@ export function crearChispa(): Chispa {
     move: /* glsl */ `
       float parpadeo = mix(1.0, 0.15 + 0.85 * step(0.45, fract(sin(floor(uTime * 9.0) * 12.9898) * 43758.5453)), uTitila);
       em *= uOn * parpadeo;
+      // (its heart breathes, slowly: a spark at rest is alive, not a dead point)
+      if (aKind > 0.5) em *= 1.0 + 0.16 * sin(uTime * 1.6) + 0.06 * sin(uTime * 2.9 + 1.3);
       // (a faint shimmer running down the wake)
       if (aKind < 0.5) em *= (0.8 + 0.35 * sin(aDelay * 40.0 - uTime * 7.0)) * uPuntos;
       vKind = aKind;

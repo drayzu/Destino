@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { Stage } from '../estudios/stage';
 import { crearChispa } from '../estudios/chispa';
-import type { Acto, EscenaChasis, Film, FrameActo } from './tipos';
+import type { Acto, EscenaChasis, Film, FrameActo, PlanoCamara } from './tipos';
 import { pistasDe, type CamaraHorneada } from './pista';
 import CAMARAS from './camaras.json';
 
@@ -30,24 +30,33 @@ const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const smooth = (x: number) => x * x * (3 - 2 * x);
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 
-/** x' = s·x + t: an act's units into another's (no turn: acts share their axes). */
+/**
+ * x' = s·q(x) + t: an act's units into another's. Through a world or the spark, acts share their
+ * axes (q none); through the frame (`cuadro`), the turn that lays one camera on the other.
+ */
 export class Sim {
   constructor(
     public s = 1,
     public t = V(),
+    public q = new THREE.Quaternion(),
   ) {}
   aplicar(v: THREE.Vector3, out = V()) {
-    return out.copy(v).multiplyScalar(this.s).add(this.t);
+    return out.copy(v).applyQuaternion(this.q).multiplyScalar(this.s).add(this.t);
+  }
+  /** An orientation into the other units (the turn alone). */
+  girar(q: THREE.Quaternion, out = new THREE.Quaternion()) {
+    return out.copy(this.q).multiply(q);
   }
   /** This one after `o` (first `o`, then this). */
   tras(o: Sim) {
-    return new Sim(this.s * o.s, o.t.clone().multiplyScalar(this.s).add(this.t));
+    return new Sim(this.s * o.s, o.t.clone().applyQuaternion(this.q).multiplyScalar(this.s).add(this.t), this.q.clone().multiply(o.q));
   }
   inversa() {
-    return new Sim(1 / this.s, this.t.clone().multiplyScalar(-1 / this.s));
+    const qi = this.q.clone().invert();
+    return new Sim(1 / this.s, this.t.clone().applyQuaternion(qi).multiplyScalar(-1 / this.s), qi);
   }
   matriz(out = new THREE.Matrix4()) {
-    return out.makeScale(this.s, this.s, this.s).setPosition(this.t);
+    return out.compose(this.t, this.q, V(this.s, this.s, this.s));
   }
 }
 
@@ -60,7 +69,7 @@ export interface Tramo {
   /** Stretches between cuts: their acts' units map into each other. */
   cadena: number;
   /** How it came in from the act before. */
-  costura: 'chispa' | 'corte' | 'mundo' | null;
+  costura: 'chispa' | 'corte' | 'mundo' | 'cuadro' | null;
 }
 
 /** The camera at a beat: in the units of the act `i` that holds it. */
@@ -100,11 +109,33 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
 
   // ---- The camera: baked (tools/hornear.mjs, chasis/camaras.json), as Tiempo's is. Each act's
   // camera is a set of keys the film flows through; nothing chases anything, nothing corrects it.
+  // An act that writes its own camera (`camara`, chasis/toma.ts) needs no keys.
   const pistas = tramos.map((t) => {
+    if (t.acto.camara) return null;
     const c = (CAMARAS as Record<string, CamaraHorneada>)[t.acto.id];
-    if (!c) throw new Error(`sin cámara horneada para ${t.acto.id} (node tools/hornear.mjs)`);
+    if (!c) throw new Error(`sin cámara para ${t.acto.id}: ni camara() ni claves horneadas`);
     return pistasDe(c);
   });
+  /** The ambient time the spark's way is read at (the frame's; 0 for the pace and the guards). */
+  let tiempo = 0;
+  const chCam = V();
+  /** Act i's camera at beat p (its own units): written by the act, or its baked keys. */
+  function camaraActo(i: number, p: number): PlanoCamara {
+    const A = tramos[i].acto;
+    if (A.camara) {
+      const out: PlanoCamara = { pos: V(), quat: new THREE.Quaternion(), fov: 40, dist: 1, lw: 0 };
+      A.camara(p, A.chispa(p, chCam, tiempo) ? chCam : null, out);
+      return out;
+    }
+    const k = pistas[i]!;
+    return {
+      pos: V(k.x.get(p), k.y.get(p), k.z.get(p)),
+      quat: new THREE.Quaternion(k.qx.get(p), k.qy.get(p), k.qz.get(p), k.qw.get(p)).normalize(),
+      fov: k.fov.get(p),
+      dist: Math.pow(10, k.ld.get(p)),
+      lw: k.lw.get(p),
+    };
+  }
 
   // ---- The seams: each act's units into the one before's.
   const aPrev: (Sim | null)[] = tramos.map(() => null);
@@ -112,6 +143,20 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     const A = tramos[k - 1].acto;
     const B = tramos[k].acto;
     if (tramos[k].costura === 'corte') continue;
+    const la = tramos[k - 1].largo;
+    if (tramos[k].costura === 'cuadro') {
+      // (a seam through the frame: the two cameras laid on each other, the last act's end on this
+      // one's start; the scale so the spark, where both have one, is the same spark. Neither act
+      // needs to know the other: only that the picture at the seam is the same, CHASIS.md)
+      const ca = camaraActo(k - 1, la);
+      const cb = camaraActo(k, 0);
+      const a = V();
+      const c = V();
+      const s = A.chispa(la, a, 0) && B.chispa(0, c, 0) ? ca.pos.distanceTo(a) / Math.max(cb.pos.distanceTo(c), 1e-300) : ca.dist / cb.dist;
+      const q = ca.quat.clone().multiply(cb.quat.clone().invert());
+      aPrev[k] = new Sim(s, ca.pos.clone().sub(cb.pos.clone().applyQuaternion(q).multiplyScalar(s)), q);
+      continue;
+    }
     if (tramos[k].costura === 'mundo') {
       // (a seam through a world: this act's `entrada` lands on the last one's `salida`, same place, same size)
       if (!A.salida || !B.entrada) throw new Error(`costura ${A.id} → ${B.id}: falta salida o entrada`);
@@ -123,10 +168,8 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     const c = V();
     if (!A.chispa(tramos[k - 1].largo, a, 0) || !B.chispa(0, c, 0)) throw new Error(`costura ${A.id} → ${B.id}: sin chispa en el encuentro`);
     // (the camera is the same camera on both sides, and so is the spark: the two points fix the scale)
-    const ka = pistas[k - 1];
-    const kb = pistas[k];
-    const camA = V(ka.x.get(tramos[k - 1].largo), ka.y.get(tramos[k - 1].largo), ka.z.get(tramos[k - 1].largo));
-    const camB = V(kb.x.get(0), kb.y.get(0), kb.z.get(0));
+    const camA = camaraActo(k - 1, la).pos;
+    const camB = camaraActo(k, 0).pos;
     const s = camA.distanceTo(a) / Math.max(camB.distanceTo(c), 1e-300);
     aPrev[k] = new Sim(s, a.clone().sub(c.clone().multiplyScalar(s)));
   }
@@ -146,8 +189,6 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
   });
 
   /** The act at beat b, and the beat inside it. */
-  /** The ambient time the spark's way is read at (the frame's; 0 for the pace and the guards). */
-  let tiempo = 0;
   function enTramo(b: number) {
     let i = 0;
     for (let k = 0; k < tramos.length; k++) if (b >= tramos[k].inicio) i = k;
@@ -168,11 +209,10 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
   // ---- The camera.
   function camara(b: number): Pose {
     const { i, p } = enTramo(b);
-    const k = pistas[i];
-    const quat = new THREE.Quaternion(k.qx.get(p), k.qy.get(p), k.qz.get(p), k.qw.get(p)).normalize();
+    const c = camaraActo(i, p);
     const ch = V();
     const hay = chispaEn(b, i, ch);
-    return { i, p, pos: V(k.x.get(p), k.y.get(p), k.z.get(p)), quat, fov: k.fov.get(p), chispa: hay ? ch : null, dist: Math.pow(10, k.ld.get(p)), lw: hay ? clamp(k.lw.get(p), 0, 1) : 0 };
+    return { i, p, pos: c.pos, quat: c.quat, fov: c.fov, chispa: hay ? ch : null, dist: c.dist, lw: hay ? clamp(c.lw, 0, 1) : 0 };
   }
 
   // ---- Drawing a beat.
@@ -238,6 +278,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
       // (its update reads the camera in its own units)
       const inv = sims[i][k];
       cam.position.copy(inv.aplicar(pose.pos, enCam));
+      inv.girar(pose.quat, cam.quaternion);
       cam.near = A.cerca * inv.s;
       cam.far = A.lejos * inv.s;
       cam.updateMatrixWorld();
@@ -251,6 +292,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
       });
     }
     cam.position.copy(pose.pos);
+    cam.quaternion.copy(pose.quat);
     cam.near = A.cerca;
     cam.far = A.lejos;
     cam.updateProjectionMatrix();

@@ -263,15 +263,14 @@ const dirV = new THREE.Vector3();
 /** Where the camera looks at film beat `at`, and how far it is from what it frames: the camera alone, no drawing. */
 function vistaEn(at: number): Vista {
   const pose = peli.camara(at);
-  dirV.set(0, 0, -1).applyQuaternion(pose.quat);
+  // (the gaze in the units of the first act of its chain: across a seam through the frame they turn)
+  dirV.set(0, 0, -1).applyQuaternion(pose.quat).applyQuaternion(aCadena[pose.i].q);
   // (the distance in a unit the whole film shares: across a seam the units change, the picture not)
   return { dir: { x: dirV.x, y: dirV.y, z: dirV.z }, lz: Math.log(Math.max(pose.dist, 1e-300)) + escalaLog[pose.i], fov: pose.fov };
 }
 /** Each act's units in the first act's of its shot, as a log (so distances compare across seams). */
-const escalaLog = tramos.map((_, i) => {
-  const j = tramos.findIndex((t) => t.cadena === tramos[i].cadena);
-  return Math.log(peli.sims[i][j].s);
-});
+const aCadena = tramos.map((_, i) => peli.sims[i][tramos.findIndex((t) => t.cadena === tramos[i].cadena)]);
+const escalaLog = aCadena.map((m) => Math.log(m.s));
 function momentos() {
   return tramos.flatMap((t) => t.acto.tl.momentos.map((c) => ({ ...c, from: c.from + t.inicio, to: c.to + t.inicio })));
 }
@@ -499,11 +498,13 @@ const api = {
       const pose = peli.camara(at);
       if (prev) {
         // (the last pose in this act's units)
-        const pp = peli.sims[prev.i][pose.i].aplicar(prev.pos, new THREE.Vector3());
+        const m = peli.sims[prev.i][pose.i];
+        const pp = m.aplicar(prev.pos, new THREE.Vector3());
         const mov = pp.distanceTo(pose.pos) / Math.max(pose.dist, 1e-300);
-        f0.set(0, 0, -1).applyQuaternion(prev.quat);
+        const qp = m.girar(prev.quat);
+        f0.set(0, 0, -1).applyQuaternion(qp);
         f1.set(0, 0, -1).applyQuaternion(pose.quat);
-        u0.set(0, 1, 0).applyQuaternion(prev.quat);
+        u0.set(0, 1, 0).applyQuaternion(qp);
         u1.set(0, 1, 0).applyQuaternion(pose.quat);
         const giro = THREE.MathUtils.radToDeg(f0.angleTo(f1));
         u0.addScaledVector(f1, -u0.dot(f1)).normalize();

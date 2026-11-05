@@ -40,6 +40,16 @@ export interface FrameActo {
   nubeChispa: import('../estudios/motor/materia').Nube;
 }
 
+/** A camera: where it is, where it looks, its fov (degrees), how far what it frames is, and how much
+ * it frames the spark (0..1: the guards keep the spark in the frame where it does). */
+export interface PlanoCamara {
+  pos: THREE.Vector3;
+  quat: THREE.Quaternion;
+  fov: number;
+  dist: number;
+  lw: number;
+}
+
 export interface Film {
   strength: number;
   radius: number;
@@ -65,8 +75,12 @@ export interface Acto {
    * - `mundo`: through a world both acts show (the Earth, the Sun): this act's `entrada` lands on the
    *   last act's `salida`.
    * - `corte`: a cut, hidden by the last act's own cover (`tapa` at 1 there: its light filling the frame).
+   * - `cuadro`: through the frame (CHASIS.md, the contract): this act starts with the very picture the
+   *   last one ends with (the spark where it was on the screen, the same size of things), and the
+   *   engine lays the two cameras on each other. Neither act knows the other: any act that keeps the
+   *   contract can follow any other.
    */
-  costura?: 'chispa' | 'corte' | 'mundo';
+  costura?: 'chispa' | 'corte' | 'mundo' | 'cuadro';
   /** A seam through a world: where this act meets the last one, and a size there (the two sizes match). */
   entrada?: { pos: THREE.Vector3; escala: number };
   salida?: { pos: THREE.Vector3; escala: number };
@@ -85,6 +99,11 @@ export interface Acto {
   titila?(p: number): number;
   /** How much the frame is covered by the act's own light or dark (0..1): a cut may happen only under it. */
   tapa?(p: number): number;
+  /**
+   * The act's own camera at beat p, written as Tiempo's (chasis/toma.ts), given where its spark is
+   * (its units; null when it has none). When absent, its baked keys (chasis/camaras.json).
+   */
+  camara?(p: number, chispa: THREE.Vector3 | null, out: PlanoCamara): void;
   /** Lights and moves what the act owns. Never touches the camera. */
   update(f: FrameActo): void;
   placa?(g: CanvasRenderingContext2D, f: FrameActo): void;
