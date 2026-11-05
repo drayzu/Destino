@@ -146,13 +146,14 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     const la = tramos[k - 1].largo;
     if (tramos[k].costura === 'cuadro') {
       // (a seam through the frame: the two cameras laid on each other, the last act's end on this
-      // one's start; the scale so the spark, where both have one, is the same spark. Neither act
-      // needs to know the other: only that the picture at the seam is the same, CHASIS.md)
+      // one's start. Neither act needs to know the other: only that the picture at the seam is the
+      // same, CHASIS.md; the guards check it)
       const ca = camaraActo(k - 1, la);
       const cb = camaraActo(k, 0);
       const a = V();
       const c = V();
-      const s = A.chispa(la, a, 0) && B.chispa(0, c, 0) ? ca.pos.distanceTo(a) / Math.max(cb.pos.distanceTo(c), 1e-300) : ca.dist / cb.dist;
+      // (through a world both show, its size sets the scale; else the spark; else what the cameras frame)
+      const s = A.salida && B.entrada ? A.salida.escala / B.entrada.escala : A.chispa(la, a, 0) && B.chispa(0, c, 0) ? ca.pos.distanceTo(a) / Math.max(cb.pos.distanceTo(c), 1e-300) : ca.dist / cb.dist;
       const q = ca.quat.clone().multiply(cb.quat.clone().invert());
       aPrev[k] = new Sim(s, ca.pos.clone().sub(cb.pos.clone().applyQuaternion(q).multiplyScalar(s)), q);
       continue;

@@ -571,6 +571,43 @@ const api = {
     }
     return out;
   },
+  /**
+   * The contract at every seam (CHASIS.md): the picture on either side, a hair before and after. Per
+   * seam: where it is, its kind, the spark on the screen (px of 1600 × 900) and its light on both
+   * sides, and for a seam through a shared world, how far apart that world's centre falls (px).
+   */
+  contratos() {
+    const cam = new THREE.PerspectiveCamera(40, 16 / 9, 1e-9, 1e9);
+    const v = new THREE.Vector3();
+    const ver = (pose: ReturnType<typeof peli.camara>, punto: THREE.Vector3) => {
+      cam.position.copy(pose.pos);
+      cam.quaternion.copy(pose.quat);
+      cam.fov = pose.fov;
+      cam.near = pose.dist * 1e-6;
+      cam.far = pose.dist * 1e6;
+      cam.updateProjectionMatrix();
+      cam.updateMatrixWorld();
+      const q = punto.clone().project(cam);
+      return q.z < 1 ? [(q.x * 0.5 + 0.5) * 1600, (0.5 - q.y * 0.5) * 900] : [NaN, NaN];
+    };
+    return tramos.slice(1).map((t, k) => {
+      const A = tramos[k].acto;
+      const B = t.acto;
+      const antes = peli.camara(t.inicio - 1e-6);
+      const despues = peli.camara(t.inicio + 1e-6);
+      const luzA = antes.chispa ? (A.luz?.(antes.p) ?? A.tl.get('on', antes.p)) : 0;
+      const luzB = despues.chispa ? (B.luz?.(despues.p) ?? B.tl.get('on', despues.p)) : 0;
+      const cA = antes.chispa ? ver(antes, antes.chispa) : [NaN, NaN];
+      const cB = despues.chispa ? ver(despues, despues.chispa) : [NaN, NaN];
+      let mundo = NaN;
+      if (A.salida && B.entrada && t.costura !== 'corte') {
+        const a = ver(antes, A.salida.pos.clone());
+        const b = ver(despues, peli.sims[k + 1][k + 1].aplicar(B.entrada.pos, v.clone()));
+        mundo = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      }
+      return { de: A.id, a: B.id, en: +t.inicio.toFixed(2), tipo: t.costura, chispa: [cA.map((x) => +x.toFixed(1)), cB.map((x) => +x.toFixed(1))], luz: [+luzA.toFixed(2), +luzB.toFixed(2)], salto: +Math.hypot(cA[0] - cB[0], cA[1] - cB[1]).toFixed(1), mundo: +mundo.toFixed(1), tapa: +(A.tapa?.(tramos[k].largo) ?? 0).toFixed(2) };
+    });
+  },
   /** The fastest each act's own lights come and go (their `presencias`), against FUNDIDO_MIN. */
   presencias(res = 0.01) {
     const out: [string, string, number, number][] = [];

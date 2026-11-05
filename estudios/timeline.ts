@@ -113,6 +113,11 @@ export class Timeline {
     return this.labels.get(label) ?? 0;
   }
 
+  /** Whether the track has keys of its own. */
+  has(name: string) {
+    return (this.tracks.get(name)?.length ?? 0) > 0;
+  }
+
   get(name: string, p: number): number {
     const keys = this.tracks.get(name);
     if (!keys || keys.length === 0) return this.defaults[name] ?? 0;

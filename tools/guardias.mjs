@@ -8,6 +8,7 @@
 // 2. The spark in frame while the camera rides it.
 // 3. What each act shows and hides comes and goes no faster than FUNDIDO_MIN beats.
 // 4. The seams: a cut only under the last act's full cover.
+// 5. The contract: at every other seam, the spark the same on both sides (CHASIS.md).
 // Exit code 1 if any fails.
 import { execFileSync } from 'node:child_process';
 
@@ -31,6 +32,7 @@ const r = run(`(() => ({
   cuadro: viaje.enCuadro(${DESDE}, Math.min(${HASTA}, viaje.total), 0.05),
   pres: viaje.presencias(),
   cost: viaje.costuras(),
+  contr: viaje.contratos(),
   tramos: viaje.tramos(),
 }))()`);
 const fallos = [];
@@ -81,6 +83,14 @@ for (let i = 0; i < c.length; i += 4) {
 for (const [a, nombre, b, pend] of r.pres) fallos.push([b, a, `«${nombre}» aparece o se va de golpe`, pend]);
 // 4. Seams.
 for (const s of r.cost) if (s.tipo === 'corte' && s.tapa < 0.98) fallos.push([s.en, s.a, 'corte sin tapa', s.tapa]);
+// 5. The contract at every seam but a cut: the spark lit alike on both sides, and in the same place
+//    on the screen (a few px), and a shared world where it was.
+for (const c of r.contr) {
+  if (c.tipo === 'corte') continue;
+  if (Math.abs(c.luz[0] - c.luz[1]) > 0.05) fallos.push([c.en, c.a, 'la chispa se prende o se apaga en la costura', `${c.luz[0]}→${c.luz[1]}`]);
+  else if (c.luz[0] > 0.05 && !(c.salto <= 4)) fallos.push([c.en, c.a, 'la chispa salta en la costura (px)', c.salto ?? 'sale de cuadro']);
+  if (c.mundo != null && c.mundo > 4) fallos.push([c.en, c.a, 'el mundo compartido salta en la costura (px)', c.mundo]);
+}
 
 // (one report per place and kind)
 const uno = [];
