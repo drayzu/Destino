@@ -262,7 +262,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     const prev = tramos[i].costura && tramos[i].costura !== 'corte' && p < RELEVO ? i - 1 : -1;
     // (an act that takes the flight on in mid air, `continuo`, is all there from its first beat; the
     // one going out leaves to it what both draw)
-    const continuo = tramos[i].costura === 'chispa' && !!A.continuo;
+    const continuo = (tramos[i].costura === 'chispa' || tramos[i].costura === 'cuadro') && !!A.continuo;
     const c = continuo ? 1 : smooth(clamp((p - 0.05) / (RELEVO * 0.8), 0, 1));
     const enCam = V();
     const mPrev = new THREE.Matrix4();

@@ -9,6 +9,7 @@ import type { Camino } from '../../estudios/chispa';
 import { COLOR, E, MA, RE, RMA, RV, VE, M, RM, RA, RB, PHI0, PHI, RIEL_A, enRiel, caminoRio as camino, T_RIO as T, D_RIO as D, N_RIO as N_T } from '../../estudios/interior';
 import { enfocarMarcas, marcas, nombres, orbitas, type Nombre } from '../../estudios/revelar';
 import type { Cuenta, Rotulo } from '../../estudios/placa';
+import { CONTRATO, toma as plano } from '../toma';
 import type { Acto, EscenaChasis, FrameActo } from '../tipos';
 import { suelo, vueloInterior } from '../../estudios/vuelo';
 
@@ -36,6 +37,9 @@ const Y = V(0, 1, 0);
 
 /** Where the scene leaves the camera: far away, the Sun an ember in its swarm (scene 13 starts here). */
 export const LEJOS = V(Math.sin(PHI0 + PHI * 0.86 + 0.7), 0.35, Math.cos(PHI0 + PHI * 0.86 + 0.7)).multiplyScalar(160);
+
+/** The flight round the spark: p, az, el, ld, mx, my, fov (tools: claves, from the old chase). */
+const VUELO_MERCURIO: number[][] = [[1.2, 152.5, 25.1, 0.54, -3.7, -2.5, 44.0], [2.4, 150.4, 21.7, 0.362, -4.5, -2.8, 44.0], [3.6, 146.9, 21.1, 0.08, -3.5, -3.2, 44.0], [4.8, 141.9, 17.4, -0.208, 1.8, -3.6, 44.0], [6.0, 156.5, 13.7, -0.349, 7.0, -3.0, 44.0], [7.2, 184.1, 13.8, -0.36, 7.0, -3.0, 44.0], [8.4, 218.5, 15.9, -0.32, 5.5, -2.9, 44.0], [9.6, 233.9, 22.2, -0.157, -4.3, -2.1, 44.0], [10.8, 228.0, 25.4, 0.179, -7.1, -2.5, 44.0], [12.0, 214.3, 19.9, 0.661, -3.0, -2.7, 44.0], [13.2, 241.5, 16.5, 0.751, 0.8, -3.4, 43.9], [14.4, 260.5, 16.5, 0.239, 12.8, -8.2, 43.7], [15.6, 253.3, 10.6, -0.114, 29.1, -7.8, 47.1], [16.8, 279.6, 5.8, 0.054, 32.2, -2.4, 52.1], [18.0, 311.1, 2.8, 0.094, 33.1, 0.5, 53.7], [19.2, 344.5, -5.9, 0.099, 32.8, 7.2, 52.6], [20.4, 380.8, -12.5, 0.117, 31.6, 11.9, 50.4], [21.6, 434.3, -4.8, 0.226, 26.8, 5.8, 47.8], [22.8, 490.7, 8.6, 0.528, 14.9, -2.0, 45.2], [24.0, 529.9, 13.5, 0.836, 6.9, -2.9, 42.8], [25.2, 564.0, 15.0, 1.137, 2.8, -1.9, 40.3], [26.4, 596.4, 16.3, 1.439, 1.0, -1.2, 37.5], [27.6, 625.8, 17.5, 1.721, 0.4, -0.7, 34.9], [28.8, 650.0, 18.5, 1.96, 0.3, -0.5, 32.6], [30.0, 664.6, 19.1, 2.105, 0.4, -0.4, 31.1]];
 
 function rigDe(pos: THREE.Vector3) {
   const a = angulos(pos);
@@ -400,7 +404,7 @@ export const mercurio: EscenaChasis = {
     const T_C = vuelo.tauDe('corte');
     const T_M0 = vuelo.tauDe('merc0') - T_C;
     const T_RIO = vuelo.tauDe('rio1') - T_C;
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, ...c0, yaw: 0, pitch: -40, roll: 0, fov: 44, vel: 0, sw: 0, swA: 0, swR: 0, swE: 0, swK: 0, swF: 40, mina: 0, riel: 0, rio: 0, rioOn: 1, cubre: 0, ir: 0, mapa: 0, nombres: 0 });
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, ...c0, yaw: 90, pitch: -90, roll: 0, fov: 44, lw: 1, mx: 0, my: 0, vel: 0, sw: 0, swA: 0, swR: 0, swE: 0, swK: 0, swF: 40, mina: 0, riel: 0, rio: 0, rioOn: 1, cubre: 0, ir: 0, mapa: 0, nombres: 0 });
     tl.wait(T_M0 - 4.4);
     tl.label('mina').caption(3.2, 'Desarmar Mercurio', 'Para el enjambre hace falta materia. Máquinas que se copian deshacen Mercurio en menos de una vida.');
     luego(0, 4.4, { mina: 0.62 });
@@ -476,6 +480,18 @@ export const mercurio: EscenaChasis = {
     };
     // (the spark is lit the whole act)
     tl.keyAt(0, { on: 1 });
+    // The shots (chasis/toma.ts): round the spark all the act, as the old chase framed it (written
+    // every 1.2 beats, its jitter averaged out): across to Mercury, down its rail, along the river,
+    // round the Sun among the collectors with the spark to one side, and out until the Sun is a dim
+    // point. It comes in on the contract from the system's act.
+    tl.keyAt(0, { az: 170.5, el: 21.1, ld: 0.67, ...CONTRATO });
+    let azM = 170.5;
+    for (const [p, az, el, ld, mx, my, fov] of VUELO_MERCURIO) {
+      const a = az + 360 * Math.round((azM - az) / 360);
+      azM = a;
+      tl.keyAt(p, { az: a, el, ld, mx, my, fov });
+    }
+    tl.keyAt(tl.length, { az: -43.9 + 360 * Math.round((azM + 43.9) / 360), el: 19.6, ld: 2.22, mx: 0.4, my: -0.3, fov: 30 });
     const q = V();
     const solV = V();
     const mercV = V();
@@ -492,10 +508,14 @@ export const mercurio: EscenaChasis = {
       presencias: ['mina', 'riel', 'rio', 'rioOn', 'cubre', 'mapa', 'nombres'],
       salida: { pos: V(), escala: 1 },
       // (the system's act hands the flight over in mid air: the same flight, the same worlds)
+      costura: 'cuadro',
       continuo: true,
       chispa(p, out) {
         caminoCh(p, out);
         return true;
+      },
+      camara(p, ch, out) {
+        plano(tl, p, ch, out);
       },
       escalera: false,
       efectos(p) {

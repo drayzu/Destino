@@ -8,6 +8,10 @@ import { HORIZONTE, TEAL, caraHacia, dirLatLon, potencia, anioEn } from '../../e
 import { angulos, toma } from '../../estudios/rig';
 import type { Camino } from '../../estudios/chispa';
 import { CARA, SOL as SOL_TIERRA } from './tierra';
+import { CONTRATO, toma as plano } from '../toma';
+
+/** The flight through the inner system round the spark: p, az, el, ld, mx, my (tools: claves). */
+const VUELO_SISTEMA: number[][] = [[13.8, -82.8, 25.2, -0.246, 6.3, 3.4], [15.0, -80.6, 27.6, -0.224, 6.6, 3.1], [16.2, -94.3, 17.4, -0.444, -0.9, -1.2], [17.4, -105.2, 6.2, -0.769, -2.2, -1.6], [18.6, -90.4, 22.3, -0.942, -1.6, -0.5], [19.8, -45.0, 39.4, -0.747, -9.6, -3.5], [21.0, -49.0, 28.5, -0.154, -12.5, -3.8], [22.2, -87.3, 16.2, 0.582, -4.9, -2.5], [23.4, -92.1, 19.6, 0.802, -3.5, -2.1], [24.6, -82.5, 18.2, 0.347, 1.2, -2.0], [25.8, -50.0, 19.0, 0.002, 5.3, -3.1], [27.0, -17.0, 22.1, -0.118, 6.8, -6.4], [28.2, 24.1, 16.5, -0.132, 6.1, -10.0], [29.4, 67.4, -5.6, -0.139, 6.8, -9.6], [30.6, 115.3, -17.9, -0.159, 8.7, -3.8], [31.8, 150.9, -1.2, -0.12, 2.1, -2.1], [33.0, 128.2, 15.8, 0.267, -7.6, -3.4], [34.2, 105.5, 16.5, 0.853, -5.0, -3.2], [35.4, 106.5, 20.4, 0.872, -4.2, -2.4], [36.6, 97.4, 21.6, 0.747, -3.5, -2.0], [37.8, 83.4, 18.0, 0.37, 1.4, -2.4], [39.0, 90.3, 18.0, 0.126, 6.4, -2.9], [40.2, 109.5, 17.2, 0.07, 7.8, -3.1], [41.4, 135.7, 14.7, 0.039, 7.6, -2.8], [42.6, 163.8, 11.6, 0.006, 7.1, -1.5], [43.8, 189.9, 11.4, -0.037, 6.5, 0.0], [45.0, 199.5, 11.8, -0.078, 0.6, -2.2], [46.2, 192.9, 18.0, 0.083, -6.5, -4.6], [47.4, 181.2, 20.4, 0.412, -4.3, -2.5]];
 import { CIUDAD, COLOR, DIR_CIUDAD, E, FIN_RIEL_LUNA, LUNA, M, MA, N_LUNA, RE, RL, RM, RMA, RV, SOL_V, U_LUNA, VE, enOrbita, enRielLuna } from '../../estudios/interior';
 import { DIR7, suelo, vueloInterior } from '../../estudios/vuelo';
 import { enfocarMarcas, marcas, nombres, orbitas, type Nombre } from '../../estudios/revelar';
@@ -600,7 +604,7 @@ export const sistema: EscenaChasis = {
     // First, where we are and where we will go: out from the Earth decade after decade until the
     // inner system is one frame, the worlds named a moment; then down again onto the spark, which
     // leaves.
-    tl.set({ ...Cn(E), ox: 0, oy: 0, oz: 0, az: fin7.az, el: fin7.el, ld: Math.log10(23 * RE), yaw: 90, pitch: -90, roll: 0, fov: 34, mw: 0, lw: 0, on: 1, mar: 0, todo: 0, ven: 0, sombra: 0, anillo: 1, hl: 0, mapa: 0, nombres: 0, aire: 0, velR: 0 });
+    tl.set({ ...Cn(E), ox: 0, oy: 0, oz: 0, az: fin7.az, el: fin7.el, ld: Math.log10(23 * RE), yaw: 90, pitch: -90, roll: 0, fov: 34, mx: 0, my: 0, mw: 0, lw: 0, on: 0, mar: 0, todo: 0, ven: 0, sombra: 0, anillo: 1, hl: 0, mapa: 0, nombres: 0, aire: 0, velR: 0 });
     tl.label('mapa').caption(T0 - 0.8, 'El sistema solar', 'Con la Tierra ya no alcanza: lo que sigue está alrededor. La Luna, Marte, Venus, Mercurio y, al centro, el Sol.');
     const azR = cerca(-30, fin7.az);
     luego(0.3, 4.6, { ld: Math.log10(105), el: 50, az: azR, fov: 36 });
@@ -619,7 +623,12 @@ export const sistema: EscenaChasis = {
     luego(8.2, 4.4, { ...Cn(mir0), ld: a0.ld, el: a0.el, az: cerca(a0.az, azR), fov: 44 });
     luego(8.8, 1.2, { velR: 0.22 });
     luego(10.0, 1.4, { velR: 0 });
-    luego(10.9, 1.7, { lw: 1, mw: 1 });
+    // (the gaze onto the spark as the camera comes down, not after: the spark waiting on the Earth
+    // slid out of the frame as the camera came down on the chase's own point)
+    luego(9.2, 2.6, { lw: 1 });
+    luego(10.9, 1.7, { mw: 1 });
+    // (the spark comes on once the Earth's scene has handed over: it was out there, CHASIS.md)
+    luego(1.6, 1.4, { on: 1 });
     tl.keyAt(T_RIEL0 - 3.0, { hl: 0 });
     tl.keyAt(T_RIEL0 - 1.4, { hl: 1 });
     tl.keyAt(T_MARTE - 3.4, { mar: 0 });
@@ -636,6 +645,14 @@ export const sistema: EscenaChasis = {
     tl.label('venus').caption(T_CORTE - L_VENUS - 0.3, 'Venus, a la sombra', 'Venus es un horno, pero en lo alto de sus nubes el aire es templado: ahí pueden flotar ciudades.');
     // (the act ends in mid air, on the way to Mercury: its act goes on with the same flight)
     tl.wait(T_CORTE - L_VENUS);
+    // The flight (chasis/toma.ts): round the spark as the old chase framed it, written every 1.2
+    // beats (its jitter averaged out): the worlds it passes leaning into the frame, the spark off the
+    // middle as it was; at the end, onto the contract for Mercury's act.
+    tl.keyAt(T0 - 1.0, { mx: 0, my: 0 }).keyAt(T0, { mx: 4.3, my: 3.2 });
+    const az0 = tl.get('az', T0);
+    const vuelta = 360 * Math.round((az0 + 94.4) / 360);
+    for (const [p, az, el, ld, mx, my] of VUELO_SISTEMA) tl.keyAt(p, { az: az + vuelta, el, ld, mx, my });
+    tl.keyAt(tl.length, { az: 170.5 + vuelta + 360 * Math.round((179.2 - 170.5) / 360), el: 21.1, ld: 0.67, ...CONTRATO });
 
     const lugar = V();
     const mira = V();
@@ -655,6 +672,9 @@ export const sistema: EscenaChasis = {
       chispa(p, out) {
         caminoCh(p, out);
         return true;
+      },
+      camara(p, ch, out) {
+        plano(tl, p, ch, out);
       },
       escalera: false,
       efectos(p) {
