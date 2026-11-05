@@ -6,7 +6,7 @@ import { gauss, lerp } from '../../estudios/motor/math';
 import { ease } from '../../estudios/comun';
 import { FONT, ink, VIOLETA, type Cuenta, type Rotulo } from '../../estudios/placa';
 import { TEAL, potencia } from '../../estudios/remake';
-import { angulos } from '../../estudios/rig';
+import { CONTRATO, toma } from '../toma';
 import type { Camino } from '../../estudios/chispa';
 import type { Acto, EscenaChasis, FrameActo } from '../tipos';
 import { GLSL_PLANETAS, capaSegura, estrellasDatos, orbitasDatos, planetasDatos, sistemas } from '../../estudios/momentos-apertura';
@@ -522,38 +522,22 @@ export const apertura: EscenaChasis = {
     const sis = sistemas(pase);
     const ALTO_PASO = 0.00012;
     sis.S.forEach((st, i) => {
-      const f = [0.14, 0.32, 0.5, 0.68, 0.85][i];
+      // (the last right where the spark comes to rest: it ends the flight among planets, not in the void)
+      const f = [0.14, 0.32, 0.5, 0.7, 0.96][i];
       const t = pase.getTangentAt(f);
       const n = st.n.clone().normalize();
       const ladoP = n.clone().cross(t).normalize().multiplyScalar(i % 2 ? 1 : -1);
       const d = (st.planetas[0].R + st.planetas[1].R) / 2;
       st.c.copy(pase.getPointAt(f)).addScaledVector(ladoP, d).addScaledVector(n, ALTO_PASO * (i % 2 ? 1 : -1));
     });
-    const largoPase = pase.getLength();
-    const finPaseR = finPase;
     // (an even pace along it: the scene's own easing brings it to rest; slowing it here as well let
     // the camera, which rides a stretch of way behind, catch it up)
     const camino: Camino = (sv, out) => {
       if (sv <= 1) return out.copy(S).lerp(P, Math.max(sv, -0.3));
       if (sv <= 2) return out.copy(pase.getPointAt(THREE.MathUtils.clamp(sv - 1, 0, 1)));
       const t = Math.min(sv - 2, 1);
-      return out.copy(finPaseR).lerp(S, t);
+      return out.copy(finPase).lerp(S, t);
     };
-    // The ride (the film's camera, chasis/pelicula.ts): its distances, the old ride's in world units.
-    // Out from the Sun on our radio's front: a straight way, ridden close and level.
-    const RIDE_VOZ = { mLd: Math.log10(0.0046), mAlto: 7.4, mAde: 1.0, mSuave: 0.6, mSuaveMira: 0.3 };
-    // Among the planets: closer behind the spark, so they go by near; a wide hand (the way bends
-    // between the systems, and a camera nailed to it would swing at each).
-    const RIDE_PASO = { mLd: Math.log10(0.00037), mAlto: 12, mAde: 1.0, mSuave: 2.6, mSuaveMira: 1.2 };
-    // The dive to the yellow star.
-    const RIDE_SOL = { mLd: Math.log10(0.0055), mAlto: 4, mAde: 0.7, mSuave: 0.6, mSuaveMira: 0.3 };
-    /** Where the ride stands while the spark rests at the end of its bend (the rig meets it there). */
-    const lugarEnReposo = (r: typeof RIDE_PASO) => {
-      const D = Math.pow(10, r.mLd);
-      const a = THREE.MathUtils.degToRad(r.mAlto);
-      return finPase.clone().addScaledVector(dirFin, -D * Math.cos(a)).add(V(0, D * Math.sin(a), 0));
-    };
-
     // (the systems the spark flies past: their stars, their orbits, their planets)
     // (what goes right by the lens fades instead of filling the frame for an instant: a planet or a
     // star brushed past was a flash of light)
@@ -568,7 +552,14 @@ export const apertura: EscenaChasis = {
     enTorno(sisOrbitas, P, ['position']);
     enTorno(sisPlanetas, P, ['aC']);
 
-    tl.set({ ...C(P), ox: 0, oy: 0, oz: 0, az: 0, el: 4, ld: -1.2, yaw: 90, pitch: -90, roll: 0, fov: 42, tu: 0, cue: 0, voz: 0, vozOn: 1, cielo: 0.4, gal: 0.4, titulo: 0, vatios: 0, pla: 0, vaso: 0, ola: 0, olaOn: 0, solp: 0, luzSol: 0, sc: 0, lw: 1, on: 1, tit: 0, frenteV: 0, punto: 0, velo: 1, cerca: 1, ...RIDE_VOZ });
+    // ---------------------------------------------------------------- the shots (chasis/toma.ts)
+    // The camera, written as Tiempo's: round what it looks at (`cx…`, or the spark as much as `lw`), at
+    // `az`, `el`, `ld`; the spark where `mx`, `my` put it on the screen. It comes in through the frame
+    // (`cuadro`): its first picture keeps the contract (CONTRATO: the spark a degree under the middle,
+    // a 40° lens), whatever came before.
+    const L_VOZ = Math.log10(0.0046);
+    const L_PASO = Math.log10(0.00042);
+    tl.set({ ...C(S), az: -52, el: 10, ld: L_VOZ, lw: 1, ...CONTRATO, roll: 0, tu: 0, cue: 0, voz: 0, vozOn: 1, cielo: 0.4, gal: 0.4, titulo: 0, vatios: 0, pla: 0, vaso: 0, ola: 0, olaOn: 0, solp: 0, luzSol: 0, sc: 0, on: 1, tit: 0, frenteV: 0, punto: 0, velo: 1, cerca: 1 });
 
     // Riding the front of our radio, out from the Sun; the stars round it pass.
     // (every star the front reaches flashes and keeps its teal: they could hear us now; and the
@@ -578,7 +569,9 @@ export const apertura: EscenaChasis = {
     tl.with(5.0, { voz: 1, sc: 1 });
     luego(0.4, 3.0, { cielo: 1, gal: 1 });
     luego(2.5, 1.0, { frenteV: 1 });
-    luego(3.0, 2.0, { lw: 0, ...C(S), ld: Math.log10(2.6 * R_VOZ), az: 14, el: 16 });
+    // (settling level behind the spark, a little under the middle, the lens to the act's own)
+    luego(0, 1.8, { el: 2, mx: 0, my: -3.5, fov: 42 });
+    luego(3.0, 2.0, { lw: 0, az: 14, el: 16, ld: Math.log10(2.6 * R_VOZ), my: 0 });
     tl.wait(5.0);
 
     // Then far back, the gaze on it: the galaxy, the bubble a point (a teal one beside the Sun).
@@ -596,76 +589,98 @@ export const apertura: EscenaChasis = {
     tl.to(4.6, { ...C(G), ld: 1.98, el: 60, az: 52 });
 
     tl.label('alguien').caption(3.8, '¿Hay alguien más?', 'Cientos de miles de millones de estrellas. Hasta donde sabemos, nadie usa su luz.');
-    tl.to(3.8, { ...C(hacia(G, P, 0.75)), ld: 1.15, el: 24, az: 80 });
+    // (what it looks at comes to the spark's neighbourhood while the camera is still far: coming down,
+    // it only comes closer)
+    tl.to(3.8, { ...C(P), ld: 1.15, el: 24, az: 80 });
 
-    // Down to the spark again: it flies among stars with planets, and the camera with it.
+    // Down to the spark again, and it does not wait for the camera: it sets off as the camera comes
+    // down, and the camera falls in with it among the stars with planets. On the way the camera does
+    // not sit behind it: it swings round it, the systems sliding past one side and then the other.
     tl.label('planetas').caption(7.6, 'Planetas por todas partes', 'Y planetas no faltan: al menos uno por estrella. Muchos, donde podría haber agua.');
-    tl.with(1.1, { ...C(P) });
-    tl.to(2.4, { ld: -2.1, el: 10, az: 96 });
-    luego(-0.6, 1.6, { pla: 1 });
-    // (all the ride's: a share of the rig's place, out to one side, could fall right across the spark
-    // as it bends, and there the blend jumps)
-    tl.with(1.0, { lw: 1 });
-    tl.to(5.2, { sc: 2 });
+    const L0 = tl.at('planetas');
+    luego(0, 2.4, { ld: -2.0, el: 10, az: 96 });
+    luego(1.8, 1.6, { pla: 1 });
+    luego(1.4, 6.2, { sc: 2 });
+    tl.keyAt(L0 + 2.9, { ...C(P) });
+    luego(1.5, 1.4, { lw: 1, ld: L_PASO + 0.3, my: -4 });
+    // (round it: the angle from right behind it, `fi`, read off the way's heading where the spark is)
+    const tg = V();
+    let azAnt = 96;
+    // (mostly from behind and a little above, the spark low in the frame, so the systems ahead come
+    // up over it and go by; leaning from one side to the other as the way bends; at rest, round to
+    // the side of the last system)
+    for (const [dp, fi, el, ld, my] of [
+      [4.0, -18, 13, L_PASO, -6],
+      [5.2, 12, 6, L_PASO - 0.05, -5],
+      [6.4, 26, 10, L_PASO, -5],
+      [7.6, 48, 14, L_PASO + 0.15, -2],
+    ]) {
+      const u = THREE.MathUtils.clamp(tl.get('sc', L0 + dp) - 1, 0, 1);
+      pase.getTangentAt(u, tg);
+      let az = THREE.MathUtils.radToDeg(Math.atan2(tg.x, tg.z)) + 180 + fi;
+      az += 360 * Math.round((azAnt - az) / 360);
+      azAnt = az;
+      tl.keyAt(L0 + dp, { az, el, ld, my });
+    }
+    // (at rest, the frame between the spark and the star it came to rest by)
+    const ultima = sis.S[sis.S.length - 1].c;
+    tl.keyAt(L0 + 6.3, { ...C(ultima) }).keyAt(L0 + 6.4, { lw: 1 }).keyAt(L0 + 7.6, { lw: 0.6 });
+    tl.wait(7.6);
+    // (from here to the leap, one slow turn round: the camera that will dive to the yellow star must
+    // stand on the line from the star through the resting spark; turning there at the last moment
+    // swung it half round in a beat)
+    const enS = finPase.clone().sub(S);
+    const azS0 = THREE.MathUtils.radToDeg(Math.atan2(enS.x, enS.z));
+    const azS = azS0 + 360 * Math.round((azAnt - 120 - azS0) / 360);
+    const elS = THREE.MathUtils.radToDeg(Math.asin(enS.y / enS.length()));
+    const giro = (k: number) => azAnt + (azS - azAnt) * k;
 
-    // The glass of water: the drop of all we have listened to, the camera drawing back from it as
-    // the stars round it multiply, until it is a speck in the sea of them.
+    // The glass of water: the drop of all we have listened to, the camera drawing back from the
+    // resting spark as the stars round it multiply, until it is a speck in the sea of them.
+    // (what it looks at goes from the spark to the Sun only once it is far: never through the drop's
+    // skin, never a turn right round)
     tl.label('escuchado').caption(4.8, 'Lo que hemos escuchado', 'Llevamos décadas escuchando. Es como sacar un vaso de agua del mar y decir que no hay peces.');
-    // (the rig starts round the resting spark from where the ride already is, so letting go of it
-    // the gaze stays on it; it draws back from it, and only then, far enough, turns to the drop,
-    // its centre going to the Sun: never through the drop's skin, never a turn right round)
-    const finLazo = finPaseR;
-    const enL = lugarEnReposo(RIDE_PASO).sub(finLazo);
-    luego(0, 0.4, { ...C(finLazo), ...angulos(enL), ld: Math.log10(enL.length()) });
-    // (letting go of the ride only once the rig stands where the ride is: let go while it still moved
-    // there, its move showed as a small jolt)
-    luego(0.4, 1.4, { lw: 0 });
+    // (the Sun is what it will look at; the gaze goes from the spark to it only once the camera is far
+    // enough that the two are close in the frame, so the spark drifts a few degrees, no more)
+    tl.keyAt(tl.at('escuchado') + 2.6, { ...C(ultima) });
     luego(0.2, 1.2, { pla: 0 });
     luego(0.6, 1.4, { vaso: 1 });
-    luego(0.4, 1.3, { ld: -1.05 });
-    luego(1.3, 1.9, { ...C(S) });
-    tl.to(4.8, { ld: 0.2, el: 16, az: 176 });
+    // (the spark drawn to the left as the camera draws back, so the drop comes into the middle; then
+    // the gaze goes to the drop itself)
+    luego(0.3, 1.8, { ld: -1.05, el: 14, my: 0, mx: -14 });
+    luego(2.6, 2.2, { ...C(S), lw: 0, mx: 0 });
+    tl.to(4.8, { ld: 0.2, el: 16, az: giro(0.2) });
 
     // The silence: the wave of what should be there, and nothing; the spark flickers.
     tl.label('silencio').caption(5.0, 'El silencio', 'Una sola civilización habría tenido tiempo de llenar la galaxia miles de veces. ¿Dónde están todos?');
     luego(1.0, 1.4, { vaso: 0 });
     luego(1.0, 1.8, { ...C(hacia(S, G, 0.6)) });
-    tl.to(2.6, { ld: 1.95, el: 52, az: 200 });
+    tl.to(2.6, { ld: 1.95, el: 52, az: giro(0.5) });
     luego(-0.6, 0.4, { olaOn: 1 });
     luego(-0.4, 2.6, { ola: 1 });
     luego(1.0, 1.4, { tit: 1 });
-    tl.to(2.4, { az: 214 });
+    tl.to(2.4, { az: giro(0.8) });
     luego(-0.4, 1.0, { olaOn: 0, tit: 0 });
 
     // The leap: the spark dives to one yellow star, the camera behind it, and its light fills the frame.
-    // (the gaze on the yellow star all the way down, it in the middle growing; the galaxy's haze gives
-    // way to its stars as the camera comes into the disc, the nearest rushing past)
+    // (the camera first comes round onto the line from the yellow star through the resting spark, the
+    // star in the middle; then down it, the spark between, so taking the spark into the middle moves
+    // nothing; then behind the spark into the star. The galaxy's haze gives way to its stars as the
+    // camera comes into the disc, the nearest rushing past)
     tl.label('amarilla').caption(5.0, 'Una estrella amarilla', 'No lo sabemos. Pero podemos imaginar cómo crecería una, empezando por la nuestra.');
     luego(0.6, 2.4, { solp: 1 });
-    tl.with(1.0, { ...C(S) });
+    tl.with(1.2, { ...C(S) });
     luego(0.5, 0.7, { velo: 0, cerca: 0.15 });
     luego(1.7, 0.8, { velo: 1, cerca: 1 });
-    // (first turned to it while still far, then straight down to it: turning and closing at once,
-    // the star slid out of the frame; the end pose, where despierta takes over, the same)
-    // (the rig's centre the star itself, and down the line that ends at the very place the ride takes
-    // the camera, so the star stays in the middle all the way and handing over to the ride moves the
-    // camera none: looking at the end of the spark's loop instead, the star slid off the frame)
-    const enS = lugarEnReposo(RIDE_PASO).sub(S);
-    const LEJOS_S = 2;
-    const enA = angulos(enS);
-    const azA = enA.az + 360 * Math.round((236 - enA.az) / 360);
-    tl.to(1.0, { el: enA.el, az: azA });
-    // (stopping a little short of it: right there, still looking at the star, the spark beside the
-    // line slid off to the corner; the ride takes the camera the last stretch)
-    tl.to(1.6, { ld: Math.log10(enS.length() * LEJOS_S) });
-    tl.with(1.0, { lw: 1 });
+    // (still well over the disc as it comes round, and down into it only as it closes in: low over it
+    // from afar, the haze of its stars went out at once)
+    tl.to(1.2, { el: 16, az: azS });
+    tl.to(1.4, { ld: Math.log10(enS.length() * 2), el: elS + 3 });
+    tl.with(1.0, { lw: 1, el: elS + 6 });
     luego(1.4, 1.2, { luzSol: 1 });
+    luego(0.4, 2.0, { ld: Math.log10(0.0055) });
     tl.to(2.4, { sc: 3 });
     tl.label('fin');
-    // (the ride's distances change only while the camera stands in its rig: held, then changed;
-    // a key set far from the last one flows towards it all the way between)
-    tl.keyAt(tl.at('cien'), RIDE_VOZ).keyAt(tl.at('planetas'), RIDE_PASO);
-    tl.keyAt(tl.at('silencio'), RIDE_PASO).keyAt(tl.at('amarilla') + 1.0, RIDE_SOL);
 
     const Pw = V();
     return {
@@ -676,9 +691,13 @@ export const apertura: EscenaChasis = {
       lejos: 2000,
       film: { strength: 0.7, radius: 0.65, threshold: 0.4, exposure: 1.1 },
       presencias: ['voz', 'vozOn', 'cielo', 'gal', 'titulo', 'pla', 'vaso', 'olaOn', 'solp', 'luzSol', 'punto', 'tu', 'cue'],
+      costura: 'cuadro',
       chispa(p, out) {
         camino(tl.get('sc', p), out);
         return true;
+      },
+      camara(p, ch, out) {
+        toma(tl, p, ch, out);
       },
       // (the yellow star's light fills the frame at the end: the next act starts inside it)
       tapa(p) {
@@ -717,7 +736,10 @@ export const apertura: EscenaChasis = {
         polvo.u.uGal.value = gal;
         // (diving into the disc, its haze gives way to its stars: a fog from inside, it read as nothing)
         const camGv = camera.position;
-        brillo.u.uGal.value = gal * (1 - (1 - tl.get('velo', p)) * (1 - THREE.MathUtils.smoothstep(Math.abs(camGv.y), 1.5, 6)));
+        // (over a wide band of heights, in logarithm: the dive comes down through it in a moment, and in a
+        // narrow one the haze went out at once)
+        const alto = Math.log10(Math.max(Math.abs(camGv.y), 1e-6));
+        brillo.u.uGal.value = gal * (1 - (1 - tl.get('velo', p)) * (1 - THREE.MathUtils.smoothstep(alto, Math.log10(0.3), Math.log10(14))));
         estrellas.u.uCerca.value = tl.get('cerca', p);
         estrellas.u.uOla.value = tl.get('ola', p);
         estrellas.u.uOlaOn.value = tl.get('olaOn', p);

@@ -59,3 +59,15 @@ node tools/comparar.mjs docs/chasis/referencia docs/chasis/nuevo docs/chasis/x.j
 - Medido en toda la obra: el giro más brusco es de 130 °/compás (antes del chasis eran 403). Las revisiones no encuentran ningún salto ni tirón. La chispa sale de cuadro solo en 9 puntos sueltos (casi todos aprobados antes).
 - `tools/destellos.mjs` (la imagen, cada 0,05 compases) encuentra seis lugares. Cuatro son destellos buscados (86.5, 87.6, 272.5 y 275, los estallidos de la burbuja). El de 396.9 (el resplandor de una galaxia que la cámara atraviesa) quedó arreglado. El de 319.85 (la cámara subiendo sobre el borde de la galaxia) ya existía igual en la versión vieja: revisar con Diego.
 - La medusa (despierta 6.8–9.8) es ahora un plano: la campana entera desde afuera.
+
+## La dirección escrita (5 de noviembre): el contrato y los planos
+
+La cámara horneada copiaba la de antes, que perseguía a la chispa: miles de claves que nadie decidió. Cada acto pasa ahora a una dirección escrita, como en Tiempo, y a uniones que no lo atan a sus vecinos.
+
+- **El plano** (`chasis/toma.ts`): la cámara orbita lo que mira (`cx…` o la chispa, tanto como `lw`), a `az`, `el` y `ld`; `mx`, `my` dicen dónde queda eso en la pantalla, y `roll`, `fov`. Son pistas de la línea de tiempo del acto. Mirando la chispa, la chispa está en cuadro por construcción: la cámara y la chispa son un solo plano. Un acto que escribe su cámara declara `camara(p, chispa, out) { toma(tl, p, chispa, out) }` y no necesita claves horneadas.
+- **El contrato** (`costura: 'cuadro'`, `CONTRATO` en `toma.ts`): el primer y el último cuadro de un acto tienen la chispa en el mismo lugar de la pantalla (un grado bajo el centro) y el mismo lente (40°). El motor apoya una cámara sobre la otra, con giro incluido. Ningún acto conoce a sus vecinos: cualquier acto que cumpla el contrato puede ir antes o después de cualquier otro.
+- **Una escena nueva:** copiar `chasis/actos/plantilla.ts`, escribirla cumpliendo el contrato al entrar y al salir, y agregarla a la lista en `chasis/main.ts`. Probado el 5 de noviembre: la plantilla entre la mente y la apertura, sin tocar a ninguna de las dos; la chispa pasa de una a otra sin moverse en la pantalla.
+- **La chispa en reposo respira** (su corazón late lento), y el scroll la mueve con un resorte (sin tirones a cada paso de la rueda).
+- `viaje.pantalla(a, b)`: la chispa en la pantalla, al píxel, para revisar temblores, frenazos y saltos.
+
+Estado: **la apertura** es el piloto, ya escrita así (cámara en ~40 claves con intención en vez de las horneadas; giro máximo 81 °/compás; la chispa nunca sale de cuadro; arranca mientras la cámara baja a los planetas y descansa junto al último sistema). Pendiente: los otros once actos, y en la apertura la neblina de estrellas que se va de golpe en el compás 17,7 al salir del disco (ya estaba en la versión vieja).
