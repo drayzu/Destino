@@ -663,6 +663,28 @@ const api = {
     }
     return out;
   },
+  /**
+   * The first row of act i's written shot (see `transcribir`) that is the last act's last picture, in
+   * act i's units: for a seam through a shared world, so the two cameras are one. Looks at act i's own
+   * centre (`lw` 0).
+   */
+  entradaDe(i: number) {
+    const pose = peli.camara(tramos[i].inicio - 1e-6);
+    const m = peli.sims[i - 1][i];
+    const pos = m.aplicar(pose.pos, new THREE.Vector3());
+    const quat = m.girar(pose.quat, new THREE.Quaternion());
+    const tl = tramos[i].acto.tl;
+    const c = new THREE.Vector3(tl.get('cx', 0), tl.get('cy', 0), tl.get('cz', 0));
+    const v = pos.clone().sub(c);
+    const d = v.length();
+    v.divideScalar(d);
+    const G = THREE.MathUtils.radToDeg;
+    const enCam = c.clone().sub(pos).applyQuaternion(quat.clone().invert());
+    const f = new THREE.Vector3(0, 0, -1).applyQuaternion(quat);
+    const u = new THREE.Vector3(0, 1, 0).applyQuaternion(quat);
+    const nivel = new THREE.Vector3(0, 1, 0).addScaledVector(f, -f.y).normalize();
+    return [0, G(Math.atan2(v.x, v.z)), G(Math.asin(v.y)), Math.log10(d), 0, G(Math.atan2(enCam.x, -enCam.z)), G(Math.atan2(enCam.y, Math.hypot(enCam.x, enCam.z))), pose.fov, G(Math.atan2(nivel.clone().cross(u).dot(f), nivel.dot(u)))].map((x) => +x.toFixed(4));
+  },
   /** The fastest each act's own lights come and go (their `presencias`), against FUNDIDO_MIN. */
   presencias(res = 0.01) {
     const out: [string, string, number, number][] = [];

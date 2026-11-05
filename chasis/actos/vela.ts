@@ -577,9 +577,13 @@ export const vela: EscenaChasis = {
     const rutaEn = (p: number, t: number) => {
       const dSol = Math.pow(10, tl.get('lsol', p));
       const casaP = V(S0.x * (dSol / 14), S0.y * (dSol / 14), -dSol);
+      // (the ring turns by itself; towards the act's end the spark lets go of that turn, the short way
+      // round, so the seam with the galaxy is the same picture whenever it is reached)
       const ag = t * GIRO_ANILLO;
+      const suelta = THREE.MathUtils.smoothstep(p, tl.length - 2.0, tl.length - 0.3);
+      const agCh = ag - suelta * (THREE.MathUtils.euclideanModulo(ag + Math.PI, Math.PI * 2) - Math.PI);
       const naveP = V(0.9, 0.1, 0.2 + tl.get('nz', p));
-      const enAnillo = (ang: number, rr: number, out: THREE.Vector3, z = ANILLO) => out.set(Math.cos(ang + ag) * rr, Math.sin(ang + ag) * rr, z).applyAxisAngle(Yv, 0.15).add(naveP);
+      const enAnillo = (ang: number, rr: number, out: THREE.Vector3, z = ANILLO) => out.set(Math.cos(ang + agCh) * rr, Math.sin(ang + agCh) * rr, z).applyAxisAngle(Yv, 0.15).add(naveP);
       const desde = casaP.clone().add(V(0, 0, 3.2));
       const enVela = V(0, 0, 0.004);
       const hub = enAnillo(A_ENTRA, 0.035, V(), ANILLO + 0.012);

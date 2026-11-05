@@ -8,6 +8,7 @@ import { TEAL, potencia, puntoTu, anioEn } from '../../estudios/remake';
 import { toma, type Toma } from '../../estudios/rig';
 import { crearChispa, type Camino } from '../../estudios/chispa';
 import type { Rotulo } from '../../estudios/placa';
+import { toma as plano } from '../toma';
 import type { Acto, EscenaChasis, FrameActo } from '../tipos';
 
 /**
@@ -367,11 +368,20 @@ export const estrella: EscenaChasis = {
     // in the network it goes to its knot, where «tú» lights.
     tu.points.renderOrder = 31;
     const tmp: Toma = toma(tl, 0);
+    // (ahead of it where it looks: towards the star while it looks at the star, and up the walls with
+    // the gaze when it lifts, so it never drops out of the frame below)
     const caminoCh: Camino = (sv, out) => {
       const enRed = THREE.MathUtils.smoothstep(sv, tl.at('materia') + 1.0, tl.at('materia') + 3.6);
-      out.copy(toma(tl, Math.max(0, sv), tmp).pos).multiplyScalar(0.84);
+      const t = toma(tl, Math.max(0, sv), tmp);
+      out.copy(t.pos).addScaledVector(t.dir, 0.16 * t.pos.length());
       return out.lerp(tuPos, enRed);
     };
+    // The shot comes in from the galaxy's last picture (viaje.entradaDe: that picture in this act's
+    // units) and flows from it into the act's own.
+    tl.keyAt(0, { az: 82.59, el: 4, ld: 2.3008, mx: -0.08, my: 0.02, fov: 44, roll: 0.0044 });
+    tl.keyAt(2.5, { mx: 0, my: 0, roll: 0 });
+    // (it comes in where the galaxy's act left it: the seam's picture, in this act's units)
+    const entra = V(-57.1428571427241, 0, 0).sub(caminoCh(0, V()));
     tu.u.uSpread.value = 0;
 
     const luzCh = (p: number) => 1 - THREE.MathUtils.smoothstep(p, tl.at('materia') + 3.4, tl.at('materia') + 4.2);
@@ -389,7 +399,11 @@ export const estrella: EscenaChasis = {
       // The spark: a little ahead of the camera on its way in; in the network, to its knot.
       chispa(p, out) {
         caminoCh(p, out);
+        if (p < 1.5) out.addScaledVector(entra, 1 - THREE.MathUtils.smoothstep(p, 0, 1.5));
         return true;
+      },
+      camara(p, ch, out) {
+        plano(tl, p, ch, out);
       },
       luz: luzCh,
       escalera: false,
