@@ -8,7 +8,8 @@ import { tierra as tierraHorizontes } from '../../src/horizontes';
 import { FONT, ink, type Cuenta, type Rotulo } from '../../estudios/placa';
 import { TEAL, capaLuz, caraHacia, potencia, puntoTu, anioEn } from '../../estudios/remake';
 import { toma } from '../../estudios/rig';
-import { CARA, SOL, S_CAIRO, luces, rutaTierra } from './tierra';
+import { CARA, SOL, S_CAIRO, VUELO, luces, rumboTierra, rutaTierra, sueloTierra } from './tierra';
+import { CONTRATO, aMarco, detras, toma as plano } from '../toma';
 import type { Camino } from '../../estudios/chispa';
 import type { Acto, EscenaChasis, FrameActo } from '../tipos';
 
@@ -354,11 +355,9 @@ export const despierta: EscenaChasis = {
       tl.with(dur, v);
       tl.wait(-off);
     };
-    // The ride (the film's camera): in the sea, along the nerve and in the brain, a little behind and
-    // above the spark; over the Earth, tierra.ts's: low over the night side, «up» the Earth's own.
-    const RIDE_VIDA = { mLd: Math.log10(0.13), mAlto: 17, mAde: 0.55, mSuave: 3, mSuaveMira: 1.35 };
-    const RIDE_TIERRA = { mLd: Math.log10(0.02), mAlto: 37, mAde: 0.77, mSuave: 2.5, mSuaveMira: 4.5 };
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: -20, el: 14, ld: 0.18, yaw: 90, pitch: -90, roll: 0, fov: 40, blanco: 1, agua: 1, cel: 1, mar: 1, toque: 0, ner: 0, crece: 0.3, cor: 0, red: 0, forma: 0, tu: 0, tierra: 0, maq: 0, sc: 0, lw: 0, on: 0, vel: 0, ...RIDE_VIDA });
+    // The shots (chasis/toma.ts): the cell, the jellyfish whole, into the brain with the spark, and at
+    // the end tierra.ts's own ride over the night Earth (`VUELO`), so the seam is one picture.
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: -20, el: 14, ld: 0.18, yaw: 90, pitch: -90, roll: 0, mx: 0, my: 0, fov: 40, blanco: 1, agua: 1, cel: 1, mar: 1, toque: 0, ner: 0, crece: 0.3, cor: 0, red: 0, forma: 0, tu: 0, tierra: 0, maq: 0, sc: 0, lw: 0, on: 0, vel: 0, rad: 0 });
 
     // The first spark: the light touches the cell, and something goes round inside it.
     tl.label('celula').caption(4.6, 'Una célula que reacciona', 'Antes de pensar, la materia aprendió a reaccionar. Empezó en el mar, con una célula.');
@@ -376,20 +375,21 @@ export const despierta: EscenaChasis = {
     tl.with(1.6, { cel: 0, toque: 0 });
     luego(0.3, 2.4, { ner: 1, crece: 1 });
     tl.to(1.6, { az: 40, el: 24, ld: 0.52, fov: 40 });
-    // (all of it the ride: a share of the rig, looking the other way, pulled the gaze as the spark turned)
-    luego(0.4, 1.0, { lw: 1 });
+    // (the jellyfish whole, from outside its bell, as the spark runs down a nerve and round the rim)
+    tl.keyAt(tl.at('nervios') + 1.6, { cx: 0, cy: 0, cz: 0 });
+    tl.keyAt(tl.at('nervios') + 2.1, { cx: 0.5, cy: 0.15, cz: 0.36, az: 37.5, el: 22.5, ld: 0.33 });
+    tl.keyAt(tl.at('nervios') + 5.0, { az: 56, el: 18, ld: 0.3 });
     tl.to(3.4, { sc: 2 });
 
     // The net folds into a brain; the spark goes in, among neurons, to the point.
     tl.label('cerebro').caption(5.8, 'Un cerebro', 'Lo más complejo que conocemos, y funciona con veinte vatios. Como el tuyo, ahora.');
-    tl.with(2.0, { ner: 0, cor: 1, red: 1, mar: 0, agua: 0, lw: 0 });
+    // (the gaze half on the spark already as the jellyfish goes: it rests at the end of the rim, low)
+    tl.with(2.0, { ner: 0, cor: 1, red: 1, mar: 0, agua: 0, lw: 0.5, cx: 0, cy: 0, cz: 0 });
     luego(1.4, 2.6, { sc: 3, lw: 0.8 });
     luego(3.8, 1.0, { tu: 1 });
     tl.to(2.4, { az: 96, el: 16, ld: 0.42 });
     // (in until «tú» is just ahead, then only drifting: never through it, where the spark rests)
     tl.to(2.2, { az: 102, el: 10.6, ld: -0.42, fov: 45 });
-    // (the spark has arrived: the camera is the rig's alone again before the spark leaves)
-    tl.with(1.2, { lw: 0 });
     tl.to(1.2, { az: 104, el: 10, fov: 46 });
 
     // Out of the brain: its network lays itself over the night Earth, and the spark runs on it, city to city.
@@ -399,13 +399,14 @@ export const despierta: EscenaChasis = {
     luego(0.4, 3.0, { forma: 1, tierra: 1 });
     // The spark leaves «tú» for London; the camera lets go and draws back to see the brain become
     // the night Earth, then dives onto the spark again as it reaches London.
-    luego(0.2, 1.9, { ld: 0.32, el: 20, az: 118 });
-    luego(1.6, 1.8, { lw: 1, fov: 40 });
+    luego(0.2, 1.9, { ld: 0.32 });
+    luego(0.2, 0.8, { el: 20, az: 118 });
+    // (the gaze mostly on the spark as it flies out to London, so it never leaves the frame)
+    luego(0, 0.8, { lw: 0.7 });
+    // (all on the spark before closing in: half on it, close up, it would slip out of the frame)
+    luego(1.0, 1.2, { lw: 1, fov: 40 });
     tl.to(1.8, { sc: 3.4, vel: 0.2 });
     tl.to(4.2, { sc: 4 + S_CAIRO / 4, vel: 0.2 });
-
-    // (the ride's distances change only while the camera stands in its rig)
-    tl.keyAt(tl.at('ocho'), RIDE_VIDA).keyAt(tl.at('ocho') + 1.0, RIDE_TIERRA);
     const tm = toma(tl, tl.at('cerebro') + 4.6);
     const tuPos = tm.pos.clone().addScaledVector(tm.dir, 0.12);
     const tu = add(puntoTu(tuPos, 0.006));
@@ -457,6 +458,28 @@ export const despierta: EscenaChasis = {
       if (sv <= 3.4) return out.copy(aLondres.getPoint((sv - 3) / 0.4));
       return rutaTierra((sv - 3.4) * (S_CAIRO / (S_CAIRO / 4 + 0.6)), out).applyQuaternion(qT);
     };
+    // Over the night Earth from London on: tierra.ts's ride (VUELO), down onto the spark as it arrives.
+    const svT = (p: number) => Math.max(0, (tl.get('sc', p) - 3.4) * (S_CAIRO / (S_CAIRO / 4 + 0.6)));
+    /** The frame of the ground under the spark (its «up» the Earth's), once it is over the Earth. */
+    const suelo = (p: number) => sueloTierra(svT(p), qT);
+    const o8 = tl.at('ocho');
+    const pV = o8 + 3.4;
+    // (while still far, the shot goes over into the ground's frame without moving: its «up» turns to
+    // the Earth's; then down, coming up over London's horizon onto the spark, and behind it)
+    const azA = aMarco(tl, o8 + 1.0, o8 + 2.0, 118, 20, suelo);
+    const tV = rumboTierra(svT(pV), qT).applyQuaternion(suelo(pV).invert());
+    let azB = THREE.MathUtils.radToDeg(Math.atan2(tV.x, tV.z)) + 180;
+    azB += 360 * Math.round((azA - azB) / 360);
+    tl.keyAt(o8 + 2.7, { az: (azA + azB) / 2, el: 8 });
+    detras(tl, (pp, o) => rumboTierra(svT(pp), qT, o), pV, tl.length, {
+      cada: 0.5,
+      el: VUELO.el,
+      ld: VUELO.ld,
+      marco: suelo,
+      azDesde: azB,
+    });
+    tl.keyAt(pV - 1.4, { my: 0 }).keyAt(pV, { my: CONTRATO.my });
+    const id = new THREE.Quaternion();
     const solL = V();
     const camL = V();
     const inv = new THREE.Quaternion();
@@ -474,6 +497,10 @@ export const despierta: EscenaChasis = {
       chispa(p, out) {
         camino(tl.get('sc', p), out);
         return true;
+      },
+      camara(p, ch, out) {
+        const rad = tl.get('rad', p);
+        plano(tl, p, ch, out, rad > 0 ? id.clone().slerp(suelo(p), rad) : null);
       },
       tapa(p) {
         return tl.get('blanco', p);

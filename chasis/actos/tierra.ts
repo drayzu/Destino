@@ -10,6 +10,7 @@ import { angulos, toma } from '../../estudios/rig';
 import { crearChispa, montar, type Chispa } from '../../estudios/chispa';
 import type { Rotulo } from '../../estudios/placa';
 import type { Acto, EscenaChasis, FrameActo } from '../tipos';
+import { CONTRATO, detras, marcoRadial, mezclar, toma as plano } from '../toma';
 import { GLSL_RED, GLSL_SALA, LARGO_SALA, ORIGEN_RED, PASILLO_Z, ciudadDatos, redDatos, rutasRed, salaDatos } from '../../estudios/momentos-tierra';
 
 /**
@@ -102,6 +103,21 @@ const svDe = (u: number) => {
  */
 export function montarTierra(sv: number) {
   return montar((x, o) => rutaTierra(svDe(x), o), arcoDe(sv), 0.016, 0.044, 0.012, rutaTierra(sv).normalize(), 0.09, true, 0.05);
+}
+/**
+ * The ride over the night Earth, written (chasis/toma.ts `detras`): the same in despierta's end and
+ * here, so the seam between them is the same picture. Behind the spark, over the ground below it
+ * (its horizon level), the spark where the contract puts it.
+ */
+export const VUELO = { el: 34, ld: Math.log10(0.02) };
+/** The way's heading at route s (rounded over its stops), turned by the Earth's `q`. */
+export function rumboTierra(sv: number, q: THREE.Quaternion, out = V()) {
+  const u = arcoDe(sv);
+  return out.copy(rutaTierra(svDe(u + 0.1))).sub(rutaTierra(svDe(u - 0.1))).applyQuaternion(q);
+}
+/** The frame of the ground under route s (marcoRadial), the Earth turned by `q`. */
+export function sueloTierra(sv: number, q: THREE.Quaternion) {
+  return marcoRadial(rutaTierra(sv).applyQuaternion(q), V(), V(0, 1, 0).applyQuaternion(q));
 }
 /** Where the data centre is, and the cities its copies go to. */
 const DC = [19.1, 72.9];
@@ -569,15 +585,13 @@ export const tierraNoche: EscenaChasis = {
 
     // ---------------------------------------------------------------- the moments (GUION.md 15–19)
     const tl = new Timeline();
-    // The ride over the Earth (the film's camera): despierta's, so the seam simply goes on.
-    const RIDE = { mLd: Math.log10(0.02), mAlto: 37, mAde: 0.77, mSuave: 2.5, mSuaveMira: 4.5 };
     /** A tween that starts `off` beats after the cursor (the cursor stays). */
     const luego = (off: number, dur: number, v: Record<string, number>, e: ((t: number) => number) | null = null) => {
       tl.wait(off);
       tl.with(dur, v, e);
       tl.wait(-off);
     };
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 12, el: 9, ld: 0.74, yaw: 90, pitch: -90, roll: 0, fov: 40, anio: 2026, tu: 0, wipe: -1.4, warm: 0, ir: 0, presencia: 1, alto: 1, ind: 0, ani: 0, lh: 1, lp2: 13.28, rs: S_CAIRO, lw: 1, ...RIDE, on: 1, cable: 0, dc: 0, copias: 0, vel: 0.2, frente: -0.05, cables: 0, resto: 1, ola: -1 });
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: 12, el: 9, ld: 0.74, yaw: 90, pitch: -90, roll: 0, mx: 0, my: CONTRATO.my, fov: 40, anio: 2026, tu: 0, wipe: -1.4, warm: 0, ir: 0, presencia: 1, alto: 1, ind: 0, ani: 0, lh: 1, lp2: 13.28, rs: S_CAIRO, lw: 1, rad: 1, on: 1, cable: 0, dc: 0, copias: 0, vel: 0.2, frente: -0.05, cables: 0, resto: 1, ola: -1 });
 
     // Under the Red Sea and the Arabian Sea in a cable to Mumbai; as the spark lands, the pulse runs
     // on along every cable of the world, coast to coast and over the curve of the Earth to its other
@@ -604,7 +618,8 @@ export const tierraNoche: EscenaChasis = {
     luego(0, 1.6, { cable: 0 });
     luego(0.4, 2.4, { resto: 0 });
     luego(0, 2.0, { dc: 1 });
-    luego(0.6, 2.4, { rs: S_CAIRO + 5.6 });
+    // (down into the hall ahead of the camera, never past it from above)
+    luego(0.2, 2.0, { rs: S_CAIRO + 5.6 });
     luego(2.8, 0.4, { on: 0 });
     luego(2.8, 2.6, { ola: 34 });
     luego(5.0, 2.6, { copias: 1 });
@@ -658,6 +673,22 @@ export const tierraNoche: EscenaChasis = {
     // back where «luces» begins, standing exactly where the act's rig stands then.
     const P0 = 2.5;
     const P1 = tl.at('luces');
+    /** The frame the act's shot is written in: the ground's under the spark on the ride, else its own. */
+    const idQ = new THREE.Quaternion();
+    const marcoEn = (pp: number) => {
+      const rad = tl.get('rad', pp);
+      return rad > 0 ? idQ.clone().slerp(sueloTierra(tl.get('rs', pp), earth.quaternion), rad) : null;
+    };
+    // The ride over the sea to Mumbai (chasis/toma.ts): despierta's own, so the seam is one picture;
+    // the act's rig, unseen while the hall's has the camera, back where «luces» begins.
+    detras(tl, (pp, o) => rumboTierra(tl.get('rs', pp), earth.quaternion, o), 0, P0 + 2.4, {
+      cada: 0.6,
+      el: VUELO.el,
+      ld: VUELO.ld,
+      marco: (pp) => sueloTierra(tl.get('rs', pp), earth.quaternion),
+    });
+    // (the act's rig in its own frame again, unseen, before «luces»)
+    tl.keyAt(P1 - 1.5, { rad: 1 }).keyAt(P1 - 0.5, { roll: 0, my: 0, rad: 0 });
     const tl2 = new Timeline();
     /** What the hall's rig looks at: the far end of the aisle, at eye height (hall frame, radii). */
     const enHall = (x: number, y: number, z: number) => V(x * M, y * M, z * M).applyQuaternion(qSala);
@@ -683,14 +714,16 @@ export const tierraNoche: EscenaChasis = {
       if (Math.cos(yaw - Math.PI / 2) < 0) return { pitch: -180 - G(pitch), yaw: G(yaw) + 180, roll: ((G(roll) + 360) % 360) - 180 };
       return { pitch: G(pitch), yaw: G(yaw), roll: G(roll) };
     };
-    // Where the ride is as the rig starts to let go of it.
-    const lugarEn = (pp: number) => aLocal(montarTierra(tl.get('rs', pp)).lugar.applyQuaternion(earth.quaternion));
-    const r0 = rigLocal(lugarEn(3.0));
+    /** A camera of the act's own (the act's units) as the hall's rig writes it (hall frame). */
+    const enRig = (c: { pos: THREE.Vector3; quat: THREE.Quaternion; fov: number }) => {
+      const posL = aLocal(c.pos);
+      const dir = V(0, 0, -1).applyQuaternion(c.quat);
+      const up = V(0, 1, 0).applyQuaternion(c.quat);
+      return { ...rigLocal(posL), ...miradaLocal(posL, dirLocal(dir), dirLocal(up)), fov: c.fov };
+    };
+    const camDe = (pp: number, ch: THREE.Vector3 | null) => plano(tl, pp, ch, { pos: V(), quat: new THREE.Quaternion(), fov: 40, dist: 1, lw: 0 }, marcoEn(pp));
     // Where the act's rig stands as «luces» begins.
-    const tFin = toma(tl, P1);
-    const posFin = aLocal(tFin.pos);
-    const rFin = rigLocal(posFin);
-    const mFin = miradaLocal(posFin, dirLocal(tFin.dir), dirLocal(tFin.up));
+    const fin0 = enRig(camDe(P1, null));
     const enSala = (m: number) => Math.log10(m * M);
     /** A shot over the Earth: from above (lat, lon) at `alt` radii, looking at (tla, tlo) on the ground, the horizon level. */
     const sobre = (la: number, lo: number, alt: number, tla: number, tlo: number) => {
@@ -704,17 +737,17 @@ export const tierraNoche: EscenaChasis = {
     };
     const subida = sobre(17.5, 64, 0.09, 19.4, 76.5);
     const cima = sobre(19.2, 66.5, 0.2, 18.9, 78.5);
-    tl2.set({ cx: cL.x, cy: cL.y, cz: cL.z, ox: 0, oy: 0, oz: 0, az: r0.az, el: r0.el, ld: r0.ld, pitch: -90, yaw: 90, roll: 0, fov: 40, rw: 1 });
+    tl2.set({ cx: cL.x, cy: cL.y, cz: cL.z, ox: 0, oy: 0, oz: 0, pitch: -90, yaw: 90, roll: 0, fov: 40 });
+    // (it takes the camera from the ride where the ride is: the ride's own poses, written in its frame
+    // a little before and after, so it goes on at the ride's pace; see `enRig` below)
     // Off the ride and up off the sea: India below, the pulse running out to the curve of the Earth.
-    tl2.keyAt(3.0, { rw: 1, az: r0.az, el: r0.el, ld: r0.ld, pitch: -90, yaw: 90, roll: 0 });
-    tl2.keyAt(5.0, { rw: 0 });
-    tl2.keyAt(5.4, subida);
+    tl2.keyAt(5.8, subida);
     tl2.keyAt(6.9, { ...cima, fov: 40 });
     // Down onto the hall and in along its aisle, low over the floor.
     tl2.keyAt(9.4, { ...rigLocal(enHall(-LARGO_SALA / 2 - 3, 1.6, PASILLO_Z)), pitch: -90, yaw: 90, roll: 0 });
     tl2.keyAt(11.0, { ...rigLocal(enHall(LARGO_SALA / 2 - 7, 1.55, PASILLO_Z)), pitch: -90, yaw: 90, roll: 0 });
     // Up and away to where the act's rig waits.
-    tl2.keyAt(P1, { az: rFin.az, el: rFin.el, ld: rFin.ld, pitch: mFin.pitch, yaw: mFin.yaw, roll: mFin.roll, fov: tFin.fov });
+    tl2.keyAt(P1, fin0);
     const vW = V();
 
     /** The spark's way: the act's route to the data centre, then straight down into its hall. */
@@ -727,6 +760,13 @@ export const tierraNoche: EscenaChasis = {
       const h = Math.pow(10, lerp(Math.log10(0.006), hSala, k));
       return out.copy(dcE).multiplyScalar(1 + h).addScaledVector(bajaE, k);
     };
+    const enRuta = (pp: number) => rutaMia(tl.get('rs', pp), V()).applyQuaternion(earth.quaternion);
+    // (the hall's rig from the ride's pose where it starts to take over: the camera goes from one to
+    // the other in `camara`, riding on until the pulse is well on its way, then up off the sea)
+    for (const pp of [P0 + 1.2, P0 + 1.8]) tl2.keyAt(pp, enRig(camDe(pp, enRuta(pp))));
+    const D0 = P0 + 1.8;
+    const D1 = 5.6;
+    const cRide = { pos: V(), quat: new THREE.Quaternion(), fov: 40, dist: 1, lw: 0 };
     const solL = V();
     const camL = V();
     const inv = new THREE.Quaternion();
@@ -745,9 +785,21 @@ export const tierraNoche: EscenaChasis = {
       film: { strength: 0.7, radius: 0.5, threshold: 0.42, exposure: 1.15 },
       // (`ir` switches at once, but under its curtain: what shows is `wipe`)
       presencias: ['cable', 'dc', 'copias', 'cables', 'resto', 'tu', 'presencia', 'ind', 'ani', 'on'],
+      costura: 'cuadro',
       chispa(p, out) {
         rutaMia(tl.get('rs', p), out).applyQuaternion(earth.quaternion);
         return true;
+      },
+      // The act's rig, and in the hall the hall's (its frame: its «up» the ground's at Mumbai).
+      camara(p, ch, out) {
+        if (p < D0 || p >= P1) {
+          plano(tl, p, ch, out, marcoEn(p));
+          return;
+        }
+        plano(tl2, p, null, out);
+        aMundo(out.pos, out.pos);
+        out.quat.premultiply(qL);
+        if (p < D1) mezclar(plano(tl, p, ch, cRide, marcoEn(p)), out, THREE.MathUtils.smoothstep(p, D0, D1), out);
       },
       escalera: false,
       cuenta(p) {
