@@ -9,7 +9,8 @@ import type { Camino } from '../../estudios/chispa';
 import { COLOR, E, MA, RE, RMA, RV, VE, M, RM, RA, RB, PHI0, PHI, RIEL_A, enRiel, caminoRio as camino, T_RIO as T, D_RIO as D, N_RIO as N_T } from '../../estudios/interior';
 import { enfocarMarcas, marcas, nombres, orbitas, type Nombre } from '../../estudios/revelar';
 import type { Cuenta, Rotulo } from '../../estudios/placa';
-import { CONTRATO, toma as plano } from '../toma';
+import { CONTRATO, mezclar, toma as plano } from '../toma';
+import { primeraPersona } from '../primera';
 import type { Acto, EscenaChasis, FrameActo } from '../tipos';
 import { suelo, vueloInterior } from '../../estudios/vuelo';
 
@@ -36,6 +37,12 @@ const Y = V(0, 1, 0);
 // (Mercury's place, its rail and its river: interior.ts, shared with the flight that brings the spark here)
 
 /** Where the scene leaves the camera: far away, the Sun an ember in its swarm (scene 13 starts here). */
+/** What the flight passes right by fades out instead of blooming into a blot (first person, DIRECCION.md). */
+const LENTE = /* glsl */ `
+  float dCam = length(mv.xyz) / max(uEscalaMundo, 1e-30);
+  em *= smoothstep(0.012, 0.07, dCam);
+  occ *= smoothstep(0.012, 0.07, dCam);
+`;
 export const LEJOS = V(Math.sin(PHI0 + PHI * 0.86 + 0.7), 0.35, Math.cos(PHI0 + PHI * 0.86 + 0.7)).multiplyScalar(160);
 
 /** The flight round the spark: p, az, el, ld, mx, my, fov (tools: claves, from the old chase). */
@@ -303,6 +310,7 @@ export const mercurio: EscenaChasis = {
           float pulso = (smoothstep(0.86, 0.944, fract(aKind * 6.0 + uTime * 1.1)) * (1.0 - smoothstep(0.944, 1.0, fract(aKind * 6.0 + uTime * 1.1))));
           em *= uRiel * (0.35 + 4.0 * pulso) * step(aKind, uRiel * 1.05);
         `,
+        post: LENTE,
         uniforms: { uRiel: { value: 0 } },
       }),
     );
@@ -324,6 +332,7 @@ export const mercurio: EscenaChasis = {
           p = uM + rad * (uR + 0.0016) + tg * position.z + lado * position.x + rad * position.y;
           em *= uRiel * smoothstep(0.0, 0.05, fase) * step(vv, uRiel);
         `,
+        post: LENTE,
         uniforms: { uRiel: { value: 0 }, uM: { value: M.clone() }, uN: { value: N_T.clone() }, uD: { value: D.clone() }, uR: { value: RM * 1.004 } },
       }),
     );
@@ -348,6 +357,7 @@ export const mercurio: EscenaChasis = {
           em = mix(vec3(0.42, 0.4, 0.37), uTeal, smoothstep(0.0, 0.04, sv)) * (0.12 + 0.3 * fract(seed * 7.3));
           em *= step(sv, uRio) * (1.0 - smoothstep(0.8, 1.0, sv)) * uRioOn;
         `,
+        post: LENTE,
         uniforms: { uRio: { value: 0 }, uRioOn: { value: 1 }, uTeal: { value: TEAL.clone() } },
         extra: { aOff: [rd.off, 2] },
       }),
@@ -492,6 +502,16 @@ export const mercurio: EscenaChasis = {
       tl.keyAt(p, { az: a, el, ld, mx, my, fov });
     }
     tl.keyAt(tl.length, { az: -43.9 + 360 * Math.round((azM + 43.9) / 360), el: 19.6, ld: 2.22, mx: 0.4, my: -0.3, fov: 30 });
+    // First person (DIRECCION.md 26–27): from the system's act's handover on, the camera flies the way
+    // itself: across to Mercury, held on it as it comes and as the rail fires (you ride a load), and
+    // down the river of rock towards the Sun, until the swarm, where the written orbit takes it.
+    const P_FP = tl.at('pared');
+    const enPrimera = primeraPersona(caminoCh, [
+      { c: M, R: RM, cerca: 0.75, destino: [0.4, T_M0 - 1.0], visita: [T_M0 - 3.2, T_M0 + 1.2] },
+      // (down the river the Sun is the way's end: the gaze half on it, not on the river's far end, where
+      // its rock piles into one glare)
+      { c: V(), R: 1, cerca: 0.55, visita: [T_RIO - 7.5, P_FP + 3.6], alcance: 3 },
+    ]);
     const q = V();
     const solV = V();
     const mercV = V();
@@ -516,6 +536,8 @@ export const mercurio: EscenaChasis = {
       },
       camara(p, ch, out) {
         plano(tl, p, ch, out);
+        const w = THREE.MathUtils.smootherstep(p, 0.3, 1.9) * (1 - THREE.MathUtils.smootherstep(p, P_FP + 2.0, P_FP + 3.8));
+        if (w > 0) mezclar(out, enPrimera(p), w, out);
       },
       escalera: false,
       efectos(p) {
