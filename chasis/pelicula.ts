@@ -25,6 +25,10 @@ export const RELEVO = 1.8;
 export const FUNDIDO_MIN = 0.4;
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+/** How far either side (beats) a shot averages the spark's way it follows (see chispaSeguida). */
+export const SIGUE = 0.35;
+const OFFS_SIGUE = Array.from({ length: 11 }, (_, k) => ((k + 0.5) / 11) * 2 - 1);
+const PESOS_SIGUE = OFFS_SIGUE.map((o) => (1 - o * o) ** 2);
 const smooth = (x: number) => x * x * (3 - 2 * x);
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 
@@ -114,8 +118,42 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
   function camaraActo(i: number, p: number): PlanoCamara {
     const A = tramos[i].acto;
     const out: PlanoCamara = { pos: V(), quat: new THREE.Quaternion(), fov: 40, dist: 1, lw: 0 };
-    A.camara(p, A.chispa(p, chCam, tiempo) ? chCam : null, out);
+    // (once on the spark itself, for how far the shot stands from it)
+    const hay = A.chispa(p, chCam, tiempo);
+    A.camara(p, hay ? chCam : null, out);
+    if (hay && out.lw > 0 && chispaSeguida(i, p, out.dist, chCam)) A.camara(p, chCam, out);
     return out;
+  }
+  /**
+   * What a shot follows of the spark: its way averaged over ±SIGUE beats, as a hand follows it, so
+   * the camera comes round a corner instead of turning on it (the spark turns sharply at a neuron, a
+   * city, a star; the camera nailed to it changed the way it moved at once there). The spark itself
+   * keeps its way, a little off the middle in a turn. Never over more way than about the shot's
+   * distance (`dist`), so a fast spark stays in the frame; and the window closes towards the act's
+   * ends, so a seam's picture is exact.
+   */
+  const tmpSigue = V();
+  const tmpSigue2 = V();
+  function chispaSeguida(i: number, p: number, dist: number, out: THREE.Vector3) {
+    const A = tramos[i].acto;
+    const L = tramos[i].largo;
+    let w = SIGUE * clamp(Math.min(p, L - p) / 0.8, 0, 1);
+    if (w < 1e-4) return A.chispa(p, out, tiempo);
+    A.chispa(p + 0.02, tmpSigue, tiempo);
+    A.chispa(p - 0.02, tmpSigue2, tiempo);
+    const vel = tmpSigue.distanceTo(tmpSigue2) / 0.04;
+    if (vel > 1e-12) w = Math.min(w, (0.6 * dist) / vel);
+    if (w < 1e-4) return A.chispa(p, out, tiempo);
+    out.set(0, 0, 0);
+    let peso = 0;
+    for (let k = 0; k < PESOS_SIGUE.length; k++) {
+      if (!A.chispa(p + OFFS_SIGUE[k] * w, tmpSigue, tiempo)) continue;
+      out.addScaledVector(tmpSigue, PESOS_SIGUE[k]);
+      peso += PESOS_SIGUE[k];
+    }
+    if (peso < 1e-9) return false;
+    out.divideScalar(peso);
+    return true;
   }
 
   // ---- The seams: each act's units into the one before's.
