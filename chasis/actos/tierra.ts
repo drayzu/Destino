@@ -561,7 +561,8 @@ export const tierraNoche: EscenaChasis = {
       }),
     );
     anillo.u.uFuente.value = 0.35;
-    const tu = add(puntoTu(tuPos, 0.008));
+    // (small: seen close in «Hoy», a bigger one fell apart into its halo of points)
+    const tu = add(puntoTu(tuPos, 0.0028));
 
     // The spark, the submarine cable it takes, and the copies that leave the data centre.
     const cableB = materiaBuilder(311);
@@ -716,11 +717,18 @@ export const tierraNoche: EscenaChasis = {
 
     tl.label('hoy').caption(3.6, 'Hoy', 'Hoy usamos diecinueve billones de vatios: tipo 0,73 en la escala de Kardashev. Unos pocos encienden la pantalla en que miras esto.');
     luego(0.4, 0.9, { tu: 1 });
-    tl.to(3.6, { az: 0, el: 4, ld: 0.58, pitch: -90, fov: 40 });
+    // (down over the point among the lights, close, a pause in it: you, today; then up and away for
+    // what comes)
+    {
+      const d = dirLatLon(TU_EN.lat - 3.5, TU_EN.lon - 1.5).applyQuaternion(caraHacia(CARA.lat, CARA.lon));
+      const G = THREE.MathUtils.radToDeg;
+      tl.to(2.6, { az: G(Math.atan2(d.x, d.z)), el: G(Math.asin(d.y)), ld: Math.log10(1.07), pitch: -58, yaw: 88, fov: 46 });
+      tl.to(1.0, { ld: Math.log10(1.08) });
+    }
 
     tl.label('energia').caption(3.6, 'Más energía, más calor', 'Hay espacio para crecer: el Sol le da a la Tierra casi diez mil veces más. Pero lo que usamos termina como calor.');
     tl.with(1.0, { tu: 0 });
-    tl.to(3.6, { az: -52, el: 12, ld: 0.66 });
+    tl.to(3.6, { az: -52, el: 12, ld: 0.66, pitch: -90, yaw: 90, fov: 40 });
 
     tl.label('calor').caption(3.9, 'El calor nos echa', 'Un planeta solo se enfría brillando hacia el espacio. Si seguimos creciendo aquí, se recalienta: hay que salir.');
     tl.with(0.01, { ir: 1 });
