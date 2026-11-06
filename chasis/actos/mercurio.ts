@@ -141,7 +141,9 @@ function rielMalla() {
         vec3 col = vec3(0.42, 0.95, 0.85) * rieles * 0.42 + vec3(0.5, 0.56, 0.62) * bobina * 0.05;
         col += vec3(0.6, 1.0, 0.92) * bobina * min(fuego, 1.0) * 0.7 + vec3(0.42, 0.95, 0.85) * rieles * min(fuego, 1.0) * 0.4;
         // (the rail's bed: barely there, a darker band on the ground)
-        gl_FragColor = vec4(col * uFundido, 0.25 * uFundido);
+        // (what passes right by the lens fades: riding the rail, a coil going by was a flash)
+        float lente = smoothstep(0.003, 0.02, length(vV));
+        gl_FragColor = vec4(col * uFundido * lente, 0.25 * uFundido * lente);
       }
     `,
     transparent: true,

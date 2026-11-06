@@ -547,7 +547,8 @@ export const vela: EscenaChasis = {
     tl.with(3.6, { lsol: Math.log10(80) });
     luego(0.2, 4.2, { ld: Math.log10(150), el: 22, az: -624, fov: 34 });
     luego(1.8, 2.6, { cx: MEDIO.x, cy: MEDIO.y, cz: MEDIO.z });
-    luego(2.6, 2.0, { mapa: 1 });
+    // (the map as soon as the sail is too small to read, so the way out is never empty)
+    luego(1.0, 1.8, { mapa: 1 });
     luego(4.0, 1.4, { nombres: 1 });
     tl.wait(5.0);
     tl.to(3.2, { az: -630 });
