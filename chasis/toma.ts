@@ -200,3 +200,55 @@ export function escribir(tl: Timeline, filas: readonly (readonly number[])[]) {
   tl.quitar(pistas, filas[0][0], filas[filas.length - 1][0]);
   for (const f of filas) tl.keyAt(f[0], Object.fromEntries(pistas.map((k, j) => [k, f[j + 1]])));
 }
+
+/**
+ * A flight, first person (DIRECCION.md): the camera on `camino` (a smooth curve with no corners, read
+ * by its length) at the fraction the act's track `vu` says, looking ahead along it `adelante` of its
+ * length, turned towards what it looks at (`cx…`) as much as `vm` (0..1), raised off the way by `vh`
+ * (along «up»), leaning into its curves as a bird does (`alabeo` degrees at most), plus `roll`, and
+ * `mx`, `my`, `fov` as in a shot. Its «up» is the world's (+Y) unless `arriba` is given.
+ */
+export function vuelo(tl: Timeline, p: number, camino: THREE.Curve<THREE.Vector3>, out: PlanoCamara, o: { adelante?: number; alabeo?: number; arriba?: THREE.Vector3; pista?: string } = {}) {
+  const ade = o.adelante ?? 0.02;
+  const u = THREE.MathUtils.clamp(tl.get(o.pista ?? 'vu', p), 0, 1);
+  camino.getPointAt(u, out.pos);
+  // Ahead: the way a little further on (at the end, the way's last direction).
+  const u1 = Math.min(1, u + ade);
+  const delante = u1 > u + 1e-6 ? camino.getPointAt(u1, dir).sub(out.pos) : camino.getTangentAt(u, dir);
+  delante.normalize();
+  const arribaW = (o.arriba ?? Y).clone();
+  out.pos.addScaledVector(arribaW, tl.get('vh', p));
+  // What it looks at, as much as `vm`.
+  const vm = THREE.MathUtils.clamp(tl.get('vm', p), 0, 1);
+  if (vm > 0) {
+    centro.set(tl.get('cx', p), tl.get('cy', p), tl.get('cz', p)).sub(out.pos);
+    if (centro.lengthSq() > 1e-24) {
+      centro.normalize();
+      const ang = delante.angleTo(centro);
+      if (ang > 1e-6) {
+        eje.crossVectors(delante, centro);
+        if (eje.lengthSq() < 1e-12) eje.copy(arribaW);
+        delante.applyAxisAngle(eje.normalize(), ang * vm);
+      }
+    }
+  }
+  // Leaning into the curve: how fast the way turns sideways here.
+  const k = 0.01;
+  const ta = camino.getTangentAt(Math.max(0, u - k), r);
+  const tb = camino.getTangentAt(Math.min(1, u + k), h);
+  const lado = up.crossVectors(delante, arribaW).normalize();
+  const giro = tb.sub(ta).dot(lado) / (2 * k);
+  const alabeo = (o.alabeo ?? 25) * Math.tanh(giro * 0.5);
+  m.lookAt(cero, delante, arribaW);
+  out.quat.setFromRotationMatrix(m);
+  const roll = tl.get('roll', p) + alabeo;
+  if (roll) out.quat.multiply(q.setFromAxisAngle(eje.set(0, 0, 1), D(-roll)));
+  const mx = tl.get('mx', p);
+  const my = tl.get('my', p);
+  if (mx) out.quat.multiply(q.setFromAxisAngle(eje.set(0, 1, 0), D(mx)));
+  if (my) out.quat.multiply(q.setFromAxisAngle(eje.set(1, 0, 0), D(-my)));
+  out.fov = tl.get('fov', p) || 40;
+  out.dist = Math.max(1e-30, camino.getLength() * ade);
+  out.lw = 0;
+  return out;
+}

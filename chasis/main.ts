@@ -16,7 +16,7 @@ import { tr, usarIdioma } from '../estudios/idioma';
 import { lamina } from '../viaje/lamina';
 import { dibujarEstelas } from '../estudios/chispa';
 import { EXTRA } from '../viaje/textos';
-import { crearPelicula, FUNDIDO_MIN } from './pelicula';
+import { CHISPA_VISIBLE, crearPelicula, FUNDIDO_MIN } from './pelicula';
 import { final } from './actos/final';
 import { cosmos } from './actos/cosmos';
 import { estrella } from './actos/estrella';
@@ -481,6 +481,8 @@ const api = {
   },
   /** Each act: its name, 1 (the way, as the studies had it), where it starts and how long it is, in beats. */
   tramos: () => tramos.map((t) => [t.acto.id, 1, +t.inicio.toFixed(2), +t.largo.toFixed(2)]),
+  /** Whether the spark is drawn (the guards on it apply only then). */
+  chispaVisible: CHISPA_VISIBLE,
   etiquetas: () => tramos.map((t) => [t.acto.id, Object.fromEntries([...(t.acto.tl as unknown as { labels: Map<string, number> }).labels].map(([k, v]) => [k, +(v + t.inicio).toFixed(2)]))]),
   /**
    * The guards' measure of the camera (no drawing): every `res` beats, how far it moved relative to
@@ -687,6 +689,36 @@ const api = {
     const u = new THREE.Vector3(0, 1, 0).applyQuaternion(quat);
     const nivel = new THREE.Vector3(0, 1, 0).addScaledVector(f, -f.y).normalize();
     return [0, G(Math.atan2(v.x, v.z)), G(Math.asin(v.y)), Math.log10(d), 0, G(Math.atan2(enCam.x, -enCam.z)), G(Math.atan2(enCam.y, Math.hypot(enCam.x, enCam.z))), pose.fov, G(Math.atan2(nivel.clone().cross(u).dot(f), nivel.dot(u)))].map((x) => +x.toFixed(4));
+  },
+  /**
+   * The camera's jolts (the guards): every `h` beats, how much its velocity changes, against its
+   * distance from what it frames (distances per beat²). A sudden change of pace or of the way it moves,
+   * a corner taken at once, is a spike over its neighbours; a huge one is a jolt however smooth. Flat
+   * per jolt: beat, size, against its neighbours.
+   */
+  tirones(a: number, b: number, h = 0.02) {
+    const P: [THREE.Vector3, number, number, number][] = [];
+    for (let at = a; at <= b + 1e-9; at += h) {
+      const ps = peli.camara(at);
+      P.push([ps.pos.clone(), ps.dist, ps.i, at]);
+    }
+    const A: [number, number][] = [];
+    for (let k = 2; k < P.length; k++) {
+      if (P[k][2] !== P[k - 1][2] || P[k - 1][2] !== P[k - 2][2]) {
+        A.push([P[k - 1][3], 0]);
+        continue;
+      }
+      const v1 = P[k - 1][0].clone().sub(P[k - 2][0]).divideScalar(h);
+      const v2 = P[k][0].clone().sub(P[k - 1][0]).divideScalar(h);
+      A.push([P[k - 1][3], v2.sub(v1).length() / h / Math.max(P[k - 1][1], 1e-300)]);
+    }
+    const out: number[] = [];
+    for (let k = 3; k < A.length - 3; k++) {
+      const vec = Math.max(A[k - 3][1], A[k - 2][1], A[k + 2][1], A[k + 3][1]);
+      const pico = A[k][1] > 20 && A[k][1] > 2.5 * vec;
+      if ((pico || A[k][1] > 400) && A[k][1] >= A[k - 1][1] && A[k][1] >= A[k + 1][1]) out.push(+A[k][0].toFixed(2), +A[k][1].toFixed(0), +(A[k][1] / Math.max(vec, 1e-9)).toFixed(1));
+    }
+    return out;
   },
   /** The fastest each act's own lights come and go (their `presencias`), against FUNDIDO_MIN. */
   presencias(res = 0.01) {

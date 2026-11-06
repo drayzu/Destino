@@ -541,7 +541,7 @@ export const apertura: EscenaChasis = {
     // (the systems the spark flies past: their stars, their orbits, their planets)
     // (what goes right by the lens fades instead of filling the frame for an instant: a planet or a
     // star brushed past was a flash of light)
-    const LENTE = /* glsl */ `float dLente = length(mv.xyz); em *= smoothstep(0.00012, 0.0005, dLente); occ *= smoothstep(0.00012, 0.0005, dLente);`;
+    const LENTE = /* glsl */ `float dLente = length(mv.xyz) / max(uEscalaMundo, 1e-30); em *= smoothstep(0.00012, 0.0005, dLente); occ *= smoothstep(0.00012, 0.0005, dLente);`;
     const sisEstrellas = add(materia(estrellasDatos(sis.S), { pre: `uniform float uSis;`, move: `em *= uSis;`, post: LENTE, uniforms: { uSis: { value: 0 } } }), galaxia, 3);
     sisEstrellas.u.uFuente.value = 1;
     const sisOrbitas = add(materia(orbitasDatos(sis.S), { pre: `uniform float uSis;`, move: `em *= uSis;`, post: LENTE, uniforms: { uSis: { value: 0 } } }), galaxia, 3);
@@ -557,21 +557,26 @@ export const apertura: EscenaChasis = {
     // `az`, `el`, `ld`; the spark where `mx`, `my` put it on the screen. It comes in through the frame
     // (`cuadro`): its first picture keeps the contract (CONTRATO: the spark a degree under the middle,
     // a 40° lens), whatever came before.
-    const L_VOZ = Math.log10(0.0046);
+    /** How far from the Sun the camera waits for our radio's front. */
+    const D_VOZ = 0.12 * R_VOZ;
     const L_PASO = Math.log10(0.00042);
-    tl.set({ ...C(S), az: -52, el: 10, ld: L_VOZ, lw: 1, ...CONTRATO, roll: 0, tu: 0, cue: 0, voz: 0, vozOn: 1, cielo: 0.4, gal: 0.4, titulo: 0, vatios: 0, pla: 0, vaso: 0, ola: 0, olaOn: 0, solp: 0, luzSol: 0, sc: 0, on: 1, tit: 0, frenteV: 0, punto: 0, velo: 1, cerca: 1 });
+    tl.set({ ...C(S), az: -52, el: 10, ld: Math.log10(D_VOZ), lw: 0, mx: 0, my: 0, fov: 40, roll: 0, tu: 0, cue: 0, voz: 0, vozOn: 1, cielo: 0.4, gal: 0.4, titulo: 0, vatios: 0, pla: 0, vaso: 0, ola: 0, olaOn: 0, solp: 0, luzSol: 0, sc: 0, on: 1, tit: 0, frenteV: 0, punto: 0, velo: 1, cerca: 1 });
 
-    // Riding the front of our radio, out from the Sun; the stars round it pass.
-    // (every star the front reaches flashes and keeps its teal: they could hear us now; and the
-    // camera lets go of the spark and swings out and round to see the whole bubble of our radio,
-    // the Sun in its middle, the stars that have heard us teal)
+    // Riding the front of our radio, out from the Sun (DIRECCION.md, 3). The thought's network, gone to
+    // a point, is the Sun; our radio grows from it towards you, its front reaches you and you go out
+    // with it, looking home, the stars it reaches flashing round you (they could hear us now); then on
+    // out faster than it, to see the whole bubble, the Sun in its middle.
     tl.label('voz').caption(5.0, 'Nuestra voz', 'Lo que pensamos, lo decimos. Hace un siglo que nuestra radio sale de aquí.');
     tl.with(5.0, { voz: 1, sc: 1 });
     luego(0.4, 3.0, { cielo: 1, gal: 1 });
     luego(2.5, 1.0, { frenteV: 1 });
-    // (settling level behind the spark, a little under the middle, the lens to the act's own)
-    luego(0, 1.8, { el: 2, mx: 0, my: -3.5, fov: 42 });
-    luego(3.0, 2.0, { lw: 0, az: 14, el: 16, ld: Math.log10(2.6 * R_VOZ), my: 0 });
+    luego(0, 3.0, { az: -20, el: 12, fov: 42 });
+    luego(3.0, 2.0, { az: 14, el: 16, ld: Math.log10(2.6 * R_VOZ) });
+    // (where the camera stands: at rest until the front comes, then on it, just outside)
+    for (let t = 0; t <= 3.0001; t += 0.25) {
+      const rf = 1.6 * R_VOZ * Math.min(1, tl.get('sc', t));
+      tl.keyAt(t, { ld: Math.log10(Math.hypot(D_VOZ, rf)) });
+    }
     tl.wait(5.0);
 
     // Then far back, the gaze on it: the galaxy, the bubble a point (a teal one beside the Sun).
@@ -694,7 +699,9 @@ export const apertura: EscenaChasis = {
       lejos: 2000,
       film: { strength: 0.7, radius: 0.65, threshold: 0.4, exposure: 1.1 },
       presencias: ['voz', 'vozOn', 'cielo', 'gal', 'titulo', 'pla', 'vaso', 'olaOn', 'solp', 'luzSol', 'punto', 'tu', 'cue'],
+      // (through the frame: the thought's network, a point, is the Sun with our radio; DIRECCION.md)
       costura: 'cuadro',
+      entrada: { pos: S.clone(), escala: D_VOZ },
       chispa(p, out) {
         camino(tl.get('sc', p), out);
         return true;
@@ -779,12 +786,12 @@ export const apertura: EscenaChasis = {
         for (const { c, k } of capasVoz) {
           const rr = Math.max(1e-6, voz.u.uR.value * k);
           c.mesh.scale.setScalar(rr);
-          c.u.uOn.value = voz.u.uOn.value * (k === 1 ? 0.55 + 2.0 * punto : 0.25 * (1 - punto)) * THREE.MathUtils.smoothstep(camVoz / Math.max(1e-6, voz.u.uR.value), 3.0, 6.5);
+          c.u.uOn.value = voz.u.uOn.value * (k === 1 ? 0.55 + 2.0 * punto : 0.25 * (1 - punto)) * THREE.MathUtils.smoothstep(camVoz / Math.max(1e-6, voz.u.uR.value), 1.2, 1.9);
           c.u.uTime.value = f.time;
           c.mesh.visible = c.u.uOn.value > 1e-4;
         }
         // (its points too: from inside the bubble they are a dotted wall across half the frame)
-        const dentro = THREE.MathUtils.lerp(0.2, 1, THREE.MathUtils.smoothstep(camVoz / Math.max(1e-6, voz.u.uR.value), 3.0, 6.5));
+        const dentro = THREE.MathUtils.lerp(0.2, 1, THREE.MathUtils.smoothstep(camVoz / Math.max(1e-6, voz.u.uR.value), 1.2, 1.9));
         // (its points, once it is a small ring, give way to the ring: together in a few pixels they burn)
         const rPx = (voz.u.uR.value * f.focal) / Math.max(camVoz, 1e-9);
         voz.u.uOn.value *= 0.55 * dentro * THREE.MathUtils.lerp(1, THREE.MathUtils.smoothstep(rPx, 14, 60), punto);
