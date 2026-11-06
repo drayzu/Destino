@@ -2,14 +2,12 @@ import * as THREE from 'three';
 import type { Stage } from '../estudios/stage';
 import { crearChispa } from '../estudios/chispa';
 import type { Acto, EscenaChasis, Film, FrameActo, PlanoCamara } from './tipos';
-import { pistasDe, type CamaraHorneada } from './pista';
-import CAMARAS from './camaras.json';
 
 /**
  * The film (CHASIS.md): every act on one line of beats, ONE camera, ONE spark.
  *
- * - **The camera is baked**: per act, keys of position, orientation, fov and distance the film
- *   flows through (chasis/camaras.json). Nothing chases anything, nothing corrects it afterwards;
+ * - **The camera is written**, as Tiempo's: each act's shot is a handful of keys of its own timeline
+ *   (chasis/toma.ts) the film flows through. Nothing chases anything, nothing corrects it afterwards;
  *   changing a key changes the film only between its two neighbours.
  * - **One spark.** Each act says where the spark is in its own units (`chispa(p)`); it is drawn
  *   once, with its wake, wherever the film is.
@@ -107,34 +105,17 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
   }
   const TOTAL = cursor;
 
-  // ---- The camera: baked (tools/hornear.mjs, chasis/camaras.json), as Tiempo's is. Each act's
-  // camera is a set of keys the film flows through; nothing chases anything, nothing corrects it.
-  // An act that writes its own camera (`camara`, chasis/toma.ts) needs no keys.
-  const pistas = tramos.map((t) => {
-    if (t.acto.camara) return null;
-    const c = (CAMARAS as Record<string, CamaraHorneada>)[t.acto.id];
-    if (!c) throw new Error(`sin cámara para ${t.acto.id}: ni camara() ni claves horneadas`);
-    return pistasDe(c);
-  });
+  // ---- The camera: written by each act (`camara`, chasis/toma.ts), as Tiempo's is.
+  for (const t of tramos) if (!t.acto.camara) throw new Error(`${t.acto.id}: sin cámara (camara(), chasis/toma.ts)`);
   /** The ambient time the spark's way is read at (the frame's; 0 for the pace and the guards). */
   let tiempo = 0;
   const chCam = V();
-  /** Act i's camera at beat p (its own units): written by the act, or its baked keys. */
+  /** Act i's camera at beat p (its own units). */
   function camaraActo(i: number, p: number): PlanoCamara {
     const A = tramos[i].acto;
-    if (A.camara) {
-      const out: PlanoCamara = { pos: V(), quat: new THREE.Quaternion(), fov: 40, dist: 1, lw: 0 };
-      A.camara(p, A.chispa(p, chCam, tiempo) ? chCam : null, out);
-      return out;
-    }
-    const k = pistas[i]!;
-    return {
-      pos: V(k.x.get(p), k.y.get(p), k.z.get(p)),
-      quat: new THREE.Quaternion(k.qx.get(p), k.qy.get(p), k.qz.get(p), k.qw.get(p)).normalize(),
-      fov: k.fov.get(p),
-      dist: Math.pow(10, k.ld.get(p)),
-      lw: k.lw.get(p),
-    };
+    const out: PlanoCamara = { pos: V(), quat: new THREE.Quaternion(), fov: 40, dist: 1, lw: 0 };
+    A.camara(p, A.chispa(p, chCam, tiempo) ? chCam : null, out);
+    return out;
   }
 
   // ---- The seams: each act's units into the one before's.

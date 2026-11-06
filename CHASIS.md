@@ -1,73 +1,61 @@
-# Destino · el chasis nuevo
+# Destino · el chasis
 
-*4 de noviembre de 2026. Rama `chasis` (worktree `civilizacion-chasis`). La versión publicada y la rama `remake` no se tocan hasta que esto la supere.*
+*Rama `chasis` (worktree `civilizacion-chasis`). La versión publicada (`main`) no se toca hasta que Diego lo apruebe.*
 
 ## Por qué
 
-Destino se rompía cada vez que se le agregaba algo. Había cuatro causas:
+Destino se rompía cada vez que se le agregaba algo. Las causas, en orden de descubrimiento:
 
-1. **Doce películas pegadas.** Cada acto tenía su propio mundo y su propia cámara, y en cada relevo se mezclaban dos cámaras. Encima había capas de corrección: la mezcla del relevo, el ajuste de la chispa entre dos cámaras y el encuadre medido al cargar. Si cambiabas el final de un acto, se movían el relevo siguiente, el ajuste y la tabla de encuadre.
-2. **Lo que aparece depende de la distancia de la cámara**, con umbrales puestos a mano. Si la cámara se movía un poco, las cosas se encendían y se apagaban en otro momento.
-3. **Temblores** por la precisión de la GPU cuando los objetos están lejos de su origen.
-4. **Nada avisaba** cuando algo que ya estaba aprobado se rompía.
+1. **Doce películas pegadas**, cada una con su cámara, mezcladas en cada relevo y corregidas encima (4 nov: el chasis, un motor para toda la obra).
+2. **Una cámara que perseguía a la chispa**: la causa de los giros bruscos y los temblores (4 nov: la cámara se grabó en 2 683 claves).
+3. **Una cámara que nadie decidió**: esas claves copiaban la persecución, con sus mañas; y cada unión exigía que la chispa y el mundo calzaran exacto entre dos escalas (5 nov: la dirección escrita y el contrato, abajo).
+4. **Nada avisaba** cuando algo que ya estaba aprobado se rompía (las revisiones, abajo).
 
 ## Las reglas de la casa
 
-1. **La cámara son claves, como en Tiempo** (`chasis/camaras.json`, leídas por `chasis/pista.ts`). La película pasa por ellas con la misma curva suave de las pistas de los actos. Nada persigue nada y nada corrige la cámara después. Cambiar una clave cambia la película solo entre sus dos vecinas.
-2. **Los actos ponen el decorado, no la cámara.** La leen ya ubicada en sus propias unidades. Las pistas de rig que algunos actos conservan (`cx … fov`) ya no son la cámara: quedan solo donde el contenido las usa (por ejemplo, para ubicar «tú»).
-3. **Una sola chispa.** Cada acto dice dónde está (`chispa(p)`, pura). La chispa ya no mueve la cámara.
-4. **Costuras:** `chispa` (la cámara y la chispa son las mismas a ambos lados y fijan la escala), `mundo` (`entrada` sobre `salida`) o `corte` (solo bajo la tapa del acto anterior). En la costura solo se cruza la luz; la cámara no necesita nada, porque sus claves ya siguen de largo.
-5. **Todo depende del compás.** Lo único que puede depender además del tiempo ambiente es el camino de la chispa en un mundo que gira solo (el anillo de la nave).
-6. **Lo que aparece se declara** (`presencias`, con un fundido mínimo de `FUNDIDO_MIN`), y lo que pasa junto al lente se desvanece en lugar de cortarse (por ejemplo, los resplandores de las galaxias).
-7. **Una sesión por obra.** Los cambios al motor van separados de los cambios de contenido.
+1. **Cada acto escribe su cámara, como en Tiempo** (`camara(p, chispa, out)`, con `toma` de `chasis/toma.ts`): pocas claves de su propia línea de tiempo, por las que la película pasa con una curva suave. Nada persigue nada y nada corrige la cámara después. Cambiar una clave cambia la película solo entre sus dos vecinas.
+2. **La chispa y la cámara son un solo plano.** Donde la cámara mira la chispa (`lw`), la chispa está en cuadro por construcción.
+3. **Ningún acto conoce a sus vecinos.** Se unen por el contrato (`costura: 'cuadro'`) o por un mundo compartido (`mundo`, `entrada` sobre `salida`), y la revisión comprueba que la imagen sea la misma a ambos lados. Un corte (`corte`) va solo bajo la tapa del acto anterior.
+4. **Todo depende del compás.** Lo único que puede depender además del tiempo ambiente es el camino de la chispa en un mundo que gira solo (el anillo de la nave), y se suelta de ese giro antes de una unión.
+5. **Lo que aparece se declara** (`presencias`, con un fundido mínimo de `FUNDIDO_MIN`), y lo que pasa junto al lente se desvanece en lugar de cortarse.
+6. **Los cambios al motor van separados de los de contenido.**
 
-## Cómo se edita la cámara
+## El plano (`chasis/toma.ts`)
 
-- **Un plano nuevo en un tramo:** `node tools/plano.mjs <acto> <desde> <hasta> --centro x,y,z --az … --el … --ld … [--az2 … --el2 … --ld2 … --centro2 …] [--fov …] [--mezcla 0.8]`. Usa compases dentro del acto y sus unidades. Se funde con la cámara de antes y después.
-- **El horneado** (`tools/hornear.mjs`) se hizo una sola vez, desde la cámara vieja, el 4 de noviembre: limitó el giro a ~110 °/compás y mantuvo la chispa en cuadro donde la cámara la seguía. Las claves son ahora la fuente; no hace falta volver a hornear.
+- La cámara orbita lo que mira: el punto `cx, cy, cz`, o la chispa tanto como `lw` (0..1), a azimut `az`, elevación `el` (grados) y distancia 10^`ld`; corrida por `ox, oy, oz`.
+- Desde ahí mira al centro (por defecto) o a otro lado con `pitch` y `yaw` (por ejemplo, el horizonte de un mundo); `roll` gira el horizonte.
+- `mx`, `my`: dónde queda lo que mira en la pantalla (grados a la derecha y arriba del centro); `fov`, el lente.
+- Sobre un planeta, el plano se escribe en el sistema del suelo bajo la chispa (`marcoRadial`), y `detras` escribe las claves de un vuelo detrás de la chispa a partir del rumbo de su camino. `aMarco` pasa un plano de un sistema a otro sin mover la cámara. `mezclar` va de un plano escrito a otro.
+- `escribir(tl, filas)` pone en un acto una tabla de claves (p, az, el, ld, lw, mx, my, fov, roll y, si hace falta, cx, cy, cz). Las tablas de los actos (`TOMA_*`) salieron de transcribir la cámara grabada (`viaje.transcribir`), y se editan a mano.
+
+## Las uniones
+
+- **El contrato** (`costura: 'cuadro'`, `CONTRATO`): el primer y el último cuadro de un acto tienen la chispa un grado bajo el centro, con un lente de 40°. El motor apoya una cámara sobre la otra, con giro incluido. La mente, la apertura, despierta, tierra, el sistema y Mercurio se unen así.
+- **Un mundo compartido** (`mundo`): la Tierra, el Sol, la vela, la galaxia y la estrella. La primera clave de un acto es la última imagen del anterior en sus unidades (`viaje.entradaDe(i)`), y su chispa entra donde la dejó el anterior y se une a su camino en uno o dos compases.
+
+## Una escena nueva
+
+Copiar `chasis/actos/plantilla.ts`, escribirla cumpliendo el contrato al entrar y al salir, y agregarla a la lista en `chasis/main.ts`. Probado el 5 de noviembre: la plantilla entre la mente y la apertura, sin tocar a ninguna de las dos; la chispa pasó de una a otra sin moverse en la pantalla.
 
 ## Antes de cada commit
 
 ```
 npx tsc --noEmit -p .
-node tools/guardias.mjs          # cámara, chispa en cuadro, presencias, costuras (dev server 5213)
+node tools/guardias.mjs          # cámara, chispa en cuadro, presencias, costuras y contrato (dev server 5213)
 node tools/destellos.mjs         # la imagen misma: nada aparece, se apaga ni destella de golpe (unos minutos)
 ```
 
-Para comparar con la referencia (la versión de antes, en `docs/chasis/referencia/`, fuera de git; se rehace desde la rama `remake` en 0de191a con el mismo comando contra su servidor):
+Para medir un tramo: `viaje.pantalla(a, b)` (la chispa en la pantalla, al píxel), `viaje.movimiento(a, b)` (la cámara), `viaje.contratos()` (las uniones). Para comparar con la versión de antes (`docs/chasis/referencia/`, fuera de git):
 
 ```
 node tools/referencia.mjs --desde 0 --hasta 74 --paso 0.25 --out docs/chasis/nuevo
 node tools/comparar.mjs docs/chasis/referencia docs/chasis/nuevo docs/chasis/x.jpg 12 30 48
 ```
 
-## Estado (4 de noviembre, fase 2 completa)
+## Estado (5 de noviembre)
 
-- **Toda la obra corre en el chasis** (la página del sitio, `index.html` → `chasis/main.ts`, 449 compases, 12 actos en `chasis/actos/`). La imagen es la misma que antes (hojas en `docs/chasis/cmp-*.jpg`).
-- Costuras: mente → apertura, despierta → tierra y sistema → mercurio, por la **chispa** (sistema → mercurio es `continuo`); apertura → despierta, un **corte** bajo la luz de la estrella; las demás, por un **mundo** (la Tierra, Mercurio, el Sol, la vela, la galaxia…), la única mezcla de cámaras que queda, pura y en un solo lugar.
-- Los actos con un seguimiento propio (el vuelo del sistema interior, la vuelta al Sol, la nave, la galaxia y el cosmos) lo dan con `rig()`. El motor les mantiene la chispa en cuadro con una rodilla suavizada en el tiempo, calculada para cada compás (sin tabla medida al cargar). Suelta la chispa donde cruza rápido o pasa junto a la cámara: sale de cuadro en los mismos compases que ya estaban aprobados (180–186, 269–274, 308–309, 332).
-- Medido en toda la obra: el giro más brusco bajó de 403 a 275 °/compás. Los giros de más de 150 °/compás quedaron casi todos en despierta (la célula, 58–61), con 93 muestras contra 69 de antes.
-- Lo que el motor ganó en el camino: `costura: 'mundo'` con `entrada`/`salida`; `continuo` y `saliente`; `rig(p, paseo, t)` para planos propios; `radial` para caminos sobre un planeta; la chispa y los planos reciben el tiempo ambiente (el anillo de la nave gira solo); `luz` y `titila` para la chispa; `relevoMaxPx`; las pistas del seguimiento con prefijo `m` (`mLd`, `mAlto`, …).
-- Hecho (4 nov): los actos viejos, el banco de estudios y la página vieja del viaje se borraron; `index.html` carga el chasis (8 858 líneas menos, la imagen idéntica píxel a píxel). `estudios/` queda con lo compartido (motor de materia, rig, chispa, placa, etc.) y `viaje/` con el ritmo, la lámina y los textos.
-- Pendiente (fase 3): publicar (main + Pages), el README, el móvil, el sonido.
-- Hecho (4 nov): borrado también el código de la primera Destino (`src/actos`, `src/mundo`, `src/engine`, `prototypes/`). En `src/` quedan `i18n.ts`, `horizontes/` (los planetas) y `lib/` (lo usa el agujero negro).
-- Pendiente: la precisión. Cada objeto que se ve de muy cerca debe tener su propio origen local, como `enTorno`.
-
-## Estado (4 de noviembre, noche): la cámara horneada
-
-- Toda la obra lee su cámara de claves (2 683, unos 320 KB). Se borraron el seguimiento de la chispa, sus suavizadores, los planos propios de los actos, el encuadre en vivo y la mezcla de cámaras en las costuras.
-- Medido en toda la obra: el giro más brusco es de 130 °/compás (antes del chasis eran 403). Las revisiones no encuentran ningún salto ni tirón. La chispa sale de cuadro solo en 9 puntos sueltos (casi todos aprobados antes).
-- `tools/destellos.mjs` (la imagen, cada 0,05 compases) encuentra seis lugares. Cuatro son destellos buscados (86.5, 87.6, 272.5 y 275, los estallidos de la burbuja). El de 396.9 (el resplandor de una galaxia que la cámara atraviesa) quedó arreglado. El de 319.85 (la cámara subiendo sobre el borde de la galaxia) ya existía igual en la versión vieja: revisar con Diego.
-- La medusa (despierta 6.8–9.8) es ahora un plano: la campana entera desde afuera.
-
-## La dirección escrita (5 de noviembre): el contrato y los planos
-
-La cámara horneada copiaba la de antes, que perseguía a la chispa: miles de claves que nadie decidió. Cada acto pasa ahora a una dirección escrita, como en Tiempo, y a uniones que no lo atan a sus vecinos.
-
-- **El plano** (`chasis/toma.ts`): la cámara orbita lo que mira (`cx…` o la chispa, tanto como `lw`), a `az`, `el` y `ld`; `mx`, `my` dicen dónde queda eso en la pantalla, y `roll`, `fov`. Son pistas de la línea de tiempo del acto. Mirando la chispa, la chispa está en cuadro por construcción: la cámara y la chispa son un solo plano. Un acto que escribe su cámara declara `camara(p, chispa, out) { toma(tl, p, chispa, out) }` y no necesita claves horneadas.
-- **El contrato** (`costura: 'cuadro'`, `CONTRATO` en `toma.ts`): el primer y el último cuadro de un acto tienen la chispa en el mismo lugar de la pantalla (un grado bajo el centro) y el mismo lente (40°). El motor apoya una cámara sobre la otra, con giro incluido. Ningún acto conoce a sus vecinos: cualquier acto que cumpla el contrato puede ir antes o después de cualquier otro.
-- **Una escena nueva:** copiar `chasis/actos/plantilla.ts`, escribirla cumpliendo el contrato al entrar y al salir, y agregarla a la lista en `chasis/main.ts`. Probado el 5 de noviembre: la plantilla entre la mente y la apertura, sin tocar a ninguna de las dos; la chispa pasa de una a otra sin moverse en la pantalla.
-- **La chispa en reposo respira** (su corazón late lento), y el scroll la mueve con un resorte (sin tirones a cada paso de la rueda).
-- `viaje.pantalla(a, b)`: la chispa en la pantalla, al píxel, para revisar temblores, frenazos y saltos.
-
-Estado: **la apertura** es el piloto, ya escrita así (cámara en ~40 claves con intención en vez de las horneadas; giro máximo 81 °/compás; la chispa nunca sale de cuadro; arranca mientras la cámara baja a los planetas y descansa junto al último sistema). Pendiente: los otros once actos, y en la apertura la neblina de estrellas que se va de golpe en el compás 17,7 al salir del disco (ya estaba en la versión vieja).
+- **Los doce actos escriben su cámara.** Ya no hay claves grabadas (`camaras.json` y las herramientas que lo editaban se borraron).
+- Medido en toda la obra: el giro más brusco es de 108 °/compás (antes del chasis, 403; con la cámara grabada, 130). La chispa nunca sale de cuadro donde la cámara la mira. Las once uniones cumplen: la chispa ya no salta, aparece ni se apaga en ninguna (antes lo hacía en cinco).
+- El scroll mueve la película con un resorte (sin tirones a cada paso de la rueda), la estela crece sin saltos y la chispa en reposo respira.
+- Composición, no error: en algunas escenas cuyo protagonista es otro (el planeta colonizado, el cúmulo rojo, las burbujas de galaxias, la red del agujero negro) la cámara no mira la chispa y esta puede quedar fuera de cuadro, como antes.
+- Pendiente: la neblina de estrellas que se va de golpe en el compás 17,7 al salir del disco (ya estaba en la versión vieja); publicar (main + Pages), el README, el móvil, el sonido; la precisión de objetos vistos muy de cerca (orígenes locales, como `enTorno`).

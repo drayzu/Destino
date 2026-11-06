@@ -390,8 +390,8 @@ const api = {
     return out;
   },
   /**
-   * The camera as the film has it now, every `h` beats of each act (tools/hornear.mjs bakes it into
-   * keys): per act its name, where it starts, how long it is, its chain (acts that map into each
+   * The camera as the film has it now, every `h` beats of each act (for the guards and studies):
+   * per act its name, where it starts, how long it is, its chain (acts that map into each
    * other) and, flat, p, position (3), gaze (3), up (3), fov, distance to what it frames, how much it
    * rides the spark.
    */

@@ -3,13 +3,12 @@ import type { Timeline } from '../estudios/timeline';
 import type { Cuenta, Rotulo } from '../estudios/placa';
 
 /**
- * The chassis (CHASIS.md). An act is scenery and choreography; it never places the camera.
+ * The chassis (CHASIS.md). An act is a world, its choreography and its shot.
  *
- * The film's camera is baked into keys (chasis/camaras.json, tools/hornear.mjs, tools/plano.mjs), as
- * Tiempo's is: the film flows through them. Every act reads the camera, already placed in its own
- * units, and only lights and moves what it owns. Its spark, its lights and its words come from its
- * own timeline. (The rig tracks some acts still keep, `cx … fov`, are no longer the camera: only
- * where the act's content reads them.)
+ * Each act writes its camera as Tiempo's (`camara`, chasis/toma.ts): a handful of keys of its own
+ * timeline the film flows through, the spark in the same shot. Every act's update reads the camera
+ * already placed in its own units, and only lights and moves what it owns. It meets its neighbours
+ * through the contract (`costura: 'cuadro'`) or a shared world: never by knowing them.
  */
 
 /** One frame, for an act: the camera is already where it is, in the act's own units. */
@@ -101,9 +100,9 @@ export interface Acto {
   tapa?(p: number): number;
   /**
    * The act's own camera at beat p, written as Tiempo's (chasis/toma.ts), given where its spark is
-   * (its units; null when it has none). When absent, its baked keys (chasis/camaras.json).
+   * (its units; null when it has none).
    */
-  camara?(p: number, chispa: THREE.Vector3 | null, out: PlanoCamara): void;
+  camara(p: number, chispa: THREE.Vector3 | null, out: PlanoCamara): void;
   /** Lights and moves what the act owns. Never touches the camera. */
   update(f: FrameActo): void;
   placa?(g: CanvasRenderingContext2D, f: FrameActo): void;
