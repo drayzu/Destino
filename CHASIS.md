@@ -55,7 +55,7 @@ node tools/comparar.mjs docs/chasis/referencia docs/chasis/nuevo docs/chasis/x.j
 ## Estado (5 de noviembre)
 
 - **Los doce actos escriben su cámara.** Ya no hay claves grabadas (`camaras.json` y las herramientas que lo editaban se borraron).
-- Medido en toda la obra: el giro más brusco es de 108 °/compás (antes del chasis, 403; con la cámara grabada, 130). La chispa nunca sale de cuadro donde la cámara la mira. Las once uniones cumplen: la chispa ya no salta, aparece ni se apaga en ninguna (antes lo hacía en cinco).
+- Medido en toda la obra: el giro más brusco es de 135 °/compás, en el vuelo entre las galaxias del cosmos (antes del chasis, 403). La chispa nunca sale de cuadro donde la cámara la mira. Las once uniones cumplen: la chispa ya no salta, aparece ni se apaga en ninguna (antes lo hacía en cinco).
 - El scroll mueve la película con un resorte (sin tirones a cada paso de la rueda), la estela crece sin saltos y la chispa en reposo respira.
 - Composición, no error: en algunas escenas cuyo protagonista es otro (el planeta colonizado, el cúmulo rojo, las burbujas de galaxias, la red del agujero negro) la cámara no mira la chispa y esta puede quedar fuera de cuadro, como antes.
 - Pendiente: la neblina de estrellas que se va de golpe en el compás 17,7 al salir del disco (ya estaba en la versión vieja); publicar (main + Pages), el README, el móvil, el sonido; la precisión de objetos vistos muy de cerca (orígenes locales, como `enTorno`).
