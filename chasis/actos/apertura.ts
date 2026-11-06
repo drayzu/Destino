@@ -6,7 +6,7 @@ import { gauss, lerp } from '../../estudios/motor/math';
 import { ease } from '../../estudios/comun';
 import { FONT, ink, VIOLETA, type Cuenta, type Rotulo } from '../../estudios/placa';
 import { TEAL, potencia } from '../../estudios/remake';
-import { CONTRATO, toma } from '../toma';
+import { mezclar, toma, vuelo } from '../toma';
 import type { Camino } from '../../estudios/chispa';
 import type { Acto, EscenaChasis, FrameActo } from '../tipos';
 import { GLSL_PLANETAS, capaSegura, estrellasDatos, orbitasDatos, planetasDatos, sistemas } from '../../estudios/momentos-apertura';
@@ -560,7 +560,7 @@ export const apertura: EscenaChasis = {
     /** How far from the Sun the camera waits for our radio's front. */
     const D_VOZ = 0.12 * R_VOZ;
     const L_PASO = Math.log10(0.00042);
-    tl.set({ ...C(S), az: -52, el: 10, ld: Math.log10(D_VOZ), lw: 0, mx: 0, my: 0, fov: 40, roll: 0, tu: 0, cue: 0, voz: 0, vozOn: 1, cielo: 0.4, gal: 0.4, titulo: 0, vatios: 0, pla: 0, vaso: 0, ola: 0, olaOn: 0, solp: 0, luzSol: 0, sc: 0, on: 1, tit: 0, frenteV: 0, punto: 0, velo: 1, cerca: 1 });
+    tl.set({ ...C(S), az: -52, el: 10, ld: Math.log10(D_VOZ), lw: 0, mx: 0, my: 0, fov: 40, roll: 0, fp: 0, vu: 0, vm: 0, vh: ALTO_PASO * 0.5, tu: 0, cue: 0, voz: 0, vozOn: 1, cielo: 0.4, gal: 0.4, titulo: 0, vatios: 0, pla: 0, vaso: 0, ola: 0, olaOn: 0, solp: 0, luzSol: 0, sc: 0, on: 1, tit: 0, frenteV: 0, punto: 0, velo: 1, cerca: 1 });
 
     // Riding the front of our radio, out from the Sun (DIRECCION.md, 3). The thought's network, gone to
     // a point, is the Sun; our radio grows from it towards you, its front reaches you and you go out
@@ -596,7 +596,9 @@ export const apertura: EscenaChasis = {
     tl.label('alguien').caption(3.8, '¿Hay alguien más?', 'Cientos de miles de millones de estrellas. Hasta donde sabemos, nadie usa su luz.');
     // (what it looks at comes to the spark's neighbourhood while the camera is still far: coming down,
     // it only comes closer)
-    tl.to(3.8, { ...C(P), ld: 1.15, el: 24, az: 80 });
+    // (still over the disc, the galaxy round its neighbourhood: the plunge into it is the next moment's,
+    // quick; a slow descent through the disc's haze was three beats of grey)
+    tl.to(3.8, { ...C(P), ld: 2.0, el: 58, az: 80 });
 
     // Down to the spark again, and it does not wait for the camera: it sets off as the camera comes
     // down, and the camera falls in with it among the stars with planets. On the way the camera does
@@ -605,34 +607,34 @@ export const apertura: EscenaChasis = {
     const L0 = tl.at('planetas');
     // (the descent's distance flows from the galaxy view straight down, with no key where «alguien»
     // ends: there the camera started to plunge at once)
-    luego(0, 2.4, { ld: -2.0, el: 10, az: 96 });
-    luego(1.8, 1.6, { pla: 1 });
-    luego(1.4, 6.2, { sc: 2 });
+    luego(0, 1.6, { ld: -2.0, el: 10, az: 96 });
+    luego(0.6, 1.6, { pla: 1 });
+    luego(1.1, 6.5, { sc: 2 });
     tl.keyAt(L0 + 2.9, { ...C(P) });
-    tl.quitar(['ld'], L0 - 0.1, L0 + 0.1);
-    luego(1.5, 1.4, { lw: 1, ld: L_PASO + 0.3, my: -4 });
-    // (round it: the angle from right behind it, `fi`, read off the way's heading where the spark is)
-    const tg = V();
-    let azAnt = 96;
-    // (mostly from behind and a little above, the spark low in the frame, so the systems ahead come
-    // up over it and go by; leaning from one side to the other as the way bends; at rest, round to
-    // the side of the last system)
-    for (const [dp, fi, el, ld, my] of [
-      [4.0, -18, 13, L_PASO, -6],
-      [5.2, 12, 6, L_PASO - 0.05, -5],
-      [6.4, 26, 10, L_PASO, -5],
-      [7.6, 48, 14, L_PASO + 0.15, -2],
-    ]) {
-      const u = THREE.MathUtils.clamp(tl.get('sc', L0 + dp) - 1, 0, 1);
-      pase.getTangentAt(u, tg);
-      let az = THREE.MathUtils.radToDeg(Math.atan2(tg.x, tg.z)) + 180 + fi;
-      az += 360 * Math.round((azAnt - az) / 360);
-      azAnt = az;
-      tl.keyAt(L0 + dp, { az, el, ld, my });
+    // (the plunge written as one curve with no step in its pace: high over the disc until a beat before,
+    // then down four powers of ten in a beat and a half, the pull growing and easing smoothly, through
+    // the disc's haze in a moment)
+    {
+      const t0 = L0 - 1.2;
+      const t1 = L0 + 1.6;
+      const l0 = tl.get('ld', t0);
+      tl.quitar(['ld'], t0, t1);
+      for (let t = t0; t <= t1 + 1e-9; t += 0.2) {
+        const x = (t - t0) / (t1 - t0);
+        tl.keyAt(+t.toFixed(3), { ld: l0 + (-2.0 - l0) * x * x * x * (x * (x * 6 - 15) + 10) });
+      }
     }
-    // (at rest, the frame between the spark and the star it came to rest by)
+    // You fly in among them (`vuelo`, first person): along the one smooth bend that threads the five
+    // systems, their planets going by the lens, leaning as it bends; at its end the gaze settles on the
+    // last system's star, and the shot goes over to drawing back from it.
+    luego(1.1, 6.5, { vu: 1 });
+    luego(1.2, 1.3, { fp: 1 });
     const ultima = sis.S[sis.S.length - 1].c;
-    tl.keyAt(L0 + 6.3, { ...C(ultima) }).keyAt(L0 + 6.4, { lw: 1 }).keyAt(L0 + 7.6, { lw: 0.6 });
+    tl.keyAt(L0 + 5.4, { ...C(ultima), vm: 0 }).keyAt(L0 + 7.6, { vm: 0.6 });
+    // (where the flight ends, for the shot that takes it over: round the last star)
+    const finVuelo = pase.getPointAt(1).add(V(0, ALTO_PASO * 0.5, 0)).sub(ultima);
+    let azAnt = THREE.MathUtils.radToDeg(Math.atan2(finVuelo.x, finVuelo.z));
+    tl.keyAt(L0 + 7.6, { az: azAnt, el: THREE.MathUtils.radToDeg(Math.asin(finVuelo.y / finVuelo.length())), ld: Math.log10(finVuelo.length()) });
     tl.wait(7.6);
     // (from here to the leap, one slow turn round: the camera that will dive to the yellow star must
     // stand on the line from the star through the resting spark; turning there at the last moment
@@ -651,12 +653,11 @@ export const apertura: EscenaChasis = {
     // (the Sun is what it will look at; the gaze goes from the spark to it only once the camera is far
     // enough that the two are close in the frame, so the spark drifts a few degrees, no more)
     tl.keyAt(tl.at('escuchado') + 2.6, { ...C(ultima) });
+    luego(0, 2.0, { fp: 0 });
     luego(0.2, 1.2, { pla: 0 });
     luego(0.6, 1.4, { vaso: 1 });
-    // (the spark drawn to the left as the camera draws back, so the drop comes into the middle; then
-    // the gaze goes to the drop itself)
-    luego(0.3, 1.8, { ld: -1.05, el: 14, my: 0, mx: -14 });
-    luego(2.6, 2.2, { ...C(S), lw: 0, mx: 0 });
+    luego(0.3, 1.8, { ld: -1.05, el: 14 });
+    luego(2.6, 2.2, { ...C(S) });
     tl.to(4.8, { ld: 0.2, el: 16, az: giro(0.2) });
 
     // The silence: the wave of what should be there, and nothing; the spark flickers.
@@ -684,13 +685,14 @@ export const apertura: EscenaChasis = {
     // from afar, the haze of its stars went out at once)
     tl.to(1.2, { el: 16, az: azS });
     tl.to(1.4, { ld: Math.log10(enS.length() * 2), el: elS + 3 });
-    tl.with(1.0, { lw: 1, el: elS + 6 });
+    tl.with(1.0, { el: elS + 6 });
     luego(1.4, 1.2, { luzSol: 1 });
     luego(0.4, 2.0, { ld: Math.log10(0.0055) });
     tl.to(2.4, { sc: 3 });
     tl.label('fin');
 
     const Pw = V();
+    const enOrbita = { pos: V(), quat: new THREE.Quaternion(), fov: 40, dist: 1, lw: 0 };
     return {
       id: 'apertura',
       tl,
@@ -706,8 +708,14 @@ export const apertura: EscenaChasis = {
         camino(tl.get('sc', p), out);
         return true;
       },
-      camara(p, ch, out) {
-        toma(tl, p, ch, out);
+      camara(p, _ch, out) {
+        const fp = tl.get('fp', p);
+        if (fp <= 0) {
+          toma(tl, p, null, out);
+          return;
+        }
+        vuelo(tl, p, pase, out, { adelante: 0.06, alabeo: 22 });
+        if (fp < 1) mezclar(toma(tl, p, null, enOrbita), out, fp, out);
       },
       // (the yellow star's light fills the frame at the end: the next act starts inside it)
       tapa(p) {
