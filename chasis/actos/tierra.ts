@@ -972,9 +972,10 @@ export const tierraNoche: EscenaChasis = {
         // the distance past a few tens of metres, so it never burns as one point)
         const dSala = Math.max(1e-9, camera.position.distanceTo(salaG.position)) / M;
         sala.u.uSala.value = tl.get('dc', p) * Math.min(1, (30 / dSala) ** 2);
-        // (the city round it only on the way down and up: gone from afar, and from inside the hall)
+        // (the city round it only on the way down and up: gone from afar, and from inside the hall; down
+        // to a few metres over it, so the hall is never alone in the black)
         const altM = alt / M;
-        ciudad.u.uCiudad.value = tl.get('dc', p) * Math.min(1, (20000 / Math.max(altM, 1)) ** 2) * THREE.MathUtils.smoothstep(altM, 40, 160);
+        ciudad.u.uCiudad.value = tl.get('dc', p) * Math.min(1, (20000 / Math.max(altM, 1)) ** 2) * THREE.MathUtils.smoothstep(altM, 3.5, 14);
         sala.u.uOla.value = tl.get('ola', p);
         const cp = tl.get('copias', p);
         // (each copy stays lit where it arrives, and they all fade together with the data centre)
