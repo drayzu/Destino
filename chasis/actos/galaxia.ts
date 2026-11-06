@@ -808,7 +808,7 @@ export const galaxia: EscenaChasis = {
       relevoMaxPx: 3,
       // The spark: hopping from star to star in the bubble (its way by the beat), then on through the
       // galaxy from encounter to encounter.
-      chispa(p, out) {
+      guia(p, out) {
         if (p > PB && p < P_SUELTA) ruta(p, out);
         else caminoCh(chDe(p), out);
         // (it comes in where the sail's act left it, on the ship, and joins its own way in two beats)
@@ -893,7 +893,7 @@ export const galaxia: EscenaChasis = {
           zooG.getWorldPosition(tmpO).applyMatrix4(camera.matrixWorldInverse);
           occZoo.set(tmpO.x, tmpO.y, tmpO.z, zooG.getWorldScale(tmpS).x * 0.995);
         } else occZoo.set(0, 0, 0, 0);
-        for (const n of [solZoo, vigias, estrellas, burb.estrellas, burb.hilos, ...(f.propio ? [f.nubeChispa] : [])]) n.u.uOcc.value.copy(occZoo);
+        for (const n of [solZoo, vigias, estrellas, burb.estrellas, burb.hilos]) n.u.uOcc.value.copy(occZoo);
         // (dimmed while an encounter holds the frame; between them, as the spark flies on, the disc's
         // stars come back round the camera instead of a black stretch)
         const encuentro = Math.max(tl.get('zoo', p), tl.get('callan', p), tl.get('filtro', p));

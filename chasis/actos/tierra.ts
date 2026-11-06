@@ -909,7 +909,7 @@ export const tierraNoche: EscenaChasis = {
       // (despierta lands on the same Earth, at the same place: its glide goes on here)
       entrada: { pos: V(), escala: 1 },
       costura: 'mundo',
-      chispa(p, out) {
+      guia(p, out) {
         rutaMia(tl.get('rs', p), out).applyQuaternion(earth.quaternion);
         return true;
       },

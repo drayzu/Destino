@@ -74,8 +74,8 @@ export const plantilla: EscenaChasis = {
       lejos: 100,
       film: { strength: 0.75, radius: 0.6, threshold: 0.45, exposure: 1.1 },
       presencias: ['anillo'],
-      // (no spark: nothing travels but the viewer)
-      chispa() {
+      // (no guide: nothing to ride, the camera is written)
+      guia() {
         return false;
       },
       camara(p, _ch, out) {

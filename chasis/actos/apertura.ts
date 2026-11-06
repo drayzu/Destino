@@ -722,7 +722,7 @@ export const apertura: EscenaChasis = {
       // (through the frame: the thought's network, a point, is the Sun with our radio; DIRECCION.md)
       costura: 'cuadro',
       entrada: { pos: S.clone(), escala: D_VOZ },
-      chispa(p, out) {
+      guia(p, out) {
         camino(tl.get('sc', p), out);
         return true;
       },

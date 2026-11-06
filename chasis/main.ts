@@ -16,7 +16,7 @@ import { tr, usarIdioma } from '../estudios/idioma';
 import { lamina } from '../viaje/lamina';
 import { dibujarEstelas } from '../estudios/chispa';
 import { EXTRA } from '../viaje/textos';
-import { CHISPA_VISIBLE, crearPelicula, FUNDIDO_MIN } from './pelicula';
+import { crearPelicula, FUNDIDO_MIN } from './pelicula';
 import { final } from './actos/final';
 import { cosmos } from './actos/cosmos';
 import { estrella } from './actos/estrella';
@@ -32,7 +32,7 @@ import { mercurio } from './actos/mercurio';
 
 /**
  * Destino on the new chassis (CHASIS.md): the page. It scrolls the film, draws the plate and the
- * chrome; the film itself (camera, acts, spark) is pelicula.ts, a pure function of the beat.
+ * chrome; the film itself (camera, acts) is pelicula.ts, a pure function of the beat.
  *
  * URL: ?p=beat (start there) &ver=beat (freeze) &cap=1600x900 (render at that size) &debug (leaves
  * `viaje` in the console, with the guards' measures) &marca (the beat counter; M toggles it).
@@ -393,7 +393,7 @@ const api = {
    * The camera as the film has it now, every `h` beats of each act (for the guards and studies):
    * per act its name, where it starts, how long it is, its chain (acts that map into each
    * other) and, flat, p, position (3), gaze (3), up (3), fov, distance to what it frames, how much it
-   * rides the spark.
+   * rides the guide.
    */
   muestras(h = 0.02) {
     const f = new THREE.Vector3();
@@ -412,22 +412,6 @@ const api = {
       u.set(0, 1, 0).applyQuaternion(pose.quat);
       out.push(t.largo, pose.pos.x, pose.pos.y, pose.pos.z, f.x, f.y, f.z, u.x, u.y, u.z, pose.fov, pose.dist, pose.lw);
       return { id: t.acto.id, inicio: t.inicio, largo: t.largo, cadena: t.cadena, costura: t.costura, s: out };
-    });
-  },
-  /** Where the spark is, every `h` beats of each act (its units) and how lit: p, x, y, z, light; flat. */
-  chispas(h = 0.02) {
-    const c = new THREE.Vector3();
-    return tramos.map((t, i) => {
-      const out: number[] = [];
-      const poner1 = (p: number) => {
-        const b = t.inicio + p;
-        const hay = peli.chispaEn(b, i, c);
-        const luz = hay ? (t.acto.luz ? t.acto.luz(p) : t.acto.tl.get('on', p)) : 0;
-        out.push(p, hay ? c.x : 0, hay ? c.y : 0, hay ? c.z : 0, luz);
-      };
-      for (let p = 0; p < t.largo - 1e-9; p += h) poner1(p);
-      poner1(t.largo - 1e-7);
-      return out;
     });
   },
   /**
@@ -481,8 +465,6 @@ const api = {
   },
   /** Each act: its name, 1 (the way, as the studies had it), where it starts and how long it is, in beats. */
   tramos: () => tramos.map((t) => [t.acto.id, 1, +t.inicio.toFixed(2), +t.largo.toFixed(2)]),
-  /** Whether the spark is drawn (the guards on it apply only then). */
-  chispaVisible: CHISPA_VISIBLE,
   etiquetas: () => tramos.map((t) => [t.acto.id, Object.fromEntries([...(t.acto.tl as unknown as { labels: Map<string, number> }).labels].map(([k, v]) => [k, +(v + t.inicio).toFixed(2)]))]),
   /**
    * The guards' measure of the camera (no drawing): every `res` beats, how far it moved relative to
@@ -517,66 +499,10 @@ const api = {
     }
     return out;
   },
-  /** Where the spark is on the screen: beat, x, y (−1..1 in frame; 9 behind). Flat. No drawing. */
-  enCuadro(a: number, b: number, res = 0.05) {
-    const out: number[] = [];
-    const cam = new THREE.PerspectiveCamera(40, stage.camera.aspect, 1e-9, 1e9);
-    for (let at = a; at <= b + 1e-9; at += res) {
-      const pose = peli.camara(at);
-      let x = NaN;
-      let y = NaN;
-      if (pose.chispa && (tramos[pose.i].acto.luz?.(pose.p) ?? tramos[pose.i].acto.tl.get('on', pose.p)) > 0.05) {
-        cam.position.copy(pose.pos);
-        cam.quaternion.copy(pose.quat);
-        cam.fov = pose.fov;
-        cam.near = pose.dist * 1e-6;
-        cam.far = pose.dist * 1e6;
-        cam.updateProjectionMatrix();
-        cam.updateMatrixWorld();
-        const v = pose.chispa.clone().project(cam);
-        x = v.z > 1 ? 9 : v.x;
-        y = v.z > 1 ? 9 : v.y;
-      }
-      out.push(+at.toFixed(2), +x.toFixed(3), +y.toFixed(3), +pose.lw.toFixed(2));
-    }
-    return out;
-  },
-  /**
-   * The spark on the screen, precise, every `res` beats: beat, x, y (pixels of a 1600 × 900 frame; NaN
-   * where unlit or behind), its light.
-   */
-  pantalla(a: number, b: number, res = 0.01) {
-    const out: number[] = [];
-    const cam = new THREE.PerspectiveCamera(40, 16 / 9, 1e-9, 1e9);
-    const c = new THREE.Vector3();
-    for (let at = a; at <= b + 1e-9; at += res) {
-      const pose = peli.camara(at);
-      const acto = tramos[pose.i].acto;
-      const luz = pose.chispa ? (acto.luz?.(pose.p) ?? acto.tl.get('on', pose.p)) : 0;
-      let x = NaN;
-      let y = NaN;
-      if (luz > 0.05 && peli.chispaEn(at, pose.i, c)) {
-        cam.position.copy(pose.pos);
-        cam.quaternion.copy(pose.quat);
-        cam.fov = pose.fov;
-        cam.near = pose.dist * 1e-6;
-        cam.far = pose.dist * 1e6;
-        cam.updateProjectionMatrix();
-        cam.updateMatrixWorld();
-        const v = c.project(cam);
-        if (v.z < 1) {
-          x = (v.x * 0.5 + 0.5) * 1600;
-          y = (0.5 - v.y * 0.5) * 900;
-        }
-      }
-      out.push(at, x, y, luz);
-    }
-    return out;
-  },
   /**
    * The contract at every seam (CHASIS.md): the picture on either side, a hair before and after. Per
-   * seam: where it is, its kind, the spark on the screen (px of 1600 × 900) and its light on both
-   * sides, and for a seam through a shared world, how far apart that world's centre falls (px).
+   * seam: where it is, its kind, and for a seam through a shared world, how far apart that world's
+   * centre falls on the screen (px of 1600 × 900).
    */
   contratos() {
     const cam = new THREE.PerspectiveCamera(40, 16 / 9, 1e-9, 1e9);
@@ -597,23 +523,19 @@ const api = {
       const B = t.acto;
       const antes = peli.camara(t.inicio - 1e-6);
       const despues = peli.camara(t.inicio + 1e-6);
-      const luzA = antes.chispa ? (A.luz?.(antes.p) ?? A.tl.get('on', antes.p)) : 0;
-      const luzB = despues.chispa ? (B.luz?.(despues.p) ?? B.tl.get('on', despues.p)) : 0;
-      const cA = antes.chispa ? ver(antes, antes.chispa) : [NaN, NaN];
-      const cB = despues.chispa ? ver(despues, despues.chispa) : [NaN, NaN];
       let mundo = NaN;
       if (A.salida && B.entrada && t.costura !== 'corte') {
         const a = ver(antes, A.salida.pos.clone());
         const b = ver(despues, peli.sims[k + 1][k + 1].aplicar(B.entrada.pos, v.clone()));
         mundo = Math.hypot(a[0] - b[0], a[1] - b[1]);
       }
-      return { de: A.id, a: B.id, en: +t.inicio.toFixed(2), tipo: t.costura, chispa: [cA.map((x) => +x.toFixed(1)), cB.map((x) => +x.toFixed(1))], luz: [+luzA.toFixed(2), +luzB.toFixed(2)], salto: +Math.hypot(cA[0] - cB[0], cA[1] - cB[1]).toFixed(1), mundo: +mundo.toFixed(1), tapa: +(A.tapa?.(tramos[k].largo) ?? 0).toFixed(2) };
+      return { de: A.id, a: B.id, en: +t.inicio.toFixed(2), tipo: t.costura, mundo: +mundo.toFixed(1), tapa: +(A.tapa?.(tramos[k].largo) ?? 0).toFixed(2) };
     });
   },
   /**
    * The camera of act i over [desde, hasta] (beats in the act) written as a shot (chasis/toma.ts), for
    * moving a stretch of baked camera onto written keys: every `cada` beats, averaged over the stretch
-   * round it (its jitter out), what it looks at being the act's centre (`cx…`) drawn to the spark as
+   * round it (its jitter out), what it looks at being the act's centre (`cx…`) drawn to the guide as
    * much as the camera rode it (`lw`): p, az, el, ld, lw, mx, my, fov, roll.
    */
   transcribir(i: number, desde: number, hasta: number, cada = 1.2, mirada = false) {
@@ -630,10 +552,10 @@ const api = {
     for (let p = Math.max(0, desde - cada); p <= Math.min(t.largo, hasta + cada) + 1e-9; p += h) {
       const pose = peli.camara(t.inicio + Math.min(p, t.largo - 1e-6));
       // (`mirada`: what it looks at is the point straight ahead at its distance, written as the centre)
-      const lw = pose.chispa && !mirada ? pose.lw : 0;
+      const lw = pose.guia && !mirada ? pose.lw : 0;
       if (mirada) c.set(0, 0, -pose.dist).applyQuaternion(pose.quat).add(pose.pos);
       else c.set(tl.get('cx', p), tl.get('cy', p), tl.get('cz', p));
-      if (pose.chispa && !mirada) c.lerp(pose.chispa, lw);
+      if (pose.guia && !mirada) c.lerp(pose.guia, lw);
       v.copy(pose.pos).sub(c);
       const d = v.length();
       v.divideScalar(d);
@@ -740,7 +662,7 @@ const api = {
     }
     return out;
   },
-  /** Each seam: what the spark's ride does across it (the camera's own move there, no drawing). */
+  /** Each seam: what the camera's ride does across it (the camera's own move there, no drawing). */
   costuras() {
     return tramos.slice(1).map((t, k) => ({ de: tramos[k].acto.id, a: t.acto.id, en: t.inicio, tipo: t.costura, tapa: +(tramos[k].acto.tapa?.(tramos[k].largo) ?? 0).toFixed(2) }));
   },

@@ -384,7 +384,6 @@ export const estrella: EscenaChasis = {
     const entra = V(-57.1428571427241, 0, 0).sub(caminoCh(0, V()));
     tu.u.uSpread.value = 0;
 
-    const luzCh = (p: number) => 1 - THREE.MathUtils.smoothstep(p, tl.at('materia') + 3.4, tl.at('materia') + 4.2);
     return {
       id: 'estrella',
       tl,
@@ -397,7 +396,7 @@ export const estrella: EscenaChasis = {
       entrada: { pos: V(), escala: 1 },
       salida: { pos: V(), escala: 12 },
       // The spark: a little ahead of the camera on its way in; in the network, to its knot.
-      chispa(p, out) {
+      guia(p, out) {
         caminoCh(p, out);
         if (p < 1.5) out.addScaledVector(entra, 1 - THREE.MathUtils.smoothstep(p, 0, 1.5));
         return true;
@@ -405,7 +404,6 @@ export const estrella: EscenaChasis = {
       camara(p, ch, out) {
         plano(tl, p, ch, out);
       },
-      luz: luzCh,
       escalera: false,
       cuenta() {
         return { ...potencia(37), alcance: 'la galaxia' };

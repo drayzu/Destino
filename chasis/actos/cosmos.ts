@@ -500,13 +500,11 @@ export const cosmos: EscenaChasis = {
       camara(p, ch, out) {
         plano(tl, p, ch, out);
       },
-      chispa(p, out) {
+      guia(p, out) {
         const r = rutaEn(p);
         r.caminoCh(r.prog, out);
         return true;
       },
-      // (out at the star's end, it comes on again once that act has handed over: never at once at the seam)
-      luz: (p) => (1 - tl.get('oro', p)) * THREE.MathUtils.smoothstep(p, 0.3, 1.6),
       escalera: false,
       cuenta(p) {
         const c: Cuenta = p < tl.at('tipo') ? potencia(37 + 8 * Math.min(1, tl.get('bur', p) / (HOR * 0.85)), '') : p < tl.at('horizonte') ? potencia(46) : potencia(46 - 6 * tl.get('vacia', p));

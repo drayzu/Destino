@@ -495,7 +495,7 @@ export const despierta: EscenaChasis = {
       lejos: 200,
       film: { strength: 0.7, radius: 0.6, threshold: 0.5, exposure: 1.1 },
       presencias: ['blanco', 'agua', 'cel', 'mar', 'ner', 'cor', 'red', 'tu', 'tierra', 'on'],
-      chispa() {
+      guia() {
         return false;
       },
       camara(p, _ch, out) {

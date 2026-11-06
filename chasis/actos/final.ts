@@ -447,11 +447,10 @@ export const final: EscenaChasis = {
       camara(p, ch, out) {
         plano(tl, p, ch, out);
       },
-      chispa(p, out) {
+      guia(p, out) {
         caminoCh(tl.get('chs', p), out);
         return true;
       },
-      luz: (p) => tl.get('chOn', p),
       escalera: false,
       outro(p) {
         return tl.get('tarjeta', p);

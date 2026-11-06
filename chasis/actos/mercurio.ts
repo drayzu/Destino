@@ -532,7 +532,7 @@ export const mercurio: EscenaChasis = {
       // (the system's act hands the flight over in mid air: the same flight, the same worlds)
       costura: 'cuadro',
       continuo: true,
-      chispa(p, out) {
+      guia(p, out) {
         caminoCh(p, out);
         return true;
       },

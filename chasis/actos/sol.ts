@@ -283,13 +283,9 @@ export const solTrabajado: EscenaChasis = {
       camara(p, ch, out) {
         plano(tl, p, ch, out);
       },
-      chispa(p, out) {
+      guia(p, out) {
         caminoCh(p * 0.18, out).addScaledVector(EMPUJE, tl.get('mueve', p));
         return true;
-      },
-      // (at type II it has nowhere left to go: it flickers)
-      titila(p) {
-        return tl.get('satura', p);
       },
       escalera: false,
       cuenta(p) {

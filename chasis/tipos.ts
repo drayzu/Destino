@@ -6,7 +6,7 @@ import type { Cuenta, Rotulo } from '../estudios/placa';
  * The chassis (CHASIS.md). An act is a world, its choreography and its shot.
  *
  * Each act writes its camera as Tiempo's (`camara`, chasis/toma.ts): a handful of keys of its own
- * timeline the film flows through, the spark in the same shot. Every act's update reads the camera
+ * timeline the film flows through. Every act's update reads the camera
  * already placed in its own units, and only lights and moves what it owns. It meets its neighbours
  * through the contract (`costura: 'cuadro'`) or a shared world: never by knowing them.
  */
@@ -25,8 +25,8 @@ export interface FrameActo {
   /** The camera's focal length in device pixels. */
   focal: number;
   camera: THREE.PerspectiveCamera;
-  /** Where the spark is (act units), when there is one now. */
-  chispa: THREE.Vector3 | null;
+  /** Where the guide is (act units: where the viewer is headed), when there is one now. */
+  guia: THREE.Vector3 | null;
   /** Whether this act holds the camera now (false: it is the act before, still drawn across the seam). */
   propio: boolean;
   /** The journey's page draws its own chrome. */
@@ -35,12 +35,10 @@ export interface FrameActo {
   saliente?: boolean;
   /** How much of the act's light is up (1, or less across a seam). */
   presencia: number;
-  /** The film's spark (its points' uniforms: an act sets what hides it, `uOcc`). */
-  nubeChispa: import('../estudios/motor/materia').Nube;
 }
 
 /** A camera: where it is, where it looks, its fov (degrees), how far what it frames is, and how much
- * it frames the spark (0..1: the guards keep the spark in the frame where it does). */
+ * it rides the guide (0..1). */
 export interface PlanoCamara {
   pos: THREE.Vector3;
   quat: THREE.Quaternion;
@@ -69,40 +67,35 @@ export interface Acto {
   /**
    * How the film comes into this act from the one before (the camera needs nothing at a seam: its
    * baked keys already go on; only the scene is placed and the light crosses over for RELEVO beats):
-   * - `chispa` (default): through the spark. The camera and the spark are the same on both sides, and
-   *   those two points place this act's world in the last one's.
    * - `mundo`: through a world both acts show (the Earth, the Sun): this act's `entrada` lands on the
    *   last act's `salida`.
    * - `corte`: a cut, hidden by the last act's own cover (`tapa` at 1 there: its light filling the frame).
-   * - `cuadro`: through the frame (CHASIS.md, the contract): this act starts with the very picture the
-   *   last one ends with (the spark where it was on the screen, the same size of things), and the
+   * - `cuadro` (default): through the frame (CHASIS.md, the contract): this act starts with the very
+   *   picture the last one ends with (the same size of things), and the
    *   engine lays the two cameras on each other. Neither act knows the other: any act that keeps the
    *   contract can follow any other.
    */
-  costura?: 'chispa' | 'corte' | 'mundo' | 'cuadro';
+  costura?: 'corte' | 'mundo' | 'cuadro';
   /** A seam through a world: where this act meets the last one, and a size there (the two sizes match). */
   entrada?: { pos: THREE.Vector3; escala: number };
   salida?: { pos: THREE.Vector3; escala: number };
-  /** A seam through the spark in mid flight, where both acts draw the same worlds: this act is all
+  /** A seam through the frame in mid flight, where both acts draw the same worlds: this act is all
    * there from its first beat, and the one going out (told `saliente`) leaves those worlds to it. */
   continuo?: boolean;
-  /** Where the spark is at beat p (act units), at ambient time t (seconds; a ring turning by itself
-   * carries it); false when there is none. Pure in both. */
-  chispa(p: number, out: THREE.Vector3, t: number): boolean;
+  /** Where the viewer is headed at beat p (act units: the way the spark took when there was one), at
+   * ambient time t (seconds; a ring turning by itself carries it); false when there is none. Pure in
+   * both. Nothing draws it: shots ride it (`lw`) and what it passes lights. */
+  guia(p: number, out: THREE.Vector3, t: number): boolean;
   /** Going out across a seam, its points no bigger than this many px (its far stars, seen at the next
    * act's scale, would swell). */
   relevoMaxPx?: number;
-  /** How lit the spark is (0..1); the `on` track when absent. */
-  luz?(p: number): number;
-  /** How much the spark flickers (0..1); the `tit` track when absent. */
-  titila?(p: number): number;
   /** How much the frame is covered by the act's own light or dark (0..1): a cut may happen only under it. */
   tapa?(p: number): number;
   /**
-   * The act's own camera at beat p, written as Tiempo's (chasis/toma.ts), given where its spark is
+   * The act's own camera at beat p, written as Tiempo's (chasis/toma.ts), given where its guide is
    * (its units; null when it has none).
    */
-  camara(p: number, chispa: THREE.Vector3 | null, out: PlanoCamara): void;
+  camara(p: number, guia: THREE.Vector3 | null, out: PlanoCamara): void;
   /** Lights and moves what the act owns. Never touches the camera. */
   update(f: FrameActo): void;
   placa?(g: CanvasRenderingContext2D, f: FrameActo): void;

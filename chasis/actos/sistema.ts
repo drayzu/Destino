@@ -696,7 +696,7 @@ export const sistema: EscenaChasis = {
       presencias: ['mar', 'todo', 'ven', 'sombra', 'hl', 'mapa', 'nombres', 'aire', 'on'],
       entrada: { pos: E.clone(), escala: RE },
       salida: { pos: M.clone(), escala: RM },
-      chispa(p, out) {
+      guia(p, out) {
         caminoCh(p, out);
         return true;
       },
@@ -797,7 +797,6 @@ export const sistema: EscenaChasis = {
         }
         const oV = ocu.pos.clone().applyMatrix4(camera.matrixWorldInverse);
         for (const n of nubes) n.u.uOcc.value.set(oV.x, oV.y, oV.z, ocu.R * 0.995);
-        if (f.propio) f.nubeChispa.u.uOcc.value.set(oV.x, oV.y, oV.z, ocu.R * 0.995);
         enfocarMarcas(nuestras, f.dpr, mapa);
         enfocarMarcas(otras, f.dpr, mapa);
         cinturon.u.uMaxPx.value = 3 * f.dpr;

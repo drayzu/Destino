@@ -1,18 +1,17 @@
 import * as THREE from 'three';
 import type { Stage } from '../estudios/stage';
-import { crearChispa } from '../estudios/chispa';
 import type { Acto, EscenaChasis, Film, FrameActo, PlanoCamara } from './tipos';
 
 /**
- * The film (CHASIS.md): every act on one line of beats, ONE camera, ONE spark.
+ * The film (CHASIS.md): every act on one line of beats, ONE camera.
  *
  * - **The camera is written**, as Tiempo's: each act's shot is a handful of keys of its own timeline
  *   (chasis/toma.ts) the film flows through. Nothing chases anything, nothing corrects it afterwards;
  *   changing a key changes the film only between its two neighbours.
- * - **One spark.** Each act says where the spark is in its own units (`chispa(p)`); it is drawn
- *   once, with its wake, wherever the film is.
- * - **Seams.** The next act's world is placed in the last one's units by a similarity (scale and
- *   shift): through the spark (`chispa`: the spark and the camera's distance meet), through a world
+ * - **The guide.** An act may say where the viewer is headed in its own units (`guia(p)`: the way
+ *   the spark took when there was one). Nothing draws it: shots ride it (`lw`) and what it passes lights.
+ * - **Seams.** The next act's world is placed in the last one's units by a similarity (scale, turn
+ *   and shift): through the frame (`cuadro`: the two cameras laid on each other), through a world
  *   (`mundo`: `entrada` on `salida`), or a cut under the last act's cover (`corte`). Across a seam
  *   both acts are drawn for RELEVO beats, the light crossing over; the camera needs nothing there,
  *   its keys already go on.
@@ -25,21 +24,16 @@ export const RELEVO = 1.8;
 export const FUNDIDO_MIN = 0.4;
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
-/**
- * Whether the spark is drawn. Without it (the `sin-chispa` branch) the viewer is what travels: the
- * camera flies the spark's way, first person, and what it lights as it passes still lights.
- */
-export const CHISPA_VISIBLE = false;
-/** How far either side (beats) a shot averages the spark's way it follows (see chispaSeguida). */
-export const SIGUE = CHISPA_VISIBLE ? 0.35 : 0.8;
-/** At most about this many shot distances of way either side (a visible spark must stay in frame). */
-const SIGUE_LARGO = CHISPA_VISIBLE ? 0.6 : 3.0;
+/** How far either side (beats) a shot averages the guide's way it follows (see guiaSeguida). */
+export const SIGUE = 0.8;
+/** At most about this many shot distances of way either side. */
+const SIGUE_LARGO = 3.0;
 const smooth = (x: number) => x * x * (3 - 2 * x);
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 
 /**
- * x' = s·q(x) + t: an act's units into another's. Through a world or the spark, acts share their
- * axes (q none); through the frame (`cuadro`), the turn that lays one camera on the other.
+ * x' = s·q(x) + t: an act's units into another's. Through a world, acts share their axes (q none);
+ * through the frame (`cuadro`), the turn that lays one camera on the other.
  */
 export class Sim {
   constructor(
@@ -71,12 +65,12 @@ export interface Tramo {
   acto: Acto;
   inicio: number;
   largo: number;
-  /** Shots between cuts and world seams: the spark's way is continuous within one. */
+  /** Shots between cuts and world seams: the guide's way is continuous within one. */
   plano: number;
   /** Stretches between cuts: their acts' units map into each other. */
   cadena: number;
   /** How it came in from the act before. */
-  costura: 'chispa' | 'corte' | 'mundo' | 'cuadro' | null;
+  costura: 'corte' | 'mundo' | 'cuadro' | null;
 }
 
 /** The camera at a beat: in the units of the act `i` that holds it. */
@@ -86,9 +80,9 @@ export interface Pose {
   pos: THREE.Vector3;
   quat: THREE.Quaternion;
   fov: number;
-  /** The spark there (same units), or null. */
-  chispa: THREE.Vector3 | null;
-  /** How far behind the spark the ride is (same units); the rig's distance when not riding. */
+  /** The guide there (same units), or null. */
+  guia: THREE.Vector3 | null;
+  /** How far what it frames is (same units). */
   dist: number;
   /** How much it rides. */
   lw: number;
@@ -106,7 +100,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     stage.reset();
     const acto = e.montar(s);
     acto.grupo = grupo;
-    const costura = k === 0 ? null : (acto.costura ?? 'chispa');
+    const costura = k === 0 ? null : (acto.costura ?? 'cuadro');
     if (costura === 'corte' || costura === 'mundo') plano++;
     if (costura === 'corte') cadena++;
     tramos.push({ acto, inicio: cursor, largo: acto.tl.length, plano, cadena, costura });
@@ -116,34 +110,32 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
 
   // ---- The camera: written by each act (`camara`, chasis/toma.ts), as Tiempo's is.
   for (const t of tramos) if (!t.acto.camara) throw new Error(`${t.acto.id}: sin cámara (camara(), chasis/toma.ts)`);
-  /** The ambient time the spark's way is read at (the frame's; 0 for the pace and the guards). */
+  /** The ambient time the guide's way is read at (the frame's; 0 for the pace and the guards). */
   let tiempo = 0;
   const chCam = V();
   /** Act i's camera at beat p (its own units). */
   function camaraActo(i: number, p: number): PlanoCamara {
     const A = tramos[i].acto;
     const out: PlanoCamara = { pos: V(), quat: new THREE.Quaternion(), fov: 40, dist: 1, lw: 0 };
-    // (once on the spark itself, for how far the shot stands from it)
-    const hay = A.chispa(p, chCam, tiempo);
+    // (once on the guide itself, for how far the shot stands from it)
+    const hay = A.guia(p, chCam, tiempo);
     A.camara(p, hay ? chCam : null, out);
-    if (hay && out.lw > 0 && chispaSeguida(i, p, out.dist, chCam)) A.camara(p, chCam, out);
+    if (hay && out.lw > 0 && guiaSeguida(i, p, out.dist, chCam)) A.camara(p, chCam, out);
     return out;
   }
   /**
-   * What a shot follows of the spark: its way averaged over ±SIGUE beats, as a hand follows it, so
-   * the camera comes round a corner instead of turning on it (the spark turns sharply at a neuron, a
-   * city, a star; the camera nailed to it changed the way it moved at once there). The spark itself
-   * keeps its way, a little off the middle in a turn. Never over more way than about the shot's
-   * distance (`dist`), so a fast spark stays in the frame; and the window closes towards the act's
-   * ends, so a seam's picture is exact.
+   * What a shot follows of the guide: its way averaged over ±SIGUE beats, as a hand follows it, so
+   * the camera comes round a corner instead of turning on it (the way turns sharply at a neuron, a
+   * city, a star). Never over more way than about SIGUE_LARGO shot distances (`dist`); and the window
+   * closes towards the act's ends, so a seam's picture is exact.
    */
   const tmpSigue = V();
   const tmpSigue2 = V();
-  function chispaSeguida(i: number, p: number, dist: number, out: THREE.Vector3) {
+  function guiaSeguida(i: number, p: number, dist: number, out: THREE.Vector3) {
     const A = tramos[i].acto;
     const L = tramos[i].largo;
     const w = SIGUE * clamp(Math.min(p, L - p) / 0.8, 0, 1);
-    if (!A.chispa(p, tmpSigue2, tiempo)) return false;
+    if (!A.guia(p, tmpSigue2, tiempo)) return false;
     if (w < 1e-4) {
       out.copy(tmpSigue2);
       return true;
@@ -156,14 +148,14 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     for (let g = Math.ceil((p - w) / paso) * paso; g <= p + w; g += paso) {
       const x = (g - p) / w;
       const k = (1 - x * x) ** 2;
-      if (k <= 0 || !A.chispa(g, tmpSigue, tiempo)) continue;
+      if (k <= 0 || !A.guia(g, tmpSigue, tiempo)) continue;
       out.addScaledVector(tmpSigue, k);
       peso += k;
     }
     if (peso < 1e-9) return false;
     out.divideScalar(peso);
-    // (never far from the spark: past about SIGUE_LARGO shot distances, drawn back softly; a window
-    // that shrank with the spark's pace jumped as it set off)
+    // (never far from the guide: past about SIGUE_LARGO shot distances, drawn back softly; a window
+    // that shrank with the guide's pace jumped as it set off)
     const lim = SIGUE_LARGO * dist;
     const d = out.sub(tmpSigue2);
     d.multiplyScalar(lim / Math.sqrt(lim * lim + d.lengthSq()));
@@ -186,8 +178,8 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
       const cb = camaraActo(k, 0);
       const a = V();
       const c = V();
-      // (through a world both show, its size sets the scale; else the spark; else what the cameras frame)
-      const s = A.salida && B.entrada ? A.salida.escala / B.entrada.escala : A.chispa(la, a, 0) && B.chispa(0, c, 0) ? ca.pos.distanceTo(a) / Math.max(cb.pos.distanceTo(c), 1e-300) : ca.dist / cb.dist;
+      // (through a world both show, its size sets the scale; else the guide; else what the cameras frame)
+      const s = A.salida && B.entrada ? A.salida.escala / B.entrada.escala : A.guia(la, a, 0) && B.guia(0, c, 0) ? ca.pos.distanceTo(a) / Math.max(cb.pos.distanceTo(c), 1e-300) : ca.dist / cb.dist;
       const q = ca.quat.clone().multiply(cb.quat.clone().invert());
       aPrev[k] = new Sim(s, ca.pos.clone().sub(cb.pos.clone().applyQuaternion(q).multiplyScalar(s)), q);
       continue;
@@ -199,14 +191,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
       aPrev[k] = new Sim(s, A.salida.pos.clone().sub(B.entrada.pos.clone().multiplyScalar(s)));
       continue;
     }
-    const a = V();
-    const c = V();
-    if (!A.chispa(tramos[k - 1].largo, a, 0) || !B.chispa(0, c, 0)) throw new Error(`costura ${A.id} → ${B.id}: sin chispa en el encuentro`);
-    // (the camera is the same camera on both sides, and so is the spark: the two points fix the scale)
-    const camA = camaraActo(k - 1, la).pos;
-    const camB = camaraActo(k, 0).pos;
-    const s = camA.distanceTo(a) / Math.max(camB.distanceTo(c), 1e-300);
-    aPrev[k] = new Sim(s, a.clone().sub(c.clone().multiplyScalar(s)));
+    throw new Error(`costura ${A.id} → ${B.id}: ${tramos[k].costura}?`);
   }
   /** Act i's units into act j's (same shot only; identity otherwise). */
   const sims = tramos.map((_, i) =>
@@ -230,13 +215,13 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     return { i, p: clamp(b - tramos[i].inicio, 0, tramos[i].largo) };
   }
 
-  /** The spark at beat b in act j's units (b kept inside j's shot). False where there is none. */
-  function chispaEn(b: number, j: number, out: THREE.Vector3) {
+  /** The guide at beat b in act j's units (b kept inside j's shot). False where there is none. */
+  function guiaEn(b: number, j: number, out: THREE.Vector3) {
     const pl = planoDe[j];
     const bb = clamp(b, pl.desde, pl.hasta);
     const { i, p } = enTramo(Math.min(bb, pl.hasta - 1e-9));
     if (tramos[i].plano !== tramos[j].plano) return false;
-    if (!tramos[i].acto.chispa(p, out, tiempo)) return false;
+    if (!tramos[i].acto.guia(p, out, tiempo)) return false;
     sims[i][j].aplicar(out, out);
     return true;
   }
@@ -246,16 +231,11 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     const { i, p } = enTramo(b);
     const c = camaraActo(i, p);
     const ch = V();
-    const hay = chispaEn(b, i, ch);
-    return { i, p, pos: c.pos, quat: c.quat, fov: c.fov, chispa: hay ? ch : null, dist: c.dist, lw: hay ? clamp(c.lw, 0, 1) : 0 };
+    const hay = guiaEn(b, i, ch);
+    return { i, p, pos: c.pos, quat: c.quat, fov: c.fov, guia: hay ? ch : null, dist: c.dist, lw: hay ? clamp(c.lw, 0, 1) : 0 };
   }
 
   // ---- Drawing a beat.
-  const chispa = crearChispa();
-  stage.root.add(chispa.nube.points);
-  chispa.nube.points.renderOrder = 50;
-  const camino = { j: 0, f: (s: number, out: THREE.Vector3) => (chispaEn(s, camino.j, out) ? out : out.set(NaN, NaN, NaN)) };
-
   function fundir(grupo: THREE.Object3D, k: number, escala: number) {
     grupo.traverse((o) => {
       const un = ((o as THREE.Mesh).material as THREE.ShaderMaterial | undefined)?.uniforms;
@@ -274,10 +254,10 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
   };
 
   /**
-   * Places everything for beat b (the camera, every act, the spark) without drawing; returns the
+   * Places everything for beat b (the camera, every act) without drawing; returns the
    * frame for the plate. `f` gives the page's own (time, size).
    */
-  function poner(b: number, f: Omit<FrameActo, 'p' | 'camera' | 'chispa' | 'propio' | 'focal' | 'presencia' | 'nubeChispa'>, soloCamara = false) {
+  function poner(b: number, f: Omit<FrameActo, 'p' | 'camera' | 'guia' | 'propio' | 'focal' | 'presencia'>, soloCamara = false) {
     tiempo = soloCamara ? 0 : f.time;
     const pose = camara(b);
     const { i, p } = pose;
@@ -292,11 +272,11 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     cam.updateMatrixWorld();
     if (soloCamara) return { pose, frame: null };
     const focal = f.H / 2 / Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
-    // The act before, across a seam through the spark: still drawn, fading.
+    // The act before, across a seam: still drawn, fading.
     const prev = tramos[i].costura && tramos[i].costura !== 'corte' && p < RELEVO ? i - 1 : -1;
     // (an act that takes the flight on in mid air, `continuo`, is all there from its first beat; the
     // one going out leaves to it what both draw)
-    const continuo = (tramos[i].costura === 'chispa' || tramos[i].costura === 'cuadro') && !!A.continuo;
+    const continuo = tramos[i].costura === 'cuadro' && !!A.continuo;
     const c = continuo ? 1 : smooth(clamp((p - 0.05) / (RELEVO * 0.8), 0, 1));
     const enCam = V();
     const mPrev = new THREE.Matrix4();
@@ -317,9 +297,9 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
       cam.near = A.cerca * inv.s;
       cam.far = A.lejos * inv.s;
       cam.updateMatrixWorld();
-      const ch = pose.chispa ? inv.aplicar(pose.chispa, V()) : null;
+      const ch = pose.guia ? inv.aplicar(pose.guia, V()) : null;
       const luz = k === i ? (prev >= 0 ? c : 1) : 1 - smooth(clamp((p - 0.05) / (RELEVO * 0.8), 0, 1));
-      t.acto.update({ ...f, p: k === i ? p : t.largo, camera: cam, focal, chispa: ch, propio: k === i, saliente: k !== i && continuo, presencia: luz, nubeChispa: chispa.nube });
+      t.acto.update({ ...f, p: k === i ? p : t.largo, camera: cam, focal, guia: ch, propio: k === i, saliente: k !== i && continuo, presencia: luz });
       const tope = t.acto.relevoMaxPx;
       if (k !== i && tope) g.traverse((o) => {
         const un = ((o as THREE.Mesh).material as THREE.ShaderMaterial | undefined)?.uniforms;
@@ -332,43 +312,16 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     cam.far = A.lejos;
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld();
-    // The spark: one, on the film's way, in this act's units.
-    camino.j = i;
-    const on = CHISPA_VISIBLE && pose.chispa ? (A.luz ? A.luz(p) : A.tl.get('on', p)) : 0;
-    chispa.nube.points.visible = on > 0.001;
-    if (pose.chispa && on > 0.001) {
-      // (its wake: the way back over about its ride's distance on screen)
-      const D = Math.max(pose.dist, 1e-30);
-      let atras = 0.05;
-      let largo = 0;
-      const a = V();
-      const z = pose.chispa.clone();
-      // (to the exact beat where it reaches that length, not the next step past it: a wake that grew
-      // and shrank by whole steps as the spark changed pace flickered)
-      for (; atras < 3; atras += 0.05) {
-        if (!chispaEn(b - atras, i, a)) break;
-        const tramo = a.distanceTo(z);
-        if (largo + tramo > 0.7 * D) {
-          atras -= 0.05 * (1 - (0.7 * D - largo) / tramo);
-          break;
-        }
-        largo += tramo;
-        z.copy(a);
-      }
-      chispa.update(camino.f, b, atras / 55, on, A.titila ? A.titila(p) : A.tl.get('tit', p), pose.pos, focal, f.dpr, f.time);
-      chispa.nube.u.uFundido.value = 1;
-      chispa.nube.u.uEscalaMundo.value = 1;
-    }
     const film = filmEn(i, p);
     stage.bloom.strength = film.strength;
     stage.bloom.radius = film.radius;
     stage.bloom.threshold = film.threshold;
     stage.renderer.toneMappingExposure = film.exposure;
-    const frame: FrameActo = { ...f, p, camera: cam, focal, chispa: pose.chispa, propio: true, presencia: 1, nubeChispa: chispa.nube };
+    const frame: FrameActo = { ...f, p, camera: cam, focal, guia: pose.guia, propio: true, presencia: 1 };
     return { pose, frame };
   }
 
-  return { tramos, TOTAL, enTramo, chispaEn, camara, poner, sims };
+  return { tramos, TOTAL, enTramo, guiaEn, camara, poner, sims };
 }
 
 export type Pelicula = ReturnType<typeof crearPelicula>;

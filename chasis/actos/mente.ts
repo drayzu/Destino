@@ -251,7 +251,7 @@ export const mente: EscenaChasis = {
       film: { strength: 0.75, radius: 0.6, threshold: 0.45, exposure: 1.1 },
       presencias: ['red', 'tu', 'cue', 'on'],
       // (where you are: what warms the neurons as you pass)
-      chispa(p, out) {
+      guia(p, out) {
         camino(tl.get('sc', p), out);
         return true;
       },
@@ -283,7 +283,7 @@ export const mente: EscenaChasis = {
         const t = f.time;
         red.u.uRed.value = tl.get('red', p);
         red.u.uBrota.value = tl.get('brota', p);
-        if (f.chispa) red.u.uChispa.value.copy(f.chispa);
+        if (f.guia) red.u.uChispa.value.copy(f.guia);
         // («tú» gives way as the camera goes through it after the spark: its dots, met at the lens, were
         // a burst of teal)
         const dTu = f.camera.position.length();

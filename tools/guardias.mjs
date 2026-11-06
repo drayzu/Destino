@@ -5,10 +5,9 @@
 //
 // 1. The camera: no jumps of place or gaze (a step much bigger than the steps either side), no jolts
 //    (the turn speeding up or slowing at once), no turn faster than TOPE_GIRO degrees per beat.
-// 2. The spark in frame while the camera rides it.
 // 3. What each act shows and hides comes and goes no faster than FUNDIDO_MIN beats.
 // 4. The seams: a cut only under the last act's full cover.
-// 5. The contract: at every other seam, the spark the same on both sides (CHASIS.md).
+// 5. The contract: at every other seam, a shared world in the same place (CHASIS.md).
 // 6. No jolts: the camera's velocity never changes at once.
 // Exit code 1 if any fails.
 import { execFileSync } from 'node:child_process';
@@ -30,13 +29,11 @@ const run = (expr) => {
 const r = run(`(() => ({
   total: viaje.total,
   mov: viaje.movimiento(${DESDE}, Math.min(${HASTA}, viaje.total), ${PASO}),
-  cuadro: viaje.enCuadro(${DESDE}, Math.min(${HASTA}, viaje.total), 0.05),
   pres: viaje.presencias(),
   cost: viaje.costuras(),
   contr: viaje.contratos(),
   tir: viaje.tirones(${DESDE}, Math.min(${HASTA}, viaje.total), ${PASO}),
   tramos: viaje.tramos(),
-  chispa: viaje.chispaVisible,
 }))()`);
 const fallos = [];
 const acto = (b) => {
@@ -70,34 +67,15 @@ for (let i = 2; i < n - 2; i++) {
   if (acc > 1.2 && acc > 3 * Math.max(Math.abs(giro(i - 1) - giro(i - 2)), Math.abs(giro(i + 1) - giro(i)), 0.15)) fallos.push([b, acto(b), 'tirón de mirada', +acc.toFixed(1)]);
   if (g > TOPE_GIRO) fallos.push([b, acto(b), 'giro muy rápido (°/compás)', +g.toFixed(0)]);
 }
-// 2. The spark in frame while ridden.
-const c = r.cuadro;
-let montados = 0;
-let fuera = 0;
-for (let i = 0; i < c.length && r.chispa; i += 4) {
-  if (c[i + 3] < 0.9 || !Number.isFinite(c[i + 1])) continue;
-  montados++;
-  if (Math.abs(c[i + 1]) > 0.92 || Math.abs(c[i + 2]) > 0.92) {
-    fuera++;
-    fallos.push([c[i], acto(c[i]), 'chispa fuera de cuadro (montada)', `${c[i + 1]},${c[i + 2]}`]);
-  }
-}
 // 3. Presences.
 for (const [a, nombre, b, pend] of r.pres) fallos.push([b, a, `«${nombre}» aparece o se va de golpe`, pend]);
 // 4. Seams.
 for (const s of r.cost) if (s.tipo === 'corte' && s.tapa < 0.98) fallos.push([s.en, s.a, 'corte sin tapa', s.tapa]);
 // 6. The camera's jolts: its velocity changing at once (a corner taken on the spot, a pace that jumps).
 for (let i = 0; i < r.tir.length; i += 3) fallos.push([r.tir[i], acto(r.tir[i]), 'tirón de la cámara', `${r.tir[i + 1]} (${r.tir[i + 2]}× lo de al lado)`]);
-// 5. The contract at every seam but a cut: the spark lit alike on both sides, and in the same place
-//    on the screen (a few px), and a shared world where it was.
+// 5. The contract at every seam but a cut: a shared world where it was (a few px).
 for (const c of r.contr) {
   if (c.tipo === 'corte') continue;
-  if (!r.chispa) {
-    if (c.mundo != null && c.mundo > 4) fallos.push([c.en, c.a, 'el mundo compartido salta en la costura (px)', c.mundo]);
-    continue;
-  }
-  if (Math.abs(c.luz[0] - c.luz[1]) > 0.05) fallos.push([c.en, c.a, 'la chispa se prende o se apaga en la costura', `${c.luz[0]}→${c.luz[1]}`]);
-  else if (c.luz[0] > 0.05 && !(c.salto <= 4)) fallos.push([c.en, c.a, 'la chispa salta en la costura (px)', c.salto ?? 'sale de cuadro']);
   if (c.mundo != null && c.mundo > 4) fallos.push([c.en, c.a, 'el mundo compartido salta en la costura (px)', c.mundo]);
 }
 
@@ -105,7 +83,6 @@ for (const c of r.contr) {
 const uno = [];
 for (const e of fallos) if (!uno.some((u) => Math.abs(u[0] - e[0]) < 0.1 && u[2] === e[2])) uno.push(e);
 console.log(`cámara: ${n} pasos de ${PASO}; giro máximo ${maxGiro.toFixed(1)}°/compás en ${dondeMax.toFixed(2)} (${acto(dondeMax)})`);
-console.log(`chispa: ${montados} muestras montada, ${fuera} fuera de cuadro`);
 console.log(`costuras: ${r.cost.map((s) => `${s.de}→${s.a} ${s.tipo} en ${s.en}`).join(' · ')}`);
 if (uno.length) {
   console.log(`\n${uno.length} fallo(s):`);

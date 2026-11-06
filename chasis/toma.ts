@@ -6,8 +6,8 @@ import type { PlanoCamara } from './tipos';
  * A shot, written as Tiempo's (CHASIS.md): the camera round what it looks at. One parametrisation,
  * a handful of tracks of the act's own timeline, nothing else:
  *
- * - What it looks at: a point (`cx`, `cy`, `cz`), or the spark, as much as `lw` (0..1). Looking at the
- *   spark, the spark is in the frame by construction: the camera and the spark are one shot.
+ * - What it looks at: a point (`cx`, `cy`, `cz`), or the act's guide (where the viewer is headed),
+ *   as much as `lw` (0..1).
  * - Where it stands round that: azimuth `az` and elevation `el` (degrees; keep |el| under ~80) and
  *   distance 10^`ld`, so a pull-back keeps its pace across scales; shifted by `ox`, `oy`, `oz`.
  * - Where it looks from there, in the frame of that place (out from the centre, east, north): `pitch`
@@ -21,7 +21,7 @@ export const TRACKS_TOMA = ['cx', 'cy', 'cz', 'az', 'el', 'ld', 'lw', 'ox', 'oy'
 
 /**
  * The contract at a seam through the frame (`costura: 'cuadro'`, CHASIS.md): an act's first and last
- * picture have the spark this many degrees right and up of the middle, with this lens. An act that
+ * picture look this many degrees right and up of what they frame, with this lens. An act that
  * keeps it can go after or before any other that does.
  */
 export const CONTRATO = { mx: 0, my: -1, fov: 40 };
@@ -45,10 +45,10 @@ const ye = new THREE.Vector3();
  * `marco`: the frame the shot is written in (local → the act's units), for rides over a planet: its
  * «up» the ground's (marcoRadial), so «behind», «over» and the horizon are that ground's. None: the act's own.
  */
-export function toma(tl: Timeline, p: number, chispa: THREE.Vector3 | null, out: PlanoCamara, marco?: THREE.Quaternion | null): PlanoCamara {
-  const lw = chispa ? THREE.MathUtils.clamp(tl.get('lw', p), 0, 1) : 0;
+export function toma(tl: Timeline, p: number, guia: THREE.Vector3 | null, out: PlanoCamara, marco?: THREE.Quaternion | null): PlanoCamara {
+  const lw = guia ? THREE.MathUtils.clamp(tl.get('lw', p), 0, 1) : 0;
   centro.set(tl.get('cx', p), tl.get('cy', p), tl.get('cz', p));
-  if (chispa && lw > 0) centro.lerp(chispa, lw);
+  if (guia && lw > 0) centro.lerp(guia, lw);
   const az = D(tl.get('az', p));
   const el = D(tl.get('el', p));
   const dist = Math.pow(10, tl.get('ld', p));
@@ -129,8 +129,8 @@ export function marcoRadial(punto: THREE.Vector3, c: THREE.Vector3, ejeMundo: TH
 }
 
 /**
- * Keys for a ride behind the spark (written, not chased): from p0 to p1, every `cada` beats, where the
- * camera stands round the spark: behind its heading (`rumbo(p, out)`, a direction: the way's own,
+ * Keys for a ride behind the guide (written, not chased): from p0 to p1, every `cada` beats, where the
+ * camera stands round the guide: behind its heading (`rumbo(p, out)`, a direction: the way's own,
  * rounded over its corners) plus `fi` degrees (0: right behind), `el` degrees over its horizon and
  * 10^`ld` away. Over a planet, `marco(p)` is the frame of the place below (marcoRadial): «behind» and
  * «over» are that ground's, and the keys carry the roll that keeps that ground's horizon level. The

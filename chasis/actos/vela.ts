@@ -630,7 +630,7 @@ export const vela: EscenaChasis = {
       entrada: { pos: S0.clone(), escala: 1 },
       salida: { pos: V(0.9, 0.1, 0.8), escala: 0.05 * 3.5 },
       relevoMaxPx: 4,
-      chispa(p, out, t) {
+      guia(p, out, t) {
         const r = rutaEn(p, t);
         r.caminoCh(r.chS, out);
         if (p < 1.6) out.addScaledVector(entra, 1 - THREE.MathUtils.smoothstep(p, 0, 1.6));
