@@ -580,7 +580,8 @@ export const galaxia: EscenaChasis = {
     const AZ_FIL = AZ_ALBA + 158;
     tl.label('filtro').caption(12.0, 'El Gran Filtro', 'O casi todas se apagan antes de llegar tan lejos, como este enjambre muerto. ¿Ese filtro quedó atrás, o nos espera?');
     luego(0.4, 1.2, { callan: 0 });
-    luego(1.2, 1.4, { ...Cn(FILTRO) });
+    // (across only once out: across while close, the camera shot past what it framed)
+    luego(1.7, 1.5, { ...Cn(FILTRO) });
     luego(1.6, 1.6, { filtro: 1 });
     luego(0.6, 2.8, { ch: 4 });
     luego(4.4, 2.0, { tit: 1 });
