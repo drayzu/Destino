@@ -9,8 +9,8 @@ import { HORIZONTE, INFERNO, TEAL, caraHacia, dirLatLon, potencia, puntoTu, anio
 import { angulos, toma } from '../../estudios/rig';
 import { crearChispa, montar, type Chispa } from '../../estudios/chispa';
 import type { Rotulo } from '../../estudios/placa';
-import type { Acto, EscenaChasis, FrameActo } from '../tipos';
-import { marcoRadial, mezclar, toma as plano } from '../toma';
+import type { Acto, EscenaChasis, FrameActo, PlanoCamara } from '../tipos';
+import { marcoRadial, mezclar, toma as plano, vuelo } from '../toma';
 import { GLSL_RED, GLSL_SALA, LARGO_SALA, ORIGEN_RED, PASILLO_Z, ciudadDatos, redDatos, rutasRed, salaDatos } from '../../estudios/momentos-tierra';
 
 /**
@@ -569,9 +569,21 @@ export const tierraNoche: EscenaChasis = {
     for (let i = 0; i < 40000; i++) {
       const sv = 5 + cableB.r() * 3;
       const q = rutaTierra(sv).normalize().multiplyScalar(0.9994);
-      cableB.push(q.x, q.y, q.z, TEAL, 0.00012, 0.28);
+      cableB.push(q.x, q.y, q.z, TEAL, 0.00012, 0.28, { delay: (sv - 5) / 3 });
     }
-    const cableMar = add(materia(cableB.data(), { pre: `uniform float uOn;`, move: `em *= uOn;`, uniforms: { uOn: { value: 0 } } }));
+    // (a pulse runs along it to Mumbai: a bright head, the cable lit behind it, faint ahead)
+    const cableMar = add(
+      materia(cableB.data(), {
+        pre: `uniform float uOn, uPulso;`,
+        move: /* glsl */ `
+          float detras = 1.0 - smoothstep(uPulso - 0.004, uPulso + 0.004, aDelay);
+          float cabeza = exp(-pow((aDelay - uPulso) * 70.0, 2.0));
+          em *= uOn * (0.22 + 0.78 * detras + 7.0 * cabeza);
+          sz *= 1.0 + 2.5 * cabeza;
+        `,
+        uniforms: { uOn: { value: 0 }, uPulso: { value: 0 } },
+      }),
+    );
     cableMar.u.uFuente.value = 0.5;
     const copias: { ch: Chispa; a: THREE.Vector3; b: THREE.Vector3 }[] = COPIAS.map(([la, lo]) => {
       const ch = crearChispa();
@@ -647,15 +659,18 @@ export const tierraNoche: EscenaChasis = {
       tl.with(dur, v, e);
       tl.wait(-off);
     };
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, ...llegada(0), roll: 0, mx: 0, my: 0, anio: 2026, tu: 0, wipe: -1.4, warm: 0, ir: 0, presencia: 1, alto: 1, ind: 0, ani: 0, lh: 1, lp2: 13.28, rs: S_CAIRO, lw: 0, rad: 0, on: 1, cable: 0, dc: 0, copias: 0, vel: 0, frente: -0.05, cables: 0, resto: 1, ola: -1, brillo: BRILLO });
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, ...llegada(0), roll: 0, mx: 0, my: 0, anio: 2026, tu: 0, wipe: -1.4, warm: 0, ir: 0, presencia: 1, alto: 1, ind: 0, ani: 0, lh: 1, lp2: 13.28, rs: S_CAIRO, lw: 0, rad: 0, on: 1, cable: 0, dc: 0, copias: 0, vel: 0, frente: -0.05, cables: 0, resto: 1, ola: -1, brillo: BRILLO, pulso: -0.02, vq: 0 });
     // (the lights as bright as the brain's network that became them, at the seam; their own by the hall)
     luego(3.0, 2.6, { brillo: 1 });
+    // (and again on the way down onto Mumbai, where they are few and small)
+    tl.keyAt(7.2, { brillo: 1 }).keyAt(8.4, { brillo: 2.2 }).keyAt(9.8, { brillo: 1 });
 
     // Under the Red Sea and the Arabian Sea in a cable to Mumbai; as the spark lands, the pulse runs
     // on along every cable of the world, coast to coast and over the curve of the Earth to its other
     // side, while the camera rises off the sea to watch it go.
     tl.label('otroLado').caption(6.4, 'Al otro lado del mundo', 'Lo que piensa uno, en un instante lo sabe el otro lado del mundo.');
     tl.with(0.8, { cable: 1 });
+    luego(0.6, 3.6, { pulso: 1.02 });
     tl.to(1.0, { rs: S_CAIRO + 1 });
     // (the act's rig centre goes to the hall once the hall's rig has the camera, unseen: so the pace
     // measures the dive by how far the camera is from what it frames)
@@ -690,8 +705,14 @@ export const tierraNoche: EscenaChasis = {
     tl.with(1.8, { dc: 0, on: 0 });
     // (the moment: down low over the night side as the lights come on, the horizon curving away and
     // the towns igniting beneath, first a few, then all at once; then back up for «today»)
-    tl.to(0.9, { anio: 1800, az: 8, el: 7, ld: 0.5 });
-    tl.to(3.5, { anio: 2026, az: 3, el: 6, ld: Math.log10(1.2), pitch: -34, fov: 52 });
+    // (gliding low from India to Arabia towards the horizon over Europe as the years go back to 1800,
+    // the lights going out, and on again, first a few, then all at once)
+    // (never all dark: back a generation, the lights here fading to their first towns, and on again)
+    tl.to(0.7, { anio: 1994, brillo: 1.8 });
+    tl.to(3.7, { anio: 2026 });
+    tl.keyAt(tl.at('luces') + 5.6, { brillo: 1 });
+    tl.keyAt(tl.at('luces') + 2.2, { az: 18, el: 2, ld: Math.log10(1.13), pitch: -31, yaw: 118, fov: 53 });
+    tl.keyAt(tl.at('luces') + 4.4, { az: 3, el: 6, ld: Math.log10(1.2), pitch: -34, yaw: 90, fov: 52 });
 
     tl.label('hoy').caption(3.6, 'Hoy', 'Hoy usamos diecinueve billones de vatios: tipo 0,73 en la escala de Kardashev. Unos pocos encienden la pantalla en que miras esto.');
     luego(0.4, 0.9, { tu: 1 });
@@ -741,8 +762,31 @@ export const tierraNoche: EscenaChasis = {
     // The glide over the night Earth that despierta lands on (`llegada`), slow, east towards the
     // lights of India, until the hall's rig takes the camera; the act's own shot, unseen while the
     // hall's has it, waits over the whole Earth where «luces» begins.
-    for (let t = 0; t <= D1_ + 0.71; t += 0.7) tl.keyAt(t, llegada(t));
-    tl.keyAt(P1 - 1, { az: 12, el: 9, ld: 0.6, pitch: -90, yaw: 90, roll: 0, my: 0, fov: 40 });
+    for (let t = 0; t <= 1.41; t += 0.7) tl.keyAt(t, llegada(t));
+    // Then down from it to just over the sea, and along the cable after its pulse, first person
+    // (chasis/toma.ts `vuelo`), the ground's «up» always up: Arabia's lights to the left, the curve of
+    // the Earth ahead, Mumbai coming up over it.
+    const sobreW = (la: number, lo: number, alt: number) => dirLatLon(la, lo).multiplyScalar(1 + alt).applyQuaternion(earth.quaternion);
+    const PASO_MAR: [number, number, number, number][] = [
+      [0, 6, 41, 0.3],
+      [1.3, 9.2, 44.6, 0.16],
+      [2.2, 12.6, 48.8, 0.07],
+      [3.0, 16.2, 53.2, 0.036],
+      [3.8, 20.0, 59.2, 0.03],
+      [4.7, 20.6, 66.0, 0.034],
+      [5.6, 19.8, 70.2, 0.05],
+    ];
+    const mar = new THREE.CatmullRomCurve3(PASO_MAR.map(([, la, lo, al]) => sobreW(la, lo, al)), false, 'centripetal');
+    {
+      const K = 40;
+      const largos = mar.getLengths((PASO_MAR.length - 1) * K);
+      PASO_MAR.forEach(([b], k) => tl.keyAt(b, { vq: largos[k * K] / largos[largos.length - 1] }));
+    }
+    tl.keyAt(0.6, { my: 0 }).keyAt(1.6, { my: -6 }).keyAt(3.0, { my: 7 }).keyAt(D1_, { my: 9 });
+    /** Where the flight over the sea hands over from the shot it lands on. */
+    const SOBRE_MAR = 1.3;
+    const LUCES0 = { az: 36, el: -3, ld: Math.log10(1.1), pitch: -27, yaw: 145, roll: 0, my: 0, fov: 54 };
+    tl.keyAt(P1 - 1, LUCES0).keyAt(P1, LUCES0);
     const tl2 = new Timeline();
     /** What the hall's rig looks at: the far end of the aisle, at eye height (hall frame, radii). */
     const enHall = (x: number, y: number, z: number) => V(x * M, y * M, z * M).applyQuaternion(qSala);
@@ -775,7 +819,20 @@ export const tierraNoche: EscenaChasis = {
       const up = V(0, 1, 0).applyQuaternion(c.quat);
       return { ...rigLocal(posL), ...miradaLocal(posL, dirLocal(dir), dirLocal(up)), fov: c.fov };
     };
-    const camDe = (pp: number, ch: THREE.Vector3 | null) => plano(tl, pp, ch, { pos: V(), quat: new THREE.Quaternion(), fov: 40, dist: 1, lw: 0 }, marcoEn(pp));
+    const cVuelo = { pos: V(), quat: new THREE.Quaternion(), fov: 40, dist: 1, lw: 0 };
+    const arribaV = V();
+    /** The act's own camera (before the hall's rig): the shot it lands on, then the flight over the sea. */
+    const camViaje = (pp: number, ch: THREE.Vector3 | null, out: PlanoCamara) => {
+      if (pp >= P1) return plano(tl, pp, ch, out, marcoEn(pp));
+      plano(tl, Math.min(pp, SOBRE_MAR), ch, out, marcoEn(pp));
+      if (pp <= 0) return out;
+      arribaV.copy(mar.getPointAt(THREE.MathUtils.clamp(tl.get('vq', pp), 0, 1))).normalize();
+      vuelo(tl, pp, mar, cVuelo, { pista: 'vq', adelante: 0.08, alabeo: 0, arriba: arribaV });
+      // (its «dist»: how high it flies, the scale of what it sees)
+      cVuelo.dist = Math.max(1e-4, cVuelo.pos.length() - 1);
+      return mezclar(out, cVuelo, THREE.MathUtils.smootherstep(pp, 0, SOBRE_MAR), out);
+    };
+    const camDe = (pp: number, ch: THREE.Vector3 | null) => camViaje(pp, ch, { pos: V(), quat: new THREE.Quaternion(), fov: 40, dist: 1, lw: 0 });
     // Where the act's rig stands as «luces» begins.
     const fin0 = enRig(camDe(P1, null));
     const enSala = (m: number) => Math.log10(m * M);
@@ -789,7 +846,7 @@ export const tierraNoche: EscenaChasis = {
       upL.addScaledVector(dirL, -upL.dot(dirL)).normalize();
       return { ...rigLocal(posL), ...miradaLocal(posL, dirL, upL) };
     };
-    const subida = sobre(17.5, 64, 0.09, 19.4, 76.5);
+    const subida = sobre(18.3, 68.6, 0.07, 19.3, 75.5);
     const cima = sobre(19.2, 66.5, 0.2, 18.9, 78.5);
     tl2.set({ cx: cL.x, cy: cL.y, cz: cL.z, ox: 0, oy: 0, oz: 0, pitch: -90, yaw: 90, roll: 0, fov: 40 });
     // (it takes the camera from the ride where the ride is: the ride's own poses, written in its frame
@@ -801,6 +858,8 @@ export const tierraNoche: EscenaChasis = {
     tl2.keyAt(9.4, { ...rigLocal(enHall(-LARGO_SALA / 2 - 3, 1.6, PASILLO_Z)), pitch: -90, yaw: 90, roll: 0 });
     tl2.keyAt(11.0, { ...rigLocal(enHall(LARGO_SALA / 2 - 7, 1.55, PASILLO_Z)), pitch: -90, yaw: 90, roll: 0 });
     // Up and away to where the act's rig waits.
+    // (up through the roof over the city's lights, and on up to where «luces» glides)
+    tl2.keyAt(12.2, { ...sobre(19.0, 72.88, 0.0006, 19.45, 72.95), fov: 46 });
     tl2.keyAt(P1, fin0);
     const vW = V();
 
@@ -849,13 +908,13 @@ export const tierraNoche: EscenaChasis = {
       // The act's rig, and in the hall the hall's (its frame: its «up» the ground's at Mumbai).
       camara(p, ch, out) {
         if (p < D0 || p >= P1) {
-          plano(tl, p, ch, out, marcoEn(p));
+          camViaje(p, ch, out);
           return;
         }
         plano(tl2, p, null, out);
         aMundo(out.pos, out.pos);
         out.quat.premultiply(qL);
-        if (p < D1) mezclar(plano(tl, p, ch, cRide, marcoEn(p)), out, THREE.MathUtils.smoothstep(p, D0, D1), out);
+        if (p < D1) mezclar(camViaje(p, ch, cRide), out, THREE.MathUtils.smoothstep(p, D0, D1), out);
       },
       escalera: false,
       cuenta(p) {
@@ -886,6 +945,7 @@ export const tierraNoche: EscenaChasis = {
         camL.copy(camera.position).applyQuaternion(inv);
         planeta.update({ sol: solL, camara: camL, focal: f.focal, dpr: f.dpr, tiempo: t, presencia: tl.get('presencia', p) * THREE.MathUtils.smoothstep(camera.position.length() - 1, 0.00004, 0.0008) });
         cableMar.u.uOn.value = tl.get('cable', p);
+        cableMar.u.uPulso.value = tl.get('pulso', p);
         // The pulse along the world's cables, and the ring it runs over the lights; how high the camera
         // is (lights, cables and ground fade as it goes down below them, into the hall).
         const alt = camera.position.length() - 1;

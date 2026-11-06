@@ -8,7 +8,7 @@ import { tierra as tierraHorizontes } from '../../src/horizontes';
 import { FONT, ink, type Cuenta, type Rotulo } from '../../estudios/placa';
 import { capaLuz, caraHacia, potencia, puntoTu, anioEn } from '../../estudios/remake';
 import { CARA, SOL, llegada, luces } from './tierra';
-import { toma as plano } from '../toma';
+import { mezclar, toma as plano, vuelo } from '../toma';
 import type { Acto, EscenaChasis, FrameActo } from '../tipos';
 
 /**
@@ -26,6 +26,12 @@ import type { Acto, EscenaChasis, FrameActo } from '../tipos';
  */
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+/** What passes by the lens fades out instead of growing into a blot (the flight goes through it all). */
+const LENTE = /* glsl */ `
+  float dCam = length(mv.xyz) / max(uEscalaMundo, 1e-30);
+  em *= smoothstep(0.012, 0.06, dCam);
+  occ *= smoothstep(0.012, 0.06, dCam);
+`;
 const VIOLETA = new THREE.Color(0.66, 0.5, 1.0);
 const CORAL = new THREE.Color(1.0, 0.5, 0.42);
 const MAR = new THREE.Color(0.35, 0.62, 0.9);
@@ -244,6 +250,7 @@ export const despierta: EscenaChasis = {
             em *= uMar;
           }
         `,
+        post: LENTE,
         uniforms: { uCel: { value: 1 }, uMar: { value: 1 }, uToque: { value: 0 } },
       }),
     );
@@ -256,11 +263,15 @@ export const despierta: EscenaChasis = {
         pre: /* glsl */ `uniform float uNer, uCrece;`,
         move: /* glsl */ `
           p *= uCrece;
-          p.y += 0.05 * sin(uTime * 0.8);
+          // It swims: the bell closes at its rim and opens again, and rises a little with each beat.
+          float nado = pow(0.5 + 0.5 * sin(uTime * 1.7), 3.0);
+          p.xz *= 1.0 - 0.11 * nado * (1.0 - smoothstep(-0.1, 0.7, p.y / max(uCrece, 0.05)));
+          p.y += 0.05 * sin(uTime * 0.8) + 0.03 * nado;
           float chispa = aKind < 0.5 ? (smoothstep(0.88, 0.952, fract(aDelay * 2.0 - uTime * 0.7)) * (1.0 - smoothstep(0.952, 1.0, fract(aDelay * 2.0 - uTime * 0.7)))) * 4.0 : 0.0;
           // (each point lit as the net reaches it, softly, not switched on)
           em *= uNer * (1.0 + chispa) * smoothstep(aDelay - 0.02, aDelay + 0.05, uNer * 1.2 + 0.05);
         `,
+        post: LENTE,
         uniforms: { uNer: { value: 0 }, uCrece: { value: 0.3 } },
       }),
     );
@@ -278,7 +289,7 @@ export const despierta: EscenaChasis = {
     const listo = (async () => {
       const img = await mapaTierra();
       const d = cerebroDatos(img);
-      corteza = add(materia(d.corteza, { pre: `uniform float uCor;`, move: `em *= uCor;`, uniforms: { uCor: { value: 0 } } }));
+      corteza = add(materia(d.corteza, { pre: `uniform float uCor;`, move: `em *= uCor;`, post: LENTE, uniforms: { uCor: { value: 0 } } }));
       corteza.u.uFuente.value = 0.3;
       red = add(
         materia(d.red, {
@@ -300,6 +311,7 @@ export const despierta: EscenaChasis = {
             vec3 nn = normalize(position);
             em *= mix(1.0, smoothstep(-0.015, 0.03, dot(nn, normalize(uCamW - position))), uK);
           `,
+          post: LENTE,
           uniforms: { uCamW: { value: V() }, uRed: { value: 0 }, uMaq: { value: 0 }, uLuz: { value: new THREE.Color(1.0, 0.56, 0.22) }, uFria: { value: new THREE.Color(0.7, 0.86, 1.0) } },
           extra: { aDat: [d.dat, 4] },
         }),
@@ -357,7 +369,7 @@ export const despierta: EscenaChasis = {
       tl.with(dur, v);
       tl.wait(-off);
     };
-    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: -20, el: 14, ld: 0.22, yaw: 90, pitch: -90, roll: 0, mx: 0, my: 0, fov: 40, blanco: 1, agua: 1, cel: 1, mar: 1, toque: 0, ner: 0, crece: 0.3, cor: 0, red: 0, forma: 0, tu: 0, tierra: 0, maq: 0, lw: 0, vel: 0 });
+    tl.set({ cx: 0, cy: 0, cz: 0, ox: 0, oy: 0, oz: 0, az: -20, el: 14, ld: 0.22, yaw: 90, pitch: -90, roll: 0, mx: 0, my: 0, fov: 40, blanco: 1, agua: 1, cel: 1, mar: 1, toque: 0, ner: 0, crece: 0.3, cor: 0, red: 0, forma: 0, tu: 0, tierra: 0, maq: 0, lw: 0, vel: 0, vu: 0, vm: 0, vh: 0 });
 
     // The light touches the cell, and it flinches.
     tl.label('celula').caption(4.6, 'Una célula que reacciona', 'Antes de pensar, la materia aprendió a reaccionar. Empezó en el mar, con una célula.');
@@ -388,29 +400,86 @@ export const despierta: EscenaChasis = {
     luego(4.6, 1.2, { vel: 0 });
     tl.wait(6.0);
 
-    // The camera (chasis/toma.ts), round the one place everything is born in: az, el, ld.
-    const cam = (p: number, az: number, el: number, ld: number, mas: Record<string, number> = {}) => tl.keyAt(p, { az, el, ld, ...mas });
-    // (the cell, close, the camera drifting in a little)
-    cam(1.8, -14, 13.5, 0.15);
-    cam(3.6, -6, 13, 0.1);
-    // (back and a little over as the bell grows round it)
-    cam(5.6, 4, 15, 0.26);
-    cam(7.6, 16, 19, 0.42);
-    cam(9.6, 28, 19, 0.45);
-    // (the brain where the bell was; then slowly in, to the point at its heart)
-    cam(11.6, 42, 15, 0.44);
-    cam(13.4, 55, 11, 0.26);
-    cam(15.4, 66, 8, 0.08);
-    // The leap: out through the network as it becomes the Earth, round to its night face; then down,
-    // the gaze rising to the horizon, onto the glide that tierra.ts goes on with.
+    // The camera: one flight, first person (chasis/toma.ts `vuelo`), down through the sea to the cell,
+    // along its skin and in through it; there, where it was, under the bell of nerves as it grows round
+    // us; out between the tentacles, round to see the brain fold where the bell was, and into it, along
+    // its network, to the point at its heart. Every knot: [beat, where]; the flight's pace runs through
+    // them smoothly (`vu`, by length).
+    const TU = V(0, 0.02, 0.04);
+    const NUDOS: [number, THREE.Vector3][] = [
+      [0.0, V(0.7, 1.55, 2.3)],
+      [1.4, V(0.56, 1.05, 1.62)],
+      [2.5, V(0.42, 0.62, 1.12)],
+      [3.3, V(0.05, 0.5, 0.72)],
+      [4.0, V(-0.24, 0.26, 0.5)],
+      [4.6, V(-0.2, 0.06, 0.24)],
+      [6.8, V(0.04, -0.24, 0.3)],
+      [8.0, V(0.36, -0.74, 0.76)],
+      [9.0, V(0.95, -1.15, 1.5)],
+      [9.9, V(1.6, -0.9, 2.1)],
+      [10.9, V(2.3, -0.2, 1.7)],
+      [11.9, V(2.0, 0.3, 0.9)],
+      [12.8, V(1.1, 0.22, 0.55)],
+      [13.6, V(0.55, 0.12, 0.3)],
+      [14.4, V(0.2, 0.06, 0.18)],
+      [15.4, V(0.1, 0.05, 0.13)],
+    ];
+    const ruta = new THREE.CatmullRomCurve3(NUDOS.map(([, v]) => v), false, 'centripetal');
+    {
+      const K = 40;
+      const largos = ruta.getLengths((NUDOS.length - 1) * K);
+      const total = largos[largos.length - 1];
+      NUDOS.forEach(([b], k) => tl.keyAt(b, { vu: largos[k * K] / total }));
+      // (at rest at the point: the pull-back starts from stillness)
+      tl.keyAt(NUDOS[NUDOS.length - 1][0] + 0.6, { vu: 1 });
+    }
+    // Where it looks: as much as `vm` at `cx…`, else ahead along the way.
+    const mira = (b: number, c: THREE.Vector3, vm: number) => tl.keyAt(b, { cx: c.x, cy: c.y, cz: c.z, vm });
+    const CERO = V();
+    const NUCLEO = V(0.06, -0.03, 0);
+    const CIMA = V(0, 0.45, -0.35);
+    const DENTRO = V(0.2, -0.1, -0.3);
+    mira(0, CERO, 0.92);
+    mira(2.5, CERO, 0.85);
+    mira(3.3, CERO, 0.85);
+    mira(4.0, NUCLEO, 0.85);
+    mira(4.6, DENTRO, 1);
+    // (up into the bell as it grows from its top: never straight up, where «up» is lost)
+    mira(6.0, CIMA, 1);
+    mira(6.8, CIMA, 1);
+    // (out between the tentacles, mostly ahead; then round to the bell, and to the brain where it was)
+    mira(8.0, V(0, 0.1, 0), 0.7);
+    mira(8.6, V(0, 0.1, 0), 0.66);
+    mira(9.8, V(0, 0.05, 0), 0.95);
+    mira(11.6, CERO, 1);
+    mira(12.4, TU, 0.85);
+    mira(13.2, TU, 0.6);
+    mira(14.2, TU, 0.9);
+    mira(15.0, TU, 1);
+    // The leap (chasis/toma.ts `toma`, round the point and then the Earth's centre): from where the flight
+    // rests, straight back out as the network streams past into the Earth's lights, round to its night
+    // face; then down, banking, the gaze rising to the horizon, onto the glide tierra.ts goes on with.
     const o8 = tl.at('ocho');
-    cam(o8 + 1.2, 50, 9, 0.22);
-    cam(o8 + 3.2, 0, 8, 0.58, { pitch: -90, yaw: 90, fov: 40 });
+    const enTu = (() => {
+      const v = NUDOS[NUDOS.length - 1][1].clone().sub(TU);
+      return { az: THREE.MathUtils.radToDeg(Math.atan2(v.x, v.z)), el: THREE.MathUtils.radToDeg(Math.asin(v.y / v.length())), ld: Math.log10(v.length()) };
+    })();
+    tl.keyAt(o8 - 0.6, { ...enTu, pitch: -90, yaw: 90, fov: 40, roll: 0 });
+    tl.keyAt(o8, { ...enTu });
+    tl.keyAt(o8 + 0.5, { ld: enTu.ld + 0.1 });
+    tl.keyAt(o8 + 1.4, { az: enTu.az * 0.4 - 8, el: 11, ld: 0.0 });
+    tl.keyAt(o8 + 2.2, { ld: 0.36 });
+    tl.keyAt(o8 + 3.2, { az: -16, el: 12, ld: 0.58, pitch: -90, yaw: 90, fov: 40, roll: 0 });
     const fin = tl.length;
     const medio = llegada(-1.6);
-    cam(o8 + 4.5, medio.az / 2, (8 + medio.el) / 2, 0.3, { pitch: -72, yaw: 80, fov: 45 });
-    for (const t of [-0.7, 0]) tl.keyAt(fin + t, llegada(t));
-    const tu = add(puntoTu(V(0, 0.02, 0.04), 0.006));
+    tl.keyAt(o8 + 4.5, { az: medio.az / 2, el: (8 + medio.el) / 2, ld: 0.3, pitch: -72, yaw: 80, fov: 45, roll: 9 });
+    for (const t of [-0.7, 0]) tl.keyAt(fin + t, { ...llegada(t), roll: 0 });
+    // (round the point, then the Earth's centre: the same place within a hair)
+    tl.keyAt(o8 - 0.6, { cx: TU.x, cy: TU.y, cz: TU.z }).keyAt(o8 + 0.4, { cx: TU.x, cy: TU.y, cz: TU.z }).keyAt(o8 + 2.0, { cx: 0, cy: 0, cz: 0 });
+    /** Where the flight hands over to the shot. */
+    const RELEVO_TOMA = [o8 - 0.3, o8 + 0.1];
+    const cVuelo = { pos: V(), quat: new THREE.Quaternion(), fov: 40, dist: 1, lw: 0 };
+    const tu = add(puntoTu(TU, 0.006));
     const solL = V();
     const camL = V();
     const inv = new THREE.Quaternion();
@@ -430,7 +499,12 @@ export const despierta: EscenaChasis = {
         return false;
       },
       camara(p, _ch, out) {
-        plano(tl, p, null, out);
+        if (p >= RELEVO_TOMA[1]) {
+          plano(tl, p, null, out);
+          return;
+        }
+        vuelo(tl, p, ruta, p > RELEVO_TOMA[0] ? cVuelo : out, { adelante: 0.04, alabeo: 0, nivel: true });
+        if (p > RELEVO_TOMA[0]) mezclar(cVuelo, plano(tl, p, null, out), THREE.MathUtils.smoothstep(p, RELEVO_TOMA[0], RELEVO_TOMA[1]), out);
       },
       tapa(p) {
         return tl.get('blanco', p);

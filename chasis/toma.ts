@@ -208,7 +208,7 @@ export function escribir(tl: Timeline, filas: readonly (readonly number[])[]) {
  * (along «up»), leaning into its curves as a bird does (`alabeo` degrees at most), plus `roll`, and
  * `mx`, `my`, `fov` as in a shot. Its «up» is the world's (+Y) unless `arriba` is given.
  */
-export function vuelo(tl: Timeline, p: number, camino: THREE.Curve<THREE.Vector3>, out: PlanoCamara, o: { adelante?: number; alabeo?: number; arriba?: THREE.Vector3; pista?: string } = {}) {
+export function vuelo(tl: Timeline, p: number, camino: THREE.Curve<THREE.Vector3>, out: PlanoCamara, o: { adelante?: number; alabeo?: number; arriba?: THREE.Vector3; pista?: string; nivel?: boolean } = {}) {
   const ade = o.adelante ?? 0.02;
   const u = THREE.MathUtils.clamp(tl.get(o.pista ?? 'vu', p), 0, 1);
   camino.getPointAt(u, out.pos);
@@ -222,7 +222,24 @@ export function vuelo(tl: Timeline, p: number, camino: THREE.Curve<THREE.Vector3
   const vm = THREE.MathUtils.clamp(tl.get('vm', p), 0, 1);
   if (vm > 0) {
     centro.set(tl.get('cx', p), tl.get('cy', p), tl.get('cz', p)).sub(out.pos);
-    if (centro.lengthSq() > 1e-24) {
+    if (centro.lengthSq() > 1e-24 && o.nivel) {
+      // (`nivel`: turned round «up» and then up or down, as a head turns: from ahead to far behind,
+      // the shortest way goes over the top, where «up» is lost and the picture spins)
+      centro.normalize();
+      const aw = (o.arriba ?? Y).clone();
+      const elA = Math.asin(THREE.MathUtils.clamp(delante.dot(aw), -1, 1));
+      const elB = Math.asin(THREE.MathUtils.clamp(centro.dot(aw), -1, 1));
+      const hA = delante.clone().addScaledVector(aw, -delante.dot(aw));
+      const hB = centro.clone().addScaledVector(aw, -centro.dot(aw));
+      if (hA.lengthSq() > 1e-12 && hB.lengthSq() > 1e-12) {
+        hA.normalize();
+        hB.normalize();
+        const giro = Math.atan2(eje.crossVectors(hA, hB).dot(aw), hA.dot(hB));
+        const hor = hA.applyAxisAngle(aw, giro * vm);
+        const el = elA + (elB - elA) * vm;
+        delante.copy(hor).multiplyScalar(Math.cos(el)).addScaledVector(aw, Math.sin(el));
+      } else delante.lerp(centro, vm).normalize();
+    } else if (centro.lengthSq() > 1e-24) {
       centro.normalize();
       const ang = delante.angleTo(centro);
       if (ang > 1e-6) {
