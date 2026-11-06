@@ -276,6 +276,43 @@ export const galaxia: EscenaChasis = {
     const una = add(punto(new THREE.Color(1.0, 0.82, 0.6), 2.2), root, 5);
     una.points.position.copy(UNA);
 
+    // Stars round each encounter at every scale (DIRECCION.md: without the spark, the way from one
+    // encounter to the next is flown through stars, not across black): as many in each decade of
+    // distance from it, from a few hundredths of a unit out to a few units of the disc (flattened to it
+    // beyond the first), so wherever the camera stands on its way out and in, near or far, there are
+    // stars round it. Only near: from afar they would be three knots on the galaxy.
+    // (most of them ours by now, teal, as the bubble left them; some still their own warm light)
+    // (seen near only: the lens, and far off, where they would pile up)
+    const CERCA_LENTE = /* glsl */ `
+      float dCam = length(mv.xyz) / max(uEscalaMundo, 1e-30);
+      em *= smoothstep(0.004, 0.03, dCam) * (1.0 - smoothstep(5.0, 13.0, dCam));
+    `;
+    const TONOS = [TEAL.clone(), TEAL.clone().lerp(new THREE.Color(1, 1, 1), 0.35), TEAL.clone(), new THREE.Color(1, 0.8, 0.6)];
+    const campos = [ZOO, CALLAN, FILTRO].map((c, k) => {
+      const b = materiaBuilder(401 + k);
+      for (let i = 0; i < 30000; i++) {
+        const [x, y, z] = b.onSphere();
+        const r = Math.pow(10, -1.5 + b.r() * 2.6);
+        const plano = 1 - 0.8 * THREE.MathUtils.smoothstep(r, 0.3, 2.0);
+        const viva = b.r() < 0.06;
+        b.push(x * r, y * r * plano, z * r, TONOS[Math.floor(b.r() * TONOS.length)], 1e-7, viva ? 2.4 + 2 * b.r() : 0.55 + 1.1 * b.r() ** 2, { kind: viva ? 1 : 0 });
+      }
+      const n = add(
+        materia(b.data(), {
+          pre: `uniform float uOn;`,
+          // (a few bright ones, a little larger)
+          move: `em *= uOn; sz *= 1.0 + aKind;`,
+          post: CERCA_LENTE,
+          uniforms: { uOn: { value: 0 } },
+        }),
+        root,
+        3,
+      );
+      n.u.uFuente.value = 1;
+      n.points.position.copy(c);
+      return n;
+    });
+
     const grupo = (pos: THREE.Vector3, escala: number) => {
       const g = new THREE.Group();
       g.position.copy(pos);
@@ -432,6 +469,33 @@ export const galaxia: EscenaChasis = {
       FILTRO.clone().addScaledVector(dirDe(AZ_ALBA + 160 + 98, 5), R_FILTRO * 1.9).add(V(0, R_FILTRO * 0.2, 0)),
       UNA.clone().add(V(-0.0006, 0, 0)),
     ];
+    // And a corridor of them along each crossing, so the middle of the way, far from both ends, is no
+    // black either: the disc's own stars round the way, ours.
+    const corredores = [0, 1, 2].map((k) => {
+      const a = paradas[k];
+      const c = paradas[k + 1];
+      const b = materiaBuilder(431 + k);
+      const lado = V();
+      const eje = c.clone().sub(a);
+      const L = eje.length();
+      eje.normalize();
+      const perp = eje.clone().cross(Y).normalize();
+      for (let i = 0; i < 36000; i++) {
+        // (not at its ends, where the encounters have their own; round, not a slab: seen along it from
+        // inside, a slab piled up into a burnt band)
+        const t = 0.06 + 0.88 * b.r();
+        const [ox, oy, oz] = b.onSphere();
+        const r = 6 * Math.cbrt(b.r());
+        lado.set(ox * r, oy * r * 0.7, oz * r);
+        const viva = b.r() < 0.05;
+        b.push(a.x + eje.x * L * t + lado.x, a.y + eje.y * L * t + lado.y, a.z + eje.z * L * t + lado.z, TONOS[Math.floor(b.r() * TONOS.length)], 1e-7, viva ? 2.2 + 2 * b.r() : 0.45 + b.r() ** 2, { kind: viva ? 1 : 0 });
+      }
+      const n = add(materia(b.data(), { pre: `uniform float uOn;`, move: `em *= uOn; sz *= 1.0 + aKind;`, post: CERCA_LENTE, uniforms: { uOn: { value: 0 } } }), root, 3);
+      n.u.uFuente.value = 1;
+      return { n, a: a.clone(), c: c.clone() };
+    });
+    const segmento = new THREE.Line3();
+    const enSeg = V();
     const caminoCh: Camino = (sv, out) => {
       if (sv <= 1) return burb.rama(sv, out);
       const i = Math.min(Math.floor(sv - 1), paradas.length - 2);
@@ -721,7 +785,12 @@ export const galaxia: EscenaChasis = {
     tl.keyAt(0, { on: 1 });
     // The shots (chasis/toma.ts), and the spark's way in from the ship (the seam's picture, in this
     // act's units: where the sail's act leaves it).
-    escribir(tl, TOMA_GALAXIA);
+    // (the crossings between encounters, at their farthest, look down on the disc and its stars from
+    // above, not along it at a black band)
+    escribir(
+      tl,
+      TOMA_GALAXIA.map((r) => (r[0] > 20 && r[0] < 62 && r[3] > 0 ? [r[0], r[1], Math.max(r[2], 12 + 30 * Math.min(1, r[3])), ...r.slice(3)] : r)),
+    );
     const entra = V(6.148131711708195, 0.020544473336365457, 25.260604989285923).sub(caminoCh(chDe(0), V()));
     return {
       id: 'galaxia',
@@ -749,6 +818,11 @@ export const galaxia: EscenaChasis = {
         plano(tl, p, ch, out);
       },
       escalera: false,
+      // (streaks of speed as the camera dives out of one encounter and into the next: their stars rush by)
+      efectos(p) {
+        const v = Math.abs(tl.get('ld', p + 0.06) - tl.get('ld', p - 0.06)) / 0.12;
+        return { vel: 0.32 * THREE.MathUtils.smoothstep(v, 0.6, 2.2) * (p > tl.at('zoo') - 1 ? 1 : 0) };
+      },
       cuenta(p) {
         // The power: the light of every star reached (two at first, the whole galaxy at the end).
         const n = Math.max(2, estrellasEn(alcanceR));
@@ -854,6 +928,16 @@ export const galaxia: EscenaChasis = {
         restos.mesh.visible = filOn > 0.001;
         if (restos.mesh.visible) filtroG.worldToLocal(restos.u.uCam.value.copy(camera.position));
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
+        // (the stars round each encounter, only while the camera is near it: at most a few units)
+        for (const n of campos) {
+          n.u.uOn.value = 1 - THREE.MathUtils.smoothstep(camera.position.distanceTo(n.points.position), 16, 30);
+          n.u.uMinPx.value = 2.3 * f.dpr;
+        }
+        for (const x of corredores) {
+          segmento.set(x.a, x.c).closestPointToPoint(camera.position, true, enSeg);
+          x.n.u.uOn.value = (1 - THREE.MathUtils.smoothstep(camera.position.distanceTo(enSeg), 14, 30)) * (1 - tl.get('una', p));
+          x.n.u.uMinPx.value = 2.3 * f.dpr;
+        }
         tocadas.u.uMaxPx.value = 14 * f.dpr;
         saltos.u.uMinPx.value = 2.4 * f.dpr;
         enfocarMarcas(aroSol, f.dpr, tl.get('mapa', p));
