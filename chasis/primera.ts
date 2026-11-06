@@ -25,6 +25,8 @@ export interface Mundo {
   visita?: [number, number];
   /** How far off it draws the gaze, against its radius (1: the distances above; a sun, more). */
   alcance?: number;
+  /** A destination held even when it is off to the side, not only ahead (the head turns to it). */
+  aLado?: boolean;
 }
 
 const Y = new THREE.Vector3(0, 1, 0);
@@ -85,7 +87,7 @@ export function primeraPersona(camino: (p: number, out: THREE.Vector3) => THREE.
       cerca = Math.min(cerca, Math.max(L - w.R, 1e-6));
       const Lr = L / (w.R * (w.alcance ?? 1));
       const enDestino = w.destino ? sm(p, w.destino[0], w.destino[0] + 1.4) * (1 - sm(p, w.destino[1] - 1.4, w.destino[1])) : 0;
-      const lejos = enDestino > 0 ? enDestino * sm(Lr, 10, 24) * sm(W.dot(ade), 0.0, 0.6) : 0;
+      const lejos = enDestino > 0 ? enDestino * sm(Lr, 10, 24) * (w.aLado ? sm(W.dot(ade), -0.6, 0.1) : sm(W.dot(ade), 0.0, 0.6)) : 0;
       const visita = w.visita ? ssm(p, w.visita[0], w.visita[0] + 1.8) * (1 - ssm(p, w.visita[1] - 2.4, w.visita[1])) * (1 - sm(Lr, 6, 20)) : 0;
       const deCerca = w.visita || !w.cerca ? 0 : w.cerca * (1 - sm(Lr, 3, 16)) * sm(W.dot(ade), -0.85, -0.2);
       let k = Math.max(deCerca, 0.95 * lejos, (w.cerca ?? 0.8) * visita);

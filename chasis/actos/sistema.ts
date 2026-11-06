@@ -666,7 +666,9 @@ export const sistema: EscenaChasis = {
       { c: E, R: RE, cerca: 0.42 },
       { c: LUNA, R: RL, cerca: 0.42 },
       { c: MA, R: RMA, cerca: 0.8, destino: [T_RIEL1, T_MARTE2], visita: [T_MARTE - 2.2, T_MARTE2 - 0.4] },
-      { c: VE, R: RV, cerca: 0.8, destino: [T_MARTE2 + 0.6, T_CORTE], visita: [T_VENUS - 2.2, T_VENUS2 - 0.4] },
+      { c: VE, R: RV, cerca: 0.8, destino: [T_MARTE2 + 0.6, T_VENUS2 - 1.0], visita: [T_VENUS - 2.2, T_VENUS2 - 0.4] },
+      // (and off Venus, Mercury ahead, growing, where the next act goes on)
+      { c: M, R: RM, destino: [T_VENUS2 - 1.8, T_CORTE + 2], aLado: true },
     ]);
     /** In the long crossings, the orbits faintly, so the way out has a map. */
     const travesia = (p: number) =>
