@@ -560,7 +560,7 @@ export const apertura: EscenaChasis = {
     /** How far from the Sun the camera waits for our radio's front. */
     const D_VOZ = 0.12 * R_VOZ;
     const L_PASO = Math.log10(0.00042);
-    tl.set({ ...C(S), az: -52, el: 10, ld: Math.log10(D_VOZ), lw: 0, mx: 0, my: 0, fov: 40, roll: 0, fp: 0, vu: 0, vm: 0, vh: ALTO_PASO * 0.5, tu: 0, cue: 0, voz: 0, vozOn: 1, cielo: 0.4, gal: 0.4, titulo: 0, vatios: 0, pla: 0, vaso: 0, ola: 0, olaOn: 0, solp: 0, luzSol: 0, sc: 0, on: 1, tit: 0, frenteV: 0, punto: 0, velo: 1, cerca: 1 });
+    tl.set({ ...C(S), az: -52, el: 10, ld: Math.log10(D_VOZ), lw: 0, mx: 0, my: 0, fov: 40, roll: 0, fp: 0, vu: 0, vm: 0, vh: ALTO_PASO * 0.5, tu: 0, cue: 0, voz: 0, vozOn: 1, cielo: 0.4, gal: 0.4, titulo: 0, vatios: 0, pla: 0, vaso: 0, ola: 0, olaOn: 0, solp: 0, luzSol: 0, velA: 0, sc: 0, on: 1, tit: 0, frenteV: 0, punto: 0, velo: 1, cerca: 1 });
 
     // Riding the front of our radio, out from the Sun (DIRECCION.md, 3). The thought's network, gone to
     // a point, is the Sun; our radio grows from it towards you, its front reaches you and you go out
@@ -591,14 +591,16 @@ export const apertura: EscenaChasis = {
     luego(0.6, 3.4, { vatios: 1 });
     tl.with(1.0, { vozOn: 0 });
     luego(1.6, 1.6, { punto: 0 });
-    tl.to(4.6, { ...C(G), ld: 1.98, el: 60, az: 52 });
+    // (a slow swoop down over the galaxy as its light is named: from above to low over it, its arms
+    // foreshortened, its bulge glowing, always turning the same way)
+    tl.to(4.6, { ...C(G), ld: 1.94, el: 30, az: 64 });
 
     tl.label('alguien').caption(3.8, '¿Hay alguien más?', 'Cientos de miles de millones de estrellas. Hasta donde sabemos, nadie usa su luz.');
     // (what it looks at comes to the spark's neighbourhood while the camera is still far: coming down,
     // it only comes closer)
     // (still over the disc, the galaxy round its neighbourhood: the plunge into it is the next moment's,
     // quick; a slow descent through the disc's haze was three beats of grey)
-    tl.to(3.8, { ...C(P), ld: 2.0, el: 58, az: 80 });
+    tl.to(3.8, { ...C(P), ld: 2.0, el: 36, az: 82 });
 
     // Down to the spark again, and it does not wait for the camera: it sets off as the camera comes
     // down, and the camera falls in with it among the stars with planets. On the way the camera does
@@ -684,11 +686,22 @@ export const apertura: EscenaChasis = {
     // (still well over the disc as it comes round, and down into it only as it closes in: low over it
     // from afar, the haze of its stars went out at once)
     tl.to(1.2, { el: 16, az: azS });
-    tl.to(1.4, { ld: Math.log10(enS.length() * 2), el: elS + 3 });
-    tl.with(1.0, { el: elS + 6 });
-    luego(1.4, 1.2, { luzSol: 1 });
-    luego(0.4, 2.0, { ld: Math.log10(0.0055) });
-    tl.to(2.4, { sc: 3 });
+    // (then one fall into it, faster and faster, decade after decade: it grows from a point to fill
+    // the frame, not a point for three beats and then all at once)
+    {
+      const b0 = tl.at('amarilla') + 1.2;
+      const b1 = tl.at('amarilla') + 5.0;
+      const ld0 = tl.get('ld', b0);
+      const ld1 = Math.log10(0.0055);
+      tl.quitar(['ld', 'el'], b0, b1 + 1);
+      for (let b = b0 + 0.25; b <= b1 + 1e-6; b += 0.25) {
+        const u = (b - b0) / (b1 - b0);
+        tl.keyAt(b, { ld: ld0 + (ld1 - ld0) * (u * u * (3 - 2 * u) * 0.35 + 0.65 * u ** 1.7), el: 16 + (elS + 6 - 16) * Math.min(1, u * 1.6) });
+      }
+    }
+    luego(2.8, 1.2, { luzSol: 1 });
+    luego(1.6, 1.8, { velA: 0.42 });
+    tl.to(3.8, { sc: 3 });
     tl.label('fin');
 
     const Pw = V();
@@ -722,6 +735,10 @@ export const apertura: EscenaChasis = {
         return tl.get('luzSol', p);
       },
       escalera: false,
+      // (the stars rushing by as it falls into the yellow star)
+      efectos(p) {
+        return { vel: tl.get('velA', p) };
+      },
       cuenta(p): Cuenta | null {
         if (p < tl.at('luz')) {
           const linea = 'nuestra radio · 100 años luz';
@@ -815,7 +832,7 @@ export const apertura: EscenaChasis = {
         // fills it: a few pixels before, a star after)
         const aA = tl.at('amarilla');
         const crece = THREE.MathUtils.smoothstep(p, aA + 1.0, aA + 3.8) * (1 - tl.get('luzSol', p));
-        sol.u.uSizeUnit.value = px(6 + 3 * tl.get('solp', p) + 70 * crece * crece);
+        sol.u.uSizeUnit.value = px(6 + 3 * tl.get('solp', p) + 150 * crece * crece * crece);
         sol.u.uGain.value = Math.max(tl.get('cielo', p), tl.get('solp', p)) * (0.5 + 0.8 * tl.get('solp', p)) * (1 + 0.6 * crece);
         for (const n of nubes) enfocar(n, f.focal, f.dpr, t);
         for (const n of [estrellas, locales, vecinas]) n.u.uMaxPx.value = 3.2 * f.dpr;
