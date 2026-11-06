@@ -8,7 +8,7 @@ import { HORIZONTE, TEAL, caraHacia, dirLatLon, potencia, anioEn } from '../../e
 import { angulos, toma } from '../../estudios/rig';
 import type { Camino } from '../../estudios/chispa';
 import { CARA, SOL as SOL_TIERRA } from './tierra';
-import { CONTRATO, toma as plano } from '../toma';
+import { CONTRATO, mezclar, toma as plano } from '../toma';
 
 /** The flight through the inner system round the spark: p, az, el, ld, mx, my (tools: claves). */
 const VUELO_SISTEMA: number[][] = [[13.8, -82.8, 25.2, -0.246, 6.3, 3.4], [15.0, -80.6, 27.6, -0.224, 6.6, 3.1], [16.2, -94.3, 17.4, -0.444, -0.9, -1.2], [17.4, -105.2, 6.2, -0.769, -2.2, -1.6], [18.6, -90.4, 22.3, -0.942, -1.6, -0.5], [19.8, -45.0, 39.4, -0.747, -9.6, -3.5], [21.0, -49.0, 28.5, -0.154, -12.5, -3.8], [22.2, -87.3, 16.2, 0.582, -4.9, -2.5], [23.4, -92.1, 19.6, 0.802, -3.5, -2.1], [24.6, -82.5, 18.2, 0.347, 1.2, -2.0], [25.8, -50.0, 19.0, 0.002, 5.3, -3.1], [27.0, -17.0, 22.1, -0.118, 6.8, -6.4], [28.2, 24.1, 16.5, -0.132, 6.1, -10.0], [29.4, 67.4, -5.6, -0.139, 6.8, -9.6], [30.6, 115.3, -17.9, -0.159, 8.7, -3.8], [31.8, 150.9, -1.2, -0.12, 2.1, -2.1], [33.0, 128.2, 15.8, 0.267, -7.6, -3.4], [34.2, 105.5, 16.5, 0.853, -5.0, -3.2], [35.4, 106.5, 20.4, 0.872, -4.2, -2.4], [36.6, 97.4, 21.6, 0.747, -3.5, -2.0], [37.8, 83.4, 18.0, 0.37, 1.4, -2.4], [39.0, 90.3, 18.0, 0.126, 6.4, -2.9], [40.2, 109.5, 17.2, 0.07, 7.8, -3.1], [41.4, 135.7, 14.7, 0.039, 7.6, -2.8], [42.6, 163.8, 11.6, 0.006, 7.1, -1.5], [43.8, 189.9, 11.4, -0.037, 6.5, 0.0], [45.0, 199.5, 11.8, -0.078, 0.6, -2.2], [46.2, 192.9, 18.0, 0.083, -6.5, -4.6], [47.4, 181.2, 20.4, 0.412, -4.3, -2.5]];
@@ -16,7 +16,7 @@ import { CIUDAD, COLOR, DIR_CIUDAD, E, FIN_RIEL_LUNA, LUNA, M, MA, N_LUNA, RE, R
 import { DIR7, suelo, vueloInterior } from '../../estudios/vuelo';
 import { enfocarMarcas, marcas, nombres, orbitas, type Nombre } from '../../estudios/revelar';
 import type { Cuenta, Rotulo } from '../../estudios/placa';
-import type { Acto, EscenaChasis, FrameActo } from '../tipos';
+import type { Acto, EscenaChasis, FrameActo, PlanoCamara } from '../tipos';
 
 /**
  * Scenes 8–10 of ESCALETA.md: the Solar System at work (GUION.md, moments 20–24), in the same frame
@@ -654,6 +654,130 @@ export const sistema: EscenaChasis = {
     for (const [p, az, el, ld, mx, my] of VUELO_SISTEMA) tl.keyAt(p, { az: az + vuelta, el, ld, mx, my });
     tl.keyAt(tl.length, { az: 170.5 + vuelta + 360 * Math.round((179.2 - 170.5) / 360), el: 21.1, ld: 0.67, ...CONTRATO });
 
+    // First person (DIRECCION.md: you are the one who travels): from just after leaving the Earth to just
+    // before the act hands over, the camera flies the way itself, looking ahead along it, its gaze
+    // drawn to each world as it comes up in front: down onto the Moon's rail and along it, out to Mars
+    // and once round it, across to Venus and round behind it over its city. Out of the written shot
+    // and back into it at the ends (the seam to Mercury keeps its picture).
+    // (`cerca`: how much it draws the gaze near it; `destino`: a world the way goes to, that holds the
+    // gaze from far off, through a long lens, so the crossing has it ahead, growing, and the lens
+    // opens as it comes; `noche`: from its dark side, the gaze goes to its lit limb, the Sun rising
+    // over it, not to a black disc)
+    const Y_FP = V(0, 1, 0);
+    const T_RIEL1 = T0 + vuelo.tauDe('riel1');
+    const T_VENUS2 = T0 + vuelo.tauDe('venus2');
+    // (`visita`: while the way goes round it, the gaze stays on it whatever the way's own direction,
+    // turning onto it and off it again slowly, as a head turns)
+    const MUNDOS_FP = [
+      { c: E, R: RE, cerca: 0.42, destino: [0, 0], visita: [0, 0], noche: false },
+      { c: LUNA, R: RL, cerca: 0.42, destino: [0, 0], visita: [0, 0], noche: false },
+      { c: MA, R: RMA, cerca: 0.8, destino: [T_RIEL1, T_MARTE2], visita: [T_MARTE - 2.2, T_MARTE2 - 0.4], noche: false },
+      { c: VE, R: RV, cerca: 0.8, destino: [T_MARTE2 + 0.6, T_CORTE], visita: [T_VENUS - 2.2, T_VENUS2 - 0.4], noche: false },
+    ];
+    /** From one direction towards another by k, as a head turns: round «up», then up or down. */
+    const hA = V();
+    const hB = V();
+    const girarHacia = (a: THREE.Vector3, b: THREE.Vector3, k: number) => {
+      const elA = Math.asin(THREE.MathUtils.clamp(a.y, -1, 1));
+      const elB = Math.asin(THREE.MathUtils.clamp(b.y, -1, 1));
+      hA.set(a.x, 0, a.z);
+      hB.set(b.x, 0, b.z);
+      if (hA.lengthSq() < 1e-12 || hB.lengthSq() < 1e-12) return a.lerp(b, k).normalize();
+      hA.normalize();
+      hB.normalize();
+      const giro = Math.atan2(hA.x * hB.z - hA.z * hB.x, hA.dot(hB));
+      // (nearly right round, the turn could go either way: let go of it before it gets there)
+      k *= 1 - THREE.MathUtils.smoothstep(Math.abs(giro), 2.3, 2.9);
+      hA.applyAxisAngle(Y_FP, -giro * k);
+      const el = elA + (elB - elA) * k;
+      return a.copy(hA).multiplyScalar(Math.cos(el)).setY(Math.sin(el));
+    };
+    /** In the long crossings, the orbits faintly, so the way out has a map. */
+    const travesia = (p: number) =>
+      Math.max(
+        THREE.MathUtils.smoothstep(p, T_RIEL1 + 0.4, T_RIEL1 + 1.4) * (1 - THREE.MathUtils.smoothstep(p, T_MARTE - 2.2, T_MARTE - 1.2)),
+        THREE.MathUtils.smoothstep(p, T_MARTE2 + 0.6, T_MARTE2 + 1.6) * (1 - THREE.MathUtils.smoothstep(p, T_VENUS - 2.4, T_VENUS - 1.4)),
+      );
+    const F0 = T0 + 0.3;
+    const F1 = T0 + 2.0;
+    const F2 = T_CORTE - 2.4;
+    const F3 = T_CORTE - 0.3;
+    const CAMPANA_FP = [1, 4, 6, 4, 1];
+    const fpP = V();
+    const fpA = V();
+    const fpT = V();
+    const fpD = V();
+    const fpW = V();
+    const fpM = new THREE.Matrix4();
+    const cFP = { pos: V(), quat: new THREE.Quaternion(), fov: 40, dist: 1, lw: 0 };
+    /** Where the flight looks at beat p (into fpD), and its lens. */
+    const miradaFP = (p: number) => {
+      fpP.set(0, 0, 0);
+      for (let i = 0; i < 5; i++) fpP.addScaledVector(caminoCh(p + (i - 2) * 0.05, fpT), CAMPANA_FP[i] / 16);
+      fpA.set(0, 0, 0);
+      for (let i = 0; i < 6; i++) fpA.addScaledVector(caminoCh(p + 0.3 + i * 0.1, fpT), 1 / 6);
+      fpD.copy(fpA).sub(fpP);
+      if (fpD.lengthSq() < 1e-16) fpD.set(0, 0, -1);
+      fpD.normalize();
+      let cerca = Infinity;
+      let tele = 0;
+      let fovTele = 52;
+      const ade = fpT.copy(fpD);
+      for (const w of MUNDOS_FP) {
+        fpW.copy(w.c).sub(fpP);
+        const L = fpW.length();
+        fpW.divideScalar(L);
+        cerca = Math.min(cerca, Math.max(L - w.R, 0.002));
+        // (close by, even beside: going round a world, it is what you look at)
+        const delante = THREE.MathUtils.smoothstep(fpW.dot(ade), -0.85, -0.2);
+        const cuando = THREE.MathUtils.smoothstep(p, w.destino[0], w.destino[0] + 1.4) * (1 - THREE.MathUtils.smoothstep(p, w.destino[1] - 1.4, w.destino[1]));
+        const lejos = cuando > 0 ? cuando * THREE.MathUtils.smoothstep(L / w.R, 10, 24) * THREE.MathUtils.smoothstep(fpW.dot(ade), 0.0, 0.6) : 0;
+        const visita = THREE.MathUtils.smootherstep(p, w.visita[0], w.visita[0] + 1.8) * (1 - THREE.MathUtils.smootherstep(p, w.visita[1] - 2.4, w.visita[1])) * (1 - THREE.MathUtils.smoothstep(L / w.R, 6, 20));
+        // (a world it visits holds the gaze by the clock, not by where it is: let go by where it is, the
+        // gaze swung off it at once as the way turned away)
+        const deCerca = w.visita[1] > 0 ? 0 : w.cerca * (1 - THREE.MathUtils.smoothstep(L / w.R, 3, 16)) * delante;
+        let k = Math.max(deCerca, 0.95 * lejos, w.cerca * visita);
+        // (never onto what is right behind: there the turn could go either way round)
+        k *= THREE.MathUtils.smoothstep(fpW.dot(ade), -0.92, -0.7);
+        if (k <= 0) continue;
+        if (w.noche) {
+          // (towards the Sun, at the centre: the limb that faces it)
+          const sol = fpA.copy(w.c).normalize().negate();
+          const noche = 1 - THREE.MathUtils.smoothstep(-fpW.dot(sol), -0.4, 0.2);
+          sol.addScaledVector(fpW, -sol.dot(fpW));
+          if (sol.lengthSq() > 1e-12) fpW.copy(w.c).addScaledVector(sol.normalize(), w.R * 0.97 * noche).sub(fpP).normalize();
+        }
+        girarHacia(fpD, fpW, k);
+        if (lejos > tele) {
+          tele = lejos;
+          fovTele = THREE.MathUtils.clamp(THREE.MathUtils.radToDeg(2 * Math.atan((w.R * 3.2) / L)), 7, 52);
+        }
+      }
+      return { fov: 52 + (fovTele - 52) * tele, cerca };
+    };
+    const sumaD = V();
+    const MIRADA_W = [1, 2, 4, 6, 8, 9, 10, 9, 8, 6, 4, 2, 1];
+    const enPrimera = (p: number): PlanoCamara => {
+      // (the gaze over a beat round p, a head never jerks: a sudden turn of the way, or of what draws
+      // the eye, becomes a turn of the head)
+      sumaD.set(0, 0, 0);
+      let fov = 0;
+      let pesos = 0;
+      for (let i = 0; i < MIRADA_W.length; i++) {
+        const m = miradaFP(p + (i - 6) * 0.15);
+        sumaD.addScaledVector(fpD, MIRADA_W[i]);
+        fov += m.fov * MIRADA_W[i];
+        pesos += MIRADA_W[i];
+      }
+      const m = miradaFP(p);
+      cFP.pos.copy(fpP);
+      fpM.lookAt(fpT.set(0, 0, 0), sumaD.normalize(), Y_FP);
+      cFP.quat.setFromRotationMatrix(fpM);
+      cFP.fov = fov / pesos;
+      cFP.dist = m.cerca;
+      return cFP;
+    };
+
     const lugar = V();
     const mira = V();
     const inv = new THREE.Quaternion();
@@ -675,6 +799,8 @@ export const sistema: EscenaChasis = {
       },
       camara(p, ch, out) {
         plano(tl, p, ch, out);
+        const w = THREE.MathUtils.smootherstep(p, F0, F1) * (1 - THREE.MathUtils.smootherstep(p, F2, F3));
+        if (w > 0) mezclar(out, enPrimera(p), w, out);
       },
       escalera: false,
       efectos(p) {
@@ -744,7 +870,7 @@ export const sistema: EscenaChasis = {
         venusN.u.uCamL.value.copy(camera.position).sub(VE).divideScalar(RV);
         cinturon.u.uTodo.value = tl.get('todo', p);
         const mapa = tl.get('mapa', p);
-        orbs.u.uOn.value = mapa;
+        orbs.u.uOn.value = Math.max(mapa, 0.4 * travesia(p));
         marteN.u.uSizeUnit.value = RMA;
         venusN.u.uSizeUnit.value = RV;
         anillo.u.uSizeUnit.value = RE;

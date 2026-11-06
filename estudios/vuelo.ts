@@ -280,12 +280,14 @@ export function vueloInterior(): Vuelo {
   pon(LUNA.clone().lerp(MA, 0.3).addScaledVector(Y, 0.8));
   pon(enMarte(-38, 4.2, 0.35));
   pon(enMarte(15, 1.0, 0.15), 'marte');
-  pon(enMarte(70, 0.64, 0.03));
-  pon(enMarte(125, 0.62, -0.3));
-  pon(enMarte(180, 0.52, -0.56));
-  pon(enMarte(235, 0.62, -0.3));
-  pon(enMarte(290, 0.85, 0.0), 'marte2');
-  pon(enMarte(323, 2.6, 0.15));
+  // (slowly over its day side and up towards its pole, where the mirrors are, always the same way
+  // round: its night side was a black disc)
+  pon(enMarte(-5, 0.64, 0.12));
+  pon(enMarte(-28, 0.58, 0.3));
+  pon(enMarte(-50, 0.6, 0.42));
+  pon(enMarte(-68, 0.68, 0.36));
+  pon(enMarte(-64, 0.9, 0.2), 'marte2');
+  pon(enMarte(-37, 2.6, 0.15));
   // Across, above the plane, to Venus' side; round behind it at an even height, over the lights of
   // a city on its night side, and up away from it (never between it and the parasol, sunward; never
   // so low it seems to land).
