@@ -1,13 +1,12 @@
-import { DIR_VOZ } from './apertura';
 import * as THREE from 'three';
-import { Timeline } from '../../estudios/timeline';
-import { enfocar, materia, materiaBuilder, type Nube } from '../../estudios/motor/materia';
-import { gauss } from '../../estudios/motor/math';
-import type { Rotulo } from '../../estudios/placa';
-import { puntoTu } from '../../estudios/remake';
-import type { Camino } from '../../estudios/chispa';
-import type { Acto, EscenaChasis, FrameActo } from '../tipos';
-import { mezclar, toma, vuelo } from '../toma';
+import { Timeline } from '../../../estudios/timeline';
+import { enfocar, materia, type Nube } from '../../../estudios/motor/materia';
+import type { Rotulo } from '../../../estudios/placa';
+import { puntoTu } from '../../../estudios/remake';
+import type { Camino } from '../../../estudios/chispa';
+import type { Acto, EscenaChasis, FrameActo } from '../../tipos';
+import { mezclar, toma, vuelo } from '../../toma';
+import { V, CORAL, Neurona, bosque, axon } from './mundo';
 
 /**
  * The opening of GUION.md v2, moments 1–2: «Un pensamiento» and «Se apaga contigo».
@@ -19,63 +18,6 @@ import { mezclar, toma, vuelo } from '../toma';
  *
  * Units: about a neuron's reach.
  */
-
-const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
-const CORAL = new THREE.Color(1.0, 0.56, 0.45);
-const BLANCA = new THREE.Color(1.0, 0.86, 0.76);
-
-interface Neurona {
-  c: THREE.Vector3;
-}
-
-/** Neurons in a volume, each with its dendrites (branching), and an axon to a neighbour. */
-function bosque() {
-  const b = materiaBuilder(301);
-  const r = b.r;
-  const neuronas: Neurona[] = [];
-  // The first one, «tú», at the origin; the rest round it.
-  neuronas.push({ c: V() });
-  // (wide enough for the way to arc right round inside it: DIRECCION.md, 2)
-  while (neuronas.length < 230) {
-    const p = V((r() - 0.5) * 15, (r() - 0.5) * 5, (r() - 0.5) * 15);
-    if (neuronas.every((n) => n.c.distanceTo(p) > 0.9)) neuronas.push({ c: p });
-  }
-  const rama = (desde: THREE.Vector3, dir: THREE.Vector3, largo: number, nivel: number) => {
-    const fin = desde.clone().addScaledVector(dir, largo);
-    const n = Math.max(4, Math.round(largo * 180));
-    for (let i = 0; i < n; i++) {
-      const t = r();
-      const p = desde.clone().lerp(fin, t);
-      b.push(p.x + gauss(r) * 0.004, p.y + gauss(r) * 0.004, p.z + gauss(r) * 0.004, CORAL, 0.006, 0.16 + 0.1 * (4 - nivel), { kind: 1 });
-    }
-    if (nivel < 4) {
-      const hijas = 2;
-      for (let k = 0; k < hijas; k++) {
-        const d2 = dir.clone().add(V(gauss(r), gauss(r), gauss(r)).multiplyScalar(0.55)).normalize();
-        rama(fin, d2, largo * (0.55 + r() * 0.2), nivel + 1);
-      }
-    }
-  };
-  for (const ne of neuronas) {
-    // The body: a bright knot.
-    for (let i = 0; i < 70; i++) {
-      const [x, y, z] = b.onSphere();
-      const q = Math.cbrt(r()) * 0.05;
-      b.push(ne.c.x + x * q, ne.c.y + y * q, ne.c.z + z * q, BLANCA, 0.012, 0.9, { kind: 0 });
-    }
-    for (let k = 0; k < 6; k++) {
-      const [x, y, z] = b.onSphere();
-      rama(ne.c, V(x, y, z), 0.32 + r() * 0.2, 1);
-    }
-  }
-  return { b, neuronas };
-}
-
-/** An axon between two neurons: a soft curve. */
-function axon(a: THREE.Vector3, c: THREE.Vector3, r: () => number) {
-  const mid = a.clone().add(c).multiplyScalar(0.5).add(V(gauss(r), gauss(r), gauss(r)).multiplyScalar(0.35));
-  return new THREE.QuadraticBezierCurve3(a.clone(), mid, c.clone());
-}
 
 export const mente: EscenaChasis = {
   id: 'mente',

@@ -1,18 +1,19 @@
 import * as THREE from 'three';
-import { EASE, Timeline } from '../../estudios/timeline';
-import { DECADAS, LOG0, crearBurbuja, frente } from '../../estudios/burbuja';
-import { enfocar, materia, materiaBuilder, type MateriaData, type Nube } from '../../estudios/motor/materia';
-import { gauss } from '../../estudios/motor/math';
-import { TEAL, potencia, anioEn } from '../../estudios/remake';
-import { angulos, toma, type Toma } from '../../estudios/rig';
-import { tierra as tierraH } from '../../src/horizontes';
-import { crearChispa, montar, type Camino } from '../../estudios/chispa';
-import { S, brazo, galaxiaBrillo, galaxiaDatos, polvoDatos } from './apertura';
-import { cuantas, enfocarMarcas, marcas, nombres, type Nombre } from '../../estudios/revelar';
-import type { Cuenta, Rotulo } from '../../estudios/placa';
-import { escribir, toma as plano } from '../toma';
-import type { Acto, EscenaChasis, FrameActo } from '../tipos';
-import { COPIAS_MOVE, SALTOS_MOVE, SALTOS_POST, TOCADAS_MOVE, copiasDatos, curva, escombros, ramaBurbuja, saltosDatos, tocadasDatos } from '../../estudios/momentos-galaxia';
+import { EASE, Timeline } from '../../../estudios/timeline';
+import { DECADAS, LOG0, crearBurbuja, frente } from '../../../estudios/burbuja';
+import { enfocar, materia, materiaBuilder, type Nube } from '../../../estudios/motor/materia';
+import { TEAL, potencia, anioEn } from '../../../estudios/remake';
+import { angulos, toma, type Toma } from '../../../estudios/rig';
+import { tierra as tierraH } from '../../../src/horizontes';
+import { montar, type Camino } from '../../../estudios/chispa';
+import { S, galaxiaBrillo, galaxiaDatos, polvoDatos } from '../apertura';
+import { cuantas, enfocarMarcas, marcas, nombres, type Nombre } from '../../../estudios/revelar';
+import type { Cuenta, Rotulo } from '../../../estudios/placa';
+import { escribir, toma as plano } from '../../toma';
+import type { Acto, EscenaChasis, FrameActo } from '../../tipos';
+import { COPIAS_MOVE, SALTOS_MOVE, SALTOS_POST, TOCADAS_MOVE, copiasDatos, curva, escombros, ramaBurbuja, saltosDatos, tocadasDatos } from '../../../estudios/momentos-galaxia';
+import { V, Y, D2R, G, Q, ZOO, CALLAN, FILTRO, UNA, AZ_ALBA, MUNDO_VIVO, vigiasDatos, callanDatos, llamadaDatos, rojaDatos, muertosDatos } from './mundo';
+import { TOMA_GALAXIA } from './camara';
 
 /**
  * Scenes 16–17 of ESCALETA.md, «La burbuja» and «¿Dónde están?» (GUION.md, moments 36–42). The same
@@ -28,185 +29,6 @@ import { COPIAS_MOVE, SALTOS_MOVE, SALTOS_POST, TOCADAS_MOVE, copiasDatos, curva
  * The encounters are drawn far larger than they are (a world a few light-months across), each in a
  * group of its own so its small coordinates stay exact.
  */
-
-const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
-const Y = V(0, 1, 0);
-const D2R = THREE.MathUtils.degToRad;
-const G = V();
-/** Where the ship is, a little way from the Sun. */
-const Q = S.clone().add(V(0.004, 0.0005, -0.003));
-const enDisco = (R: number, j: number, off: number) => {
-  const th = brazo(R, j) + off;
-  return V(Math.sin(th) * R, 0.03, Math.cos(th) * R);
-};
-const ZOO = enDisco(30, 0, 0.5);
-const CALLAN = enDisco(36, 1, 0.42);
-const FILTRO = enDisco(42, 0, 0.62);
-/** The single star past the edge. */
-const UNA = enDisco(57, 1, 0.55).add(V(0, 0.4, 0));
-/** Where the camera stands round the living world when its star is right behind it. */
-const AZ_ALBA = 238;
-/** How much the gaze goes with the spark as it flies from one encounter to the next. */
-const VIAJA = 0;
-
-/** The living world's own seas and lands (not ours): deep ocean, green and ochre lands, ice at the poles. */
-const MUNDO_VIVO = /* glsl */ `
-  float cv = fbm(n * 1.6 + vec3(3.1, 7.7, 1.3));
-  float suelo = smoothstep(0.5, 0.53, cv);
-  vec3 verde = mix(vec3(0.12, 0.26, 0.08), vec3(0.42, 0.34, 0.17), smoothstep(0.48, 0.72, fbm(n * 4.3 + 2.0)));
-  float hielo = smoothstep(0.8, 0.9, abs(n.y) + 0.08 * fbm(n * 7.0));
-  alb = mix(mix(vec3(0.025, 0.1, 0.27), verde, suelo), vec3(0.55, 0.58, 0.62), hielo);
-  // (alive on its night side too, with no lights of anyone's: its seas faintly glowing, the land a
-  // darker shape on them, and auroras round its poles; a black disc ringed in blue read as a hoop)
-  extra += vec3(0.0, 0.018, 0.028) * (1.0 - suelo) * (1.0 - hielo) * (0.6 + 0.4 * fbm(n * 9.0 + 4.0));
-  float aurora = smoothstep(0.8, 0.84, abs(n.y)) * (1.0 - smoothstep(0.86, 0.9, abs(n.y)));
-  float cortina = smoothstep(0.35, 0.75, fbm(vec3(atan(n.z, n.x) * 5.0, n.y * 14.0, 1.7)));
-  extra += vec3(0.04, 0.16, 0.1) * aurora * cortina;
-`;
-
-/** The probes that keep away: a still lattice round the living world, from three radii out (its units). */
-function vigiasDatos(): MateriaData {
-  const b = materiaBuilder(213);
-  const n = 2200;
-  const ga = Math.PI * (3 - Math.sqrt(5));
-  for (let i = 0; i < n; i++) {
-    const y = 1 - ((i + 0.5) / n) * 2;
-    const rr = Math.sqrt(1 - y * y);
-    const th = ga * i;
-    const q = 3.1 + b.r() * 0.6;
-    b.push(Math.cos(th) * rr * q, y * q, Math.sin(th) * rr * q, TEAL, 0.03, 1.3);
-  }
-  return b.data();
-}
-
-/** A globular cluster: a few thousand old stars, crowded to the middle (its own units, radius ~1). */
-function callanDatos(): MateriaData {
-  const b = materiaBuilder(223);
-  const c = new THREE.Color();
-  for (let i = 0; i < 3200; i++) {
-    const [x, y, z] = b.onSphere();
-    const q = 0.08 + Math.pow(b.r(), 1.8) * 1.1;
-    c.setRGB(1, 0.8, 0.58).lerp(new THREE.Color(0.78, 0.86, 1), b.r() * b.r());
-    const brillo = 0.5 + 2.2 * Math.pow(b.r(), 6);
-    b.push(x * q, y * q * 0.85, z * q, c, 0.006 + 0.01 * Math.pow(b.r(), 3), brillo);
-  }
-  return b.data();
-}
-
-/** A call: a sphere of teal that spreads from the spark (unit radius, scaled by the shader). */
-function llamadaDatos(): MateriaData {
-  const b = materiaBuilder(225);
-  for (let i = 0; i < 5000; i++) {
-    const [x, y, z] = b.onSphere();
-    b.push(x, y, z, TEAL, 0.004, 0.22);
-  }
-  return b.data();
-}
-
-/** A dim red star (its own units: radius 1): points, a glow round them. */
-function rojaDatos(): MateriaData {
-  const b = materiaBuilder(227);
-  const r = b.r;
-  for (let i = 0; i < 14000; i++) {
-    const [x, y, z] = b.onSphere();
-    const q = Math.pow(r(), 0.25);
-    b.push(x * q, y * q, z * q, new THREE.Color(1.0, 0.2, 0.07), 0.03, 0.045);
-  }
-  for (let i = 0; i < 2000; i++) {
-    const [x, y, z] = b.onSphere();
-    const q = 1 + r() * r() * 1.6;
-    b.push(x * q, y * q, z * q, new THREE.Color(0.8, 0.16, 0.06), 0.1, 0.012);
-  }
-  return b.data();
-}
-
-/**
- * A dead swarm: collectors, square and ash-grey, on a broken shell round the red star, tumbling
- * (they catch its light now and then); some adrift, out of the shell (its own units).
- */
-function muertosDatos(): MateriaData {
-  const b = materiaBuilder(229);
-  const r = b.r;
-  for (let i = 0; i < 52000; i++) {
-    const [x, y, z] = b.onSphere();
-    const roto = Math.sin(x * 5 + y * 3) * Math.sin(z * 4) > 0.2;
-    if (roto && r() < 0.88) continue;
-    const suelto = r() < 0.06;
-    const q = suelto ? 3.3 + r() * 2.8 : 3.2 + gauss(r) * 0.06;
-    const g = 0.22 + r() * 0.16;
-    b.push(x * q, y * q, z * q, new THREE.Color(g * 1.1, g, g * 0.92), suelto ? 0.014 + r() * 0.03 : 0.012, 0.09 + r() * 0.07, { kind: suelto ? 1 : 0 });
-  }
-  return b.data();
-}
-
-/** The act's shot: p, az, el, ld, lw, mx, my, fov, roll (viaje.transcribir, then by hand). */
-const TOMA_GALAXIA: number[][] = [
-  [0, -95, 14, -3.3221, 0, -0.33, 0.23, 40, 0.0578],
-  [0.4, -112, 14.6, -3.2, 0.85, 0, -1, 40, 0.1],
-  [1.2, -160, 16.74, -2.802, 0.844, 4, -5, 40, 0.3],
-  [2.4, -206.25, 24.53, -2.844, 0.956, 4.57, -8.63, 40, 1.92],
-  [3.6, -220.64, 17.67, -2.786, 0.997, 1.04, -2.8, 40, 0.32],
-  [4.8, -214.2, 19.14, -2.819, 1, 1.1, -3.59, 40, 0.01],
-  [6, -203.6, 12.74, -2.296, 1, 0.35, -3.72, 40, -0.01],
-  [7.2, -199.36, 19.16, -1.795, 1, -0.36, -3.1, 40, -0.01],
-  [8.4, -199.82, 12.25, -0.932, 0.965, 0.29, 2.58, 40, -0.04],
-  [9.6, -197.42, 15.8, -0.303, 0.338, 0.52, 2.43, 40, -0.01],
-  [10.8, -195.39, 21.14, 0.08, 0.004, 0.01, 0.03, 40, 0],
-  [12, -193.68, 24.01, 0.458, 0, -0.01, -0.01, 40, 0],
-  [13.2, -191.63, 26.7, 0.744, 0, -0.01, -0.01, 40, 0],
-  [14.4, -189.28, 29.01, 0.883, 0, 0, 0, 40, 0],
-  [15.6, -187.05, 31.11, 0.939, 0, 0.01, -0.01, 40, 0],
-  [16.8, -185.38, 33.63, 1.091, 0, 0, -0.01, 40, 0],
-  [18, -183.99, 36.28, 1.32, 0, 0, 0, 40, 0],
-  [19.2, -182.55, 38.53, 1.542, 0, 0, -0.01, 40, 0],
-  [20.4, -180.67, 39.77, 1.674, 0, 0, 0, 40, 0],
-  [21.6, -177.92, 39.99, 1.7, 0, 0, 0, 40, 0],
-  [22.8, -173.73, 39.74, 1.703, 0, 0.01, 0, 40, 0],
-  [24, -166.98, 37.28, 1.731, 0, -0.02, 0.01, 40, 0],
-  [25.2, -157.91, 31.7, 1.792, 0, -0.01, 0.02, 40, 0],
-  [26.4, -148.48, 24.79, 1.861, 0, 0, 0, 40, 0.03],
-  [27.6, -140.86, 18.55, 1.89, 0.001, -0.04, 0.01, 40, 0],
-  [28.8, -130.45, 12.05, 1.532, 0.146, -5, 1.77, 40, 0.23],
-  [30, -104.91, 1.65, 1.139, 0.853, -22.66, 7.49, 40, 1.22],
-  [31.2, -107.43, 10, -0.466, 0.579, -19.87, 5.53, 39.97, 0.66],
-  [32.4, -125.35, 7.03, -2.482, 0.027, -1.99, 0.51, 39.52, 0.03],
-  [33.6, -122.4, 7.28, -2.717, 0, 0, 0, 38.62, 0],
-  [34.8, -115.65, 6.99, -2.771, 0, 0, 0, 38.06, 0],
-  [36, -105.88, 6.61, -2.785, 0, 0, 0, 38, 0],
-  [37.2, -93.25, 6.24, -2.792, 0, 0, 0, 38, 0],
-  [38.4, -79.99, 6.44, -2.759, 0.001, -0.14, 0.02, 38, 0.01],
-  [39.6, -51.5, 6.64, -1.743, 0.18, -11.33, 2.4, 38, 1.38],
-  [40.8, -30.43, 7.45, 0.4, 0.816, -17.09, 5.25, 38, 3.22],
-  [42, -54.09, 17.04, -0.247, 0.219, 1.21, -0.35, 38, -0.47],
-  [43.2, -43.24, 14.5, -1.366, 0.002, 0.02, -0.01, 38.17, -0.01],
-  [44.4, -33.05, 12.62, -1.775, 0, 0.01, 0, 40.38, 0],
-  [45.6, -20.74, 11.06, -1.925, 0, 0.01, 0, 45.05, 0],
-  [46.8, -6.67, 9.26, -2.089, 0, 0.02, 0, 48.95, 0],
-  [48, 9.96, 7, -2.3, 0, 0.04, -0.01, 51.85, 0],
-  [49.2, 24.1, 5.55, -2.395, 0, 0, 0, 53.64, 0],
-  [50.4, 30.98, 8.23, -1.441, 0.052, 0.09, 0.58, 53.99, 0],
-  [51.6, 33.54, 6.58, 0.477, 0.66, 1.97, 8.09, 54, 0],
-  [52.8, 40.93, 11.45, -0.346, 0.251, 1.25, 3.41, 54, 0],
-  [54, 50.92, 12.72, -1.943, 0.002, 0.02, 0.03, 53.97, 0],
-  [55.2, 60.1, 10.84, -2.46, 0, 0, 0, 53.35, 0],
-  [56.4, 69.67, 9.13, -2.594, 0, 0, 0, 51.69, 0],
-  [57.6, 80.33, 7.51, -2.676, 0, -0.01, 0, 50.32, 0],
-  [58.8, 92.84, 5.88, -2.743, 0, 0.01, 0, 50.01, 0],
-  [60, 107.4, 4.25, -2.8, 0, 0.01, 0, 50, 0],
-  [61.2, 122.82, 3.57, -2.767, 0, -0.01, 0.01, 50, 0],
-  [62.4, 141.08, 9.36, -1.609, 0.023, -2.22, 0.17, 50, 0.36],
-  [63.6, 192.1, 12.42, 0.695, 0.54, -24.49, 4.28, 49.84, 5.65],
-  [64.8, 194.09, 23.1, 1.63, 0.98, -12.77, 7.37, 48.52, 2.11],
-  [66, 196.92, 39.77, 1.97, 0.652, 4.86, -0.08, 46.62, 0.01],
-  [67.2, 227.67, 38.49, 1.926, 0.046, 0.37, -0.13, 46.02, 0.01],
-  [68.4, 252.31, 27.5, 1.376, 0, 0.02, 0, 46, 0.01],
-  [69.6, 286.66, 17.99, 0.805, 0, 0.04, 0, 46, 0.01],
-  [70.8, 340.41, 11.78, 0.363, 0, 0.03, 0.01, 46, 0.01],
-  [72, 392.78, 7.46, -0.126, 0, 0, 0, 45.99, 0.01],
-  [73.2, 422.12, 5.35, -0.972, 0, 0, 0, 45.61, 0],
-  [74.4, 437.19, 4.35, -2.12, 0, -0.01, 0, 44.58, 0],
-  [75.2, 442.59, 4, -2.678, 0, -0.08, 0.02, 44, 0.01]
-];
 
 export const galaxia: EscenaChasis = {
   id: 'galaxia',
