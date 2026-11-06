@@ -448,8 +448,8 @@ export const despierta: EscenaChasis = {
     mira(6.0, CIMA, 1);
     mira(6.8, CIMA, 1);
     // (out between the tentacles, mostly ahead; then round to the bell, and to the brain where it was)
-    mira(8.0, V(0, 0.1, 0), 0.7);
-    mira(8.6, V(0, 0.1, 0), 0.66);
+    mira(8.0, V(0, 0.0, 0), 0.8);
+    mira(8.6, V(0, 0.0, 0), 0.82);
     mira(9.8, V(0, 0.05, 0), 0.95);
     mira(11.6, CERO, 1);
     mira(12.4, TU, 0.85);
