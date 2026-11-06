@@ -511,8 +511,8 @@ export const tierraNoche: EscenaChasis = {
     const cDir = dirLatLon(CABLE.lat, CABLE.lon);
     const cW = cDir.clone().applyQuaternion(earth.quaternion);
     const cAng = angulos(cW);
-    /** Riding beside the cable, not on it: a fixed step east of it. */
-    const lado = V(0, 1, 0).cross(cW).normalize().multiplyScalar(0.03);
+    /** Riding beside the cable, not on it: a fixed step east of it, close enough for the factories to go by large. */
+    const lado = V(0, 1, 0).cross(cW).normalize().multiplyScalar(0.011);
     /** The last view: 48° above the equator and turned from the cable, so the ring opens and the cable shows in profile. */
     const norte = V(0, 1, 0).applyQuaternion(earth.quaternion);
     const fin = angulos(cW.clone().applyAxisAngle(norte, THREE.MathUtils.degToRad(-75)).multiplyScalar(Math.cos(0.84)).addScaledVector(norte, Math.sin(0.84)));
@@ -738,7 +738,7 @@ export const tierraNoche: EscenaChasis = {
     luego(0.5, 2.4, { warm: 0 });
     luego(1.3, 1.9, { ir: 0, presencia: 1 });
     tl.to(2.6, { az: cAng.az + 30, el: cAng.el + 12, ld: 0.5 });
-    tl.to(2.4, { az: cAng.az, el: cAng.el, ld: 0.075, ox: lado.x, oy: lado.y, oz: lado.z, pitch: -9, yaw: 180, roll: 7, fov: 54 });
+    tl.to(2.4, { az: cAng.az, el: cAng.el, ld: 0.075, ox: lado.x, oy: lado.y, oz: lado.z, pitch: -36, yaw: 180, roll: 4, fov: 56 });
     tl.to(5.4, { ld: 0.74, pitch: -74, roll: 0, fov: 48 });
     luego(-2.2, 3.0, { ani: 1 });
     // At the top, away from the cable to see the whole Earth with its ring.
