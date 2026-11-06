@@ -97,6 +97,49 @@ const svDe = (u: number) => {
   return i + (u - ARCOS[i]) / Math.max(1e-9, ARCOS[i + 1] - ARCOS[i]);
 };
 /**
+ * The route as the spark flies it: at each stop at the same s as `rutaTierra`, but by length, and its
+ * pace changing smoothly from leg to leg (by stop, a short leg after a long one changed its pace at once
+ * there, thirtyfold at Mumbai's last hop). The arc at s through the stops' arcs, monotone and smooth.
+ */
+const PEND_ARCOS = (() => {
+  const n = ARCOS.length;
+  const m = new Float64Array(n);
+  for (let k = 1; k < n - 1; k++) {
+    const d0 = ARCOS[k] - ARCOS[k - 1];
+    const d1 = ARCOS[k + 1] - ARCOS[k];
+    if (d0 * d1 > 0) m[k] = (2 * d0 * d1) / (d0 + d1);
+  }
+  m[0] = ARCOS[1] - ARCOS[0];
+  m[n - 1] = ARCOS[n - 1] - ARCOS[n - 2];
+  return m;
+})();
+function arcoSuave(sv: number) {
+  const n = ARCOS.length - 1;
+  const x = Math.min(Math.max(sv, 0), n);
+  const i = Math.min(Math.floor(x), n - 1);
+  const t = x - i;
+  const t2 = t * t;
+  const t3 = t2 * t;
+  return (2 * t3 - 3 * t2 + 1) * ARCOS[i] + (t3 - 2 * t2 + t) * PEND_ARCOS[i] + (-2 * t3 + 3 * t2) * ARCOS[i + 1] + (t3 - t2) * PEND_ARCOS[i + 1];
+}
+const tmpRuta = V();
+export function rutaSuave(sv: number, out = V()) {
+  // (and its corners at the stops rounded over a few hundred kilometres of arc: the way turned at
+  // each city at once, and the camera flying close behind felt the corner)
+  const u = arcoSuave(sv);
+  out.set(0, 0, 0);
+  let peso = 0;
+  let radio = 0;
+  for (let k = -4; k <= 4; k++) {
+    const w = (1 - (k / 5) ** 2) ** 2;
+    rutaTierra(svDe(u + k * 0.01), tmpRuta);
+    out.addScaledVector(tmpRuta, w);
+    radio += tmpRuta.length() * w;
+    peso += w;
+  }
+  return out.setLength(radio / peso);
+}
+/**
  * The camera riding the spark over the Earth (its own frame): behind, a little above, looking
  * ahead. It rides by distance along the route, not by stop (a short leg and a long one take the
  * same s), so it can round each city in a wide curve without its average running ahead.
@@ -112,12 +155,12 @@ export function montarTierra(sv: number) {
 export const VUELO = { el: 34, ld: Math.log10(0.02) };
 /** The way's heading at route s (rounded over its stops), turned by the Earth's `q`. */
 export function rumboTierra(sv: number, q: THREE.Quaternion, out = V()) {
-  const u = arcoDe(sv);
+  const u = arcoSuave(sv);
   return out.copy(rutaTierra(svDe(u + 0.1))).sub(rutaTierra(svDe(u - 0.1))).applyQuaternion(q);
 }
 /** The frame of the ground under route s (marcoRadial), the Earth turned by `q`. */
 export function sueloTierra(sv: number, q: THREE.Quaternion) {
-  return marcoRadial(rutaTierra(sv).applyQuaternion(q), V(), V(0, 1, 0).applyQuaternion(q));
+  return marcoRadial(rutaSuave(sv).applyQuaternion(q), V(), V(0, 1, 0).applyQuaternion(q));
 }
 /** Where the data centre is, and the cities its copies go to. */
 const DC = [19.1, 72.9];
@@ -755,7 +798,7 @@ export const tierraNoche: EscenaChasis = {
     const bajaE = enHall(0, 0, PASILLO_Z).applyQuaternion(qL).applyQuaternion(earth.quaternion.clone().invert());
     const hSala = Math.log10(1.2 * M);
     const rutaMia = (sv: number, out: THREE.Vector3) => {
-      if (sv <= S_CAIRO + 5) return rutaTierra(sv, out);
+      if (sv <= S_CAIRO + 5) return rutaSuave(sv, out);
       const k = Math.min(1, (sv - S_CAIRO - 5) / 0.6);
       const h = Math.pow(10, lerp(Math.log10(0.006), hSala, k));
       return out.copy(dcE).multiplyScalar(1 + h).addScaledVector(bajaE, k);

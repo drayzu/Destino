@@ -25,10 +25,15 @@ export const RELEVO = 1.8;
 export const FUNDIDO_MIN = 0.4;
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+/**
+ * Whether the spark is drawn. Without it (the `sin-chispa` branch) the viewer is what travels: the
+ * camera flies the spark's way, first person, and what it lights as it passes still lights.
+ */
+export const CHISPA_VISIBLE = false;
 /** How far either side (beats) a shot averages the spark's way it follows (see chispaSeguida). */
-export const SIGUE = 0.35;
-const OFFS_SIGUE = Array.from({ length: 11 }, (_, k) => ((k + 0.5) / 11) * 2 - 1);
-const PESOS_SIGUE = OFFS_SIGUE.map((o) => (1 - o * o) ** 2);
+export const SIGUE = CHISPA_VISIBLE ? 0.35 : 0.8;
+/** At most about this many shot distances of way either side (a visible spark must stay in frame). */
+const SIGUE_LARGO = CHISPA_VISIBLE ? 0.6 : 3.0;
 const smooth = (x: number) => x * x * (3 - 2 * x);
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 
@@ -137,22 +142,32 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
   function chispaSeguida(i: number, p: number, dist: number, out: THREE.Vector3) {
     const A = tramos[i].acto;
     const L = tramos[i].largo;
-    let w = SIGUE * clamp(Math.min(p, L - p) / 0.8, 0, 1);
-    if (w < 1e-4) return A.chispa(p, out, tiempo);
-    A.chispa(p + 0.02, tmpSigue, tiempo);
-    A.chispa(p - 0.02, tmpSigue2, tiempo);
-    const vel = tmpSigue.distanceTo(tmpSigue2) / 0.04;
-    if (vel > 1e-12) w = Math.min(w, (0.6 * dist) / vel);
-    if (w < 1e-4) return A.chispa(p, out, tiempo);
+    const w = SIGUE * clamp(Math.min(p, L - p) / 0.8, 0, 1);
+    if (!A.chispa(p, tmpSigue2, tiempo)) return false;
+    if (w < 1e-4) {
+      out.copy(tmpSigue2);
+      return true;
+    }
+    // (on a grid fixed in the beats, the weights sliding over it: samples that moved with p let each
+    // corner of the way in and out of the average by steps)
+    const paso = Math.min(0.04, w / 6);
     out.set(0, 0, 0);
     let peso = 0;
-    for (let k = 0; k < PESOS_SIGUE.length; k++) {
-      if (!A.chispa(p + OFFS_SIGUE[k] * w, tmpSigue, tiempo)) continue;
-      out.addScaledVector(tmpSigue, PESOS_SIGUE[k]);
-      peso += PESOS_SIGUE[k];
+    for (let g = Math.ceil((p - w) / paso) * paso; g <= p + w; g += paso) {
+      const x = (g - p) / w;
+      const k = (1 - x * x) ** 2;
+      if (k <= 0 || !A.chispa(g, tmpSigue, tiempo)) continue;
+      out.addScaledVector(tmpSigue, k);
+      peso += k;
     }
     if (peso < 1e-9) return false;
     out.divideScalar(peso);
+    // (never far from the spark: past about SIGUE_LARGO shot distances, drawn back softly; a window
+    // that shrank with the spark's pace jumped as it set off)
+    const lim = SIGUE_LARGO * dist;
+    const d = out.sub(tmpSigue2);
+    d.multiplyScalar(lim / Math.sqrt(lim * lim + d.lengthSq()));
+    out.add(tmpSigue2);
     return true;
   }
 
@@ -319,7 +334,7 @@ export function crearPelicula(stage: Stage, escenas: EscenaChasis[]) {
     cam.updateMatrixWorld();
     // The spark: one, on the film's way, in this act's units.
     camino.j = i;
-    const on = pose.chispa ? (A.luz ? A.luz(p) : A.tl.get('on', p)) : 0;
+    const on = CHISPA_VISIBLE && pose.chispa ? (A.luz ? A.luz(p) : A.tl.get('on', p)) : 0;
     chispa.nube.points.visible = on > 0.001;
     if (pose.chispa && on > 0.001) {
       // (its wake: the way back over about its ride's distance on screen)

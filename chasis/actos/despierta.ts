@@ -8,7 +8,7 @@ import { tierra as tierraHorizontes } from '../../src/horizontes';
 import { FONT, ink, type Cuenta, type Rotulo } from '../../estudios/placa';
 import { TEAL, capaLuz, caraHacia, potencia, puntoTu, anioEn } from '../../estudios/remake';
 import { toma } from '../../estudios/rig';
-import { CARA, SOL, S_CAIRO, VUELO, luces, rumboTierra, rutaTierra, sueloTierra } from './tierra';
+import { CARA, SOL, S_CAIRO, VUELO, luces, rumboTierra, rutaSuave, rutaTierra, sueloTierra } from './tierra';
 import { CONTRATO, aMarco, detras, toma as plano } from '../toma';
 import type { Camino } from '../../estudios/chispa';
 import type { Acto, EscenaChasis, FrameActo } from '../tipos';
@@ -456,7 +456,7 @@ export const despierta: EscenaChasis = {
       }
       if (sv <= 3) return out.copy(enCerebro.getPoint(sv - 2));
       if (sv <= 3.4) return out.copy(aLondres.getPoint((sv - 3) / 0.4));
-      return rutaTierra((sv - 3.4) * (S_CAIRO / (S_CAIRO / 4 + 0.6)), out).applyQuaternion(qT);
+      return rutaSuave((sv - 3.4) * (S_CAIRO / (S_CAIRO / 4 + 0.6)), out).applyQuaternion(qT);
     };
     // Over the night Earth from London on: tierra.ts's ride (VUELO), down onto the spark as it arrives.
     const svT = (p: number) => Math.max(0, (tl.get('sc', p) - 3.4) * (S_CAIRO / (S_CAIRO / 4 + 0.6)));

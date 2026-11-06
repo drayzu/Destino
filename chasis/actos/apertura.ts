@@ -598,10 +598,13 @@ export const apertura: EscenaChasis = {
     // not sit behind it: it swings round it, the systems sliding past one side and then the other.
     tl.label('planetas').caption(7.6, 'Planetas por todas partes', 'Y planetas no faltan: al menos uno por estrella. Muchos, donde podría haber agua.');
     const L0 = tl.at('planetas');
+    // (the descent's distance flows from the galaxy view straight down, with no key where «alguien»
+    // ends: there the camera started to plunge at once)
     luego(0, 2.4, { ld: -2.0, el: 10, az: 96 });
     luego(1.8, 1.6, { pla: 1 });
     luego(1.4, 6.2, { sc: 2 });
     tl.keyAt(L0 + 2.9, { ...C(P) });
+    tl.quitar(['ld'], L0 - 0.1, L0 + 0.1);
     luego(1.5, 1.4, { lw: 1, ld: L_PASO + 0.3, my: -4 });
     // (round it: the angle from right behind it, `fi`, read off the way's heading where the spark is)
     const tg = V();
