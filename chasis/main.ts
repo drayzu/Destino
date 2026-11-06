@@ -614,7 +614,7 @@ const api = {
    * round it (its jitter out), what it looks at being the act's centre (`cx…`) drawn to the spark as
    * much as the camera rode it (`lw`): p, az, el, ld, lw, mx, my, fov, roll.
    */
-  transcribir(i: number, desde: number, hasta: number, cada = 1.2) {
+  transcribir(i: number, desde: number, hasta: number, cada = 1.2, mirada = false) {
     const t = tramos[i];
     const tl = t.acto.tl;
     const h = 0.05;
@@ -627,9 +627,11 @@ const api = {
     let azAnt = NaN;
     for (let p = Math.max(0, desde - cada); p <= Math.min(t.largo, hasta + cada) + 1e-9; p += h) {
       const pose = peli.camara(t.inicio + Math.min(p, t.largo - 1e-6));
-      const lw = pose.chispa ? pose.lw : 0;
-      c.set(tl.get('cx', p), tl.get('cy', p), tl.get('cz', p));
-      if (pose.chispa) c.lerp(pose.chispa, lw);
+      // (`mirada`: what it looks at is the point straight ahead at its distance, written as the centre)
+      const lw = pose.chispa && !mirada ? pose.lw : 0;
+      if (mirada) c.set(0, 0, -pose.dist).applyQuaternion(pose.quat).add(pose.pos);
+      else c.set(tl.get('cx', p), tl.get('cy', p), tl.get('cz', p));
+      if (pose.chispa && !mirada) c.lerp(pose.chispa, lw);
       v.copy(pose.pos).sub(c);
       const d = v.length();
       v.divideScalar(d);
@@ -646,20 +648,21 @@ const api = {
       u.set(0, 1, 0).applyQuaternion(pose.quat);
       const nivel = new THREE.Vector3(0, 1, 0).addScaledVector(f, -f.y).normalize();
       const roll = THREE.MathUtils.radToDeg(Math.atan2(nivel.clone().cross(u).dot(f), nivel.dot(u)));
-      filas.push([p, az, el, Math.log10(d), lw, mx, my, pose.fov, roll]);
+      filas.push([p, az, el, Math.log10(d), lw, mx, my, pose.fov, roll, ...(mirada ? [c.x, c.y, c.z] : [])]);
     }
     const out: number[][] = [];
     for (let p = desde; p <= hasta + 1e-9; p += cada) {
       const s = cada * 0.45;
-      const k = new Array(9).fill(0);
+      const ncol = filas[0].length;
+      const k = new Array(ncol).fill(0);
       let w = 0;
       for (const r of filas) {
         const x = Math.exp(-0.5 * ((r[0] - p) / s) ** 2);
         if (x < 1e-4) continue;
-        for (let j = 1; j < 9; j++) k[j] += r[j] * x;
+        for (let j = 1; j < ncol; j++) k[j] += r[j] * x;
         w += x;
       }
-      out.push([+p.toFixed(3), ...k.slice(1).map((x, j) => +(x / w).toFixed(j === 2 || j === 3 ? 3 : 2))]);
+      out.push([+p.toFixed(3), ...k.slice(1).map((x, j) => +(x / w).toFixed(j >= 8 ? 5 : j === 2 || j === 3 ? 3 : 2))]);
     }
     return out;
   },

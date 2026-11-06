@@ -195,6 +195,8 @@ const PISTAS_TOMA = ['az', 'el', 'ld', 'lw', 'mx', 'my', 'fov', 'roll'] as const
  * inside the stretch give way to these. What it looks at between whiles stays the act's `cx…`.
  */
 export function escribir(tl: Timeline, filas: readonly (readonly number[])[]) {
-  tl.quitar(PISTAS_TOMA, filas[0][0], filas[filas.length - 1][0]);
-  for (const f of filas) tl.keyAt(f[0], Object.fromEntries(PISTAS_TOMA.map((k, j) => [k, f[j + 1]])));
+  // (rows of twelve also say what it looks at: cx, cy, cz)
+  const pistas = filas[0].length > 9 ? [...PISTAS_TOMA, 'cx', 'cy', 'cz'] : PISTAS_TOMA;
+  tl.quitar(pistas, filas[0][0], filas[filas.length - 1][0]);
+  for (const f of filas) tl.keyAt(f[0], Object.fromEntries(pistas.map((k, j) => [k, f[j + 1]])));
 }
