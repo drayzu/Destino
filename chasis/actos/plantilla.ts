@@ -6,7 +6,7 @@ import { mezclar, toma, vuelo } from '../toma';
 import type { Acto, EscenaChasis, FrameActo, PlanoCamara } from '../tipos';
 
 /**
- * A new scene, from scratch: the template for extending Destino (CHASIS.md, «Una escena nueva»).
+ * A new scene, from scratch: the template for extending Destino (CHASIS.md, «Cambios comunes»).
  *
  * It knows nothing of the acts round it. It goes between any two through the frame (`costura:
  * 'cuadro'`): the engine lays its first picture on the last act's last one, turned and scaled to fit
