@@ -384,6 +384,11 @@ export const apertura: EscenaChasis = {
         pre: /* glsl */ `uniform float uGal, uOla, uOlaOn, uCerca; uniform vec3 uSol, uTeal, uCamG;`,
         move: /* glsl */ `
           em *= smoothstep(0.25 * uCerca, 1.6 * uCerca, length(p - uCamG));
+          // (stars seen along the disc, from inside its thin layer or just over it, pile up into a
+          // burnt band that went out at once as the camera rose out of the layer: dimmed the flatter
+          // they are seen, the same on both sides of it)
+          vec3 dv = p - uCamG;
+          em *= mix(0.08, 1.0, smoothstep(0.0, 0.12, abs(dv.y) / max(length(dv), 1e-6)));
           // What should be there: one civilization's teal over the whole galaxy, a wave from the Sun.
           float dS = length(p - uSol);
           float frente = uOla * 110.0;
